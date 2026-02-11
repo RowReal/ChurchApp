@@ -1,0 +1,209 @@
+﻿@page "/offering/rejected"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject OfferingService OfferingService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Rejected Offerings - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-times-circle me-2"></i>
+                        Rejected Offerings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (rejectedOfferings.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Offering Type</th>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Currency</th>
+                                        <th>Payment Mode</th>
+                                        <th>Rejected By</th>
+                                        <th>Rejection Reason</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var offering in rejectedOfferings)
+                                    {
+                                        <tr>
+                                            <td>@offering.OfferingTypeName</td>
+                                            <td>@offering.OfferingDate.ToString("MMM dd, yyyy")</td>
+                                            <td>@offering.Amount.ToString("N2")</td>
+                                            <td>@offering.Currency</td>
+                                            <td>@offering.PaymentMode</td>
+                                            <td>@(offering.ApprovedByName ?? "N/A")</td>
+                                            <td>
+                                                <small class="text-muted">@(offering.AdminComments ?? "No reason provided")</small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @onclick="() => ReviewOffering(offering.Id)">
+                                                        <i class="fas fa-edit me-1"></i>Review
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" @onclick="() => ShowDeleteConfirmation(offering)">
+                                                        <i class="fas fa-trash me-1"></i>Cancel
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h4>No Rejected Offerings</h4>
+                            <p class="text-muted">You don't have any rejected offerings at the moment.</p>
+                            <a href="/offering/record" class="btn btn-primary">
+                                <i class="fas fa-plus-circle me-2"></i>Record New Offering
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirm Deletion
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this offering record?</p>
+                    <div class="alert alert-warning">
+                        <strong>Warning:</strong> This action cannot be undone. The offering record will be permanently deleted.
+                    </div>
+                    <div class="card">
+                        <div class="card-body">
+                            <strong>@offeringToDelete?.OfferingTypeName</strong><br />
+                            Date: @offeringToDelete?.OfferingDate.ToString("MMM dd, yyyy")<br />
+                            Amount: @offeringToDelete?.Amount.ToString("N2") @offeringToDelete?.Currency<br />
+                            Reason: @(offeringToDelete?.AdminComments ?? "No reason provided")
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">
+                        <i class="fas fa-trash me-2"></i>Delete Offering
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<OfferingRecord> rejectedOfferings = new();
+    private bool showDeleteModal = false;
+    private OfferingRecord? offeringToDelete = null;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRejectedOfferings();
+        isLoading = false;
+    }
+
+    private async Task LoadRejectedOfferings()
+    {
+        try
+        {
+            if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+            {
+                // Use WorkerId (string) instead of Id (int)
+                var workerId = AuthService.CurrentWorker.WorkerId;
+
+                if (string.IsNullOrEmpty(workerId))
+                {
+                    Console.WriteLine("WorkerId is null or empty");
+                    return;
+                }
+
+                rejectedOfferings = await OfferingService.GetRejectedOfferingsByUserAsync(workerId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading rejected offerings: {ex.Message}");
+        }
+    }
+
+    private void ReviewOffering(int offeringId)
+    {
+        Navigation.NavigateTo($"/offering/review/{offeringId}");
+    }
+
+    private void ShowDeleteConfirmation(OfferingRecord offering)
+    {
+        offeringToDelete = offering;
+        showDeleteModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        offeringToDelete = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (offeringToDelete != null)
+        {
+            try
+            {
+                // Get the current worker's ID
+                var workerId = AuthService.CurrentWorker?.WorkerId;
+
+                if (string.IsNullOrEmpty(workerId))
+                {
+                    Console.WriteLine("Cannot delete offering: No authenticated worker found.");
+                    return;
+                }
+
+                var success = await OfferingService.DeleteOfferingAsync(offeringToDelete.Id, workerId);
+                if (success)
+                {
+                    await LoadRejectedOfferings();
+                    CloseDeleteModal();
+                }
+                else
+                {
+                    Console.WriteLine("Failed to delete offering. It may not exist or you may not have permission.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting offering: {ex.Message}");
+            }
+        }
+    }
+}

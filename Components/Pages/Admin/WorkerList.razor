@@ -1,0 +1,291 @@
+﻿@page "/admin/worker-update"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject WorkerService WorkerService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+@if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+{
+    <PageTitle>Update Workers - Admin Panel</PageTitle>
+
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h2>Update Worker Profiles</h2>
+                <p class="text-muted">Select a worker to view and update their profile</p>
+            </div>
+        </div>
+
+        <!-- Workers List -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">All Workers</h5>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox"
+                           @bind="showInactiveWorkers"
+                           @bind:after="ApplyFilter"
+                           id="showInactive">
+                    <label class="form-check-label" for="showInactive">
+                        Show Inactive Workers
+                    </label>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (filteredWorkers.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Worker ID</th>
+                                    <th>Name</th>
+                                    <th>Directorate</th>
+                                    <th>Department</th>
+                                    <th>Role</th>
+                                    <th>Data %</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var worker in filteredWorkers)
+                                {
+                                    <tr>
+                                        <td>@worker.WorkerId</td>
+                                        <td>@worker.FirstName @worker.LastName</td>
+                                        <td>@(worker.Directorate?.Name ?? "Not assigned")</td>
+                                        <td>@(worker.Department?.Name ?? "Not assigned")</td>
+                                        <td>
+                                            <span class="badge bg-secondary">@worker.Role</span>
+                                        </td>
+                                        <td>
+                                            @{
+                                                var completeness = CalculateCompleteness(worker);
+                                            }
+                                            <div class="completeness-container">
+                                                <span class="badge @GetCompletenessBadgeClass(completeness)">
+                                                    @completeness%
+                                                </span>
+                                                <div class="progress" style="height: 6px; width: 80px; margin-top: 5px;">
+                                                    <div class="progress-bar @GetCompletenessClass(completeness)"
+                                                         style="width: @completeness%"
+                                                         title="@completeness% Complete">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <a href="/admin/worker-details/@worker.Id" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            <a href="/admin/worker-update-form/@worker.Id" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No workers found.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+else if (AuthService.IsAuthenticated && !AuthService.CanAccessAdminPanel())
+{
+    <!-- Access denied content -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">Access Denied</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-ban fa-3x text-danger mb-3"></i>
+                        <h4>Access Denied</h4>
+                        <p class="text-muted">You don't have permission to access this page.</p>
+                        <a href="/" class="btn btn-primary">Return to Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Not authenticated -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">Authentication Required</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h4>Please Log In</h4>
+                        <p class="text-muted">You need to be logged in to access this page.</p>
+                        <a href="/login" class="btn btn-primary">Go to Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Worker> workers = new();
+    private List<Worker> filteredWorkers = new();
+    private bool showInactiveWorkers = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            workers = await WorkerService.GetAllWorkersAsync();
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading workers: {ex.Message}");
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        if (showInactiveWorkers)
+        {
+            filteredWorkers = workers
+                .OrderBy(w => w.Directorate != null ? w.Directorate.Name : "ZZZ")
+                .ThenBy(w => w.Department != null ? w.Department.Name : "ZZZ")
+                .ThenBy(w => w.LastName)
+                .ThenBy(w => w.FirstName)
+                .ToList();
+        }
+        else
+        {
+            filteredWorkers = workers
+                .Where(w => w.IsActive)
+                .OrderBy(w => w.Directorate != null ? w.Directorate.Name : "ZZZ")
+                .ThenBy(w => w.Department != null ? w.Department.Name : "ZZZ")
+                .ThenBy(w => w.LastName)
+                .ThenBy(w => w.FirstName)
+                .ToList();
+        }
+        StateHasChanged();
+    }
+
+    private int CalculateCompleteness(Worker worker)
+    {
+        var filledFields = 0;
+        var totalFields = 15; // Total number of important fields we're checking
+
+        // Personal Information (5 fields)
+        if (!string.IsNullOrEmpty(worker.FirstName)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.LastName)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Email)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Phone)) filledFields++;
+        if (worker.DateOfBirth.HasValue) filledFields++;
+
+        // Professional Information (3 fields)
+        if (!string.IsNullOrEmpty(worker.Profession)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Organization)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Address)) filledFields++;
+
+        // Church Information (5 fields)
+        if (worker.DirectorateId.HasValue) filledFields++;
+        if (worker.DepartmentId.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Role)) filledFields++;
+        if (worker.DateJoinedChurch.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.OrdinationLevel)) filledFields++;
+
+        // Qualifications (2 fields - checking if they have at least one)
+        if (worker.HasBelieverBaptism || worker.HasWorkerInTraining ||
+            worker.HasSOD || worker.HasBibleCollege) filledFields++;
+        if (!string.IsNullOrEmpty(worker.PassportPhotoPath)) filledFields++;
+
+        return totalFields > 0 ? (int)Math.Round((double)filledFields / totalFields * 100) : 0;
+    }
+
+    private string GetCompletenessClass(int percentage)
+    {
+        if (percentage < 50)
+            return "completeness-red";
+        else if (percentage >= 50 && percentage < 61)
+            return "completeness-purple";
+        else if (percentage >= 61 && percentage < 86)
+            return "completeness-blue";
+        else if (percentage >= 86)
+            return "completeness-green";
+        else
+            return "completeness-red";
+    }
+
+    private string GetCompletenessBadgeClass(int percentage)
+    {
+        if (percentage < 50)
+            return "bg-danger";
+        else if (percentage >= 50 && percentage < 61)
+            return "bg-purple";
+        else if (percentage >= 61 && percentage < 86)
+            return "bg-primary";
+        else if (percentage >= 86)
+            return "bg-success";
+        else
+            return "bg-secondary";
+    }
+}
+
+<style>
+    .completeness-red {
+        background-color: #dc3545 !important;
+    }
+
+    .completeness-purple {
+        background-color: #6f42c1 !important;
+    }
+
+    .completeness-blue {
+        background-color: #0d6efd !important;
+    }
+
+    .completeness-green {
+        background-color: #198754 !important;
+    }
+
+    .bg-purple {
+        background-color: #6f42c1 !important;
+    }
+
+    .completeness-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+</style>

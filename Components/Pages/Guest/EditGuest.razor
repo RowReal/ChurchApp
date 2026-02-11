@@ -1,0 +1,908 @@
+﻿@page "/guest/edit/{Id:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject GuestService GuestService
+@inject ServiceService ServiceService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Guest - BCC ServiceHub</PageTitle>
+
+@if (AuthService.IsAuthenticated)
+{
+    @if (!IsFIGDirectorateMember())
+    {
+        <div class="container mt-4">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Access Restricted</h5>
+                        </div>
+                        <div class="card-body text-center py-4">
+                            <i class="fas fa-lock fa-3x text-warning mb-3"></i>
+                            <h4>Access Denied</h4>
+                            <p class="text-muted">This section is only accessible to FIG Directorate members.</p>
+                            <a href="/guest/daily-list" class="btn btn-primary mt-2">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Daily List
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (isLoading)
+    {
+        <div class="container mt-4">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <div class="spinner-border text-primary mb-3"></div>
+                            <p>Loading guest information...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (guestNotFound)
+    {
+        <div class="container mt-4">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-circle me-2"></i>Guest Not Found</h5>
+                        </div>
+                        <div class="card-body text-center py-4">
+                            <i class="fas fa-user-slash fa-3x text-danger mb-3"></i>
+                            <h4>Guest Not Found</h4>
+                            <p class="text-muted">The requested guest record could not be found or has been deleted.</p>
+                            <div class="d-flex justify-content-center gap-2 mt-3">
+                                <a href="/guest/daily-list" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i>Back to Daily List
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="container py-3">
+            <!-- Success Message -->
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>Success!</strong> @successMessage
+                    <div class="mt-2">
+                        <a href="@($"/guest/details/{Id}")" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye me-1"></i>View Updated Details
+                        </a>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" @onclick="ClearSuccessMessage">
+                            <i class="fas fa-times me-1"></i>Dismiss
+                        </button>
+                    </div>
+                </div>
+            }
+
+            <!-- Error Message -->
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i> @errorMessage
+                    <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+                </div>
+            }
+
+            <!-- Header -->
+            <div class="main-header mb-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h2 class="mb-1 fw-bold">
+                            <i class="fas fa-edit me-2"></i>
+                            Edit Guest - @currentGuestName
+                            <span class="guest-number-badge">(@currentGuestNumber)</span>
+                        </h2>
+                        <div class="text-muted small">
+                            <i class="fas fa-info-circle me-1"></i>Update guest information below
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <a href="/guest/daily-list" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Daily List
+                        </a>
+                        <button class="btn btn-danger btn-sm" @onclick="DeleteGuest">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Use EditForm to prevent page reload -->
+            <EditForm Model="model" OnValidSubmit="UpdateGuest">
+                <DataAnnotationsValidator />
+
+                <!-- Row 1: Personal & Contact Information -->
+                <div class="row g-3 mb-3">
+                    <!-- Personal Information Card -->
+                    <div class="col-lg-6">
+                        <div class="card shadow-sm h-100 border-0">
+                            <div class="card-header personal-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-user-circle me-2"></i>Personal Information
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-2">
+                                    <!-- Title -->
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Title *</label>
+                                        <InputSelect @bind-Value="model.Title" class="form-select form-select-sm">
+                                            <option value="">Select Title</option>
+                                            <option value="Mr">Mr</option>
+                                            <option value="Mrs">Mrs</option>
+                                            <option value="Miss">Miss</option>
+                                            <option value="Dr">Dr</option>
+                                            <option value="Pastor">Pastor</option>
+                                            <option value="Rev">Rev</option>
+                                            <option value="Prof">Prof</option>
+                                            <option value="Engr">Engr</option>
+                                        </InputSelect>
+                                        <span class="text-danger small">@GetValidationMessage(nameof(model.Title))</span>
+                                    </div>
+
+                                    <!-- First Name -->
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">First Name *</label>
+                                        <InputText @bind-Value="model.FirstName" class="form-control form-control-sm" />
+                                        <span class="text-danger small">@GetValidationMessage(nameof(model.FirstName))</span>
+                                    </div>
+
+                                    <!-- Middle Name -->
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Middle Name</label>
+                                        <InputText @bind-Value="model.MiddleName" class="form-control form-control-sm" />
+                                    </div>
+
+                                    <!-- Surname -->
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Surname *</label>
+                                        <InputText @bind-Value="model.Surname" class="form-control form-control-sm" />
+                                        <span class="text-danger small">@GetValidationMessage(nameof(model.Surname))</span>
+                                    </div>
+
+                                    <!-- Sex -->
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Sex *</label>
+                                        <div class="d-flex gap-3 mt-1">
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" name="sex" id="male"
+                                                       checked="@(model.Sex == "Male")"
+                                                       @onchange="@(() => { model.Sex = "Male"; })" />
+                                                <label class="form-check-label small" for="male">Male</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" name="sex" id="female"
+                                                       checked="@(model.Sex == "Female")"
+                                                       @onchange="@(() => { model.Sex = "Female"; })" />
+                                                <label class="form-check-label small" for="female">Female</label>
+                                            </div>
+                                        </div>
+                                        <span class="text-danger small">@GetValidationMessage(nameof(model.Sex))</span>
+                                    </div>
+
+                                    <!-- Age Group -->
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Age Group *</label>
+                                        <select class="form-select form-select-sm" @bind="model.AgeGroup">
+                                            <option value="">Select Age Group</option>
+                                            <option value="below 30">Below 30</option>
+                                            <option value="30-40">30-40</option>
+                                            <option value="41-50">41-50</option>
+                                            <option value="51-60">51-60</option>
+                                            <option value="60 and above">60 and above</option>
+                                        </select>
+                                        <span class="text-danger small">@GetValidationMessage(nameof(model.AgeGroup))</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Information Card -->
+                    <div class="col-lg-6">
+                        <div class="card shadow-sm h-100 border-0">
+                            <div class="card-header contact-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-address-book me-2"></i>Contact Information
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-2">
+                                    <!-- Address -->
+                                    <div class="col-12">
+                                        <label class="form-label small fw-semibold">Address</label>
+                                        <textarea class="form-control form-control-sm" @bind="model.Address" rows="2" placeholder="Full residential address"></textarea>
+                                    </div>
+
+                                    <!-- Landmark -->
+                                    <div class="col-12">
+                                        <label class="form-label small fw-semibold">Landmark</label>
+                                        <input type="text" class="form-control form-control-sm" @bind="model.Landmark" placeholder="Nearest landmark" />
+                                    </div>
+
+                                    <!-- Phone & WhatsApp -->
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Phone Number</label>
+                                        <input type="tel" class="form-control form-control-sm" @bind="model.PhoneNumber" placeholder="080XXXXXXXX" />
+                                        <span class="text-danger small">@phoneValidationMessage</span>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">WhatsApp Number</label>
+                                        <input type="tel" class="form-control form-control-sm" @bind="model.WhatsAppNumber" placeholder="080XXXXXXXX" />
+                                    </div>
+
+                                    <!-- Email -->
+                                    <div class="col-12">
+                                        <label class="form-label small fw-semibold">Email Address</label>
+                                        <input type="email" class="form-control form-control-sm" @bind="model.Email" placeholder="email@example.com" />
+                                        <span class="text-danger small">@emailValidationMessage</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Church & Service Information -->
+                <div class="row g-3">
+                    <!-- Church Information Card -->
+                    <div class="col-lg-6">
+                        <div class="card shadow-sm h-100 border-0">
+                            <div class="card-header church-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-church me-2"></i>Church Information
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-2">
+                                    <!-- RCCG Member -->
+                                    <div class="col-12 mb-2">
+                                        <label class="form-label small fw-semibold">Are you a member of RCCG? *</label>
+                                        <div class="d-flex gap-4 mt-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="rccgMember" id="rccgYes"
+                                                       checked="@(model.IsRCCGMember == true)"
+                                                       @onchange="() => model.IsRCCGMember = true" />
+                                                <label class="form-check-label small" for="rccgYes">Yes</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="rccgMember" id="rccgNo"
+                                                       checked="@(model.IsRCCGMember == false)"
+                                                       @onchange="() => model.IsRCCGMember = false" />
+                                                <label class="form-check-label small" for="rccgNo">No</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Other Church -->
+                                    @if (!model.IsRCCGMember)
+                                    {
+                                        <div class="col-12">
+                                            <label class="form-label small fw-semibold">Which church do you attend?</label>
+                                            <input type="text" class="form-control form-control-sm" @bind="model.OtherChurch" placeholder="Name of church" />
+                                        </div>
+                                    }
+
+                                    <!-- How Found Us -->
+                                    <div class="col-12">
+                                        <label class="form-label small fw-semibold">How did you find us? *</label>
+                                        <select class="form-select form-select-sm" value="@model.HowFoundUs"
+                                                @onchange="OnHowFoundUsChanged">
+                                            <option value="">Select Option</option>
+                                            <option value="Facebook">Facebook</option>
+                                            <option value="Youtube">YouTube</option>
+                                            <option value="Instagram">Instagram</option>
+                                            <option value="X">X (Twitter)</option>
+                                            <option value="looking around">Looking Around</option>
+                                            <option value="invite">Invitation</option>
+                                        </select>
+                                        <span class="text-danger small">@GetValidationMessage(nameof(model.HowFoundUs))</span>
+                                    </div>
+
+                                    <!-- Invited By -->
+                                    @if (model.HowFoundUs == "invite")
+                                    {
+                                        <div class="col-12">
+                                            <label class="form-label small fw-semibold">Name of person who invited you</label>
+                                            <input type="text" class="form-control form-control-sm" @bind="model.InvitedByName" placeholder="Full name (optional)" />
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Service Information Card -->
+                    <div class="col-lg-6">
+                        <div class="card shadow-sm h-100 border-0">
+                            <div class="card-header service-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-calendar-alt me-2"></i>Service Information
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-2">
+                                    <!-- Service Attended -->
+                                    <div class="col-12">
+                                        <label class="form-label small fw-semibold">Service Attended *</label>
+                                        <select class="form-select form-select-sm" @bind="model.ServiceId">
+                                            <option value="0">Select Service</option>
+                                            @foreach (var service in services)
+                                            {
+                                                <option value="@service.Id">@service.Name</option>
+                                            }
+                                        </select>
+                                        <span class="text-danger small">@GetValidationMessage(nameof(model.ServiceId))</span>
+                                    </div>
+
+                                    <!-- Visiting Date -->
+                                    <div class="col-12">
+                                        <label class="form-label small fw-semibold">Visiting Date *</label>
+                                        <input type="date" class="form-control form-control-sm" @bind="model.VisitingDate"
+                                               @bind:format="yyyy-MM-dd"
+                                               max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                                        <span class="text-danger small">@GetValidationMessage(nameof(model.VisitingDate))</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="card shadow-sm border-0 mt-3">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Required fields are marked with *
+                                </small>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="/guest/daily-list" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-times me-1"></i>Cancel
+                                </a>
+                                <button type="submit" class="btn btn-success btn-sm" disabled="@isUpdating">
+                                    @if (isUpdating)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-save me-1"></i>
+                                    }
+                                    Update Guest
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    }
+}
+else
+{
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">Authentication Required</h5>
+                    </div>
+                    <div class="card-body text-center py-4">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h4>Please Log In</h4>
+                        <p class="text-muted">You need to be logged in to access this page.</p>
+                        <a href="/login" class="btn btn-primary mt-2">Go to Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this guest record?</p>
+                    <div class="alert alert-warning">
+                        <strong>Guest:</strong> @currentGuestName<br>
+                        <strong>Guest ID:</strong> @currentGuestNumber
+                    </div>
+                    <p class="text-danger"><small>This action cannot be undone.</small></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isDeleting">
+                        @if (isDeleting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-trash me-1"></i>
+                        }
+                        Delete Guest
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private CreateGuestModel model = new();
+    private List<Service> services = new();
+    private bool isLoading = true;
+    private bool isUpdating = false;
+    private bool isDeleting = false;
+    private bool guestNotFound = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+    private string phoneValidationMessage = "";
+    private string emailValidationMessage = "";
+    private bool showDeleteModal = false;
+
+    private string currentGuestNumber = "";
+    private string currentGuestName = "";
+
+    private Dictionary<string, List<string>> validationErrors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadServices();
+            await LoadGuestForEdit();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error initializing page: {ex.Message}";
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadServices()
+    {
+        try
+        {
+            services = await ServiceService.GetActiveServicesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading services: {ex.Message}";
+        }
+    }
+
+    private async Task LoadGuestForEdit()
+    {
+        try
+        {
+            var guest = await GuestService.GetGuestByIdAsync(Id);
+            if (guest == null)
+            {
+                guestNotFound = true;
+                return;
+            }
+
+            currentGuestNumber = guest.GuestNumber;
+            currentGuestName = $"{guest.FirstName} {guest.Surname}";
+
+            var guestModel = await GuestService.GetGuestForEditAsync(Id);
+            if (guestModel != null)
+            {
+                model = guestModel;
+            }
+            else
+            {
+                guestNotFound = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading guest: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool IsFIGDirectorateMember()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        var isInFIG = directorateName.Contains("fig");
+        var hasValidRole = role.Contains("head of directorate") ||
+                          role.Contains("asst head of directorate") ||
+                          role.Contains("directorate member") ||
+                          AuthService.IsInRole("Church Admin") ||
+                          AuthService.IsInRole("Pastor in Charge");
+
+        return isInFIG && hasValidRole;
+    }
+
+    private async Task UpdateGuest()
+    {
+        ClearValidationMessages();
+
+        if (!ValidateModel())
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.PhoneNumber))
+        {
+            var isPhoneUnique = await GuestService.IsPhoneNumberUniqueAsync(model.PhoneNumber, Id);
+            if (!isPhoneUnique)
+            {
+                phoneValidationMessage = "This phone number is already registered with another guest.";
+                return;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.Email))
+        {
+            var isEmailUnique = await GuestService.IsEmailUniqueAsync(model.Email, Id);
+            if (!isEmailUnique)
+            {
+                emailValidationMessage = "This email address is already registered with another guest.";
+                return;
+            }
+        }
+
+        isUpdating = true;
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            var currentWorker = AuthService.CurrentWorker;
+            var success = await GuestService.UpdateGuestAsync(Id, model, currentWorker);
+
+            if (success)
+            {
+                // Redirect immediately to guest details page
+                Navigation.NavigateTo($"/guest/details/{Id}");
+            }
+            else
+            {
+                errorMessage = "Failed to update guest. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating guest: {ex.Message}";
+        }
+        finally
+        {
+            isUpdating = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool ValidateModel()
+    {
+        validationErrors.Clear();
+
+        if (string.IsNullOrWhiteSpace(model.Title))
+            AddValidationError(nameof(model.Title), "Title is required");
+
+        if (string.IsNullOrWhiteSpace(model.FirstName))
+            AddValidationError(nameof(model.FirstName), "First name is required");
+
+        if (string.IsNullOrWhiteSpace(model.Surname))
+            AddValidationError(nameof(model.Surname), "Surname is required");
+
+        if (string.IsNullOrWhiteSpace(model.Sex))
+            AddValidationError(nameof(model.Sex), "Sex is required");
+
+        if (string.IsNullOrWhiteSpace(model.AgeGroup))
+            AddValidationError(nameof(model.AgeGroup), "Age group is required");
+
+        if (string.IsNullOrWhiteSpace(model.HowFoundUs))
+            AddValidationError(nameof(model.HowFoundUs), "Please specify how you found us");
+
+        if (model.ServiceId <= 0)
+            AddValidationError(nameof(model.ServiceId), "Please select a service");
+
+        if (model.VisitingDate > DateTime.Today)
+            AddValidationError(nameof(model.VisitingDate), "Visiting date cannot be in the future");
+
+        return !validationErrors.Any();
+    }
+
+    private void DeleteGuest()
+    {
+        showDeleteModal = true;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        isDeleting = true;
+        try
+        {
+            var success = await GuestService.DeleteGuestAsync(Id);
+
+            if (success)
+            {
+                showDeleteModal = false;
+                Navigation.NavigateTo("/guest/daily-list");
+            }
+            else
+            {
+                errorMessage = "Failed to delete guest. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting guest: {ex.Message}";
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteModal = false;
+        StateHasChanged();
+    }
+
+    private void AddValidationError(string propertyName, string message)
+    {
+        if (!validationErrors.ContainsKey(propertyName))
+            validationErrors[propertyName] = new List<string>();
+
+        validationErrors[propertyName].Add(message);
+    }
+
+    private string GetValidationMessage(string propertyName)
+    {
+        if (validationErrors.ContainsKey(propertyName))
+        {
+            return string.Join("; ", validationErrors[propertyName]);
+        }
+        return "";
+    }
+
+    private void ClearValidationMessages()
+    {
+        validationErrors.Clear();
+        phoneValidationMessage = "";
+        emailValidationMessage = "";
+        errorMessage = "";
+    }
+
+    private void ClearSuccessMessage()
+    {
+        successMessage = "";
+        StateHasChanged();
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = "";
+        StateHasChanged();
+    }
+
+    private void OnHowFoundUsChanged(ChangeEventArgs e)
+    {
+        model.HowFoundUs = e.Value?.ToString() ?? "";
+        if (model.HowFoundUs != "invite")
+        {
+            model.InvitedByName = "";
+        }
+        StateHasChanged();
+    }
+}
+
+<style>
+    /* Main Header */
+    .main-header h2 {
+        font-size: 1.6rem;
+        font-weight: 700 !important;
+        color: #2c3e50;
+        margin-bottom: 0.25rem;
+    }
+
+    .guest-number-badge {
+        font-size: 1.1rem;
+        color: #17a2b8;
+        font-weight: 700;
+        background: rgba(23, 162, 184, 0.1);
+        padding: 0.15rem 0.5rem;
+        border-radius: 5px;
+        margin-left: 0.5rem;
+    }
+
+    /* Compact Card Design */
+    .card {
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 0;
+    }
+
+    /* Beautiful Color Highlights */
+    .personal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        padding: 0.6rem 1rem !important;
+    }
+
+    .contact-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+        padding: 0.6rem 1rem !important;
+    }
+
+    .church-header {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+        padding: 0.6rem 1rem !important;
+    }
+
+    .service-header {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+        padding: 0.6rem 1rem !important;
+    }
+
+    .card-header {
+        border-bottom: none !important;
+        color: white !important;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+        .card-header h6 {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+    /* Compact Card Body */
+    .card-body {
+        padding: 1rem !important;
+    }
+
+    /* Form Styling */
+    .form-label {
+        margin-bottom: 0.25rem;
+        font-size: 0.8rem;
+    }
+
+    .form-control-sm, .form-select-sm {
+        padding: 0.3rem 0.5rem;
+        font-size: 0.85rem;
+        border-radius: 4px;
+    }
+
+    .form-check-input {
+        width: 0.9rem;
+        height: 0.9rem;
+        margin-top: 0.2rem;
+    }
+
+    .form-check-label {
+        font-size: 0.85rem;
+    }
+
+    /* Error Messages */
+    .text-danger.small {
+        font-size: 0.75rem;
+        display: block;
+        margin-top: 2px;
+        min-height: 1.2rem;
+    }
+
+    /* Button Styling */
+    .btn-sm {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+        border-radius: 4px;
+    }
+
+    /* Layout Spacing */
+    .row.g-3 {
+        --bs-gutter-x: 1rem;
+        --bs-gutter-y: 1rem;
+    }
+
+    .row.g-2 {
+        --bs-gutter-x: 0.75rem;
+        --bs-gutter-y: 0.75rem;
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 768px) {
+        .main-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .guest-number-badge {
+            font-size: 0.95rem;
+            padding: 0.1rem 0.4rem;
+        }
+
+        .card-header {
+            padding: 0.5rem 0.75rem !important;
+            font-size: 0.8rem;
+        }
+
+        .card-body {
+            padding: 0.75rem !important;
+        }
+
+        .form-label {
+            font-size: 0.75rem;
+        }
+
+        .form-control-sm, .form-select-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-sm {
+            padding: 0.2rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .row.g-3 {
+            --bs-gutter-x: 0.75rem;
+            --bs-gutter-y: 0.75rem;
+        }
+
+        .row.g-2 {
+            --bs-gutter-x: 0.5rem;
+            --bs-gutter-y: 0.5rem;
+        }
+    }
+
+    /* Focus States */
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+</style>

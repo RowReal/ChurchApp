@@ -1,0 +1,771 @@
+﻿@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IServiceProvider ScopedServices
+@inject OfferingService OfferingService
+@inject AttendanceService AttendanceService
+
+@if (AuthService.IsAuthenticated)
+{
+    <div class="bcc-sidebar">
+        <div class="bcc-sidebar-content">
+            <nav class="bcc-nav-menu">
+                <!-- Dashboard -->
+                <a href="/" class="bcc-nav-item @GetNavItemClass("/")">
+                    <div class="bcc-nav-icon-container">
+                        <span class="bcc-nav-emoji">📊</span>
+                    </div>
+                    <span class="bcc-nav-text">Dashboard</span>
+                </a>
+
+                <!-- Workforce Section -->
+                <div class="bcc-nav-section">
+                    <div class="bcc-nav-section-header" @onclick="ToggleWorkforceMenu">
+                        <div class="bcc-nav-icon-container">
+                            <span class="bcc-nav-emoji">👥</span>
+                        </div>
+                        <span class="bcc-nav-text">Worker Profile</span>
+                        <i class="fas fa-chevron-@(showWorkforceMenu ? "up" : "down") bcc-nav-chevron"></i>
+                    </div>
+                    @if (showWorkforceMenu)
+                    {
+                        <div class="bcc-nav-submenu">
+                            <a href="/workforce/my-profile" class="bcc-nav-subitem @GetNavItemClass("/workforce/my-profile")">
+                                <div class="bcc-nav-icon-container">
+                                    <span class="bcc-nav-emoji">👤</span>
+                                </div>
+                                <span class="bcc-nav-text">My Profile</span>
+                            </a>
+
+                            <!-- Profile Approval (for supervisors only) -->
+                            @if (CanAccessProfileApproval())
+                            {
+                                <a href="/workforce/my-inbox" class="bcc-nav-subitem @GetNavItemClass("/workforce/my-inbox")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">📥</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Profile Approval</span>
+                                    @if (pendingApprovalCount > 0)
+                                    {
+                                        <span class="bcc-nav-badge">@pendingApprovalCount</span>
+                                    }
+                                </a>
+                            }
+
+                            <!-- My Team (for supervisors only) -->
+                            @if (CanAccessMyTeam())
+                            {
+                                <a href="/workforce/my-team" class="bcc-nav-subitem @GetNavItemClass("/workforce/my-team")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">👥</span>
+                                    </div>
+                                    <span class="bcc-nav-text">My Team</span>
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- Growth Hub Section -->
+                <div class="bcc-nav-section">
+                    <div class="bcc-nav-section-header" @onclick="ToggleGrowthHubMenu">
+                        <div class="bcc-nav-icon-container">
+                            <span class="bcc-nav-emoji">🌱</span>
+                        </div>
+                        <span class="bcc-nav-text">Growth Hub</span>
+                        @if (growthHubCounts.Total > 0)
+                        {
+                            <span class="bcc-nav-badge bg-warning">@growthHubCounts.Total</span>
+                        }
+                        <i class="fas fa-chevron-@(showGrowthHubMenu ? "up" : "down") bcc-nav-chevron"></i>
+                    </div>
+                    @if (showGrowthHubMenu)
+                    {
+                        <div class="bcc-nav-submenu">
+                            <!-- Growth Feedback (All Cases) -->
+                            <a href="/Workforce/feedback" class="bcc-nav-subitem @GetNavItemClass("/Workforce/feedback")">
+                                <div class="bcc-nav-icon-container">
+                                    <span class="bcc-nav-emoji">📝</span>
+                                </div>
+                                <span class="bcc-nav-text">Growth Feedback</span>
+                                @if (growthHubCounts.MyFeedback > 0)
+                                {
+                                    <span class="bcc-nav-badge">@growthHubCounts.MyFeedback</span>
+                                }
+                            </a>
+
+                            <!-- Assigned Cases -->
+                            <a href="/Workforce/assigned" class="bcc-nav-subitem @GetNavItemClass("/Workforce/assigned")">
+                                <div class="bcc-nav-icon-container">
+                                    <span class="bcc-nav-emoji">📨</span>
+                                </div>
+                                <span class="bcc-nav-text">Assigned to Me</span>
+                                @if (growthHubCounts.AssignedToMe > 0)
+                                {
+                                    <span class="bcc-nav-badge">@growthHubCounts.AssignedToMe</span>
+                                }
+                            </a>
+
+                            <!-- Create New Feedback -->
+                            <a href="/Workforce/create-feedback" class="bcc-nav-subitem @GetNavItemClass("/Workforce/create-feedback")">
+                                <div class="bcc-nav-icon-container">
+                                    <span class="bcc-nav-emoji">➕</span>
+                                </div>
+                                <span class="bcc-nav-text">New Feedback</span>
+                            </a>
+
+                            <!-- Reports (for supervisors) -->
+                            @if (CanViewGrowthReports())
+                            {
+                                <a href="/Workforce/reports" class="bcc-nav-subitem @GetNavItemClass("/Workforce/reports")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">📊</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Growth Reports</span>
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- Permission Section -->
+                <div class="bcc-nav-section">
+                    <div class="bcc-nav-section-header" @onclick="ToggleExcuseMenu">
+                        <div class="bcc-nav-icon-container">
+                            <span class="bcc-nav-emoji">📅</span>
+                        </div>
+                        <span class="bcc-nav-text">Permission</span>
+                        <i class="fas fa-chevron-@(showExcuseMenu ? "up" : "down") bcc-nav-chevron"></i>
+                    </div>
+                    @if (showExcuseMenu)
+                    {
+                        <div class="bcc-nav-submenu">
+                            <a href="/excuse/my-requests" class="bcc-nav-subitem @GetNavItemClass("/excuse/my-requests")">
+                                <div class="bcc-nav-icon-container">
+                                    <span class="bcc-nav-emoji">📋</span>
+                                </div>
+                                <span class="bcc-nav-text">Off Service Requests</span>
+                                @if (pendingExcuseCount > 0)
+                                {
+                                    <span class="bcc-nav-badge">@pendingExcuseCount</span>
+                                }
+                            </a>
+                            <a href="/excuse/mybreak-requests" class="bcc-nav-subitem @GetNavItemClass("/excuse/mybreak-requests")">
+                                <div class="bcc-nav-icon-container">
+                                    <span class="bcc-nav-emoji">🏖️</span>
+                                </div>
+                                <span class="bcc-nav-text">Break Requests</span>
+                                @if (pendingBreakCount > 0)
+                                {
+                                    <span class="bcc-nav-badge">@pendingBreakCount</span>
+                                }
+                            </a>
+
+                            <!-- Approval Inbox only for supervisors -->
+                            @if (CanApprovePermissionRequests())
+                            {
+                                <a href="/excuse/approvals" class="bcc-nav-subitem @GetNavItemClass("/excuse/approvals")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">✅</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Approval Inbox</span>
+                                    @if ((pendingExcuseApprovals + pendingBreakApprovals) > 0)
+                                    {
+                                        <span class="bcc-nav-badge">@(pendingExcuseApprovals + pendingBreakApprovals)</span>
+                                    }
+                                </a>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- In the Service Records Section of your sidebar, add: -->
+                <!-- Service Records Section -->
+                @if (CanAccessServiceRecords())
+                {
+                    <div class="bcc-nav-section">
+                        <div class="bcc-nav-section-header" @onclick="ToggleUsheringMenu">
+                            <div class="bcc-nav-icon-container">
+                                <span class="bcc-nav-emoji">🗂️</span>
+                            </div>
+                            <span class="bcc-nav-text">Service Records</span>
+                            @if (rejectedOfferingsCount > 0 || pendingOfferingCount > 0)
+                            {
+                                <span class="bcc-nav-badge bg-danger">@(rejectedOfferingsCount + pendingOfferingCount)</span>
+                            }
+                            <i class="fas fa-chevron-@(showUsheringMenu ? "up" : "down") bcc-nav-chevron"></i>
+                        </div>
+                        @if (showUsheringMenu)
+                        {
+                            <div class="bcc-nav-submenu">
+                                <!-- Record Nomination Menu - Only for Head/Assistant Head of FIG Directorate -->
+                                @if (CanAccessRecordNomination())
+                                {
+                                    <a href="/Offering/record-nomination" class="bcc-nav-subitem @GetNavItemClass("/Offering/record-nomination")">
+                                        <div class="bcc-nav-icon-container">
+                                            <span class="bcc-nav-emoji">📋</span>
+                                        </div>
+                                        <span class="bcc-nav-text">Record Nomination</span>
+                                    </a>
+                                }
+
+                                <!-- Service Notes - Only for Head/Assistant Head of MEAT Directorate -->
+                                @if (CanAccessServiceNotes())
+                                {
+                                    <a href="/Offering/NoteList" class="bcc-nav-subitem @GetNavItemClass("/Offering/NoteList")">
+                                        <div class="bcc-nav-icon-container">
+                                            <span class="bcc-nav-emoji">📝</span>
+                                        </div>
+                                        <span class="bcc-nav-text">Service Notes</span>
+                                    </a>
+                                }
+
+                                <!-- Approve Offerings - Only for Church Admin and Pastor in Charge -->
+                                @if (CanApproveOfferings())
+                                {
+                                    <a href="/offering/approvals" class="bcc-nav-subitem @GetNavItemClass("/offering/approvals")">
+                                        <div class="bcc-nav-icon-container">
+                                            <span class="bcc-nav-emoji">✓</span>
+                                        </div>
+                                        <span class="bcc-nav-text">Approve Offerings</span>
+                                        @if (pendingOfferingCount > 0)
+                                        {
+                                            <span class="bcc-nav-badge bg-warning">@pendingOfferingCount</span>
+                                        }
+                                    </a>
+                                }
+
+                                <!-- Record Offering - Available to all authorized users -->
+                                @if (CanRecordOfferings())
+                                {
+                                    <a href="/offering/record" class="bcc-nav-subitem @GetNavItemClass("/offering/record")">
+                                        <div class="bcc-nav-icon-container">
+                                            <span class="bcc-nav-emoji">💰</span>
+                                        </div>
+                                        <span class="bcc-nav-text">Record Offering</span>
+                                        @if (rejectedOfferingsCount > 0)
+                                        {
+                                            <span class="bcc-nav-badge bg-danger">@rejectedOfferingsCount</span>
+                                        }
+                                    </a>
+                                }
+
+                                <!-- Attendance Records - Available to all authorized users -->
+                                @if (CanRecordOfferings())
+                                {
+                                    <a href="/Offering/Attendance-record" class="bcc-nav-subitem @GetNavItemClass("/Offering/Attendance-record")">
+                                        <div class="bcc-nav-icon-container">
+                                            <span class="bcc-nav-emoji">👥</span>
+                                        </div>
+                                        <span class="bcc-nav-text">Record Attendance</span>
+                                    </a>
+                                    <a href="/Offering/Attendance-list" class="bcc-nav-subitem @GetNavItemClass("/Offering/Attendance-list")">
+                                        <div class="bcc-nav-icon-container">
+                                            <span class="bcc-nav-emoji">📑</span>
+                                        </div>
+                                        <span class="bcc-nav-text">View Attendance</span>
+                                    </a>
+                                }
+
+                                <!-- Guest Management - Available to all FIG Directorate members -->
+                                @if (IsFIGDirectorateMember())
+                                {
+                                    <a href="/guest" class="bcc-nav-subitem @GetNavItemClass("/guest")">
+                                        <div class="bcc-nav-icon-container">
+                                            <span class="bcc-nav-emoji">👥</span>
+                                        </div>
+                                        <span class="bcc-nav-text">Guest Management</span>
+                                    </a>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                <!-- Reports Section -->
+                @if (CanAccessReports())
+                {
+                    <div class="bcc-nav-section">
+                        <div class="bcc-nav-section-header" @onclick="ToggleReportsMenu">
+                            <div class="bcc-nav-icon-container">
+                                <span class="bcc-nav-emoji">📈</span>
+                            </div>
+                            <span class="bcc-nav-text">Reports</span>
+                            <i class="fas fa-chevron-@(showReportsMenu ? "up" : "down") bcc-nav-chevron"></i>
+                        </div>
+                        @if (showReportsMenu)
+                        {
+                            <div class="bcc-nav-submenu">
+                                <a href="/reports" class="bcc-nav-subitem @GetNavItemClass("/reports")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">📊</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Offering & Attendance</span>
+                                </a>
+                                <a href="/reports/offering" class="bcc-nav-subitem @GetNavItemClass("/reports/offering")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">💵</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Offering Reports</span>
+                                </a>
+                                <a href="/reports/attendance" class="bcc-nav-subitem @GetNavItemClass("/reports/attendance")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">📋</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Attendance Reports</span>
+                                </a>
+                                @if (AuthService.IsInRole("Church Admin") || AuthService.IsInRole("Pastor in Charge"))
+                                {
+                                    <a href="/reports/financial" class="bcc-nav-subitem @GetNavItemClass("/reports/financial")">
+                                        <div class="bcc-nav-icon-container">
+                                            <span class="bcc-nav-emoji">📉</span>
+                                        </div>
+                                        <span class="bcc-nav-text">Financial Reports</span>
+                                    </a>
+                                    <a href="/reports/analytics" class="bcc-nav-subitem @GetNavItemClass("/reports/analytics")">
+                                        <div class="bcc-nav-icon-container">
+                                            <span class="bcc-nav-emoji">📊</span>
+                                        </div>
+                                        <span class="bcc-nav-text">Church Analytics</span>
+                                    </a>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                <!-- Budget - Show based on role -->
+                @if (CanAccessBudget())
+                {
+                    <a href="/budget" class="bcc-nav-item @GetNavItemClass("/budget")">
+                        <div class="bcc-nav-icon-container">
+                            <span class="bcc-nav-emoji">💼</span>
+                        </div>
+                        <span class="bcc-nav-text">Church Budget</span>
+                    </a>
+                }
+
+                <!-- Remittance - Show based on role -->
+                @if (CanAccessRemittance())
+                {
+                    <a href="/remittance" class="bcc-nav-item @GetNavItemClass("/remittance")">
+                        <div class="bcc-nav-icon-container">
+                            <span class="bcc-nav-emoji">💳</span>
+                        </div>
+                        <span class="bcc-nav-text">Church Remittance</span>
+                    </a>
+                }
+
+                <!-- Setup Section -->
+                @if (AuthService.CanAccessAdminPanel())
+                {
+                    <div class="bcc-nav-section">
+                        <div class="bcc-nav-section-header" @onclick="ToggleSetupMenu">
+                            <div class="bcc-nav-icon-container">
+                                <span class="bcc-nav-emoji">⚙️</span>
+                            </div>
+                            <span class="bcc-nav-text">Setup</span>
+                            <i class="fas fa-chevron-@(showSetupMenu ? "up" : "down") bcc-nav-chevron"></i>
+                        </div>
+                        @if (showSetupMenu)
+                        {
+                            <div class="bcc-nav-submenu">
+                                <a href="/admin/worker-setup" class="bcc-nav-subitem @GetNavItemClass("/admin/worker-setup")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">➕👤</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Worker Setup</span>
+                                </a>
+                                <a href="/admin/worker-update" class="bcc-nav-subitem @GetNavItemClass("/admin/worker-update")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">✏️👤</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Workers Detail</span>
+                                </a>
+                                <!-- Service Management -->
+                                <a href="/admin/services" class="bcc-nav-subitem @GetNavItemClass("/admin/services")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">⛪</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Service Management</span>
+                                </a>
+                                <!-- Offering Setup - Only for Church Admin and Pastor in Charge -->
+                                @if (CanAccessOfferingSetup())
+                                {
+                                    <a href="/offering/types" class="bcc-nav-subitem @GetNavItemClass("/offering/types")">
+                                        <div class="bcc-nav-icon-container">
+                                            <span class="bcc-nav-emoji">💰</span>
+                                        </div>
+                                        <span class="bcc-nav-text">Offering Setup</span>
+                                    </a>
+                                }
+                                <a href="/admin/directorate-setup" class="bcc-nav-subitem @GetNavItemClass("/admin/directorate-setup")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">🏢</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Directorate Setup</span>
+                                </a>
+                                <a href="/admin/department-setup" class="bcc-nav-subitem @GetNavItemClass("/admin/department-setup")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">🏛️</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Department Setup</span>
+                                </a>
+                                <a href="/admin/role-setup" class="bcc-nav-subitem @GetNavItemClass("/admin/role-setup")">
+                                    <div class="bcc-nav-icon-container">
+                                        <span class="bcc-nav-emoji">👑</span>
+                                    </div>
+                                    <span class="bcc-nav-text">Role Setup</span>
+                                </a>
+                            </div>
+                        }
+                    </div>
+                }
+            </nav>
+        </div>
+    </div>
+}
+
+@code {
+    private bool showSetupMenu = false;
+    private bool showWorkforceMenu = false;
+    private bool showExcuseMenu = false;
+    private bool showUsheringMenu = false;
+    private bool showReportsMenu = false;
+    private bool showGrowthHubMenu = false;
+
+    private int pendingApprovalCount = 0;
+    private int rejectionNotificationCount = 0;
+    private int pendingExcuseCount = 0;
+    private int pendingExcuseApprovals = 0;
+    private int pendingBreakCount = 0;
+    private int pendingBreakApprovals = 0;
+    private int pendingOfferingCount = 0;
+    private int rejectedOfferingsCount = 0;
+
+    private GrowthHubCounts growthHubCounts = new GrowthHubCounts();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotificationCounts();
+        await LoadGrowthHubCounts();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadOfferingCounts();
+        }
+    }
+
+    private bool CanAccessReports()
+    {
+        return AuthService.IsInRole("Pastor in Charge") ||
+               AuthService.IsInRole("Head of Directorate") ||
+               AuthService.IsInRole("Church Admin") ||
+               AuthService.CanAccessAdminPanel();
+    }
+
+    private bool CanViewGrowthReports()
+    {
+        return AuthService.IsInRole("Pastor in Charge") ||
+               AuthService.IsInRole("Head of Service") ||
+               AuthService.IsInRole("Church Admin") ||
+               AuthService.CanAccessAdminPanel();
+    }
+
+    private bool CanApprovePermissionRequests()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        return role.Contains("head of directorate") ||
+               role.Contains("head of service") ||
+               role.Contains("pastor in charge") ||
+               role.Contains("senior pastor") ||
+               AuthService.IsInRole("Church Admin") ||
+               AuthService.CanAccessAdminPanel();
+    }
+    // In the @code block of your sidebar, add these methods:
+
+    // Check if user can access Service Notes (Head/Assistant Head of MEAT only)
+    private bool CanAccessServiceNotes()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+
+        // Only Head or Assistant Head of MEAT Directorate can access
+        var isHeadOfMEATDirectorate = role.Contains("head of directorate") &&
+                                     directorateName.Contains("meat");
+
+        var isAssistantHeadOfMEATDirectorate = role.Contains("asst head of directorate") &&
+                                              directorateName.Contains("meat");
+
+        return isHeadOfMEATDirectorate || isAssistantHeadOfMEATDirectorate;
+    }
+
+    // Update CanAccessServiceRecords to include MEAT heads
+    private bool CanAccessServiceRecords()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        // 1. Pastor in Charge and Church Admin always have access
+        var hasRoleAccess = role.Contains("pastor in charge") ||
+                            role.Contains("senior pastor") ||
+                            AuthService.IsInRole("Church Admin");
+
+        // 2. ALL members of FIG Directorate (regardless of role in FIG)
+        var isFIGDirectorateMember = IsFIGDirectorateMember();
+
+        // 3. Head of Service
+        var isHeadOfService = role.Contains("head of service");
+
+        // 4. Head/Assistant Head of MEAT Directorate (for Service Notes access)
+        var canAccessServiceNotes = CanAccessServiceNotes();
+
+        return hasRoleAccess || isFIGDirectorateMember || isHeadOfService || canAccessServiceNotes;
+    }
+
+  
+
+    // Check if user can record offerings
+    private bool CanRecordOfferings()
+    {
+        return CanAccessServiceRecords(); // Same access as Service Records menu
+    }
+
+    // Check if user can approve offerings (only Church Admin and Pastor in Charge)
+    private bool CanApproveOfferings()
+    {
+        return AuthService.IsInRole("Church Admin") ||
+               AuthService.IsInRole("Pastor in Charge");
+    }
+
+    // Check if user can access offering setup
+    private bool CanAccessOfferingSetup()
+    {
+        return AuthService.IsInRole("Church Admin") ||
+               AuthService.IsInRole("Pastor in Charge");
+    }
+
+    // SIMPLIFIED: Check if user is a member of FIG Directorate
+    private bool IsFIGDirectorateMember()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+
+        // SIMPLIFIED: If worker is in FIG directorate, they have access
+        return directorateName.Contains("fig");
+    }
+
+    private bool IsUsheringDepartment()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker?.Department == null)
+        {
+            return false;
+        }
+
+        var deptName = worker.Department.Name?.ToLowerInvariant() ?? "";
+
+        return deptName.Contains("ushering") ||
+               deptName.Contains("ushers") ||
+               deptName.Contains("greeters") ||
+               deptName.Contains("hospitality");
+    }
+
+    // Budget access
+    private bool CanAccessBudget()
+    {
+        return AuthService.IsInRole("Pastor in Charge") ||
+               AuthService.IsInRole("Church Admin") ||
+               AuthService.CanAccessAdminPanel() ||
+               AuthService.IsInRole("Head of Service") ||
+               AuthService.IsInRole("Head of Directorate");
+    }
+
+    // Remittance access
+    private bool CanAccessRemittance()
+    {
+        return AuthService.IsInRole("Pastor in Charge") ||
+               AuthService.IsInRole("Church Admin") ||
+               AuthService.CanAccessAdminPanel() ||
+               AuthService.IsInRole("Head of Service") ||
+               AuthService.IsInRole("Head of Directorate");
+    }
+
+    private async Task LoadNotificationCounts()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+        {
+            try
+            {
+                var workforceService = ScopedServices.GetRequiredService<WorkforceService>();
+                var excuseService = ScopedServices.GetRequiredService<ExcuseService>();
+
+                var pendingRequests = await workforceService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
+                pendingApprovalCount = pendingRequests.Count;
+
+                var rejectionNotifications = await workforceService.GetRejectionNotificationsAsync(AuthService.CurrentWorker.Id);
+                rejectionNotificationCount = rejectionNotifications.Count;
+
+                var myExcuses = await excuseService.GetMyExcuseRequestsAsync(AuthService.CurrentWorker.Id);
+                pendingExcuseCount = myExcuses.Count(e => e.RequestStatus == "Pending");
+
+                var myBreakRequests = await excuseService.GetMyBreakRequestsAsync(AuthService.CurrentWorker.Id);
+                pendingBreakCount = myBreakRequests.Count(b => b.RequestStatus == "Pending");
+
+                if (CanApprovePermissionRequests())
+                {
+                    var pendingExcuseRequests = await excuseService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
+                    pendingExcuseApprovals = pendingExcuseRequests.Count;
+
+                    var pendingBreakRequests = await excuseService.GetPendingBreakApprovalsAsync(AuthService.CurrentWorker.Id);
+                    pendingBreakApprovals = pendingBreakRequests.Count;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading notification counts: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task LoadGrowthHubCounts()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+        {
+            try
+            {
+                var accountabilityService = ScopedServices.GetRequiredService<AccountabilityService>();
+                growthHubCounts = await accountabilityService.GetGrowthHubCountsAsync(AuthService.CurrentWorker.Id);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading growth hub counts: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task LoadOfferingCounts()
+    {
+        try
+        {
+            if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+            {
+                var currentWorkerId = AuthService.CurrentWorker.WorkerId;
+
+                // Only load pending offerings count for users who can approve offerings
+                if (CanApproveOfferings())
+                {
+                    var pendingOfferings = await OfferingService.GetPendingOfferingsAsync();
+                    pendingOfferingCount = pendingOfferings.Count;
+                }
+
+                var rejectedOfferings = await OfferingService.GetRejectedOfferingsByUserAsync(currentWorkerId);
+                rejectedOfferingsCount = rejectedOfferings.Count;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading offering counts: {ex.Message}");
+        }
+
+        StateHasChanged();
+    }
+
+    private string GetNavItemClass(string currentUri)
+    {
+        var uri = Navigation.ToBaseRelativePath(Navigation.Uri);
+        return uri.Equals(currentUri.TrimStart('/'), StringComparison.OrdinalIgnoreCase)
+            ? "active"
+            : "";
+    }
+
+    private void ToggleSetupMenu()
+    {
+        showSetupMenu = !showSetupMenu;
+    }
+
+    private void ToggleWorkforceMenu()
+    {
+        showWorkforceMenu = !showWorkforceMenu;
+    }
+
+    private void ToggleUsheringMenu()
+    {
+        showUsheringMenu = !showUsheringMenu;
+        if (showUsheringMenu)
+        {
+            _ = LoadOfferingCounts();
+        }
+    }
+
+    private void ToggleExcuseMenu()
+    {
+        showExcuseMenu = !showExcuseMenu;
+    }
+
+    private void ToggleReportsMenu()
+    {
+        showReportsMenu = !showReportsMenu;
+    }
+
+    private void ToggleGrowthHubMenu()
+    {
+        showGrowthHubMenu = !showGrowthHubMenu;
+        if (showGrowthHubMenu)
+        {
+            _ = LoadGrowthHubCounts();
+        }
+    }
+
+    // Record Nomination - Only for Head/Assistant Head of FIG Directorate
+    private bool CanAccessRecordNomination()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+
+        // Only Head or Assistant Head of FIG Directorate can access
+        var isHeadOfFIGDirectorate = role.Contains("head of directorate") &&
+                                     directorateName.Contains("fig");
+
+        var isAssistantHeadOfFIGDirectorate = role.Contains("asst head of directorate") &&
+                                              directorateName.Contains("fig");
+
+        return isHeadOfFIGDirectorate || isAssistantHeadOfFIGDirectorate;
+    }
+
+    private bool CanAccessProfileApproval()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        return role.Contains("head of directorate") ||
+               role.Contains("asst head of directorate") ||
+               role.Contains("head of service") ||
+               role.Contains("pastor in charge") ||
+               role.Contains("senior pastor");
+    }
+
+    private bool CanAccessMyTeam()
+    {
+        return CanAccessProfileApproval();
+    }
+}

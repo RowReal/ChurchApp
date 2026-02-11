@@ -1,0 +1,765 @@
+﻿@page "/Workforce/create-case"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AccountabilityService AccountabilityService
+@inject WorkerService WorkerService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject ILogger<CreateCase> Logger
+
+<PageTitle>Create Accountability Case</PageTitle>
+
+@if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+{
+    <div class="container-fluid py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <!-- Header -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h4 class="mb-1">Create Performance Feedback</h4>
+                        <p class="text-muted mb-0">
+                            @if (currentHierarchyLevel >= 3)
+                            {
+                                <span>You can create cases for any worker</span>
+                            }
+                            else if (currentHierarchyLevel == 2)
+                            {
+                                <span>You can create cases for workers in your directorate</span>
+                            }
+                            else
+                            {
+                                <span>You can report issues about yourself</span>
+                            }
+                        </p>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="NavigateBack">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Cases
+                    </button>
+                </div>
+
+                <!-- Messages -->
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success alert-dismissible fade show mb-4">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Success!</strong> @successMessage
+                        <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible fade show mb-4">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Error!</strong> @errorMessage
+                        <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                    </div>
+                }
+
+                <!-- Creation Form -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <EditForm Model="@model" OnValidSubmit="@CreateNewCase">
+                            <DataAnnotationsValidator />
+
+                            <!-- Worker Selection Section -->
+                            <div class="mb-4">
+                                <h6 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="fas fa-user me-2"></i>Select Worker
+                                </h6>
+
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <label class="form-label fw-semibold">
+                                            Worker to Provide Feedback For *
+                                            @if (currentHierarchyLevel >= 3)
+                                            {
+                                                <span class="text-muted small">(Any worker)</span>
+                                            }
+                                            else if (currentHierarchyLevel == 2)
+                                            {
+                                                <span class="text-muted small">(Workers in your directorate)</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted small">(Yourself only)</span>
+                                            }
+                                        </label>
+
+                                        @if (currentHierarchyLevel == 1)
+                                        {
+                                            <!-- Regular worker can only select themselves -->
+                                            <div class="form-control bg-light">
+                                                @AuthService.CurrentWorker.FirstName @AuthService.CurrentWorker.LastName
+                                                (Yourself)
+                                            </div>
+                                            <input type="hidden" @bind="model.WorkerId" />
+                                        }
+                                        else
+                                        {
+                                            <select @bind="model.WorkerId"
+                                                    @bind:after="OnWorkerSelected"
+                                                    class="form-select">
+                                                <option value="">Select a worker</option>
+                                                @foreach (var worker in availableWorkers)
+                                                {
+                                                    <option value="@worker.Id">
+                                                        @worker.FirstName @worker.LastName
+                                                        (@worker.Role) - @worker.Directorate?.Name
+                                                    </option>
+                                                }
+                                            </select>
+                                        }
+                                        <ValidationMessage For="@(() => model.WorkerId)" class="text-danger small" />
+                                    </div>
+                                </div>
+
+                                <!-- Selected Worker Info -->
+                                @if (selectedWorker != null)
+                                {
+                                    <div class="alert alert-info mt-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                @if (!string.IsNullOrEmpty(selectedWorker.PassportPhotoPath))
+                                                {
+                                                    <img src="/uploads/@selectedWorker.PassportPhotoPath"
+                                                         alt="Photo"
+                                                         class="rounded-circle"
+                                                         style="width: 40px; height: 40px; object-fit: cover;" />
+                                                }
+                                                else
+                                                {
+                                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center"
+                                                         style="width: 40px; height: 40px;">
+                                                        <i class="fas fa-user text-muted"></i>
+                                                    </div>
+                                                }
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <div class="fw-semibold">
+                                                    @selectedWorker.FirstName @selectedWorker.LastName
+                                                </div>
+                                                <div class="small">
+                                                    <span class="badge bg-primary me-2">@selectedWorker.Role</span>
+                                                    <span class="text-muted">@selectedWorker.Directorate?.Name</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Case Details Section -->
+                            <div class="mb-4">
+                                <h6 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="fas fa-clipboard-list me-2"></i>Case Details
+                                </h6>
+
+                                <div class="row g-3">
+                                    <div class="col-md-12">
+                                        <label class="form-label fw-semibold">Title *</label>
+                                        <InputText @bind-Value="model.Title"
+                                                   class="form-control"
+                                                   placeholder="Brief summary of the issue" />
+                                        <ValidationMessage For="@(() => model.Title)" class="text-danger small" />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Category</label>
+                                        <select @bind="model.Category" class="form-select">
+                                            <option value="Attendance">Attendance Issue</option>
+                                            <option value="Task">Task Not Completed</option>
+                                            <option value="Conduct">Conduct/Behavior</option>
+                                            <option value="Performance">Performance Feedback</option>
+                                            <option value="Communication">Communication Issue</option>
+                                            <option value="General" selected>General</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Priority</label>
+                                        <select @bind="model.Priority" class="form-select">
+                                            <option value="Low">Low</option>
+                                            <option value="Medium" selected>Medium</option>
+                                            <option value="High">High</option>
+                                            <option value="Critical">Critical</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Occurrence Date</label>
+                                        <InputDate @bind-Value="model.OccurrenceDate" class="form-control" />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Due Date (Optional)</label>
+                                        <InputDate @bind-Value="model.DueDate" class="form-control" />
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold">Description *</label>
+                                        <textarea @bind="model.Description"
+                                                  class="form-control"
+                                                  rows="4"
+                                                  placeholder="Describe the issue in detail. Be specific about what happened, when, and why feedback is needed."></textarea>
+                                        <ValidationMessage For="@(() => model.Description)" class="text-danger small" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Initial Message Section -->
+                            <div class="mb-4">
+                                <h6 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="fas fa-comment-dots me-2"></i>Initial Message to Worker
+                                </h6>
+
+                                <div class="row">
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold">Your Message *</label>
+                                        <textarea @bind="initialMessage"
+                                                  class="form-control"
+                                                  rows="3"
+                                                  placeholder="What would you like to ask or communicate to the worker? This will be the first message in the conversation."></textarea>
+                                        <ValidationMessage For="@(() => initialMessage)" class="text-danger small" />
+                                        <div class="mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                This message will be visible to the worker and their supervisors based on the hierarchy.
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Message Templates -->
+                                <!-- Message Templates -->
+                                <div class="mt-3">
+                                    <label class="form-label small fw-semibold">Quick Templates</label>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                @onclick="@(() => LoadTemplate("attendance"))">
+                                            <i class="fas fa-calendar-times me-1"></i>Attendance Issue
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                @onclick="@(() => LoadTemplate("task"))">
+                                            <i class="fas fa-tasks me-1"></i>Task Not Completed
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                @onclick="@(() => LoadTemplate("feedback"))">
+                                            <i class="fas fa-comment-alt me-1"></i>Performance Feedback
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Visibility & Confidentiality -->
+                            <div class="mb-4">
+                                <h6 class="text-primary border-bottom pb-2 mb-3">
+                                    <i class="fas fa-eye me-2"></i>Visibility Settings
+                                </h6>
+
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox"
+                                                   @bind="model.IsConfidential"
+                                                   id="confidentialCheck" />
+                                            <label class="form-check-label" for="confidentialCheck">
+                                                <strong>Mark as Confidential</strong>
+                                            </label>
+                                            <div class="form-text">
+                                                Confidential cases are only visible to you, the worker, and higher-level supervisors.
+                                                Regular supervisors in the chain cannot see confidential messages.
+                                            </div>
+                                        </div>
+
+                                        <div class="alert alert-warning">
+                                            <div class="d-flex">
+                                                <i class="fas fa-exclamation-triangle me-2 mt-1"></i>
+                                                <div>
+                                                    <strong>Visibility Rules:</strong>
+                                                    <ul class="mb-0 mt-1">
+                                                        @if (currentHierarchyLevel == 2)
+                                                        {
+                                                            <li>This case will be visible to you (Head of Directorate) and the worker</li>
+                                                            <li>If escalated, it will become visible to Head of Service</li>
+                                                        }
+                                                        else if (currentHierarchyLevel == 3)
+                                                        {
+                                                            <li>This case will be visible to you (Head of Service), the worker, and their Head of Directorate</li>
+                                                            <li>If escalated, it will become visible to Pastor in Charge</li>
+                                                        }
+                                                        else if (currentHierarchyLevel == 4)
+                                                        {
+                                                            <li>This case will be visible to you (Pastor), the worker, and all supervisors in their chain</li>
+                                                        }
+                                                        else
+                                                        {
+                                                            <li>This case will be visible to you and your Head of Directorate</li>
+                                                        }
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit Buttons -->
+                            <div class="border-top pt-4">
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="NavigateBack">
+                                        <i class="fas fa-times me-1"></i>Cancel
+                                    </button>
+
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-outline-primary" @onclick="PreviewCase">
+                                            <i class="fas fa-eye me-1"></i>Preview
+                                        </button>
+
+                                        <button type="submit" class="btn btn-primary px-4" disabled="@isCreating">
+                                            @if (isCreating)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                                <text>Creating...</text>
+                                                                                }
+                                            else
+                                            {
+                                                <i class="fas fa-paper-plane me-2"></i>
+                                                <text>Create Case</text>
+                                                                                }
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container py-5">
+        <div class="text-center">
+            <i class="fas fa-sign-in-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Please Login</h5>
+            <a href="/login" class="btn btn-sm btn-primary">Go to Login</a>
+        </div>
+    </div>
+}
+
+<!-- Preview Modal -->
+@if (showPreview)
+{
+    <div class="modal show d-block" style="background: rgba(0,0,0,0.5)" @onclick="ClosePreview">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content" @onclick:stopPropagation>
+                <div class="modal-header">
+                    <h5 class="modal-title">Case Preview</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePreview"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary">Case Summary</h6>
+
+                            <div class="mb-3">
+                                <strong>Worker:</strong>
+                                <div class="mt-1">
+                                    @if (selectedWorker != null)
+                                    {
+                                        <span class="fw-semibold">
+                                            @selectedWorker.FirstName @selectedWorker.LastName
+                                        </span>
+                                        <span class="text-muted ms-2">
+                                            (@selectedWorker.Role) - @selectedWorker.Directorate?.Name
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not selected</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <strong>Title:</strong>
+                                <div class="mt-1">@model.Title</div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <strong>Category:</strong>
+                                    <div class="mt-1">
+                                        <span class="badge bg-info">@model.Category</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Priority:</strong>
+                                    <div class="mt-1">
+                                        <span class="badge @GetPriorityBadgeClass(model.Priority)">
+                                            @model.Priority
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <strong>Description:</strong>
+                                <div class="mt-1 p-2 bg-light rounded">@model.Description</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <strong>Initial Message:</strong>
+                                <div class="mt-1 p-3 bg-white border rounded">
+                                    <div class="d-flex">
+                                        <div class="flex-shrink-0">
+                                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                                 style="width: 32px; height: 32px;">
+                                                @GetInitials(AuthService.CurrentWorker?.FirstName, AuthService.CurrentWorker?.LastName)
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <div class="fw-semibold">
+                                                @AuthService.CurrentWorker?.FirstName @AuthService.CurrentWorker?.LastName
+                                            </div>
+                                            <div class="text-muted small">@DateTime.Now.ToString("dd MMM yyyy HH:mm")</div>
+                                            <div class="mt-2">@initialMessage</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if (model.IsConfidential)
+                            {
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-lock me-2"></i>
+                                    This case will be marked as <strong>Confidential</strong>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="ClosePreview">
+                        Close
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="CreateCaseFromPreview">
+                        <i class="fas fa-paper-plane me-2"></i>Create Case
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private CreateCaseModel model = new CreateCaseModel();
+    private string initialMessage = string.Empty;
+    private List<Worker> availableWorkers = new List<Worker>();
+    private Worker? selectedWorker = null;
+    private int currentHierarchyLevel = 1;
+    private bool isCreating = false;
+    private bool showPreview = false;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            // Get current worker's hierarchy level
+            currentHierarchyLevel = await GetCurrentHierarchyLevelAsync();
+
+            // Load available workers based on hierarchy level
+            await LoadAvailableWorkersAsync();
+
+            // If current hierarchy level is 1, set worker ID to self
+            if (currentHierarchyLevel == 1)
+            {
+                model.WorkerId = AuthService.CurrentWorker.Id;
+                selectedWorker = AuthService.CurrentWorker;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+            Logger.LogError(ex, "Error loading data for create case");
+        }
+    }
+
+    private async Task<int> GetCurrentHierarchyLevelAsync()
+    {
+        try
+        {
+            var hierarchy = await AccountabilityService.GetOrCreateWorkerHierarchyAsync(
+                AuthService.CurrentWorker.Id);
+            return hierarchy.HierarchyLevel;
+        }
+        catch
+        {
+            // Fallback to role-based detection
+            var role = AuthService.CurrentWorker.Role.ToLowerInvariant();
+
+            if (role.Contains("pastor in charge") || role.Contains("senior pastor"))
+                return 4;
+            if (role.Contains("head of service") || role.Contains("service head"))
+                return 3;
+            if (role.Contains("head of directorate") || role.Contains("directorate head"))
+                return 2;
+            return 1;
+        }
+    }
+
+    private async Task LoadAvailableWorkersAsync()
+    {
+        var allWorkers = await WorkerService.GetAllWorkersAsync();
+
+        // Filter based on hierarchy level
+        switch (currentHierarchyLevel)
+        {
+            case 4: // Pastor in Charge - can see all workers except other pastors
+                availableWorkers = allWorkers
+                    .Where(w => w.IsActive &&
+                           !w.Role.Contains("Pastor in Charge", StringComparison.OrdinalIgnoreCase) &&
+                           !w.Role.Contains("Senior Pastor", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(w => w.FirstName)
+                    .ToList();
+                break;
+
+            case 3: // Head of Service - can see all workers in their service area
+                // For now, show all workers except pastors and other heads of service
+                // You might need to adjust this based on your service structure
+                availableWorkers = allWorkers
+                    .Where(w => w.IsActive &&
+                           !w.Role.Contains("Pastor", StringComparison.OrdinalIgnoreCase) &&
+                           !w.Role.Contains("Head of Service", StringComparison.OrdinalIgnoreCase) &&
+                           w.Id != AuthService.CurrentWorker.Id)
+                    .OrderBy(w => w.FirstName)
+                    .ToList();
+                break;
+
+            case 2: // Head of Directorate - can see workers in their directorate
+                var currentWorker = AuthService.CurrentWorker;
+                if (currentWorker.DirectorateId.HasValue)
+                {
+                    availableWorkers = allWorkers
+                        .Where(w => w.IsActive &&
+                               w.DirectorateId == currentWorker.DirectorateId &&
+                               w.Id != currentWorker.Id)
+                        .OrderBy(w => w.FirstName)
+                        .ToList();
+                }
+                else
+                {
+                    availableWorkers = new List<Worker>();
+                    errorMessage = "You are not assigned to a directorate. Please contact administrator.";
+                }
+                break;
+
+            default: // Regular worker - can only create cases about themselves
+                availableWorkers = allWorkers
+                    .Where(w => w.Id == AuthService.CurrentWorker.Id)
+                    .ToList();
+                break;
+        }
+
+        // If no workers available, show message
+        if (!availableWorkers.Any() && currentHierarchyLevel > 1)
+        {
+            errorMessage = "No workers available for feedback. Please contact administrator.";
+        }
+    }
+
+    private async Task OnWorkerSelected()
+    {
+        if (model.WorkerId > 0)
+        {
+            selectedWorker = await WorkerService.GetWorkerByIdAsync(model.WorkerId);
+        }
+        else
+        {
+            selectedWorker = null;
+        }
+
+        // Force UI update
+        StateHasChanged();
+    }
+
+    private void LoadTemplate(string templateType)
+    {
+        // Fixed: Use if-else instead of switch with long strings
+        if (templateType == "attendance")
+        {
+            initialMessage = "I noticed you were not present at the [event/service/meeting] on [date]. Could you please explain your absence and whether you had prior permission?";
+        }
+        else if (templateType == "task")
+        {
+            initialMessage = "The task '[task name]' assigned to you with deadline [date] was not completed. Please provide an update on the status and reasons for the delay.";
+        }
+        else if (templateType == "feedback")
+        {
+            initialMessage = "I'd like to discuss your recent performance regarding [specific area]. Please share your perspective on this matter.";
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task CreateNewCase()
+    {
+        if (string.IsNullOrEmpty(initialMessage))
+        {
+            errorMessage = "Please provide an initial message for the worker.";
+            StateHasChanged();
+            return;
+        }
+
+        isCreating = true;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            // Create the case
+            var caseObj = await AccountabilityService.CreateCaseAsync(
+                model.Title,
+                model.Description,
+                model.WorkerId,
+                AuthService.CurrentWorker.Id,
+                model.Priority,
+                model.Category,
+                model.OccurrenceDate,
+                model.DueDate
+            );
+
+            // Set confidentiality if needed
+            if (model.IsConfidential)
+            {
+                caseObj.IsConfidential = true;
+                await AccountabilityService.UpdateCaseConfidentialityAsync(caseObj.Id, true);
+            }
+
+            // Add initial message
+            await AccountabilityService.AddInitialMessageAsync(
+                caseObj.Id,
+                AuthService.CurrentWorker.Id,
+                initialMessage,
+                "Question"
+            );
+
+            successMessage = $"Case created successfully! Case ID: {caseObj.CaseCode}";
+
+            // Redirect to case details after delay
+            await Task.Delay(1500);
+            Navigation.NavigateTo("/Workforce/feedback"); 
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to create case: {ex.Message}";
+            Logger.LogError(ex, "Error creating accountability case");
+            StateHasChanged();
+        }
+        finally
+        {
+            isCreating = false;
+            StateHasChanged();
+        }
+    }
+
+    private void PreviewCase()
+    {
+        if (ValidateForm())
+        {
+            showPreview = true;
+            StateHasChanged();
+        }
+    }
+
+    private void ClosePreview()
+    {
+        showPreview = false;
+        StateHasChanged();
+    }
+
+    private async Task CreateCaseFromPreview()
+    {
+        showPreview = false;
+        StateHasChanged();
+        await CreateNewCase();
+    }
+
+    private bool ValidateForm()
+    {
+        if (model.WorkerId <= 0)
+        {
+            errorMessage = "Please select a worker.";
+            StateHasChanged();
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(model.Title))
+        {
+            errorMessage = "Please enter a title.";
+            StateHasChanged();
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(model.Description))
+        {
+            errorMessage = "Please enter a description.";
+            StateHasChanged();
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(initialMessage))
+        {
+            errorMessage = "Please enter an initial message.";
+            StateHasChanged();
+            return false;
+        }
+
+        return true;
+    }
+
+    private string GetPriorityBadgeClass(string priority)
+    {
+        switch (priority)
+        {
+            case "Low":
+                return "bg-success";
+            case "Medium":
+                return "bg-primary";
+            case "High":
+                return "bg-warning";
+            case "Critical":
+                return "bg-danger";
+            default:
+                return "bg-secondary";
+        }
+    }
+
+    private string GetInitials(string firstName, string lastName)
+    {
+        if (string.IsNullOrEmpty(firstName) || string.IsNullOrEmpty(lastName))
+            return "??";
+
+        return $"{firstName[0]}{lastName[0]}".ToUpper();
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/Workforce/cases");
+    }
+}

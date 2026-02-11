@@ -1,0 +1,1307 @@
+﻿@page "/Workforce/case/{caseId:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@inject AccountabilityService AccountabilityService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject NavigationManager NavManager
+@inject ILogger<CaseDetail> Logger
+
+<PageTitle>Growth Case Details</PageTitle>
+
+@if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+{
+    <!-- Success/Error Messages -->
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (caseObj == null)
+    {
+        <div class="container py-5">
+            <div class="text-center">
+                <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Case Not Found</h5>
+                <p class="text-muted small mb-3">The requested case could not be found or you don't have permission to view it.</p>
+                <a href="/Workforce/feedback" class="btn btn-sm btn-primary">Back to Cases</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Response Mode Banner -->
+        @if (isResponseMode)
+        {
+            <div class="alert alert-info mb-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-reply me-2"></i>
+                        <strong>Response Mode</strong> - You are responding to this case
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="ExitResponseMode">
+                        Exit Response Mode
+                    </button>
+                </div>
+            </div>
+        }
+
+        <div class="container-fluid py-4">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <div class="d-flex align-items-center mb-2">
+                        <h4 class="mb-0 me-3">@caseObj.Title</h4>
+                        <span class="badge @GetStatusBadgeClass(caseObj.Status)">@caseObj.Status</span>
+                        @if (caseObj.IsConfidential)
+                        {
+                            <span class="badge bg-warning ms-2">
+                                <i class="fas fa-lock me-1"></i>Confidential
+                            </span>
+                        }
+                    </div>
+                    <p class="text-muted mb-0">
+                        Case ID: <strong>@caseObj.CaseCode</strong> •
+                        Created: @caseObj.CreatedDate.ToString("dd MMM yyyy") •
+                        Escalation Level: <strong>@GetEscalationLevelName(caseObj.EscalationLevel)</strong>
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="NavigateBack">
+                        <i class="fas fa-arrow-left me-1"></i>Back
+                    </button>
+
+                    @if (canEscalateCase)
+                    {
+                        <button class="btn btn-outline-warning btn-sm" @onclick="ShowEscalateModal">
+                            <i class="fas fa-level-up-alt me-1"></i>Escalate
+                        </button>
+                    }
+
+                    @if (canResolveCase)
+                    {
+                        <button class="btn btn-outline-success btn-sm" @onclick="ShowResolveModal">
+                            <i class="fas fa-check-circle me-1"></i>Resolve
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <!-- Quick Response Actions (Response Mode Only) -->
+            @if (isResponseMode && canRespond)
+            {
+                <div class="card border-primary border-2 shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <i class="fas fa-bolt me-2"></i>Quick Response Actions
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Respond Button -->
+                            <div class="col-md-6 mb-3">
+                                <button class="btn btn-success w-100" @onclick="ShowResponseModal">
+                                    <i class="fas fa-comment-dots me-2"></i>Send Response
+                                </button>
+                                <small class="text-muted mt-1 d-block">
+                                    Send a direct response to the worker
+                                </small>
+                            </div>
+
+                            <!-- Escalate Button -->
+                            @if (canEscalate)
+                            {
+                                <div class="col-md-6 mb-3">
+                                    <button class="btn btn-warning w-100" @onclick="ShowEscalateModal">
+                                        <i class="fas fa-level-up-alt me-2"></i>Escalate Case
+                                    </button>
+                                    <small class="text-muted mt-1 d-block">
+                                        Escalate to next authority level
+                                    </small>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Case Info Cards -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary mb-3">
+                                <i class="fas fa-user me-2"></i>Worker Details
+                            </h6>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="flex-shrink-0">
+                                    @if (!string.IsNullOrEmpty(caseObj.Worker.PassportPhotoPath))
+                                    {
+                                        <img src="/uploads/@caseObj.Worker.PassportPhotoPath"
+                                             alt="Photo"
+                                             class="rounded-circle"
+                                             style="width: 50px; height: 50px; object-fit: cover;" />
+                                    }
+                                    else
+                                    {
+                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center"
+                                             style="width: 50px; height: 50px;">
+                                            <i class="fas fa-user text-muted"></i>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="fw-semibold">
+                                        @caseObj.Worker.FirstName @caseObj.Worker.LastName
+                                    </div>
+                                    <div class="small text-muted">@caseObj.Worker.Role</div>
+                                    <div class="small">@caseObj.Worker.Directorate?.Name</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary mb-3">
+                                <i class="fas fa-info-circle me-2"></i>Case Information
+                            </h6>
+                            <div class="mb-2">
+                                <small class="text-muted">Category</small>
+                                <div class="fw-semibold">@caseObj.Category</div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Priority</small>
+                                <div>
+                                    <span class="badge @GetPriorityBadgeClass(caseObj.Priority)">
+                                        @caseObj.Priority
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <small class="text-muted">Occurrence Date</small>
+                                <div class="fw-semibold">@caseObj.OccurrenceDate.ToString("dd MMM yyyy")</div>
+                            </div>
+                            @if (caseObj.DueDate.HasValue)
+                            {
+                                <div class="mb-2">
+                                    <small class="text-muted">Due Date</small>
+                                    <div class="fw-semibold @(caseObj.IsOverdue ? "text-danger" : "")">
+                                        @caseObj.FormattedDueDate
+                                        @if (caseObj.IsOverdue)
+                                        {
+                                            <i class="fas fa-exclamation-circle ms-1"></i>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary mb-3">
+                                <i class="fas fa-users me-2"></i>Assignment
+                            </h6>
+                            <div class="mb-3">
+                                <small class="text-muted">Created By</small>
+                                <div class="fw-semibold">
+                                    @caseObj.CreatedByWorker?.FirstName @caseObj.CreatedByWorker?.LastName
+                                </div>
+                            </div>
+                            @if (caseObj.AssignedToWorker != null)
+                            {
+                                <div class="mb-3">
+                                    <small class="text-muted">Currently Assigned To</small>
+                                    <div class="fw-semibold">
+                                        @caseObj.AssignedToWorker.FirstName @caseObj.AssignedToWorker.LastName
+                                    </div>
+                                    <div class="small text-muted">@caseObj.AssignedToWorker.Role</div>
+                                </div>
+                            }
+                            <div>
+                                <small class="text-muted">Last Updated</small>
+                                <div class="fw-semibold">@caseObj.LastUpdated?.ToString("dd MMM yyyy HH:mm")</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Section -->
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary mb-3">
+                                <i class="fas fa-comments me-2"></i>Conversation
+                            </h6>
+
+                            <!-- Messages List -->
+                            <div class="messages-container" style="max-height: 500px; overflow-y: auto;">
+                                @if (messages != null && messages.Any())
+                                {
+                                    @foreach (var message in messages)
+                                    {
+                                        <div class="message-item mb-4 @(message.SenderWorkerId == AuthService.CurrentWorker.Id ? "message-sent" : "message-received")">
+                                            <div class="d-flex">
+                                                <!-- Avatar -->
+                                                <div class="flex-shrink-0">
+                                                    <div class="rounded-circle @(message.SenderWorkerId == AuthService.CurrentWorker.Id ? "bg-primary" : "bg-secondary") text-white d-flex align-items-center justify-content-center"
+                                                         style="width: 40px; height: 40px;">
+                                                        @GetInitials(message.SenderWorker?.FirstName, message.SenderWorker?.LastName)
+                                                    </div>
+                                                </div>
+
+                                                <!-- Message Content -->
+                                                <div class="flex-grow-1 ms-3">
+                                                    <!-- Message Header -->
+                                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                                        <div>
+                                                            <span class="fw-semibold">
+                                                                @message.SenderWorker?.FirstName @message.SenderWorker?.LastName
+                                                            </span>
+                                                            <span class="badge @GetMessageTypeBadgeClass(message.MessageType) ms-2">
+                                                                @message.MessageType
+                                                            </span>
+                                                            @if (message.IsConfidential)
+                                                            {
+                                                                <span class="badge bg-warning ms-1">
+                                                                    <i class="fas fa-lock"></i>
+                                                                </span>
+                                                            }
+                                                        </div>
+                                                        <div class="text-muted small">
+                                                            @message.TimeAgo
+                                                            @if (message.IsRead && message.SenderWorkerId != AuthService.CurrentWorker.Id)
+                                                            {
+                                                                <i class="fas fa-check-circle text-success ms-1" title="Read"></i>
+                                                            }
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Visibility Info -->
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-eye me-1"></i>
+                                                            Visible to: @GetVisibilityDescription(message.VisibleToLevels)
+                                                        </small>
+                                                    </div>
+
+                                                    <!-- Message Body -->
+                                                    <div class="message-content p-3 rounded @(message.SenderWorkerId == AuthService.CurrentWorker.Id ? "bg-primary bg-opacity-10" : "bg-light")">
+                                                        @if (message.ReplyToMessageId.HasValue)
+                                                        {
+                                                            <div class="reply-to mb-2 p-2 bg-white border-start border-3 border-primary">
+                                                                <small class="text-muted">Replying to:</small>
+                                                                <div class="small">@GetReplyPreview(message.ReplyToMessageId.Value)</div>
+                                                            </div>
+                                                        }
+
+                                                        <div>@message.Content</div>
+
+                                                        @if (!string.IsNullOrEmpty(message.AttachmentPath))
+                                                        {
+                                                            <div class="mt-2">
+                                                                <a href="/uploads/accountability/@message.AttachmentPath"
+                                                                   target="_blank"
+                                                                   class="btn btn-sm btn-outline-primary">
+                                                                    <i class="fas fa-paperclip me-1"></i>
+                                                                    @message.AttachmentName
+                                                                </a>
+                                                            </div>
+                                                        }
+                                                    </div>
+
+                                                    <!-- Reply Button -->
+                                                    @if (message.SenderWorkerId != AuthService.CurrentWorker.Id && canSendMessage)
+                                                    {
+                                                        <div class="mt-2">
+                                                            <button class="btn btn-sm btn-outline-secondary"
+                                                                    @onclick="() => ReplyToMessage(message)">
+                                                                <i class="fas fa-reply me-1"></i>Reply
+                                                            </button>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-comment-slash fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">No messages yet</p>
+                                        <p class="text-muted small">Start the conversation by sending a message below</p>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Send Message Form -->
+                            @if (canSendMessage)
+                            {
+                                <div class="border-top pt-4 mt-4">
+                                    <h6 class="text-primary mb-3">Send Response</h6>
+
+                                    <EditForm Model="@responseModel" OnValidSubmit="@SendResponse">
+                                        <DataAnnotationsValidator />
+
+                                        <!-- Reply Indicator -->
+                                        @if (replyingToMessage != null)
+                                        {
+                                            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <i class="fas fa-reply me-2"></i>
+                                                    <strong>Replying to:</strong> @replyingToMessage.SenderWorker?.FirstName
+                                                    <div class="small text-muted mt-1">@TruncateString(replyingToMessage.Content, 100)</div>
+                                                </div>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelReply">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        }
+
+                                        <!-- Message Type -->
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-semibold">Message Type</label>
+                                                <select @bind="responseModel.MessageType" class="form-select">
+                                                    <option value="Response">Response</option>
+                                                    <option value="Question">Question</option>
+                                                    <option value="Guidance">Guidance</option>
+                                                    <option value="Warning">Warning</option>
+                                                    <option value="Resolution">Resolution</option>
+                                                </select>
+                                            </div>
+
+                                            <!-- Visibility Settings -->
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-semibold">Visible To</label>
+                                                <select @bind="responseModel.VisibleTo" class="form-select">
+                                                    <option value="auto">Auto (Based on hierarchy)</option>
+                                                    <option value="1">Worker only</option>
+                                                    @if (currentHierarchyLevel >= 2)
+                                                    {
+                                                        <option value="1,2">Worker + Head of Directorate</option>
+                                                    }
+                                                    @if (currentHierarchyLevel >= 3)
+                                                    {
+                                                        <option value="1,2,3">Worker + Head of Directorate + Head of Service</option>
+                                                    }
+                                                    @if (currentHierarchyLevel >= 4)
+                                                    {
+                                                        <option value="1,2,3,4">All levels (Including Pastor)</option>
+                                                    }
+                                                    <option value="confidential">Confidential (Higher levels only)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <!-- Message Content -->
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-semibold">Message *</label>
+                                            <textarea @bind="responseModel.Content"
+                                                      class="form-control"
+                                                      rows="3"
+                                                      placeholder="Type your message here..."></textarea>
+                                            <ValidationMessage For="@(() => responseModel.Content)" class="text-danger small" />
+                                        </div>
+
+                                        <!-- Attachment -->
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-semibold">Attachment (Optional)</label>
+                                            <InputFile id="attachment" OnChange="@OnAttachmentChanged"
+                                                       class="form-control form-control-sm"
+                                                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
+                                            <small class="text-muted">Max 5MB. PDF, Word, Images</small>
+                                            @if (!string.IsNullOrEmpty(attachmentFileName))
+                                            {
+                                                <div class="mt-1">
+                                                    <span class="badge bg-info">
+                                                        <i class="fas fa-paperclip me-1"></i>@attachmentFileName
+                                                    </span>
+                                                    <button type="button" class="btn btn-sm btn-link text-danger"
+                                                            @onclick="RemoveAttachment">
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <!-- Submit Button -->
+                                        <div class="d-flex justify-content-end">
+                                            <button type="submit" class="btn btn-primary px-4" disabled="@isSending">
+                                                @if (isSending)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                                    <span>Sending...</span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-paper-plane me-2"></i>
+                                                    <span>Send Message</span>
+                                                }
+                                            </button>
+                                        </div>
+                                    </EditForm>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info mt-4">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    You cannot send messages in this case. The case is assigned to someone else or has been resolved.
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="col-lg-4">
+                    <!-- Actions History -->
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary mb-3">
+                                <i class="fas fa-history me-2"></i>Case History
+                            </h6>
+                            <div class="timeline">
+                                @if (actions != null && actions.Any())
+                                {
+                                    @foreach (var action in actions.OrderByDescending(a => a.ActionDate))
+                                    {
+                                        <div class="timeline-item mb-3">
+                                            <div class="timeline-marker"></div>
+                                            <div class="timeline-content">
+                                                <div class="small text-muted">@action.FormattedActionDate</div>
+                                                <div class="fw-semibold">@action.PerformedByWorker?.FirstName</div>
+                                                <div class="small">@action.Description</div>
+                                                @if (!string.IsNullOrEmpty(action.OldValue) || !string.IsNullOrEmpty(action.NewValue))
+                                                {
+                                                    <div class="small text-muted mt-1">
+                                                        @if (!string.IsNullOrEmpty(action.OldValue))
+                                                        {
+                                                            <span>From: @action.OldValue</span>
+                                                        }
+                                                        @if (!string.IsNullOrEmpty(action.NewValue))
+                                                        {
+                                                            <span>To: @action.NewValue</span>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="text-muted small">No history available</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Visibility Legend -->
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary mb-3">
+                                <i class="fas fa-eye me-2"></i>Visibility Legend
+                            </h6>
+                            <div class="small">
+                                <div class="mb-2">
+                                    <span class="badge bg-success me-2">1</span>
+                                    <span>Worker (Subject)</span>
+                                </div>
+                                <div class="mb-2">
+                                    <span class="badge bg-primary me-2">2</span>
+                                    <span>Head of Directorate</span>
+                                </div>
+                                <div class="mb-2">
+                                    <span class="badge bg-info me-2">3</span>
+                                    <span>Head of Service</span>
+                                </div>
+                                <div class="mb-2">
+                                    <span class="badge bg-warning me-2">4</span>
+                                    <span>Pastor in Charge</span>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="alert alert-warning small">
+                                        <i class="fas fa-lock me-1"></i>
+                                        <strong>Confidential messages</strong> are only visible to the specified levels and higher.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="container py-5">
+        <div class="text-center">
+            <i class="fas fa-sign-in-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Please Login</h5>
+            <a href="/login" class="btn btn-sm btn-primary">Go to Login</a>
+        </div>
+    </div>
+}
+
+<!-- Response Modal -->
+@if (showResponseModal)
+{
+    <div class="modal show d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-reply me-2"></i>Send Response
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseResponseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Response Type</label>
+                        <select @bind="responseType" class="form-select">
+                            <option value="Guidance">Guidance/Advice</option>
+                            <option value="Clarification">Seek Clarification</option>
+                            <option value="ActionRequired">Action Required</option>
+                            <option value="Acknowledgement">Acknowledgement</option>
+                            <option value="Resolution">Propose Resolution</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Your Response *</label>
+                        <textarea @bind="responseContent"
+                                  class="form-control"
+                                  rows="5"
+                                  placeholder="Type your detailed response here..."></textarea>
+                    </div>
+
+                    <!-- Visibility Settings -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Visibility</label>
+                        <select @bind="responseVisibility" class="form-select">
+                            <option value="direct">Direct (Only worker sees this)</option>
+                            @if (currentHierarchyLevel >= 2)
+                            {
+                                <option value="directorate">Worker + Head of Directorate</option>
+                            }
+                            @if (currentHierarchyLevel >= 3)
+                            {
+                                <option value="service">Worker + Head of Service</option>
+                            }
+                            @if (currentHierarchyLevel >= 4)
+                            {
+                                <option value="all">All Levels</option>
+                            }
+                        </select>
+                        <small class="text-muted">
+                            Choose who can see this response
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseResponseModal">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary"
+                            @onclick="SendQuickResponse"
+                            disabled="@string.IsNullOrEmpty(responseContent)">
+                        <i class="fas fa-paper-plane me-2"></i>Send Response
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Escalate Modal -->
+@if (showEscalateModal)
+{
+    <div class="modal show d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Escalate Case</h5>
+                    <button type="button" class="btn-close" @onclick="CloseEscalateModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to escalate this case to the next level?</p>
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Escalation</label>
+                        <textarea @bind="escalationReason" class="form-control" rows="3"
+                                  placeholder="Explain why this case needs to be escalated..."></textarea>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Once escalated, the case will become visible to higher-level supervisors.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseEscalateModal">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-warning" @onclick="EscalateCase"
+                            disabled="@string.IsNullOrEmpty(escalationReason)">
+                        <i class="fas fa-level-up-alt me-2"></i>Escalate
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Resolve Modal -->
+@if (showResolveModal)
+{
+    <div class="modal show d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Resolve Case</h5>
+                    <button type="button" class="btn-close" @onclick="CloseResolveModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Mark this case as resolved? This will close the conversation.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Resolution Notes (Optional)</label>
+                        <textarea @bind="resolutionNotes" class="form-control" rows="3"
+                                  placeholder="Add any final notes or resolution details..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseResolveModal">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-success" @onclick="ResolveCase">
+                        <i class="fas fa-check-circle me-2"></i>Mark as Resolved
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int caseId { get; set; }
+
+    // State variables
+    private AccountabilityCase caseObj;
+    private List<AccountabilityMessage> messages = new();
+    private List<CaseAction> actions = new();
+    private SendResponseModel responseModel = new();
+    private AccountabilityMessage replyingToMessage = null;
+
+    // File attachment
+    private IBrowserFile attachmentFile = null;
+    private string attachmentFileName = string.Empty;
+
+    // User permissions
+    private int currentHierarchyLevel = 1;
+    private bool canSendMessage = false;
+    private bool canEscalateCase = false;
+    private bool canResolveCase = false;
+    private bool canRespond = false;
+    private bool canEscalate = false;
+
+    // Response mode
+    private bool isResponseMode = false;
+    private bool showResponseModal = false;
+    private string responseType = "Guidance";
+    private string responseContent = string.Empty;
+    private string responseVisibility = "direct";
+
+    // Modals
+    private bool showEscalateModal = false;
+    private bool showResolveModal = false;
+    private string escalationReason = string.Empty;
+    private string resolutionNotes = string.Empty;
+
+    // Messages
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    // Loading states
+    private bool isLoading = true;
+    private bool isSending = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+        {
+            await LoadCaseData();
+
+            // Check if we're in response mode from URL
+            var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            isResponseMode = query["respond"] == "true";
+
+            if (isResponseMode)
+            {
+                await CheckResponsePermissions();
+            }
+        }
+    }
+
+    private async Task LoadCaseData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Get current hierarchy level
+            currentHierarchyLevel = await GetCurrentHierarchyLevelAsync();
+
+            // Load case
+            var visibleCases = await AccountabilityService.GetVisibleCasesAsync(AuthService.CurrentWorker.Id);
+            caseObj = visibleCases.FirstOrDefault(c => c.Id == caseId);
+
+            if (caseObj != null)
+            {
+                // Load messages
+                messages = await AccountabilityService.GetVisibleMessagesAsync(caseId, AuthService.CurrentWorker.Id);
+
+                // Load actions
+                actions = await AccountabilityService.GetCaseActionsAsync(caseId);
+
+                // Check permissions
+                canSendMessage = CheckCanSendMessage();
+                canEscalateCase = await CheckCanEscalateCase();
+                canResolveCase = CheckCanResolveCase();
+                canRespond = canSendMessage && isResponseMode;
+                canEscalate = canEscalateCase;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading case data: {ex.Message}";
+            Logger.LogError(ex, "Error loading case data");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<int> GetCurrentHierarchyLevelAsync()
+    {
+        try
+        {
+            var hierarchy = await AccountabilityService.GetOrCreateWorkerHierarchyAsync(AuthService.CurrentWorker.Id);
+            return hierarchy.HierarchyLevel;
+        }
+        catch
+        {
+            // Fallback
+            var role = AuthService.CurrentWorker.Role.ToLowerInvariant();
+
+            if (role.Contains("pastor in charge") || role.Contains("senior pastor"))
+                return 4;
+            if (role.Contains("head of service") || role.Contains("service head"))
+                return 3;
+            if (role.Contains("head of directorate") || role.Contains("directorate head"))
+                return 2;
+            return 1;
+        }
+    }
+
+    private bool CheckCanSendMessage()
+    {
+        if (caseObj == null) return false;
+
+        // Check if case is resolved or closed
+        if (caseObj.Status == "Resolved" || caseObj.Status == "Closed")
+            return false;
+
+        // Check if current worker is involved in the case
+        return caseObj.WorkerId == AuthService.CurrentWorker.Id ||
+               caseObj.CreatedByWorkerId == AuthService.CurrentWorker.Id ||
+               caseObj.AssignedToWorkerId == AuthService.CurrentWorker.Id ||
+               currentHierarchyLevel > caseObj.EscalationLevel;
+    }
+
+    private async Task<bool> CheckCanEscalateCase()
+    {
+        if (caseObj == null) return false;
+
+        // Can escalate if not at highest level and has authority
+        return caseObj.EscalationLevel < 4 &&
+               currentHierarchyLevel >= caseObj.EscalationLevel &&
+               (caseObj.CreatedByWorkerId == AuthService.CurrentWorker.Id ||
+                caseObj.AssignedToWorkerId == AuthService.CurrentWorker.Id ||
+                currentHierarchyLevel > caseObj.EscalationLevel);
+    }
+
+    private bool CheckCanResolveCase()
+    {
+        if (caseObj == null) return false;
+
+        // Can resolve if case is not already resolved/closed and has authority
+        return caseObj.Status != "Resolved" &&
+               caseObj.Status != "Closed" &&
+               (caseObj.CreatedByWorkerId == AuthService.CurrentWorker.Id ||
+                caseObj.AssignedToWorkerId == AuthService.CurrentWorker.Id ||
+                currentHierarchyLevel >= 3);
+    }
+
+    private async Task CheckResponsePermissions()
+    {
+        if (caseObj == null) return;
+
+        // Check if current worker can respond in response mode
+        canRespond = caseObj.AssignedToWorkerId == AuthService.CurrentWorker.Id ||
+                     caseObj.WorkerId == AuthService.CurrentWorker.Id ||
+                     caseObj.CreatedByWorkerId == AuthService.CurrentWorker.Id;
+
+        if (!canRespond)
+        {
+            isResponseMode = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SendResponse()
+    {
+        if (string.IsNullOrEmpty(responseModel.Content))
+            return;
+
+        isSending = true;
+        StateHasChanged();
+
+        try
+        {
+            // Determine visibility
+            string visibleTo = DetermineVisibility(responseModel.VisibleTo);
+
+            // Convert IBrowserFile to byte array
+            byte[] fileBytes = null;
+            if (attachmentFile != null)
+            {
+                using var stream = attachmentFile.OpenReadStream();
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                fileBytes = memoryStream.ToArray();
+            }
+
+            await AccountabilityService.SendResponseAsync(
+                caseId,
+                AuthService.CurrentWorker.Id,
+                responseModel.Content,
+                responseModel.MessageType,
+                visibleTo,
+                replyingToMessage?.Id,
+                fileBytes,
+                attachmentFileName
+            );
+
+            // Reset form
+            responseModel = new SendResponseModel();
+            replyingToMessage = null;
+            attachmentFile = null;
+            attachmentFileName = string.Empty;
+
+            // Show success message
+            successMessage = "Response sent successfully!";
+            errorMessage = string.Empty;
+
+            // Reload messages
+            await LoadCaseData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to send response: {ex.Message}";
+            successMessage = string.Empty;
+            Logger.LogError(ex, "Error sending response");
+            StateHasChanged();
+        }
+        finally
+        {
+            isSending = false;
+            StateHasChanged();
+        }
+    }
+
+    private string DetermineVisibility(string visibilitySetting)
+    {
+        if (visibilitySetting == "auto")
+        {
+            var levels = new List<int> { currentHierarchyLevel };
+
+            // Always include the worker (level 1)
+            if (!levels.Contains(1) && currentHierarchyLevel > 1)
+                levels.Add(1);
+
+            // If current level is higher than case escalation level, include intermediate levels
+            if (currentHierarchyLevel > caseObj.EscalationLevel)
+            {
+                for (int i = caseObj.EscalationLevel; i < currentHierarchyLevel; i++)
+                {
+                    if (!levels.Contains(i))
+                        levels.Add(i);
+                }
+            }
+
+            return string.Join(",", levels.OrderBy(l => l));
+        }
+        else if (visibilitySetting == "confidential")
+        {
+            var levels = new List<int>();
+            for (int i = currentHierarchyLevel; i <= 4; i++)
+                levels.Add(i);
+
+            return string.Join(",", levels);
+        }
+
+        return visibilitySetting;
+    }
+
+    private void ReplyToMessage(AccountabilityMessage message)
+    {
+        replyingToMessage = message;
+        responseModel.MessageType = "Response";
+        StateHasChanged();
+    }
+
+    private void CancelReply()
+    {
+        replyingToMessage = null;
+        StateHasChanged();
+    }
+
+    private void OnAttachmentChanged(InputFileChangeEventArgs e)
+    {
+        attachmentFile = e.File;
+        attachmentFileName = e.File.Name;
+        StateHasChanged();
+    }
+
+    private void RemoveAttachment()
+    {
+        attachmentFile = null;
+        attachmentFileName = string.Empty;
+        StateHasChanged();
+    }
+
+    // Response Modal Methods
+    private void ShowResponseModal()
+    {
+        showResponseModal = true;
+        responseContent = string.Empty;
+        StateHasChanged();
+    }
+
+    private void CloseResponseModal()
+    {
+        showResponseModal = false;
+        StateHasChanged();
+    }
+
+    private async Task SendQuickResponse()
+    {
+        if (string.IsNullOrEmpty(responseContent))
+            return;
+
+        try
+        {
+            // Map visibility selection to levels
+            string visibleTo = MapVisibilityToLevels(responseVisibility);
+
+            await AccountabilityService.SendResponseAsync(
+                caseId,
+                AuthService.CurrentWorker.Id,
+                responseContent,
+                responseType,
+                visibleTo
+            );
+
+            // Close modal and reload
+            showResponseModal = false;
+            await LoadCaseData();
+
+            // Show success message
+            successMessage = "Response sent successfully!";
+            errorMessage = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to send response: {ex.Message}";
+            successMessage = string.Empty;
+            Logger.LogError(ex, "Error sending quick response");
+            StateHasChanged();
+        }
+    }
+
+    private string MapVisibilityToLevels(string visibility)
+    {
+        return visibility switch
+        {
+            "direct" => "1",
+            "directorate" => currentHierarchyLevel >= 2 ? "1,2" : "1",
+            "service" => currentHierarchyLevel >= 3 ? "1,2,3" : "1",
+            "all" => currentHierarchyLevel >= 4 ? "1,2,3,4" : "1",
+            _ => "1"
+        };
+    }
+
+    private void ExitResponseMode()
+    {
+        isResponseMode = false;
+        Navigation.NavigateTo("/Workforce/feedback");
+    }
+
+    // Escalate Modal Methods
+    private async Task ShowEscalateModal()
+    {
+        try
+        {
+            // Check escalation rules based on hierarchy
+            var workerHierarchy = await AccountabilityService.GetOrCreateWorkerHierarchyAsync(AuthService.CurrentWorker.Id);
+
+            if (caseObj == null) return;
+
+            // Worker can escalate to Head of Service (skip Head of Directorate)
+            if (workerHierarchy.HierarchyLevel == 1 && caseObj.EscalationLevel == 1)
+            {
+                escalationReason = "Escalating to Head of Service for guidance";
+            }
+            // Head of Directorate can escalate to Head of Service
+            else if (workerHierarchy.HierarchyLevel == 2 && caseObj.EscalationLevel <= 2)
+            {
+                escalationReason = "Escalating to Head of Service for review";
+            }
+            // Head of Service can escalate to Pastor
+            else if (workerHierarchy.HierarchyLevel == 3 && caseObj.EscalationLevel <= 3)
+            {
+                escalationReason = "Escalating to Pastor in Charge for final decision";
+            }
+            else
+            {
+                errorMessage = "You cannot escalate this case further";
+                StateHasChanged();
+                return;
+            }
+
+            showEscalateModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error checking escalation permissions: {ex.Message}";
+            Logger.LogError(ex, "Error in ShowEscalateModal");
+        }
+    }
+
+    private void CloseEscalateModal()
+    {
+        showEscalateModal = false;
+        StateHasChanged();
+    }
+
+    private async Task EscalateCase()
+    {
+        try
+        {
+            await AccountabilityService.EscalateCaseAsync(
+                caseId,
+                AuthService.CurrentWorker.Id,
+                escalationReason);
+
+            showEscalateModal = false;
+            await LoadCaseData();
+
+            successMessage = "Case escalated successfully!";
+            errorMessage = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to escalate case: {ex.Message}";
+            successMessage = string.Empty;
+            Logger.LogError(ex, "Error escalating case");
+            StateHasChanged();
+        }
+    }
+
+    // Resolve Modal Methods
+    private void ShowResolveModal()
+    {
+        showResolveModal = true;
+        resolutionNotes = string.Empty;
+        StateHasChanged();
+    }
+
+    private void CloseResolveModal()
+    {
+        showResolveModal = false;
+        StateHasChanged();
+    }
+
+    private async Task ResolveCase()
+    {
+        try
+        {
+            await AccountabilityService.SendResponseAsync(
+                caseId,
+                AuthService.CurrentWorker.Id,
+                string.IsNullOrEmpty(resolutionNotes) ? "Case has been resolved." : resolutionNotes,
+                "Resolution",
+                DetermineVisibility("auto")
+            );
+
+            showResolveModal = false;
+            await LoadCaseData();
+
+            successMessage = "Case resolved successfully!";
+            errorMessage = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to resolve case: {ex.Message}";
+            successMessage = string.Empty;
+            Logger.LogError(ex, "Error resolving case");
+            StateHasChanged();
+        }
+    }
+
+    // Helper Methods
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Open" => "bg-info",
+            "InProgress" => "bg-primary",
+            "Escalated" => "bg-warning",
+            "Resolved" => "bg-success",
+            "Closed" => "bg-secondary",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    private string GetPriorityBadgeClass(string priority)
+    {
+        return priority switch
+        {
+            "Low" => "bg-success",
+            "Medium" => "bg-primary",
+            "High" => "bg-warning",
+            "Critical" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetMessageTypeBadgeClass(string messageType)
+    {
+        return messageType switch
+        {
+            "Question" => "bg-info",
+            "Response" => "bg-primary",
+            "Guidance" => "bg-success",
+            "Warning" => "bg-warning",
+            "Escalation" => "bg-danger",
+            "Resolution" => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetEscalationLevelName(int level)
+    {
+        return level switch
+        {
+            1 => "Directorate Level",
+            2 => "Service Level",
+            3 => "Pastor Level",
+            _ => "Level " + level
+        };
+    }
+
+    private string GetVisibilityDescription(string visibleToLevels)
+    {
+        var levels = visibleToLevels.Split(',')
+            .Select(l => l.Trim())
+            .Where(l => !string.IsNullOrEmpty(l))
+            .ToList();
+
+        var descriptions = new List<string>();
+
+        foreach (var level in levels)
+        {
+            descriptions.Add(level switch
+            {
+                "1" => "Worker",
+                "2" => "Head of Directorate",
+                "3" => "Head of Service",
+                "4" => "Pastor",
+                _ => "Level " + level
+            });
+        }
+
+        return string.Join(", ", descriptions);
+    }
+
+    private string GetReplyPreview(int messageId)
+    {
+        var message = messages.FirstOrDefault(m => m.Id == messageId);
+        return TruncateString(message?.Content ?? "Message not found", 100);
+    }
+
+    private string GetInitials(string firstName, string lastName)
+    {
+        if (string.IsNullOrEmpty(firstName) || string.IsNullOrEmpty(lastName))
+            return "??";
+
+        return $"{firstName[0]}{lastName[0]}".ToUpper();
+    }
+
+    private string TruncateString(string value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value)) return value;
+        return value.Length <= maxLength ? value : value.Substring(0, maxLength) + "...";
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/Workforce/feedback");
+    }
+
+    // Model class
+    public class SendResponseModel
+    {
+        [Required(ErrorMessage = "Message is required")]
+        [MinLength(2, ErrorMessage = "Message must be at least 2 characters")]
+        public string Content { get; set; } = string.Empty;
+
+        [Required]
+        public string MessageType { get; set; } = "Response";
+
+        [Required]
+        public string VisibleTo { get; set; } = "auto";
+    }
+}

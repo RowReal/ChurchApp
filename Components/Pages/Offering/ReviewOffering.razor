@@ -1,0 +1,430 @@
+﻿@page "/offering/review/{offeringId:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject OfferingService OfferingService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Review Offering - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-3">
+    <div class="row">
+        <!-- Main Form Column -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-dark-blue text-white py-2">
+                    <h6 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>
+                        Review Rejected Offering
+                    </h6>
+                </div>
+                <div class="card-body p-3">
+                    <!-- Rejection Alert -->
+                    <div class="alert alert-warning py-2 mb-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <div>
+                                <small class="fw-bold">Rejected by @(offering?.ApprovedByName ?? "Admin")</small>
+                                <br>
+                                <small class="text-muted">@(offering?.AdminComments ?? "No reason provided")</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Compact Form -->
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Offering Type *</label>
+                            <select class="form-select form-select-sm" @bind="offering!.OfferingTypeId">
+                                <option value="0">Select Type</option>
+                                @foreach (var type in activeOfferingTypes)
+                                {
+                                    <option value="@type.Id">@type.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Offering Date *</label>
+                            <input type="date" class="form-control form-control-sm" @bind="offering!.OfferingDate"
+                                   max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Payment Mode *</label>
+                            <select class="form-select form-select-sm" @bind="offering!.PaymentMode">
+                                <option value="">Select Mode</option>
+                                <option value="Cash">Cash</option>
+                                <option value="Cheque">Cheque</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                                <option value="POS">POS</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Currency *</label>
+                            <select class="form-select form-select-sm" @bind="offering!.Currency">
+                                <option value="">Select Currency</option>
+                                <option value="NGN">NGN (₦)</option>
+                                <option value="USD">USD ($)</option>
+                                <option value="GBP">GBP (£)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Amount *</label>
+                            <input type="number" class="form-control form-control-sm" @bind="offering!.Amount"
+                                   step="0.01" min="0" placeholder="0.00" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Remarks</label>
+                            <textarea class="form-control form-control-sm" @bind="offering!.Remarks"
+                                      rows="2" placeholder="Additional notes..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Response to Rejection</label>
+                            <textarea class="form-control form-control-sm" @bind="responseComment"
+                                      rows="2" placeholder="Address the rejection reason..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light py-2">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-success btn-sm" @onclick="ResubmitOffering" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>Submitting...</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-paper-plane me-2"></i>
+                                <span>Resubmit for Approval</span>
+                            }
+                        </button>
+                        <button class="btn btn-secondary btn-sm" @onclick="CancelReview">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" @onclick="DeleteOffering">
+                            <i class="fas fa-trash me-2"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Information Sidebar -->
+        <div class="col-lg-4">
+            <!-- Offering Summary -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-dark-blue text-white py-2">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Offering Summary
+                    </h6>
+                </div>
+                <div class="card-body p-3">
+                    <div class="small">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Original Type:</span>
+                            <span class="fw-semibold">@originalOfferingType</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Original Date:</span>
+                            <span class="fw-semibold">@originalOfferingDate</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Original Amount:</span>
+                            <span class="fw-semibold">@originalAmount</span>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Current Status:</span>
+                            <span class="badge bg-danger">Rejected</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Recorded By:</span>
+                            <span class="fw-semibold">@AuthService.CurrentWorker?.FirstName @AuthService.CurrentWorker?.LastName</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-dark-blue text-white py-2">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body p-3">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" @onclick="ResetToOriginal">
+                            <i class="fas fa-undo me-2"></i>Reset to Original
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" @onclick="CopyRemarksToResponse">
+                            <i class="fas fa-copy me-2"></i>Copy Remarks to Response
+                        </button>
+                        <a href="/offering/rejected" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Rejected List
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Validation Status -->
+            @if (!string.IsNullOrEmpty(validationMessage))
+            {
+                <div class="alert alert-warning mt-3 py-2">
+                    <small>
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        @validationMessage
+                    </small>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int offeringId { get; set; }
+
+    private OfferingRecord? offering = null;
+    private List<OfferingType> activeOfferingTypes = new();
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string responseComment = "";
+    private string validationMessage = "";
+
+    // Store original values for reset functionality
+    private string originalOfferingType = "";
+    private string originalOfferingDate = "";
+    private string originalAmount = "";
+    private string originalRemarks = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOfferingData();
+        isLoading = false;
+    }
+
+    private async Task LoadOfferingData()
+    {
+        try
+        {
+            // Load offering types
+            activeOfferingTypes = await OfferingService.GetActiveOfferingTypesAsync();
+
+            // Load the specific offering - Use GetRejectedOfferingsByUserAsync with WorkerId
+            var workerId = AuthService.CurrentWorker?.WorkerId;
+            if (string.IsNullOrEmpty(workerId))
+            {
+                validationMessage = "No authenticated worker found.";
+                return;
+            }
+
+            var offerings = await OfferingService.GetRejectedOfferingsByUserAsync(workerId);
+            var originalOffering = offerings.FirstOrDefault(o => o.Id == offeringId);
+
+            if (originalOffering != null)
+            {
+                // Store original values
+                originalOfferingType = originalOffering.OfferingTypeName;
+                originalOfferingDate = originalOffering.OfferingDate.ToString("MMM dd, yyyy");
+                originalAmount = $"{originalOffering.Amount:N2} {originalOffering.Currency}";
+                originalRemarks = originalOffering.Remarks ?? "";
+
+                // Create working copy - Copy ALL required fields including ServiceId
+                offering = new OfferingRecord
+                {
+                    Id = originalOffering.Id,
+                    ServiceId = originalOffering.ServiceId, // FIXED: Added this line
+                    OfferingTypeId = originalOffering.OfferingTypeId,
+                    OfferingTypeName = originalOffering.OfferingTypeName,
+                    OfferingDate = originalOffering.OfferingDate,
+                    Amount = originalOffering.Amount,
+                    Currency = originalOffering.Currency,
+                    PaymentMode = originalOffering.PaymentMode,
+                    Remarks = originalOffering.Remarks,
+                    AdminComments = originalOffering.AdminComments,
+                    ApprovedByName = originalOffering.ApprovedByName,
+                    RecordedByWorkerId = originalOffering.RecordedByWorkerId,
+                    Status = originalOffering.Status // FIXED: Added this line
+                };
+            }
+            else
+            {
+                validationMessage = "Offering not found or you don't have permission to access it.";
+            }
+        }
+        catch (Exception ex)
+        {
+            validationMessage = $"Error loading offering data: {ex.Message}";
+        }
+    }
+
+    private async Task ResubmitOffering()
+    {
+        if (offering == null)
+        {
+            validationMessage = "Offering data is not loaded properly.";
+            return;
+        }
+
+        if (!ValidateForm())
+        {
+            validationMessage = "Please fix the validation errors before resubmitting.";
+            return;
+        }
+
+        isSubmitting = true;
+        validationMessage = "";
+
+        try
+        {
+            // Get current worker info
+            var currentWorker = AuthService.CurrentWorker;
+            if (currentWorker == null)
+            {
+                validationMessage = "No authenticated worker found.";
+                isSubmitting = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Ensure the offering has the current worker's ID
+            offering.RecordedByWorkerId = currentWorker.WorkerId;
+
+            // Update offering type name
+            var selectedType = activeOfferingTypes.FirstOrDefault(t => t.Id == offering.OfferingTypeId);
+            if (selectedType != null)
+            {
+                offering.OfferingTypeName = selectedType.Name;
+            }
+
+            // Call the service method
+            var success = await OfferingService.ResubmitRejectedOfferingAsync(offeringId, offering, responseComment);
+
+            if (success)
+            {
+                validationMessage = "Offering resubmitted successfully! Redirecting...";
+                StateHasChanged();
+
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/offering/rejected", forceLoad: true);
+            }
+            else
+            {
+                validationMessage = "Failed to resubmit offering. The offering may not exist or is not in rejected status.";
+            }
+        }
+        catch (Exception ex)
+        {
+            validationMessage = $"Error resubmitting offering: {ex.Message}";
+            Console.WriteLine($"Resubmit error details: {ex}");
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CancelReview()
+    {
+        Navigation.NavigateTo("/offering/rejected");
+    }
+
+    private async Task DeleteOffering()
+    {
+        try
+        {
+            // Get the current worker's ID
+            var workerId = AuthService.CurrentWorker?.WorkerId;
+
+            if (string.IsNullOrEmpty(workerId))
+            {
+                validationMessage = "Cannot delete offering: No authenticated worker found.";
+                return;
+            }
+
+            // Call the DeleteOfferingAsync method with both parameters
+            var success = await OfferingService.DeleteOfferingAsync(offeringId, workerId);
+
+            if (success)
+            {
+                Navigation.NavigateTo("/offering/rejected");
+            }
+            else
+            {
+                validationMessage = "Failed to delete offering. It may not exist or you may not have permission.";
+            }
+        }
+        catch (Exception ex)
+        {
+            validationMessage = $"Error deleting offering: {ex.Message}";
+        }
+    }
+
+    private bool ValidateForm()
+    {
+        if (offering?.ServiceId <= 0) // ADDED: Check ServiceId
+        {
+            validationMessage = "Service information is missing. Please reload the page.";
+            return false;
+        }
+        if (offering?.OfferingTypeId <= 0)
+        {
+            validationMessage = "Please select an offering type.";
+            return false;
+        }
+        if (offering?.OfferingDate > DateTime.Today)
+        {
+            validationMessage = "Offering date cannot be in the future.";
+            return false;
+        }
+        if (string.IsNullOrEmpty(offering?.PaymentMode))
+        {
+            validationMessage = "Please select payment mode.";
+            return false;
+        }
+        if (string.IsNullOrEmpty(offering?.Currency))
+        {
+            validationMessage = "Please select currency.";
+            return false;
+        }
+        if (offering?.Amount <= 0)
+        {
+            validationMessage = "Please enter a valid amount.";
+            return false;
+        }
+
+        validationMessage = "";
+        return true;
+    }
+
+    private void ResetToOriginal()
+    {
+        if (offering != null)
+        {
+            var originalOffering = activeOfferingTypes.FirstOrDefault(t => t.Name == originalOfferingType);
+            if (originalOffering != null)
+            {
+                offering.OfferingTypeId = originalOffering.Id;
+            }
+
+            offering.Remarks = originalRemarks;
+            responseComment = "";
+            validationMessage = "Form reset to original values.";
+            StateHasChanged();
+        }
+    }
+
+    private void CopyRemarksToResponse()
+    {
+        if (!string.IsNullOrEmpty(offering?.Remarks))
+        {
+            responseComment = offering.Remarks;
+            validationMessage = "Remarks copied to response field.";
+            StateHasChanged();
+        }
+    }
+}

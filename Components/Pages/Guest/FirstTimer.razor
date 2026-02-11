@@ -1,0 +1,1276 @@
+﻿@page "/guest/first-timer"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject GuestService GuestService
+@inject ServiceService ServiceService
+@inject AuthService AuthService
+@inject RecordNominationService RecordNominationService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>First Timer Management - BCC ServiceHub</PageTitle>
+
+@if (AuthService.IsAuthenticated)
+{
+    <!-- Nomination Check Modal -->
+    @if (showNotNominatedModal)
+    {
+        <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Access Restricted
+                        </h5>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <i class="fas fa-user-clock fa-3x text-warning mb-3"></i>
+                        <h4 class="mb-3">Not Nominated for Guest Record</h4>
+                        <div class="alert alert-warning mb-4">
+                            <p class="mb-0">You are not nominated to take guest records for today.</p>
+                            <p class="mb-0"><strong>Service:</strong> @selectedService?.Name</p>
+                            <p class="mb-0"><strong>Date:</strong> @DateTime.Today.ToString("dddd, MMMM dd, yyyy")</p>
+                        </div>
+                        <p class="text-muted">
+                            Only nominated FIG members or FIG Directorate leaders can record guests.
+                            Please contact the FIG Directorate Head if you believe this is an error.
+                        </p>
+                    </div>
+                    <div class="modal-footer justify-content-center">
+                        <button type="button" class="btn btn-secondary" @onclick="GoToGuestManagement">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Guest Management
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!IsFIGDirectorateMember() && !isUserNominated && !showNotNominatedModal)
+    {
+        <div class="container mt-4">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Access Restricted</h5>
+                        </div>
+                        <div class="card-body text-center py-4">
+                            <i class="fas fa-lock fa-3x text-warning mb-3"></i>
+                            <h4>Access Denied</h4>
+                            <p class="text-muted">This section is only accessible to FIG Directorate members or nominated record keepers.</p>
+                            <a href="/guest" class="btn btn-primary mt-2">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Guest Management
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (isLoading)
+    {
+        <div class="container mt-4">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <div class="spinner-border text-primary mb-3"></div>
+                            <p>Loading guests and services...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (isUserNominated || IsFIGDirectorateMember())
+    {
+        <!-- Delete Confirmation Modal -->
+        @if (showDeleteModal)
+        {
+            <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete
+                            </h5>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to delete this guest record?</p>
+                            <div class="alert alert-warning">
+                                <strong>Guest:</strong> @guestToDelete?.Title @guestToDelete?.FirstName @guestToDelete?.Surname<br>
+                                <strong>Guest ID:</strong> @guestToDelete?.GuestNumber
+                            </div>
+                            <p class="text-danger"><small>This action cannot be undone.</small></p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CancelDelete">
+                                <i class="fas fa-times me-1"></i>Cancel
+                            </button>
+                            <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isDeleting">
+                                @if (isDeleting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-trash me-1"></i>
+                                }
+                                Delete Guest
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Success Message -->
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="container py-3">
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>Success!</strong> @successMessage
+                    <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
+                </div>
+            </div>
+        }
+
+        <!-- Error Message -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="container py-3">
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i> @errorMessage
+                    <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+                </div>
+            </div>
+        }
+
+        @if (showAddForm)
+        {
+            <!-- Add New Guest Form -->
+            <div class="container py-3">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-plus me-2 text-primary"></i>Record New First Timer
+                    </h4>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="ShowGuestList">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Today's Guests
+                    </button>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-dark-blue text-white py-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-user-plus me-2"></i>Record First Timer Guest
+                        </h5>
+                    </div>
+
+                    <div class="card-body p-4">
+                        <form>
+                            <!-- Service Selection Section -->
+                            <div class="section-card mb-4">
+                                <div class="section-header service-bg">
+                                    <i class="fas fa-calendar-alt me-2"></i>Service Selection
+                                </div>
+                                <div class="section-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Select Service *</label>
+                                            <select class="form-select form-select-sm" @bind="SelectedServiceId" @bind:event="onchange">
+                                                <option value="0">Select Service</option>
+                                                @foreach (var service in services)
+                                                {
+                                                    <option value="@service.Id">@service.Name</option>
+                                                }
+                                            </select>
+                                            <div class="mt-2">
+                                                @if (selectedService != null && !string.IsNullOrEmpty(nominationStatusMessage))
+                                                {
+                                                    <div class="@(isUserNominatedForSelectedService ? "alert alert-success" : "alert alert-warning")">
+                                                        <i class="@(isUserNominatedForSelectedService ? "fas fa-check-circle" : "fas fa-info-circle") me-2"></i>
+                                                        @nominationStatusMessage
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Personal Information Section -->
+                            <div class="section-card mb-4">
+                                <div class="section-header personal-bg">
+                                    <i class="fas fa-user-circle me-2"></i>Personal Information
+                                </div>
+                                <div class="section-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <label class="form-label">Title *</label>
+                                            <select class="form-select form-select-sm" @bind="model.Title" disabled="@(!isUserNominatedForSelectedService)">
+                                                <option value="">Select Title</option>
+                                                <option value="Mr">Mr</option>
+                                                <option value="Mrs">Mrs</option>
+                                                <option value="Miss">Miss</option>
+                                                <option value="Dr">Dr</option>
+                                                <option value="Pastor">Pastor</option>
+                                                <option value="Rev">Rev</option>
+                                                <option value="Prof">Prof</option>
+                                                <option value="Engr">Engr</option>
+                                            </select>
+                                            <span class="text-danger small">@GetValidationMessage(nameof(model.Title))</span>
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label class="form-label">First Name *</label>
+                                            <input type="text" class="form-control form-control-sm" @bind="model.FirstName" disabled="@(!isUserNominatedForSelectedService)" />
+                                            <span class="text-danger small">@GetValidationMessage(nameof(model.FirstName))</span>
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label class="form-label">Middle Name</label>
+                                            <input type="text" class="form-control form-control-sm" @bind="model.MiddleName" disabled="@(!isUserNominatedForSelectedService)" />
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label class="form-label">Surname *</label>
+                                            <input type="text" class="form-control form-control-sm" @bind="model.Surname" disabled="@(!isUserNominatedForSelectedService)" />
+                                            <span class="text-danger small">@GetValidationMessage(nameof(model.Surname))</span>
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label class="form-label">Sex *</label>
+                                            <div class="d-flex gap-3 mt-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="sex" id="male"
+                                                           checked="@(model.Sex == "Male")"
+                                                           @onchange="@(() => { if(isUserNominatedForSelectedService) model.Sex = "Male"; })" 
+                                                           disabled="@(!isUserNominatedForSelectedService)" />
+                                                    <label class="form-check-label" for="male">Male</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="sex" id="female"
+                                                           checked="@(model.Sex == "Female")"
+                                                           @onchange="@(() => { if(isUserNominatedForSelectedService) model.Sex = "Female"; })" 
+                                                           disabled="@(!isUserNominatedForSelectedService)" />
+                                                    <label class="form-check-label" for="female">Female</label>
+                                                </div>
+                                            </div>
+                                            <span class="text-danger small">@GetValidationMessage(nameof(model.Sex))</span>
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label class="form-label">Age Group *</label>
+                                            <select class="form-select form-select-sm" @bind="model.AgeGroup" disabled="@(!isUserNominatedForSelectedService)">
+                                                <option value="">Select Age Group</option>
+                                                <option value="below 30">Below 30</option>
+                                                <option value="30-40">30-40</option>
+                                                <option value="41-50">41-50</option>
+                                                <option value="51-60">51-60</option>
+                                                <option value="60 and above">60 and above</option>
+                                            </select>
+                                            <span class="text-danger small">@GetValidationMessage(nameof(model.AgeGroup))</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contact Information Section -->
+                            <div class="section-card mb-4">
+                                <div class="section-header contact-bg">
+                                    <i class="fas fa-address-book me-2"></i>Contact Information
+                                </div>
+                                <div class="section-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Address</label>
+                                            <textarea class="form-control form-control-sm" @bind="model.Address" rows="2" 
+                                                      placeholder="Full residential address" disabled="@(!isUserNominatedForSelectedService)"></textarea>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">Landmark</label>
+                                            <input type="text" class="form-control form-control-sm" @bind="model.Landmark" 
+                                                   placeholder="Nearest landmark" disabled="@(!isUserNominatedForSelectedService)" />
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label">Phone Number</label>
+                                            <input type="tel" class="form-control form-control-sm" @bind="model.PhoneNumber" 
+                                                   placeholder="080XXXXXXXX" disabled="@(!isUserNominatedForSelectedService)" />
+                                            <span class="text-danger small">@phoneValidationMessage</span>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label">WhatsApp Number</label>
+                                            <input type="tel" class="form-control form-control-sm" @bind="model.WhatsAppNumber" 
+                                                   placeholder="080XXXXXXXX" disabled="@(!isUserNominatedForSelectedService)" />
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label">Email Address</label>
+                                            <input type="email" class="form-control form-control-sm" @bind="model.Email" 
+                                                   placeholder="email@example.com" disabled="@(!isUserNominatedForSelectedService)" />
+                                            <span class="text-danger small">@emailValidationMessage</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Church Information Section -->
+                            <div class="section-card mb-4">
+                                <div class="section-header church-bg">
+                                    <i class="fas fa-church me-2"></i>Church Information
+                                </div>
+                                <div class="section-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Are you a member of RCCG? *</label>
+                                            <div class="d-flex gap-3 mt-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="rccgMember" id="rccgYes"
+                                                           checked="@(model.IsRCCGMember == true)"
+                                                           @onchange="() => { if(isUserNominatedForSelectedService) model.IsRCCGMember = true; }" 
+                                                           disabled="@(!isUserNominatedForSelectedService)" />
+                                                    <label class="form-check-label" for="rccgYes">Yes</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="rccgMember" id="rccgNo"
+                                                           checked="@(model.IsRCCGMember == false)"
+                                                           @onchange="() => { if(isUserNominatedForSelectedService) model.IsRCCGMember = false; }" 
+                                                           disabled="@(!isUserNominatedForSelectedService)" />
+                                                    <label class="form-check-label" for="rccgNo">No</label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        @if (!model.IsRCCGMember)
+                                        {
+                                            <div class="col-md-6">
+                                                <label class="form-label">Which church do you attend?</label>
+                                                <input type="text" class="form-control form-control-sm" @bind="model.OtherChurch" 
+                                                       placeholder="Name of church" disabled="@(!isUserNominatedForSelectedService)" />
+                                            </div>
+                                        }
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">How did you find us? *</label>
+                                            <select class="form-select form-select-sm" value="@model.HowFoundUs"
+                                                    @onchange="OnHowFoundUsChanged" disabled="@(!isUserNominatedForSelectedService)">
+                                                <option value="">Select Option</option>
+                                                <option value="Facebook">Facebook</option>
+                                                <option value="Youtube">YouTube</option>
+                                                <option value="Instagram">Instagram</option>
+                                                <option value="X">X (Twitter)</option>
+                                                <option value="looking around">Looking Around</option>
+                                                <option value="invite">Invitation</option>
+                                            </select>
+                                            <span class="text-danger small">@GetValidationMessage(nameof(model.HowFoundUs))</span>
+                                        </div>
+
+                                        @if (model.HowFoundUs == "invite")
+                                        {
+                                            <div class="col-md-6">
+                                                <label class="form-label">Name of person who invited you</label>
+                                                <input type="text" class="form-control form-control-sm" @bind="model.InvitedByName" 
+                                                       placeholder="Full name (optional)" disabled="@(!isUserNominatedForSelectedService)" />
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Service Information Section -->
+                            <div class="section-card mb-4">
+                                <div class="section-header service-bg">
+                                    <i class="fas fa-calendar-alt me-2"></i>Service Information
+                                </div>
+                                <div class="section-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Service Attended *</label>
+                                            <select class="form-select form-select-sm" @bind="model.ServiceId" disabled="@(!isUserNominatedForSelectedService)">
+                                                <option value="0">Select Service</option>
+                                                @foreach (var service in services)
+                                                {
+                                                    <option value="@service.Id">@service.Name</option>
+                                                }
+                                            </select>
+                                            <span class="text-danger small">@GetValidationMessage(nameof(model.ServiceId))</span>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label">Visiting Date *</label>
+                                            <input type="date" class="form-control form-control-sm" @bind="model.VisitingDate"
+                                                   @bind:format="yyyy-MM-dd"
+                                                   max="@DateTime.Now.ToString("yyyy-MM-dd")" 
+                                                   disabled="@(!isUserNominatedForSelectedService)" />
+                                            <span class="text-danger small">@GetValidationMessage(nameof(model.VisitingDate))</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="card-footer bg-light py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button class="btn btn-outline-secondary btn-sm" @onclick="ShowGuestList">
+                                <i class="fas fa-times me-1"></i>Cancel
+                            </button>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-success btn-sm" @onclick="SubmitForm" disabled="@(!isUserNominatedForSelectedService || isSubmitting)">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-save me-1"></i>
+                                    }
+                                    @if (!isUserNominatedForSelectedService)
+                                    {
+                                        <span>Not Authorized</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Save First Timer</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Today's Guests List (Default View) -->
+            <div class="container py-3">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="fas fa-users me-2 text-primary"></i>Today's First Timers
+                        </h4>
+                        <p class="text-muted mb-0">@DateTime.Today.ToString("dddd, dd MMMM yyyy")</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="GoToGuestManagement">
+                            <i class="fas fa-arrow-left me-1"></i>Guest Management
+                        </button>
+                        <button class="btn btn-primary btn-sm" @onclick="() => ShowAddForm()" disabled="@(!hasNominatedServiceToday)">
+                            <i class="fas fa-user-plus me-1"></i>Add New Guest
+                            @if (!hasNominatedServiceToday && !IsFIGDirectorateMember())
+                            {
+                                <span class="badge bg-warning ms-1">Not Nominated</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+
+                @if (recentFirstTimers.Any())
+                {
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Guest Records (@recentFirstTimers.Count found)</h6>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="input-group input-group-sm" style="width: 200px;">
+                                    <input type="text" class="form-control" placeholder="Search..." @bind="searchTerm" @oninput="OnSearch" />
+                                    <button class="btn btn-outline-secondary" @onclick="ClearSearch">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Guest ID</th>
+                                            <th>Name</th>
+                                            <th>Phone</th>
+                                            <th>Service</th>
+                                            <th>Time</th>
+                                            <th>Status</th>
+                                            <th class="text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var guest in filteredFirstTimers)
+                                        {
+                                            <tr>
+                                                <td><span class="badge bg-info">@guest.GuestNumber</span></td>
+                                                <td>
+                                                    <div class="fw-semibold">@guest.Title @guest.FirstName @guest.Surname</div>
+                                                    <small class="text-muted">@guest.AgeGroup, @guest.Sex</small>
+                                                </td>
+                                                <td>
+                                                    @if (!string.IsNullOrEmpty(guest.PhoneNumber))
+                                                    {
+                                                        <div>@guest.PhoneNumber</div>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(guest.WhatsAppNumber) && guest.WhatsAppNumber != guest.PhoneNumber)
+                                                    {
+                                                        <small class="text-muted">WA: @guest.WhatsAppNumber</small>
+                                                    }
+                                                </td>
+                                                <td>@guest.Service?.Name</td>
+                                                <td>@guest.CreatedDate.ToString("hh:mm tt")</td>
+                                                <td>
+                                                    @if (guest.IsSecondTimer)
+                                                    {
+                                                        <span class="badge bg-warning">Second Timer</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-success">First Timer</span>
+                                                    }
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <a href="@($"/guest/details/{guest.Id}")" class="btn btn-outline-primary" title="View Details">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                        <a href="@($"/guest/edit/{guest.Id}")" class="btn btn-outline-warning" title="Edit">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                        <button class="btn btn-outline-danger" @onclick="() => DeleteGuest(guest)" title="Delete">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Showing @filteredFirstTimers.Count of @recentFirstTimers.Count guests</small>
+                                @if (!string.IsNullOrEmpty(searchTerm))
+                                {
+                                    <small class="text-info">
+                                        <i class="fas fa-search me-1"></i>Filtered by: "@searchTerm"
+                                    </small>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5>No Guests Recorded Today</h5>
+                            <p class="text-muted mb-4">No first timers have been recorded for today yet.</p>
+                            <button class="btn btn-primary" @onclick="ShowAddForm" disabled="@(!hasNominatedServiceToday && !IsFIGDirectorateMember())">
+                                <i class="fas fa-user-plus me-1"></i>Add First Guest
+                                @if (!hasNominatedServiceToday && !IsFIGDirectorateMember())
+                                {
+                                    <span class="badge bg-warning ms-1">Not Nominated</span>
+                                }
+                            </button>
+                            @if (!hasNominatedServiceToday && !IsFIGDirectorateMember())
+                            {
+                                <div class="alert alert-warning mt-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    You are not nominated to take guest records for any service today.
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+}
+else
+{
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">Authentication Required</h5>
+                    </div>
+                    <div class="card-body text-center py-4">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h4>Please Log In</h4>
+                        <p class="text-muted">You need to be logged in to access this page.</p>
+                        <a href="/login" class="btn btn-primary mt-2">Go to Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Success Modal -->
+@if (showSuccessModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-check-circle me-2"></i>Success!
+                    </h5>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="fas fa-user-check fa-3x text-success mb-3"></i>
+                    <h4 class="mb-3">First Timer Recorded Successfully</h4>
+                    <div class="alert alert-info mb-0">
+                        <p class="mb-1"><strong>Guest:</strong> @successGuestName</p>
+                        <p class="mb-0"><strong>Guest ID:</strong> @successGuestNumber</p>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-primary" @onclick="CloseSuccessModalAndRefresh">
+                        <i class="fas fa-check me-1"></i>OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private CreateGuestModel model = new();
+    private List<Service> services = new();
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool isDeleting = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+    private string phoneValidationMessage = "";
+    private string emailValidationMessage = "";
+    private string nominationStatusMessage = "";
+
+    // View states
+    private bool showAddForm = false;
+    private bool showSuccessModal = false;
+    private bool showDeleteModal = false;
+    private bool showNotNominatedModal = false;
+    private bool isUserNominated = false;
+    private bool isUserNominatedForSelectedService = false;
+    private bool hasNominatedServiceToday = false;
+
+    // Data
+    private List<Guest> recentFirstTimers = new();
+    private List<Guest> filteredFirstTimers = new();
+    private Guest? guestToDelete;
+    private string searchTerm = "";
+    private int selectedServiceId = 0;
+    private Service? selectedService = null;
+
+    // Success data
+    private string successGuestNumber = "";
+    private string successGuestName = "";
+
+    private Dictionary<string, List<string>> validationErrors = new();
+    private int SelectedServiceId
+    {
+        get => selectedServiceId;
+        set
+        {
+            if (selectedServiceId != value)
+            {
+                selectedServiceId = value;
+                _ = OnServiceSelected(value); // Fire and forget async method
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated)
+            return;
+
+        // Check if user is FIG Directorate member
+        var isFIGDirectorateMember = IsFIGDirectorateMember();
+
+        // Check nomination status
+        if (!isFIGDirectorateMember)
+        {
+            isUserNominated = await CheckUserNominationStatus();
+            if (!isUserNominated)
+            {
+                showNotNominatedModal = true;
+            }
+        }
+        else
+        {
+            isUserNominated = true;
+        }
+
+        await LoadServices();
+        await LoadTodayGuests();
+        isLoading = false;
+    }
+
+    private async Task<bool> CheckUserNominationStatus()
+    {
+        try
+        {
+            var currentWorker = AuthService.CurrentWorker;
+            if (currentWorker == null) return false;
+
+            var today = DateTime.Today;
+            var recordType = "Guest Record"; // The record type for guest recording
+
+            // Check if user is nominated for any service today
+            var nominations = await RecordNominationService.GetNominationsForUserAsync(currentWorker.WorkerId, today);
+            
+            // Filter for Guest Record nominations
+            var guestRecordNominations = nominations.Where(n => n.RecordType == "Guest Record").ToList();
+            
+            hasNominatedServiceToday = guestRecordNominations.Any();
+            
+            if (hasNominatedServiceToday)
+            {
+                // User is nominated for at least one service
+                Console.WriteLine($"User is nominated for {guestRecordNominations.Count} service(s) today");
+                return true;
+            }
+
+            Console.WriteLine("User is not nominated for any service today");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking nomination status: {ex.Message}");
+            return false;
+        }
+    }
+
+    private async Task LoadServices()
+    {
+        try
+        {
+            services = await ServiceService.GetActiveServicesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading services: {ex.Message}";
+        }
+    }
+
+    private async Task LoadTodayGuests()
+    {
+        try
+        {
+            var today = DateTime.Today;
+            recentFirstTimers = await GuestService.GetRecentFirstTimersAsync(today);
+            filteredFirstTimers = recentFirstTimers;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading today's guests: {ex.Message}");
+            recentFirstTimers = new List<Guest>();
+            filteredFirstTimers = new List<Guest>();
+        }
+    }
+
+    private bool IsFIGDirectorateMember()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        var isInFIG = directorateName.Contains("fig");
+        var hasValidRole = role.Contains("head of directorate") ||
+                          role.Contains("asst head of directorate") ||
+                          role.Contains("directorate member") ||
+                          AuthService.IsInRole("Church Admin") ||
+                          AuthService.IsInRole("Pastor in Charge");
+
+        return isInFIG && hasValidRole;
+    }
+
+    private async Task OnServiceSelected(int serviceId)
+    {
+        if (serviceId > 0)
+        {
+            selectedServiceId = serviceId;
+            selectedService = services.FirstOrDefault(s => s.Id == serviceId);
+
+            // Check if user is nominated for this specific service
+            await CheckNominationForSelectedService();
+
+            // Update the model's ServiceId
+            model.ServiceId = serviceId;
+            model.VisitingDate = DateTime.Today;
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task CheckNominationForSelectedService()
+    {
+        if (selectedServiceId <= 0 || AuthService.CurrentWorker == null)
+        {
+            isUserNominatedForSelectedService = false;
+            nominationStatusMessage = "Please select a service";
+            return;
+        }
+
+        var today = DateTime.Today;
+        var workerId = AuthService.CurrentWorker.WorkerId;
+        var recordType = "Guest Record";
+
+        try
+        {
+            if (IsFIGDirectorateMember())
+            {
+                // FIG Directorate members can always record for any service
+                isUserNominatedForSelectedService = true;
+                nominationStatusMessage = "FIG Directorate Member - Authorized";
+                return;
+            }
+
+            // Check nomination for this specific service
+            var isNominated = await RecordNominationService.IsWorkerNominatedForRecord(
+                workerId, 
+                selectedServiceId, 
+                today, 
+                recordType
+            );
+
+            if (isNominated)
+            {
+                isUserNominatedForSelectedService = true;
+                nominationStatusMessage = $"Nominated for {selectedService?.Name} - Authorized";
+            }
+            else
+            {
+                isUserNominatedForSelectedService = false;
+                nominationStatusMessage = $"Not nominated for {selectedService?.Name} - Form disabled";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking nomination: {ex.Message}");
+            isUserNominatedForSelectedService = false;
+            nominationStatusMessage = "Error checking nomination status";
+        }
+    }
+
+    private async Task SubmitForm()
+    {
+        if (!isUserNominatedForSelectedService)
+        {
+            errorMessage = "You are not authorized to record guests for this service.";
+            return;
+        }
+
+        ClearValidationMessages();
+
+        if (!ValidateModel())
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.PhoneNumber))
+        {
+            var isPhoneUnique = await GuestService.IsPhoneNumberUniqueAsync(model.PhoneNumber);
+            if (!isPhoneUnique)
+            {
+                phoneValidationMessage = "This phone number is already registered with another guest.";
+                return;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.Email))
+        {
+            var isEmailUnique = await GuestService.IsEmailUniqueAsync(model.Email);
+            if (!isEmailUnique)
+            {
+                emailValidationMessage = "This email address is already registered with another guest.";
+                return;
+            }
+        }
+
+        isSubmitting = true;
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            var currentWorker = AuthService.CurrentWorker;
+            var guest = await GuestService.CreateFirstTimerAsync(model, currentWorker);
+
+            // Store success data for modal
+            successGuestNumber = guest.GuestNumber;
+            successGuestName = $"{guest.FirstName} {guest.Surname}".Trim();
+
+            // Show success modal
+            showSuccessModal = true;
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving guest: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private bool ValidateModel()
+    {
+        validationErrors.Clear();
+
+        if (string.IsNullOrWhiteSpace(model.Title))
+            AddValidationError(nameof(model.Title), "Title is required");
+
+        if (string.IsNullOrWhiteSpace(model.FirstName))
+            AddValidationError(nameof(model.FirstName), "First name is required");
+
+        if (string.IsNullOrWhiteSpace(model.Surname))
+            AddValidationError(nameof(model.Surname), "Surname is required");
+
+        if (string.IsNullOrWhiteSpace(model.Sex))
+            AddValidationError(nameof(model.Sex), "Sex is required");
+
+        if (string.IsNullOrWhiteSpace(model.AgeGroup))
+            AddValidationError(nameof(model.AgeGroup), "Age group is required");
+
+        if (string.IsNullOrWhiteSpace(model.HowFoundUs))
+            AddValidationError(nameof(model.HowFoundUs), "Please specify how you found us");
+
+        if (model.ServiceId <= 0)
+            AddValidationError(nameof(model.ServiceId), "Please select a service");
+
+        if (model.VisitingDate > DateTime.Today)
+            AddValidationError(nameof(model.VisitingDate), "Visiting date cannot be in the future");
+
+        return !validationErrors.Any();
+    }
+
+    private void ShowAddForm()
+    {
+        if (!hasNominatedServiceToday && !IsFIGDirectorateMember())
+        {
+            showNotNominatedModal = true;
+            return;
+        }
+
+        showAddForm = true;
+        model = new CreateGuestModel();
+        selectedServiceId = 0;
+        selectedService = null;
+        isUserNominatedForSelectedService = false;
+        nominationStatusMessage = "";
+        StateHasChanged();
+    }
+
+    // ... Rest of the methods remain the same as before ...
+    private void OnSearch(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? "";
+        FilterGuests();
+    }
+
+    private void FilterGuests()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredFirstTimers = recentFirstTimers;
+        }
+        else
+        {
+            var term = searchTerm.ToLower();
+            filteredFirstTimers = recentFirstTimers
+                .Where(g =>
+                    (g.FirstName?.ToLower().Contains(term) ?? false) ||
+                    (g.Surname?.ToLower().Contains(term) ?? false) ||
+                    (g.GuestNumber?.ToLower().Contains(term) ?? false) ||
+                    (g.PhoneNumber?.Contains(term) ?? false) ||
+                    (g.Service?.Name?.ToLower().Contains(term) ?? false))
+                .ToList();
+        }
+    }
+
+    private void ClearSearch()
+    {
+        searchTerm = "";
+        filteredFirstTimers = recentFirstTimers;
+        StateHasChanged();
+    }
+
+    // Action Methods
+  
+    private void ShowGuestList()
+    {
+        showAddForm = false;
+        StateHasChanged();
+    }
+
+    private void EditGuest(Guest guest)
+    {
+        // Navigate to edit page or open edit modal
+        Navigation.NavigateTo($"/guest/edit/{guest.Id}");
+    }
+
+    private void DeleteGuest(Guest guest)
+    {
+        guestToDelete = guest;
+        showDeleteModal = true;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (guestToDelete == null) return;
+
+        isDeleting = true;
+        try
+        {
+            // You need to implement DeleteGuestAsync in your GuestService
+            var success = await GuestService.DeleteGuestAsync(guestToDelete.Id);
+
+            if (success)
+            {
+                successMessage = $"Guest {guestToDelete.GuestNumber} deleted successfully.";
+                await LoadTodayGuests();
+                showDeleteModal = false;
+                guestToDelete = null;
+            }
+            else
+            {
+                errorMessage = "Failed to delete guest. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting guest: {ex.Message}";
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteModal = false;
+        guestToDelete = null;
+        StateHasChanged();
+    }
+
+    
+    private void AddValidationError(string propertyName, string message)
+    {
+        if (!validationErrors.ContainsKey(propertyName))
+            validationErrors[propertyName] = new List<string>();
+
+        validationErrors[propertyName].Add(message);
+    }
+
+    private string GetValidationMessage(string propertyName)
+    {
+        if (validationErrors.ContainsKey(propertyName))
+        {
+            return string.Join("; ", validationErrors[propertyName]);
+        }
+        return "";
+    }
+
+    private void ClearValidationMessages()
+    {
+        validationErrors.Clear();
+        phoneValidationMessage = "";
+        emailValidationMessage = "";
+        errorMessage = "";
+    }
+
+    private void ClearSuccessMessage()
+    {
+        successMessage = "";
+        StateHasChanged();
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = "";
+        StateHasChanged();
+    }
+
+    private void OnHowFoundUsChanged(ChangeEventArgs e)
+    {
+        model.HowFoundUs = e.Value?.ToString() ?? "";
+        if (model.HowFoundUs != "invite")
+        {
+            model.InvitedByName = "";
+        }
+        StateHasChanged();
+    }
+
+    private void GoToGuestManagement()
+    {
+        Navigation.NavigateTo("/guest");
+    }
+
+    private void ViewGuestDetails(int guestId)
+    {
+        Navigation.NavigateTo($"/guest/details/{guestId}");
+    }
+
+
+   
+    private void CloseSuccessModalAndRefresh()
+    {
+        showSuccessModal = false;
+        showAddForm = false;
+        model = new CreateGuestModel();
+        selectedServiceId = 0;
+        selectedService = null;
+        isUserNominatedForSelectedService = false;
+        nominationStatusMessage = "";
+        _ = LoadTodayGuests(); // Refresh the list
+        StateHasChanged();
+    }
+}
+<style>
+    .bg-dark-blue {
+        background-color: #2c3e50;
+    }
+
+    /* Compact form styling */
+    .form-control-sm, .form-select-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    /* Section styling */
+    .section-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+        .section-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+    .section-header {
+        padding: 0.75rem 1rem;
+        color: white;
+        font-weight: 600;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .section-body {
+        padding: 1rem;
+        background-color: #fff;
+    }
+
+    /* Section-specific background colors */
+    .personal-bg {
+        background-color: #5D6D7E;
+        background: linear-gradient(135deg, #5D6D7E 0%, #34495E 100%);
+    }
+
+    .contact-bg {
+        background-color: #48C9B0;
+        background: linear-gradient(135deg, #48C9B0 0%, #1ABC9C 100%);
+    }
+
+    .church-bg {
+        background-color: #AF7AC5;
+        background: linear-gradient(135deg, #AF7AC5 0%, #9B59B6 100%);
+    }
+
+    .service-bg {
+        background-color: #F39C12;
+        background: linear-gradient(135deg, #F39C12 0%, #D68910 100%);
+    }
+
+    /* Form focus styling */
+    .form-select:focus, .form-control:focus {
+        border-color: #2c3e50;
+        box-shadow: 0 0 0 0.2rem rgba(44, 62, 80, 0.15);
+    }
+
+    .form-check-input:checked {
+        background-color: #2c3e50;
+        border-color: #2c3e50;
+    }
+
+    /* Modal styling */
+    .modal-content {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+    }
+
+    .modal-header {
+        border-radius: 10px 10px 0 0;
+    }
+
+    /* Table styling */
+    .table th {
+        border-top: none;
+        font-weight: 600;
+        color: #2c3e50;
+        white-space: nowrap;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    .btn-group .btn {
+        border-radius: 4px !important;
+        margin: 0 2px;
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 768px) {
+        .card-body {
+            padding: 1rem !important;
+        }
+
+        .section-body {
+            padding: 0.75rem;
+        }
+
+        .modal-dialog {
+            margin: 1rem;
+        }
+
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+            .btn-group .btn {
+                width: 100%;
+                margin: 1px 0;
+            }
+    }
+</style>

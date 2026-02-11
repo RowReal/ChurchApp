@@ -1,0 +1,412 @@
+﻿@page "/admin/role-setup"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject RoleService RoleService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>BCC ServiceHub - Role Management</PageTitle>
+
+@if (AuthService.IsAuthenticated && (AuthService.IsInRole("Pastor in Charge") || AuthService.IsInRole("Church Admin")))
+{
+    <div class="container-fluid py-3">
+        <!-- Success/Error Messages -->
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1">Role Management</h4>
+                        <p class="text-muted mb-0">Manage church worker roles and hierarchy</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" @onclick="ShowAddModal" title="Add new role">
+                        <i class="fas fa-plus me-1"></i> Add Role
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Roles Table -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                @if (roles.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">#</th>
+                                    <th>Role Name</th>
+                                    <th>Description</th>
+                                    <th>Level</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th class="text-end pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var role in roles)
+                                {
+                                    var rowClass = role.IsActive ? "" : "table-secondary";
+                                    <tr class="@rowClass">
+                                        <td class="ps-4">@role.Id</td>
+                                        <td>
+                                            <div class="fw-semibold">@role.Name</div>
+                                            <div class="small text-muted">@role.CreatedBy</div>
+                                        </td>
+                                        <td>
+                                            <div class="text-muted small">@role.Description</div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">@role.Level</span>
+                                        </td>
+                                        <td>
+                                            @if (role.IsActive)
+                                            {
+                                                <span class="badge bg-success">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger">Inactive</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="small text-muted">
+                                                @role.CreatedAt.ToString("dd MMM yyyy")
+                                            </div>
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary"
+                                                        @onclick="() => ShowEditModal(role)"
+                                                        title="Edit this role">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                @if (role.IsActive)
+                                                {
+                                                    <button class="btn btn-outline-danger"
+                                                            @onclick="() => ShowDeleteModal(role)"
+                                                            title="Delete this role">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <div class="mb-3">
+                            <i class="fas fa-user-tag fa-3x text-muted"></i>
+                        </div>
+                        <h5 class="text-muted">No roles found</h5>
+                        <p class="text-muted">Add your first role to get started</p>
+                        <button class="btn btn-primary" @onclick="ShowAddModal" title="Add new role">
+                            <i class="fas fa-plus me-1"></i> Add Role
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Role Modal -->
+    @if (showModal)
+    {
+        <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title">@(isEditing ? "Edit Role" : "Add New Role")</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal" title="Close modal"></button>
+                    </div>
+                    <div class="modal-body pt-0">
+                        <form>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Role Name *</label>
+                                <input type="text" class="form-control" @bind="currentRole.Name"
+                                       placeholder="e.g., Head of Department"
+                                       title="Enter the name of the role" />
+                                @if (validationErrors.ContainsKey("Name") && !string.IsNullOrEmpty(validationErrors["Name"]))
+                                {
+                                    <div class="text-danger small mt-1">@validationErrors["Name"]</div>
+                                }
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Description</label>
+                                <textarea class="form-control" rows="3" @bind="currentRole.Description"
+                                          placeholder="Brief description of the role"
+                                          title="Optional description of what this role entails"></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Level *</label>
+                                <input type="number" class="form-control" @bind="currentRole.Level"
+                                       min="1" max="100"
+                                       title="Hierarchy level (1-100). Higher number = higher authority" />
+                                <div class="form-text small">
+                                    Higher number = higher authority (1-100). Default roles: Worker=10, HOD=30, Pastor=90, Admin=100
+                                </div>
+                                @if (validationErrors.ContainsKey("Level") && !string.IsNullOrEmpty(validationErrors["Level"]))
+                                {
+                                    <div class="text-danger small mt-1">@validationErrors["Level"]</div>
+                                }
+                            </div>
+
+                            @if (isEditing)
+                            {
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" @bind="currentRole.IsActive"
+                                               title="Toggle role active/inactive status" />
+                                        <label class="form-check-label">Active Role</label>
+                                    </div>
+                                </div>
+                            }
+                        </form>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal" title="Cancel and close modal">
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" @onclick="SaveRole"
+                                title="@(isEditing ? "Save changes to this role" : "Create new role")">
+                            @(isEditing ? "Update Role" : "Save Role")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Delete Confirmation Modal -->
+    @if (showDeleteModal && roleToDelete != null)
+    {
+        <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title text-danger">Confirm Delete</h5>
+                        <button type="button" class="btn-close" @onclick="CloseDeleteModal" title="Cancel delete"></button>
+                    </div>
+                    <div class="modal-body pt-0">
+                        <p>Are you sure you want to delete the role <strong>"@roleToDelete.Name"</strong>?</p>
+                        <p class="text-muted small mb-0">
+                            This will mark the role as inactive. Existing workers with this role will keep it,
+                            but new workers won't be able to select it.
+                        </p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal" title="Cancel delete operation">
+                            Cancel
+                        </button>
+                        <button type="button" class="btn btn-danger" @onclick="DeleteRole" title="Permanently mark this role as inactive">
+                            Delete Role
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <div class="container-fluid py-5">
+        <div class="text-center">
+            <i class="fas fa-lock fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">Access Denied</h4>
+            <p class="text-muted">You need to be a Pastor in Charge or Church Admin to access this page.</p>
+            <a href="/" class="btn btn-primary" title="Return to dashboard">Return to Dashboard</a>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Role> roles = new();
+    private Role currentRole = new();
+    private Role? roleToDelete;
+    private bool showModal = false;
+    private bool showDeleteModal = false;
+    private bool isEditing = false;
+    private Dictionary<string, string> validationErrors = new();
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoles();
+    }
+
+    private async Task LoadRoles()
+    {
+        try
+        {
+            roles = await RoleService.GetAllRolesAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Error loading roles: {ex.Message}");
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        currentRole = new Role { Level = 10, IsActive = true };
+        isEditing = false;
+        validationErrors = new Dictionary<string, string>();
+        successMessage = null;
+        errorMessage = null;
+        showModal = true;
+    }
+
+    private void ShowEditModal(Role role)
+    {
+        currentRole = new Role
+        {
+            Id = role.Id,
+            Name = role.Name,
+            Description = role.Description,
+            Level = role.Level,
+            IsActive = role.IsActive
+        };
+        isEditing = true;
+        validationErrors = new Dictionary<string, string>();
+        successMessage = null;
+        errorMessage = null;
+        showModal = true;
+    }
+
+    private void ShowDeleteModal(Role role)
+    {
+        roleToDelete = role;
+        showDeleteModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        currentRole = new();
+        validationErrors.Clear();
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        roleToDelete = null;
+    }
+
+    private bool ValidateRole()
+    {
+        validationErrors = new Dictionary<string, string>();
+
+        if (string.IsNullOrWhiteSpace(currentRole.Name))
+        {
+            validationErrors["Name"] = "Role name is required";
+        }
+        else if (currentRole.Name.Length > 100)
+        {
+            validationErrors["Name"] = "Role name must be 100 characters or less";
+        }
+
+        if (currentRole.Level < 1 || currentRole.Level > 100)
+        {
+            validationErrors["Level"] = "Level must be between 1 and 100";
+        }
+
+        return validationErrors.Count == 0;
+    }
+
+    private async Task SaveRole()
+    {
+        if (!ValidateRole())
+        {
+            return;
+        }
+
+        try
+        {
+            if (isEditing)
+            {
+                var updatedRole = await RoleService.UpdateRoleAsync(currentRole);
+                ShowSuccess($"Role '{updatedRole.Name}' updated successfully");
+            }
+            else
+            {
+                var newRole = await RoleService.CreateRoleAsync(currentRole);
+                ShowSuccess($"Role '{newRole.Name}' created successfully");
+            }
+
+            await LoadRoles();
+            CloseModal();
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Error saving role: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteRole()
+    {
+        if (roleToDelete == null) return;
+
+        try
+        {
+            var success = await RoleService.DeleteRoleAsync(roleToDelete.Id);
+            if (success)
+            {
+                ShowSuccess($"Role '{roleToDelete.Name}' deleted successfully");
+                await LoadRoles();
+                CloseDeleteModal();
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowError($"Error deleting role: {ex.Message}");
+        }
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        StateHasChanged();
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        StateHasChanged();
+    }
+}

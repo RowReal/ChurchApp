@@ -1,0 +1,592 @@
+﻿@page "/guest/daily-list"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject GuestService GuestService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Daily Guest List - BCC ServiceHub</PageTitle>
+
+@if (AuthService.IsAuthenticated)
+{
+    @if (!IsFIGDirectorateMember())
+    {
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Access Restricted</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <i class="fas fa-lock fa-3x text-warning mb-3"></i>
+                            <h4>Access Denied</h4>
+                            <p class="text-muted">This section is only accessible to FIG Directorate members.</p>
+                            <a href="/guest" class="btn btn-primary">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Guest Management
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="container-fluid py-4">
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="card">
+                        <div class="card-header bg-dark-blue text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-list-alt me-2"></i>Daily Guest List
+                                <span class="badge bg-info ms-2">@selectedDate.ToString("dddd, MMMM dd, yyyy")</span>
+                            </h5>
+                            <div>
+                                <a href="/guest/first-timer" class="btn btn-success btn-sm">
+                                    <i class="fas fa-plus-circle me-1"></i>Add New Guest
+                                </a>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Date Selection -->
+                            <div class="row mb-4">
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="fas fa-calendar-alt"></i>
+                                        </span>
+                                        <input type="date" class="form-control" @bind="selectedDate" 
+                                               @bind:format="yyyy-MM-dd"
+                                               @bind:after="OnDateChanged" />
+                                        <button class="btn btn-outline-primary" @onclick="GoToToday">
+                                            <i class="fas fa-redo"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-8 d-flex align-items-center">
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-outline-secondary" @onclick="PreviousDay">
+                                            <i class="fas fa-chevron-left me-1"></i>Previous Day
+                                        </button>
+                                        <button class="btn btn-outline-secondary" @onclick="NextDay">
+                                            Next Day<i class="fas fa-chevron-right ms-1"></i>
+                                        </button>
+                                    </div>
+                                    <div class="ms-3">
+                                        <span class="badge @(guests.Any() ? "bg-success" : "bg-warning")">
+                                            @guests.Count guest(s) recorded
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Loading State -->
+                            @if (isLoading)
+                            {
+                                <div class="text-center py-5">
+                                    <div class="spinner-border text-primary"></div>
+                                    <p class="mt-2">Loading guest list...</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <!-- Guest List -->
+                                @if (guests.Any())
+                                {
+                                    <div class="table-responsive">
+                                        <table class="table table-hover table-striped">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Guest #</th>
+                                                    <th>Name</th>
+                                                    <th>Contact</th>
+                                                    <th>Service</th>
+                                                    <th>Recorded By</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var guest in guests)
+                                                {
+                                                    <tr>
+                                                        <td>
+                                                            <span class="badge bg-info">@guest.GuestNumber</span>
+                                                        </td>
+                                                        <td>
+                                                            <div class="fw-bold">@guest.Title @guest.FirstName @guest.Surname</div>
+                                                            <div class="small text-muted">
+                                                                @guest.Sex | @guest.AgeGroup
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            @if (!string.IsNullOrEmpty(guest.PhoneNumber))
+                                                            {
+                                                                <div>📱 @guest.PhoneNumber</div>
+                                                            }
+                                                            @if (!string.IsNullOrEmpty(guest.WhatsAppNumber))
+                                                            {
+                                                                <div class="small text-success">✓ WhatsApp: @guest.WhatsAppNumber</div>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            @guest.Service?.Name
+                                                            <div class="small text-muted">
+                                                                @guest.VisitingDate.ToString("MMM dd, yyyy")
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div class="small">@guest.RecordedByName</div>
+                                                            <div class="small text-muted">
+                                                                @guest.RecordingDate.ToString("h:mm tt")
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            @if (guest.IsSecondTimer)
+                                                            {
+                                                                <span class="badge bg-success">
+                                                                    <i class="fas fa-user-check me-1"></i>Second Timer
+                                                                </span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="badge bg-primary">
+                                                                    <i class="fas fa-user-plus me-1"></i>First Timer
+                                                                </span>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                <button class="btn btn-outline-primary" @onclick="() => ViewGuestDetails(guest.Id)" title="View Details">
+                                                                    <i class="fas fa-eye"></i>
+                                                                </button>
+                                                                @if (!guest.IsSecondTimer)
+                                                                {
+                                                                    <button class="btn btn-outline-success" @onclick="() => MarkAsSecondTimer(guest.Id)" title="Mark as Second Timer">
+                                                                        <i class="fas fa-user-check"></i>
+                                                                    </button>
+                                                                }
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <!-- Summary Cards -->
+                                    <div class="row mt-4">
+                                        <div class="col-md-3">
+                                            <div class="card bg-primary text-white">
+                                                <div class="card-body text-center py-3">
+                                                    <h3>@guests.Count</h3>
+                                                    <p class="mb-0">Total Guests</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-info text-white">
+                                                <div class="card-body text-center py-3">
+                                                    <h3>@firstTimerCount</h3>
+                                                    <p class="mb-0">First Timers</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-success text-white">
+                                                <div class="card-body text-center py-3">
+                                                    <h3>@secondTimerCount</h3>
+                                                    <p class="mb-0">Second Timers</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="card bg-warning text-white">
+                                                <div class="card-body text-center py-3">
+                                                    <h3>@conversionRate.ToString("0.0")%</h3>
+                                                    <p class="mb-0">Conversion Rate</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <!-- Empty State -->
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                        <h4>No Guests Recorded</h4>
+                                        <p class="text-muted">No guests have been recorded for @selectedDate.ToString("MMMM dd, yyyy")</p>
+                                        <a href="/guest/first-timer" class="btn btn-primary">
+                                            <i class="fas fa-plus-circle me-1"></i>Record First Guest
+                                        </a>
+                                    </div>
+                                }
+                            }
+                        </div>
+                        <div class="card-footer">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        List updates automatically as new guests are added
+                                    </small>
+                                </div>
+                                <div>
+                                    <a href="/guest" class="btn btn-secondary btn-sm">
+                                        <i class="fas fa-arrow-left me-1"></i>Back to Guest Management
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <!-- Authentication Required -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">Authentication Required</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h4>Please Log In</h4>
+                        <p class="text-muted">You need to be logged in to access this page.</p>
+                        <a href="/login" class="btn btn-primary">Go to Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Guest Details Modal -->
+@if (selectedGuest != null && showDetailsModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark-blue text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-circle me-2"></i>Guest Details - @selectedGuest.GuestNumber
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDetailsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Guest Information -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Personal Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-sm table-borderless">
+                                        <tr>
+                                            <th style="width: 40%;">Full Name:</th>
+                                            <td>@selectedGuest.Title @selectedGuest.FirstName @selectedGuest.MiddleName @selectedGuest.Surname</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Sex:</th>
+                                            <td>@selectedGuest.Sex</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Age Group:</th>
+                                            <td>@selectedGuest.AgeGroup</td>
+                                        </tr>
+                                        <tr>
+                                            <th>First Visit:</th>
+                                            <td>@selectedGuest.VisitingDate.ToString("dd-MMM-yyyy")</td>
+                                        </tr>
+                                        @if (selectedGuest.IsSecondTimer && selectedGuest.SecondVisitDate.HasValue)
+                                        {
+                                            <tr>
+                                                <th>Second Visit:</th>
+                                                <td>@selectedGuest.SecondVisitDate.Value.ToString("dd-MMM-yyyy")</td>
+                                            </tr>
+                                        }
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Contact Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-sm table-borderless">
+                                        <tr>
+                                            <th style="width: 40%;">Phone:</th>
+                                            <td>@selectedGuest.PhoneNumber</td>
+                                        </tr>
+                                        @if (!string.IsNullOrEmpty(selectedGuest.WhatsAppNumber))
+                                        {
+                                            <tr>
+                                                <th>WhatsApp:</th>
+                                                <td>@selectedGuest.WhatsAppNumber</td>
+                                            </tr>
+                                        }
+                                        @if (!string.IsNullOrEmpty(selectedGuest.Email))
+                                        {
+                                            <tr>
+                                                <th>Email:</th>
+                                                <td>@selectedGuest.Email</td>
+                                            </tr>
+                                        }
+                                        @if (!string.IsNullOrEmpty(selectedGuest.Address))
+                                        {
+                                            <tr>
+                                                <th>Address:</th>
+                                                <td>@selectedGuest.Address</td>
+                                            </tr>
+                                        }
+                                        @if (!string.IsNullOrEmpty(selectedGuest.Landmark))
+                                        {
+                                            <tr>
+                                                <th>Landmark:</th>
+                                                <td>@selectedGuest.Landmark</td>
+                                            </tr>
+                                        }
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Church Information -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Church Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <table class="table table-sm table-borderless">
+                                                <tr>
+                                                    <th style="width: 50%;">Service Attended:</th>
+                                                    <td>@selectedGuest.Service?.Name</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>RCCG Member:</th>
+                                                    <td>@(selectedGuest.IsRCCGMember ? "Yes" : "No")</td>
+                                                </tr>
+                                                @if (!selectedGuest.IsRCCGMember && !string.IsNullOrEmpty(selectedGuest.OtherChurch))
+                                                {
+                                                    <tr>
+                                                        <th>Other Church:</th>
+                                                        <td>@selectedGuest.OtherChurch</td>
+                                                    </tr>
+                                                }
+                                                <tr>
+                                                    <th>How Found Us:</th>
+                                                    <td>@selectedGuest.HowFoundUs</td>
+                                                </tr>
+                                                @if (!string.IsNullOrEmpty(selectedGuest.InvitedByName))
+                                                {
+                                                    <tr>
+                                                        <th>Invited By:</th>
+                                                        <td>@selectedGuest.InvitedByName</td>
+                                                    </tr>
+                                                }
+                                            </table>
+                                        </div>
+                                        @if (selectedGuest.IsSecondTimer)
+                                        {
+                                            <div class="col-md-6">
+                                                <div class="card border-success">
+                                                    <div class="card-header bg-success text-white py-2">
+                                                        <h6 class="mb-0"><i class="fas fa-user-check me-1"></i>Second Visit Information</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <table class="table table-sm table-borderless">
+                                                            <tr>
+                                                                <th style="width: 60%;">Wants to be Member:</th>
+                                                                <td>@(selectedGuest.WantsToBecomeMember == true ? "Yes" : "No")</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>Birth Month:</th>
+                                                                <td>@selectedGuest.BirthMonth</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>Baptised by Water:</th>
+                                                                <td>@(selectedGuest.IsBaptisedByWater == true ? "Yes" : "No")</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>Wants to Join Workforce:</th>
+                                                                <td>@(selectedGuest.WantsToJoinWorkforce == true ? "Yes" : "No")</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>Recorded By:</th>
+                                                                <td>@selectedGuest.SecondVisitRecordedByName</td>
+                                                            </tr>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetailsModal">
+                        Close
+                    </button>
+                    @if (!selectedGuest.IsSecondTimer)
+                    {
+                        <button type="button" class="btn btn-success" @onclick="() => MarkAsSecondTimer(selectedGuest.Id)">
+                            <i class="fas fa-user-check me-1"></i>Record Second Visit
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Guest> guests = new();
+    private Guest selectedGuest = null;
+    private DateTime selectedDate = DateTime.Today;
+    private bool isLoading = false;
+    private bool showDetailsModal = false;
+    private string errorMessage = "";
+
+    private int firstTimerCount => guests.Count(g => !g.IsSecondTimer);
+    private int secondTimerCount => guests.Count(g => g.IsSecondTimer);
+    private double conversionRate => guests.Count > 0 ? (double)secondTimerCount / guests.Count * 100 : 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGuests();
+    }
+
+    private async Task LoadGuests()
+    {
+        isLoading = true;
+        try
+        {
+            guests = await GuestService.GetGuestsByDateAsync(selectedDate);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading guests: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool IsFIGDirectorateMember()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        var isInFIG = directorateName.Contains("fig");
+        var hasValidRole = role.Contains("head of directorate") ||
+                          role.Contains("asst head of directorate") ||
+                          role.Contains("directorate member") ||
+                          AuthService.IsInRole("Church Admin") ||
+                          AuthService.IsInRole("Pastor in Charge");
+
+        return isInFIG && hasValidRole;
+    }
+
+    private async Task OnDateChanged()
+    {
+        await LoadGuests();
+    }
+
+    private async Task GoToToday()
+    {
+        selectedDate = DateTime.Today;
+        await LoadGuests();
+    }
+
+    private async Task PreviousDay()
+    {
+        selectedDate = selectedDate.AddDays(-1);
+        await LoadGuests();
+    }
+
+    private async Task NextDay()
+    {
+        selectedDate = selectedDate.AddDays(1);
+        await LoadGuests();
+    }
+
+    private async Task ViewGuestDetails(int guestId)
+    {
+        try
+        {
+            selectedGuest = await GuestService.GetGuestByIdAsync(guestId);
+            if (selectedGuest != null)
+            {
+                showDetailsModal = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading guest details: {ex.Message}";
+        }
+    }
+
+    private async Task MarkAsSecondTimer(int guestId)
+    {
+        // Navigate to second timer page with guest ID
+        Navigation.NavigateTo($"/guest/second-timer?guestId={guestId}");
+    }
+
+    private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        selectedGuest = null;
+        StateHasChanged();
+    }
+}
+
+<style>
+    .bg-dark-blue {
+        background-color: #2c3e50;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(44, 62, 80, 0.05);
+        cursor: pointer;
+    }
+
+    .badge {
+        font-size: 0.8em;
+    }
+
+    .modal-backdrop {
+        opacity: 0.5;
+    }
+
+    .card {
+        transition: transform 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+    }
+</style>

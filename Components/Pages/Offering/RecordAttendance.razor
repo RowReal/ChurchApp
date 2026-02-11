@@ -1,0 +1,887 @@
+﻿@page "/Offering/Attendance-record"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AttendanceService AttendanceService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject RecordNominationService RecordNominationService
+@inject ServiceService ServiceService
+
+<PageTitle>Record Attendance - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Record Church Attendance
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Authorization Message -->
+                    @if (!string.IsNullOrEmpty(authorizationMessage))
+                    {
+                        <div class="alert alert-warning mb-4">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            @authorizationMessage
+                        </div>
+                    }
+
+                    <!-- Nominated Users Information -->
+                    @if (nominatedUsers.Any() && !canRecordAttendance)
+                    {
+                        <div class="card mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0">Current Nominations for @selectedServiceName</h6>
+                            </div>
+                            <div class="card-body">
+                                <h6>📋 Nominated Attendance Recorders:</h6>
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var nomination in nominatedUsers)
+                                    {
+                                        <li class="list-group-item">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong>@nomination.NomineeName</strong>
+                                                    <br />
+                                                    <small class="text-muted">@nomination.RecordTypeDisplay</small>
+                                                </div>
+                                                <div>
+                                                    <span class="badge bg-primary">@nomination.Status</span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            @successMessage
+                            <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            @errorMessage
+                            <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+                        </div>
+                    }
+
+                    <!-- Nomination Status Badge -->
+                    @if (canRecordAttendance && !string.IsNullOrEmpty(currentNominationStatus))
+                    {
+                        <div class="alert alert-info d-flex align-items-center mb-4">
+                            <i class="fas fa-user-check me-2"></i>
+                            <div>
+                                <strong>Authorized as:</strong> @currentNominationStatus
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Show the form regardless of authorization -->
+                    <div class="row g-3">
+                        <!-- Service Selection -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Service *</label>
+                            @if (isLoadingServices)
+                            {
+                                <div class="form-control">Loading services...</div>
+                            }
+                            else if (services.Count == 0)
+                            {
+                                <div class="form-control">No services available</div>
+                            }
+                            else
+                            {
+                                <select class="form-select" @onchange="OnServiceSelected" value="@selectedServiceId">
+                                    <option value="0">Select Service</option>
+                                    @foreach (var service in services)
+                                    {
+                                        <option value="@service.Id">@service.Name</option>
+                                    }
+                                </select>
+                            }
+
+                            <!-- Service type warning -->
+                            @if (!string.IsNullOrEmpty(selectedServiceName) && selectedServiceId > 0)
+                            {
+                                var serviceType = GetServiceTypeFromName(selectedServiceName);
+                                var expectedDay = serviceType == "Sunday" ? "Sunday" :
+                                serviceType == "MidWeek" ? "Wednesday" : "";
+
+                                @if (!string.IsNullOrEmpty(expectedDay) && selectedDate.DayOfWeek.ToString() != expectedDay)
+                                {
+                                    <small class="text-warning">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        Note: @selectedServiceName services are typically held on @expectedDay
+                                    </small>
+                                }
+                            }
+                        </div>
+
+                        <!-- Date -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Date *</label>
+                            <input type="date" class="form-control"
+                                   @onchange="OnDateSelected"
+                                   value="@selectedDate.ToString("yyyy-MM-dd")"
+                                   max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                        </div>
+
+                        <!-- Attendance Counters -->
+                        <div class="col-12">
+                            <div class="row g-3">
+                                <!-- Men -->
+                                <div class="col-sm-6 col-md-3">
+                                    <div class="card bg-light border-0 text-center">
+                                        <div class="card-body py-3">
+                                            <i class="fas fa-male fa-2x text-primary mb-2"></i>
+                                            <h5 class="text-primary">@attendance.Men</h5>
+                                            <label class="form-label small fw-semibold">Men</label>
+                                            <input type="number" class="form-control form-control-sm text-center"
+                                                   @bind="attendance.Men" @bind:event="oninput" min="0"
+                                                   disabled="@(!canRecordAttendance)" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Women -->
+                                <div class="col-sm-6 col-md-3">
+                                    <div class="card bg-light border-0 text-center">
+                                        <div class="card-body py-3">
+                                            <i class="fas fa-female fa-2x text-danger mb-2"></i>
+                                            <h5 class="text-danger">@attendance.Women</h5>
+                                            <label class="form-label small fw-semibold">Women</label>
+                                            <input type="number" class="form-control form-control-sm text-center"
+                                                   @bind="attendance.Women" @bind:event="oninput" min="0"
+                                                   disabled="@(!canRecordAttendance)" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Teenagers -->
+                                <div class="col-sm-6 col-md-3">
+                                    <div class="card bg-light border-0 text-center">
+                                        <div class="card-body py-3">
+                                            <i class="fas fa-user-graduate fa-2x text-warning mb-2"></i>
+                                            <h5 class="text-warning">@attendance.Teenagers</h5>
+                                            <label class="form-label small fw-semibold">Teenagers</label>
+                                            <input type="number" class="form-control form-control-sm text-center"
+                                                   @bind="attendance.Teenagers" @bind:event="oninput" min="0"
+                                                   disabled="@(!canRecordAttendance)" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Children -->
+                                <div class="col-sm-6 col-md-3">
+                                    <div class="card bg-light border-0 text-center">
+                                        <div class="card-body py-3">
+                                            <i class="fas fa-child fa-2x text-info mb-2"></i>
+                                            <h5 class="text-info">@attendance.Children</h5>
+                                            <label class="form-label small fw-semibold">Children</label>
+                                            <input type="number" class="form-control form-control-sm text-center"
+                                                   @bind="attendance.Children" @bind:event="oninput" min="0"
+                                                   disabled="@(!canRecordAttendance)" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-sticky-note me-1"></i> Notes (Optional)
+                            </label>
+                            <textarea class="form-control" rows="3"
+                                      @bind="attendance.Notes"
+                                      placeholder="Any additional notes about the attendance..."
+                                      disabled="@(!canRecordAttendance)"></textarea>
+                        </div>
+
+                        <!-- Total Summary -->
+                        <div class="col-12">
+                            <div class="card bg-dark text-white">
+                                <div class="card-body text-center py-3">
+                                    <h4 class="mb-0">
+                                        <i class="fas fa-users me-2"></i>
+                                        Total Attendance: <strong>@attendance.Total</strong>
+                                    </h4>
+                                    <small class="opacity-75">
+                                        Recorded by: @AuthService.CurrentWorker?.FirstName @AuthService.CurrentWorker?.LastName
+                                        (@AuthService.CurrentWorker?.WorkerId) | Status: @currentNominationStatus
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-light">
+                    <div class="d-flex gap-2 justify-content-end">
+                        @if (!string.IsNullOrEmpty(authorizationMessage) && !canRecordAttendance)
+                        {
+                            <a href="/" class="btn btn-primary">
+                                <i class="fas fa-home me-2"></i>Return to Dashboard
+                            </a>
+                        }
+                        <button class="btn btn-secondary" @onclick="ResetForm">
+                            <i class="fas fa-redo me-2"></i>Reset
+                        </button>
+                        <button class="btn btn-success" @onclick="SaveAttendance" disabled="@(!canRecordAttendance || isSubmitting)">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-save me-2"></i>
+                                <span>Save Attendance</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Information -->
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i> Quick Info</h6>
+                </div>
+                <div class="card-body">
+                    <small class="text-muted">
+                        <i class="fas fa-check-circle text-success me-1"></i>
+                        Only nominated record keepers can record attendance for specific services.
+                        <br /><br />
+                        <strong>Authorized Roles:</strong><br />
+                        • Nominated FIG Members (for Church Attendance record type)<br />
+                        • Head of FIG Directorate<br />
+                        • Assistant Head of FIG Directorate<br />
+                        <br />
+                        <strong>Note:</strong> When no nomination exists, FIG Directorate heads can record.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private AttendanceRecord attendance = new();
+    private List<Service> services = new();
+    private List<RecordNominationDTO> nominatedUsers = new();
+    private bool isSubmitting = false;
+    private bool isLoadingServices = true;
+    private bool canRecordAttendance = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+    private string authorizationMessage = "";
+    private string currentNominationStatus = "";
+    private string selectedServiceName = "";
+    private int selectedServiceId = 0;
+    private DateTime selectedDate = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.CurrentWorker == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadServices();
+        await CheckInitialAuthorization();
+
+        // If services were loaded and we have a default service selected,
+        // check authorization for that service
+        if (selectedServiceId > 0 && !string.IsNullOrEmpty(selectedServiceName))
+        {
+            await CheckAuthorizationForSelectedService();
+        }
+    }
+
+    private async Task LoadServices()
+    {
+        try
+        {
+            isLoadingServices = true;
+            services = await ServiceService.GetActiveServicesAsync();
+
+            if (services.Count > 0)
+            {
+                selectedServiceId = services[0].Id;
+                selectedServiceName = services[0].Name;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading services: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingServices = false;
+        }
+    }
+
+    private async Task CheckInitialAuthorization()
+    {
+        var currentWorker = AuthService.CurrentWorker;
+        if (currentWorker == null)
+        {
+            authorizationMessage = "User not found. Please log in again.";
+            return;
+        }
+
+        // Check if user is Head or Assistant Head of FIG Directorate
+        if (IsHeadOfFIGDirectorate(currentWorker) || IsAssistantHeadOfFIGDirectorate(currentWorker))
+        {
+            canRecordAttendance = true;
+            currentNominationStatus = "FIG Directorate Head";
+            return;
+        }
+
+        // For regular users, don't set canRecordAttendance on page load
+        // It will be set when they select a service and we check authorization
+        canRecordAttendance = false;
+    }
+
+    private async Task OnServiceSelected(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int serviceId))
+        {
+            selectedServiceId = serviceId;
+            var selectedService = services.FirstOrDefault(s => s.Id == serviceId);
+            selectedServiceName = selectedService?.Name ?? "";
+
+            // Clear any previous authorization messages
+            authorizationMessage = "";
+
+            // Validate service day
+            if (!string.IsNullOrEmpty(selectedServiceName))
+            {
+                ValidateServiceDay(selectedServiceName, selectedDate);
+            }
+
+            await CheckAuthorizationForSelectedService();
+        }
+    }
+
+    private async Task OnDateSelected(ChangeEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.Value?.ToString()) &&
+            DateTime.TryParse(e.Value.ToString(), out DateTime date))
+        {
+            selectedDate = date;
+
+            // Clear any previous authorization messages
+            authorizationMessage = "";
+
+            // Validate service day
+            if (!string.IsNullOrEmpty(selectedServiceName))
+            {
+                ValidateServiceDay(selectedServiceName, selectedDate);
+            }
+
+            await CheckAuthorizationForDate(selectedDate);
+
+            // If a service is selected, check authorization for that service
+            if (selectedServiceId > 0)
+            {
+                await CheckAuthorizationForSelectedService();
+            }
+        }
+    }
+
+    private async Task CheckAuthorizationForDate(DateTime date)
+    {
+        var currentWorker = AuthService.CurrentWorker;
+        if (currentWorker == null) return;
+
+        try
+        {
+            // Check nominations for this user on this date for ChurchAttendance record type
+            var nominations = await RecordNominationService.GetNominationsForUserAsync(
+                currentWorker.WorkerId,
+                date
+            );
+
+            // Filter for ChurchAttendance record type only
+            nominations = nominations.Where(n => n.RecordType == "ChurchAttendance").ToList();
+
+            // If a service is selected, filter by service type compatibility
+            if (selectedServiceId > 0 && !string.IsNullOrEmpty(selectedServiceName))
+            {
+                var selectedServiceType = GetServiceTypeFromName(selectedServiceName);
+
+                // Filter nominations to only those that match the selected service type
+                nominations = nominations.Where(n =>
+                    IsNominationValidForServiceType(n, selectedServiceName)
+                ).ToList();
+            }
+
+            if (nominations.Any())
+            {
+                canRecordAttendance = true;
+                currentNominationStatus = "Nominated Attendance Recorder";
+                nominatedUsers = nominations.ToList();
+
+                // If we have a service selected, filter nominations
+                if (selectedServiceId > 0)
+                {
+                    nominatedUsers = nominations
+                        .Where(n => n.ServiceId == selectedServiceId)
+                        .ToList();
+                }
+            }
+            else
+            {
+                // Only set authorization message if we have a service selected
+                if (selectedServiceId > 0)
+                {
+                    authorizationMessage = "You are not nominated to record attendance for the selected service and date.";
+                }
+                canRecordAttendance = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking nominations: {ex.Message}");
+            await FallbackAuthorizationCheck();
+        }
+    }
+
+    private async Task CheckAuthorizationForSelectedService()
+    {
+        if (selectedServiceId <= 0) return;
+
+        var currentWorker = AuthService.CurrentWorker;
+        if (currentWorker == null) return;
+
+        // Reset
+        canRecordAttendance = false;
+        authorizationMessage = "";
+        currentNominationStatus = "";
+        nominatedUsers.Clear();
+
+        var selectedService = services.FirstOrDefault(s => s.Id == selectedServiceId);
+        selectedServiceName = selectedService?.Name ?? "";
+
+        // Validate service day matches date (early check)
+        if (!ValidateServiceDay(selectedServiceName, selectedDate))
+        {
+            canRecordAttendance = false;
+            return;
+        }
+
+        // Check if user is FIG Directorate Head (always authorized)
+        if (IsHeadOfFIGDirectorate(currentWorker) || IsAssistantHeadOfFIGDirectorate(currentWorker))
+        {
+            canRecordAttendance = true;
+            currentNominationStatus = "FIG Directorate Head";
+
+            try
+            {
+                // Load nominations for this service to show who's nominated
+                var serviceNominations = await RecordNominationService.GetNominationsForServiceAsync(
+                    selectedServiceId,
+                    selectedDate
+                );
+                // Filter for ChurchAttendance record type only
+                nominatedUsers = serviceNominations
+                    .Where(n => n.RecordType == "ChurchAttendance")
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading nominations: {ex.Message}");
+            }
+            return;
+        }
+
+        try
+        {
+            // First, check if attendance already exists for this service and date
+            var existingAttendance = await AttendanceService.GetAllAttendanceAsync();
+            var existingRecord = existingAttendance.FirstOrDefault(a =>
+                a.ServiceId == selectedServiceId &&
+                a.AttendanceDate.Date == selectedDate.Date);
+
+            if (existingRecord != null)
+            {
+                errorMessage = $"Attendance record already exists for '{selectedServiceName}' on {selectedDate:MMMM dd, yyyy}. " +
+                              $"Recorded by: {existingRecord.RecordedBy?.FirstName} {existingRecord.RecordedBy?.LastName} " +
+                              $"(Total: {existingRecord.Total} people)";
+                canRecordAttendance = false;
+                return;
+            }
+
+            // Check if user is nominated for this SPECIFIC service and date for ChurchAttendance
+            var userNominations = await RecordNominationService.GetNominationsForUserAndServiceAsync(
+                currentWorker.WorkerId,
+                selectedServiceId,
+                selectedDate
+            );
+
+            // Filter for ChurchAttendance record type only
+            userNominations = userNominations.Where(n => n.RecordType == "ChurchAttendance").ToList();
+
+            if (userNominations.Any())
+            {
+                // Additional check - verify nomination matches service type
+                var nomination = userNominations.First();
+
+                // Check if service types match (Sunday nomination for Sunday service, etc.)
+                if (!IsNominationValidForServiceType(nomination, selectedServiceName))
+                {
+                    authorizationMessage = $"Your nomination is for {GetServiceTypeFromName(nomination.ServiceName)} services, " +
+                                         $"but you're trying to record for a {GetServiceTypeFromName(selectedServiceName)} service.";
+                    canRecordAttendance = false;
+                    return;
+                }
+
+                canRecordAttendance = true;
+                currentNominationStatus = "Nominated Attendance Recorder";
+
+                // Also load all nominations for this service
+                var allServiceNominations = await RecordNominationService.GetNominationsForServiceAsync(
+                    selectedServiceId,
+                    selectedDate
+                );
+                // Filter for ChurchAttendance record type only
+                nominatedUsers = allServiceNominations
+                    .Where(n => n.RecordType == "ChurchAttendance")
+                    .ToList();
+            }
+            else
+            {
+                // Load nominations to show who IS authorized
+                var serviceNominations = await RecordNominationService.GetNominationsForServiceAsync(
+                    selectedServiceId,
+                    selectedDate
+                );
+                // Filter for ChurchAttendance record type only
+                nominatedUsers = serviceNominations
+                    .Where(n => n.RecordType == "ChurchAttendance")
+                    .ToList();
+
+                if (nominatedUsers.Any())
+                {
+                    var nominatedPerson = nominatedUsers.FirstOrDefault();
+                    authorizationMessage = $"You are not nominated to record attendance for '{selectedServiceName}' on {selectedDate:MMMM dd, yyyy}. " +
+                                         $"The nominated recorder is: <strong>{nominatedPerson?.NomineeName}</strong> ({nominatedPerson?.RecordTypeDisplay})";
+                }
+                else
+                {
+                    authorizationMessage = $"You are not nominated to record attendance for '{selectedServiceName}' on {selectedDate:MMMM dd, yyyy}. " +
+                                         "No users are currently nominated for this service. Only FIG Directorate heads can record.";
+                }
+
+                canRecordAttendance = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking service authorization: {ex.Message}");
+            await FallbackAuthorizationCheck();
+        }
+    }
+
+    private async Task FallbackAuthorizationCheck()
+    {
+        // Fallback to old logic if nomination methods don't exist
+        if (IsChurchAdmin() || IsUsheringDepartment())
+        {
+            canRecordAttendance = true;
+            currentNominationStatus = "Church Admin/Ushering Dept";
+        }
+        else
+        {
+            authorizationMessage = "You are not authorized to record attendance.";
+            canRecordAttendance = false;
+        }
+    }
+
+    private async Task SaveAttendance()
+    {
+        if (!ValidateForm())
+            return;
+
+        if (!canRecordAttendance)
+        {
+            errorMessage = "You are not authorized to record attendance for this service.";
+            return;
+        }
+
+        // Check if attendance already exists for this service and date
+        try
+        {
+            var existingAttendance = await AttendanceService.GetAllAttendanceAsync();
+            var existingRecord = existingAttendance.FirstOrDefault(a =>
+                a.ServiceId == selectedServiceId &&
+                a.AttendanceDate.Date == selectedDate.Date);
+
+            if (existingRecord != null)
+            {
+                errorMessage = $"Attendance record already exists for '{selectedServiceName}' on {selectedDate:MMMM dd, yyyy}. " +
+                              $"Recorded by: {existingRecord.RecordedBy?.FirstName} {existingRecord.RecordedBy?.LastName} " +
+                              $"(Total: {existingRecord.Total} people)";
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking existing records: {ex.Message}");
+        }
+
+        // Check if service day matches selected date
+        if (!ValidateServiceDay(selectedServiceName, selectedDate))
+        {
+            // Don't proceed with saving
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            // Set attendance record details
+            attendance.ServiceId = selectedServiceId;
+            attendance.ServiceName = selectedServiceName;
+            attendance.AttendanceDate = selectedDate;
+            attendance.RecordedByWorkerId = AuthService.CurrentWorker!.WorkerId;
+            attendance.RecordedDate = DateTime.UtcNow;
+
+            var success = await AttendanceService.CreateAttendanceAsync(attendance);
+
+            if (success)
+            {
+                successMessage = $"Attendance recorded successfully! Total: {attendance.Total} people";
+                ResetForm();
+            }
+            else
+            {
+                errorMessage = "Failed to save attendance record. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving attendance: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool ValidateForm()
+    {
+        if (selectedServiceId == 0)
+        {
+            errorMessage = "Please select a service.";
+            return false;
+        }
+        if (selectedDate > DateTime.Today)
+        {
+            errorMessage = "Attendance date cannot be in the future.";
+            return false;
+        }
+        if (attendance.Total == 0)
+        {
+            errorMessage = "Please enter attendance numbers for at least one category.";
+            return false;
+        }
+
+        // Validate service day matches date
+        if (!ValidateServiceDay(selectedServiceName, selectedDate))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool ValidateServiceDay(string serviceName, DateTime selectedDate)
+    {
+        if (string.IsNullOrEmpty(serviceName))
+            return true; // Can't validate without service name
+
+        var serviceNameLower = serviceName.ToLowerInvariant();
+        var dayOfWeek = selectedDate.DayOfWeek;
+
+        // Check for Mid Week services (should be Wednesday)
+        if ((serviceNameLower.Contains("mid week") || serviceNameLower.Contains("mid-week")) &&
+            dayOfWeek != DayOfWeek.Wednesday)
+        {
+            errorMessage = $"'{serviceName}' services are typically held on Wednesdays. " +
+                          $"You selected {selectedDate:dddd}. Please check the date.";
+            return false;
+        }
+
+        // Check for Sunday services
+        if (serviceNameLower.Contains("sunday") && dayOfWeek != DayOfWeek.Sunday)
+        {
+            errorMessage = $"'{serviceName}' services are held on Sundays. " +
+                          $"You selected {selectedDate:dddd}. Please check the date.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool IsNominationValidForServiceType(RecordNominationDTO nomination, string selectedServiceName)
+    {
+        // Extract service types from names
+        var nominationServiceType = GetServiceTypeFromName(nomination.ServiceName);
+        var selectedServiceType = GetServiceTypeFromName(selectedServiceName);
+
+        // If both are the same type, it's valid
+        if (nominationServiceType == selectedServiceType)
+            return true;
+
+        // If nomination doesn't have a specific service type (e.g., "All Services"), it's valid
+        if (nominationServiceType == "Unknown" || nominationServiceType == "All")
+            return true;
+
+        // If selected service doesn't have a specific type, it's valid
+        if (selectedServiceType == "Unknown")
+            return true;
+
+        return false;
+    }
+
+    private string GetServiceTypeFromName(string serviceName)
+    {
+        if (string.IsNullOrEmpty(serviceName))
+            return "Unknown";
+
+        var serviceNameLower = serviceName.ToLowerInvariant();
+
+        if (serviceNameLower.Contains("sunday"))
+            return "Sunday";
+
+        if (serviceNameLower.Contains("mid week") || serviceNameLower.Contains("mid-week"))
+            return "MidWeek";
+
+        if (serviceNameLower.Contains("wednesday") || serviceNameLower.Contains("wed"))
+            return "MidWeek";
+
+        // Add other service types as needed
+        if (serviceNameLower.Contains("midweek"))
+            return "MidWeek";
+
+        if (serviceNameLower.Contains("setting the tone"))
+            return "SettingTheTone";
+
+        if (serviceNameLower.Contains("moment of victory"))
+            return "MomentOfVictory";
+
+        if (serviceNameLower.Contains("prayer rain"))
+            return "PrayerRain";
+
+        // If service name contains multiple types or is ambiguous, return "All"
+        if (serviceNameLower.Contains("all") || serviceNameLower.Contains("both"))
+            return "All";
+
+        return "Unknown";
+    }
+
+    private async Task<bool> CheckIfAttendanceExists(int serviceId, DateTime date)
+    {
+        try
+        {
+            var allAttendance = await AttendanceService.GetAllAttendanceAsync();
+            return allAttendance.Any(a =>
+                a.ServiceId == serviceId &&
+                a.AttendanceDate.Date == date.Date);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking existing attendance: {ex.Message}");
+            return false;
+        }
+    }
+
+    private void ResetForm()
+    {
+        attendance = new AttendanceRecord();
+        if (services.Count > 0)
+        {
+            selectedServiceId = services[0].Id;
+            selectedServiceName = services[0].Name;
+        }
+        selectedDate = DateTime.Today;
+        errorMessage = "";
+        successMessage = "";
+        nominatedUsers.Clear();
+
+        // Check authorization for the reset form
+        // Only check if we have a service selected
+        if (selectedServiceId > 0)
+        {
+            _ = CheckAuthorizationForSelectedService();
+        }
+        else
+        {
+            // Reset authorization state
+            canRecordAttendance = false;
+            authorizationMessage = "";
+            currentNominationStatus = "";
+        }
+
+        StateHasChanged();
+    }
+
+    private void ClearSuccessMessage()
+    {
+        successMessage = "";
+        StateHasChanged();
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = "";
+        StateHasChanged();
+    }
+
+    private bool IsHeadOfFIGDirectorate(Worker worker)
+    {
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        return role.Contains("head of directorate") && directorateName.Contains("fig");
+    }
+
+    private bool IsAssistantHeadOfFIGDirectorate(Worker worker)
+    {
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        return (role.Contains("assistant head of directorate") || role.Contains("asst head of directorate"))
+               && directorateName.Contains("fig");
+    }
+
+    private bool IsChurchAdmin()
+    {
+        return AuthService.CurrentWorker?.Role?.Equals("Church Admin", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private bool IsUsheringDepartment()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker?.Department == null) return false;
+        return worker.Department.Name?.Contains("Ushering", StringComparison.OrdinalIgnoreCase) == true;
+    }
+}

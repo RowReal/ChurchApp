@@ -1,0 +1,661 @@
+﻿@page "/admin/services"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ExcuseService ExcuseService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Service Management - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-4">
+    @if (isAuthorized)
+    {
+        <!-- Compact Header -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="fw-bold text-dark-blue mb-1">Service Management</h4>
+                        <p class="text-muted small mb-0">Manage church services and schedules</p>
+                    </div>
+                    <button class="btn btn-primary btn-sm" @onclick="ShowAddServiceModal">
+                        <i class="fas fa-plus me-1"></i>Add Service
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compact Filters -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body py-2">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold mb-1">Status</label>
+                                <select value="@selectedStatusFilter" @onchange="@(e => OnFilterChanged(e, "status"))" class="form-select form-select-sm">
+                                    <option value="all">All Services</option>
+                                    <option value="active">Active Only</option>
+                                    <option value="inactive">Inactive Only</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold mb-1">Recurrence</label>
+                                <select value="@selectedRecurrenceFilter" @onchange="@(e => OnFilterChanged(e, "recurrence"))" class="form-select form-select-sm">
+                                    <option value="all">All Types</option>
+                                    <option value="Weekly">Weekly</option>
+                                    <option value="Monthly">Monthly</option>
+                                    <option value="OneTime">One Time</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-secondary btn-sm w-100 mt-3" @onclick="ResetFilters">
+                                    <i class="fas fa-refresh me-1"></i>Reset
+                                </button>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="badge bg-light text-dark small">
+                                    <i class="fas fa-list me-1"></i>
+                                    @filteredServices.Count of @allServices.Count
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compact Services Table -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                @if (filteredServices.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Service Name</th>
+                                    <th>Type</th>
+                                    <th>Schedule</th>
+                                    <th>Status</th>
+                                    <th class="text-center pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var service in filteredServices)
+                                {
+                                    <tr class="@(service.IsActive ? "" : "text-muted")">
+                                        <td class="ps-3">
+                                            <div class="fw-semibold small">@service.Name</div>
+                                            @if (!string.IsNullOrEmpty(service.Description))
+                                            {
+                                                <small class="text-muted d-block" style="font-size: 0.75rem;">@service.Description</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 small">
+                                                @service.RecurrencePattern
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="small fw-medium">@GetServiceScheduleDisplay(service)</div>
+                                            <div class="text-muted" style="font-size: 0.7rem;">
+                                                @if (service.RecurrencePattern == "OneTime")
+                                                {
+                                                    @service.SpecificStartTime?.ToString(@"hh\:mm")
+                                                }
+                                                else
+                                                {
+                                                    @service.StartTime?.ToString(@"hh\:mm")
+                                                }
+                                                @if ((service.RecurrencePattern == "OneTime" && service.SpecificEndTime.HasValue) ||
+                                                    (service.RecurrencePattern != "OneTime" && service.EndTime.HasValue))
+                                                {
+                                                    @:- @(service.RecurrencePattern == "OneTime" ? service.SpecificEndTime?.ToString(@"hh\:mm") : service.EndTime?.ToString(@"hh\:mm"))
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge @(service.IsActive ? "bg-success bg-opacity-10 text-success border border-success border-opacity-25" : "bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25") small">
+                                                <i class="fas @(service.IsActive ? "fa-play" : "fa-pause") me-1"></i>
+                                                @(service.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        </td>
+                                        <td class="text-center pe-3">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary btn-sm" @onclick="() => EditService(service)" title="Edit Service">
+                                                    <i class="fas fa-edit fa-xs"></i>
+                                                </button>
+                                                @if (service.IsActive)
+                                                {
+                                                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeactivateService(service)" title="Deactivate Service">
+                                                        <i class="fas fa-pause fa-xs"></i>
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-outline-success btn-sm" @onclick="() => ActivateService(service)" title="Activate Service">
+                                                        <i class="fas fa-play fa-xs"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-alt fa-2x text-muted mb-2"></i>
+                        <h6 class="text-muted">No Services Found</h6>
+                        <p class="text-muted small mb-3">No services match your current filters</p>
+                        <button class="btn btn-primary btn-sm" @onclick="ResetFilters">
+                            <i class="fas fa-refresh me-1"></i>Reset Filters
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Compact Add/Edit Service Modal -->
+        @if (showServiceModal)
+        {
+            <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header py-2 bg-dark-blue text-white">
+                            <h6 class="modal-title mb-0">
+                                <i class="fas @(editingService ? "fa-edit" : "fa-plus") me-2"></i>
+                                @(editingService ? "Edit Service" : "Add New Service")
+                            </h6>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CloseServiceModal"></button>
+                        </div>
+                        <EditForm Model="@serviceModel" OnValidSubmit="@SaveService">
+                            <DataAnnotationsValidator />
+                            <div class="modal-body py-3">
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Service Name *</label>
+                                        <InputText @bind-Value="serviceModel.Name" class="form-control form-control-sm" placeholder="e.g., Sunday Service" />
+                                        <ValidationMessage For="@(() => serviceModel.Name)" class="text-danger small" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Recurrence Pattern *</label>
+                                        <InputSelect @bind-Value="serviceModel.RecurrencePattern" class="form-select form-select-sm">
+                                            <option value="OneTime">One Time</option>
+                                            <option value="Weekly">Weekly</option>
+                                            <option value="Monthly">Monthly</option>
+                                        </InputSelect>
+                                    </div>
+                                </div>
+
+                                <div class="mt-2">
+                                    <label class="form-label small fw-semibold">Description</label>
+                                    <InputTextArea @bind-Value="serviceModel.Description" class="form-control form-control-sm" placeholder="Brief description of the service" rows="2" />
+                                </div>
+
+                                @if (serviceModel.RecurrencePattern == "OneTime")
+                                {
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold">Date *</label>
+                                            <InputDate @bind-Value="serviceModel.SpecificDate" class="form-control form-control-sm" />
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold">Start Time *</label>
+                                            <InputText @bind-Value="specificStartTimeString" class="form-control form-control-sm" type="time" />
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold">End Time</label>
+                                            <InputText @bind-Value="specificEndTimeString" class="form-control form-control-sm" type="time" />
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-md-6">
+                                            @if (serviceModel.RecurrencePattern == "Weekly")
+                                            {
+                                                <label class="form-label small fw-semibold">Day of Week *</label>
+                                                <InputSelect @bind-Value="dayOfWeekString" class="form-select form-select-sm">
+                                                    <option value="0">Sunday</option>
+                                                    <option value="1">Monday</option>
+                                                    <option value="2">Tuesday</option>
+                                                    <option value="3">Wednesday</option>
+                                                    <option value="4">Thursday</option>
+                                                    <option value="5">Friday</option>
+                                                    <option value="6">Saturday</option>
+                                                </InputSelect>
+                                            }
+                                            else if (serviceModel.RecurrencePattern == "Monthly")
+                                            {
+                                                <label class="form-label small fw-semibold">Week of Month *</label>
+                                                <InputSelect @bind-Value="serviceModel.WeekOfMonth" class="form-select form-select-sm">
+                                                    <option value="1">First Week</option>
+                                                    <option value="2">Second Week</option>
+                                                    <option value="3">Third Week</option>
+                                                    <option value="4">Fourth Week</option>
+                                                    <option value="5">Last Week</option>
+                                                </InputSelect>
+                                            }
+                                        </div>
+                                        <div class="col-md-6">
+                                            @if (serviceModel.RecurrencePattern == "Monthly")
+                                            {
+                                                <label class="form-label small fw-semibold">Day of Week *</label>
+                                                <InputSelect @bind-Value="dayOfWeekString" class="form-select form-select-sm">
+                                                    <option value="0">Sunday</option>
+                                                    <option value="1">Monday</option>
+                                                    <option value="2">Tuesday</option>
+                                                    <option value="3">Wednesday</option>
+                                                    <option value="4">Thursday</option>
+                                                    <option value="5">Friday</option>
+                                                    <option value="6">Saturday</option>
+                                                </InputSelect>
+                                            }
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold">Start Time *</label>
+                                            <InputText @bind-Value="startTimeString" class="form-control form-control-sm" type="time" />
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold">End Time</label>
+                                            <InputText @bind-Value="endTimeString" class="form-control form-control-sm" type="time" />
+                                        </div>
+                                    </div>
+                                }
+
+                                <div class="form-check form-switch mt-3">
+                                    <InputCheckbox @bind-Value="serviceModel.IsActive" class="form-check-input" />
+                                    <label class="form-check-label small fw-semibold">Active Service</label>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(errorMessage))
+                                {
+                                    <div class="alert alert-danger mt-2 py-2 small">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>@errorMessage
+                                    </div>
+                                }
+                            </div>
+                            <div class="modal-footer py-2">
+                                <button type="button" class="btn btn-secondary btn-sm" @onclick="CloseServiceModal">Cancel</button>
+                                <button type="submit" class="btn btn-primary btn-sm" disabled="@isLoading">
+                                    @if (isLoading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                        <span>Processing...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas @(editingService ? "fa-save" : "fa-plus") me-1"></i>
+                                        <span>@(editingService ? "Update" : "Create")</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <!-- Authorization Required Message -->
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="fas fa-ban me-2"></i>Access Denied</h5>
+                    </div>
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-lock fa-3x text-danger mb-3"></i>
+                        <h4>Service Management Access Required</h4>
+                        <p class="text-muted">
+                            You need to be a Church Admin, Pastor in Charge, Head of Service, 
+                            or Assistant Head of Service to access this page.
+                        </p>
+                        <div class="mt-4">
+                            <a href="/" class="btn btn-primary">
+                                <i class="fas fa-home me-1"></i>Return to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Service> allServices = new();
+    private List<Service> filteredServices = new();
+    private bool showServiceModal = false;
+    private bool editingService = false;
+    private bool isLoading = false;
+    private ServiceModel serviceModel = new();
+    private Service? currentService;
+
+    // Filter variables
+    private string selectedStatusFilter = "all";
+    private string selectedRecurrenceFilter = "all";
+
+    // Use separate string variables for form inputs
+    private string startTimeString = "09:00";
+    private string endTimeString = "10:00";
+    private string specificStartTimeString = "09:00";
+    private string specificEndTimeString = "10:00";
+    private string dayOfWeekString = "0";
+    private string errorMessage = string.Empty;
+    private bool isAuthorized = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check authorization
+        if (!IsUserAuthorizedForServiceManagement())
+        {
+            isAuthorized = false;
+            return;
+        }
+        
+        isAuthorized = true;
+        await LoadServices();
+    }
+
+    private bool IsUserAuthorizedForServiceManagement()
+    {
+        if (!AuthService.IsAuthenticated || AuthService.CurrentWorker == null)
+            return false;
+
+        var role = AuthService.CurrentWorker.Role?.ToLowerInvariant() ?? "";
+        
+        // Check specific roles that can manage services
+        if (role.Contains("church admin") || 
+            role.Contains("pastor in charge") ||
+            role.Contains("head of service") ||
+            role.Contains("assistant head of service") ||
+            role.Contains("asst head of service"))
+        {
+            return true;
+        }
+        
+        // Also check the CanAccessAdminPanel property as fallback
+        if (AuthService.CurrentWorker.CanAccessAdminPanel)
+            return true;
+            
+        return false;
+    }
+
+    private async Task LoadServices()
+    {
+        try
+        {
+            allServices = await ExcuseService.GetAllServicesAsync();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading services: {ex.Message}";
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        var filtered = allServices.AsEnumerable();
+
+        if (selectedStatusFilter == "active")
+            filtered = filtered.Where(s => s.IsActive);
+        else if (selectedStatusFilter == "inactive")
+            filtered = filtered.Where(s => !s.IsActive);
+
+        if (selectedRecurrenceFilter != "all")
+            filtered = filtered.Where(s => s.RecurrencePattern == selectedRecurrenceFilter);
+
+        filteredServices = filtered.ToList();
+        StateHasChanged();
+    }
+
+    private void ResetFilters()
+    {
+        selectedStatusFilter = "all";
+        selectedRecurrenceFilter = "all";
+        ApplyFilters();
+    }
+
+    private string GetServiceScheduleDisplay(Service service)
+    {
+        if (service.RecurrencePattern == "Weekly")
+        {
+            var dayName = GetDayName(service.DayOfWeek);
+            return $"Every {dayName}";
+        }
+        else if (service.RecurrencePattern == "Monthly")
+        {
+            var dayName = GetDayName(service.DayOfWeek);
+            var weekDisplay = service.WeekOfMonth switch
+            {
+                1 => "First",
+                2 => "Second",
+                3 => "Third",
+                4 => "Fourth",
+                5 => "Last",
+                _ => "Week " + service.WeekOfMonth
+            };
+            return $"{weekDisplay} {dayName}";
+        }
+        else if (service.RecurrencePattern == "OneTime")
+        {
+            return service.SpecificDate?.ToString("MMM dd, yyyy") ?? "One Time";
+        }
+        return service.RecurrencePattern;
+    }
+
+    private string GetDayName(DayOfWeek? dayOfWeek)
+    {
+        return dayOfWeek switch
+        {
+            DayOfWeek.Sunday => "Sun",
+            DayOfWeek.Monday => "Mon",
+            DayOfWeek.Tuesday => "Tue",
+            DayOfWeek.Wednesday => "Wed",
+            DayOfWeek.Thursday => "Thu",
+            DayOfWeek.Friday => "Fri",
+            DayOfWeek.Saturday => "Sat",
+            _ => "Unknown"
+        };
+    }
+
+    private void ShowAddServiceModal()
+    {
+        serviceModel = new ServiceModel
+        {
+            IsActive = true,
+            RecurrencePattern = "OneTime"
+        };
+        editingService = false;
+        showServiceModal = true;
+        errorMessage = string.Empty;
+
+        // Reset form values
+        startTimeString = "09:00";
+        endTimeString = "10:00";
+        specificStartTimeString = "09:00";
+        specificEndTimeString = "10:00";
+        dayOfWeekString = "0";
+    }
+
+    private void EditService(Service service)
+    {
+        currentService = service;
+        serviceModel = new ServiceModel
+        {
+            Name = service.Name,
+            Description = service.Description,
+            RecurrencePattern = service.RecurrencePattern,
+            WeekOfMonth = service.WeekOfMonth,
+            StartTime = service.StartTime,
+            EndTime = service.EndTime,
+            SpecificDate = service.SpecificDate,
+            SpecificStartTime = service.SpecificStartTime,
+            SpecificEndTime = service.SpecificEndTime,
+            IsActive = service.IsActive
+        };
+
+        dayOfWeekString = service.DayOfWeek.HasValue ? ((int)service.DayOfWeek.Value).ToString() : "0";
+        startTimeString = service.StartTime?.ToString(@"hh\:mm") ?? "09:00";
+        endTimeString = service.EndTime?.ToString(@"hh\:mm") ?? "10:00";
+        specificStartTimeString = service.SpecificStartTime?.ToString(@"hh\:mm") ?? "09:00";
+        specificEndTimeString = service.SpecificEndTime?.ToString(@"hh\:mm") ?? "10:00";
+
+        editingService = true;
+        showServiceModal = true;
+        errorMessage = string.Empty;
+    }
+
+    private void CloseServiceModal()
+    {
+        showServiceModal = false;
+        currentService = null;
+        errorMessage = string.Empty;
+    }
+
+    private async Task SaveService()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            if (TimeSpan.TryParse(startTimeString, out var startTime))
+                serviceModel.StartTime = startTime;
+            if (TimeSpan.TryParse(endTimeString, out var endTime))
+                serviceModel.EndTime = endTime;
+            if (TimeSpan.TryParse(specificStartTimeString, out var specificStartTime))
+                serviceModel.SpecificStartTime = specificStartTime;
+            if (TimeSpan.TryParse(specificEndTimeString, out var specificEndTime))
+                serviceModel.SpecificEndTime = specificEndTime;
+
+            if (editingService && currentService != null)
+            {
+                currentService.Name = serviceModel.Name;
+                currentService.Description = serviceModel.Description;
+                currentService.RecurrencePattern = serviceModel.RecurrencePattern;
+                currentService.DayOfWeek = int.TryParse(dayOfWeekString, out int dayInt) ? (DayOfWeek)dayInt : DayOfWeek.Sunday;
+                currentService.WeekOfMonth = serviceModel.WeekOfMonth;
+                currentService.StartTime = serviceModel.StartTime;
+                currentService.EndTime = serviceModel.EndTime;
+                currentService.SpecificDate = serviceModel.SpecificDate;
+                currentService.SpecificStartTime = serviceModel.SpecificStartTime;
+                currentService.SpecificEndTime = serviceModel.SpecificEndTime;
+                currentService.IsActive = serviceModel.IsActive;
+                currentService.LastUpdated = DateTime.UtcNow;
+
+                await ExcuseService.UpdateServiceAsync(currentService);
+            }
+            else
+            {
+                var service = new Service
+                {
+                    Name = serviceModel.Name,
+                    Description = serviceModel.Description,
+                    RecurrencePattern = serviceModel.RecurrencePattern,
+                    DayOfWeek = int.TryParse(dayOfWeekString, out int dayInt) ? (DayOfWeek)dayInt : DayOfWeek.Sunday,
+                    WeekOfMonth = serviceModel.WeekOfMonth,
+                    StartTime = serviceModel.StartTime,
+                    EndTime = serviceModel.EndTime,
+                    SpecificDate = serviceModel.SpecificDate,
+                    SpecificStartTime = serviceModel.SpecificStartTime,
+                    SpecificEndTime = serviceModel.SpecificEndTime,
+                    IsActive = serviceModel.IsActive,
+                    CreatedDate = DateTime.UtcNow
+                };
+
+                await ExcuseService.CreateServiceAsync(service);
+            }
+
+            CloseServiceModal();
+            await LoadServices();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving service: {ex.Message}";
+        }
+
+        isLoading = false;
+    }
+
+    private async Task DeactivateService(Service service)
+    {
+        if (await ExcuseService.DeleteServiceAsync(service.Id))
+        {
+            await LoadServices();
+        }
+    }
+
+    private async Task ActivateService(Service service)
+    {
+        service.IsActive = true;
+        service.LastUpdated = DateTime.UtcNow;
+        await ExcuseService.UpdateServiceAsync(service);
+        await LoadServices();
+    }
+
+    private void OnFilterChanged(ChangeEventArgs e, string filterType)
+    {
+        var newValue = e.Value?.ToString() ?? "all";
+
+        if (filterType == "status")
+            selectedStatusFilter = newValue;
+        else if (filterType == "recurrence")
+            selectedRecurrenceFilter = newValue;
+
+        ApplyFilters();
+    }
+}
+
+<style>
+    .text-dark-blue {
+        color: #2c3e50;
+    }
+
+    .bg-dark-blue {
+        background-color: #2c3e50;
+    }
+
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+
+    .table-sm th,
+    .table-sm td {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.25em 0.5em;
+    }
+
+    .form-control-sm,
+    .form-select-sm {
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .modal-header {
+        padding: 0.75rem 1rem;
+    }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    .modal-footer {
+        padding: 0.75rem 1rem;
+    }
+</style>

@@ -1,0 +1,180 @@
+﻿@page "/Offering/editnote/{id:int}"
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Forms
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ServiceNoteService ServiceNoteService
+@inject ServiceService ServiceService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<h3>Edit Service Note</h3>
+
+@if (loading)
+{
+    <div class="text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Loading service note...</p>
+    </div>
+}
+else if (serviceNote == null)
+{
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i> Service note not found.
+    </div>
+    <button class="btn btn-secondary" @onclick="GoBack">
+        <i class="fas fa-arrow-left"></i> Back to List
+    </button>
+}
+else if (!CanEditNote())
+{
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle"></i> You are not authorized to edit this service note.
+    </div>
+    <button class="btn btn-secondary" @onclick="GoBack">
+        <i class="fas fa-arrow-left"></i> Back to List
+    </button>
+}
+else
+{
+    <EditForm Model="@model" OnValidSubmit="@HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="alert alert-danger" />
+
+        <!-- Same form structure as CreateServiceNote.razor -->
+        <!-- Copy the entire form from CreateServiceNote.razor here -->
+        <!-- Just change the submit button text to "Update Service Note" -->
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                @if (isSubmitting)
+                {
+                    <text>
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span> Updating...</span>
+                    </text>
+                }
+                else
+                {
+                    <text>
+                        <i class="fas fa-save"></i> Update Service Note
+                    </text>
+                }
+            </button>
+            <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private ServiceNoteModel model = new ServiceNoteModel();
+    private List<Service> services = new List<Service>();
+    private ServiceNote? serviceNote;
+    private bool loading = true;
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            serviceNote = await ServiceNoteService.GetServiceNoteByIdAsync(Id);
+            services = await ServiceService.GetActiveServicesAsync();
+
+            if (serviceNote != null)
+            {
+                model.ServiceId = serviceNote.ServiceId;
+                model.ServiceDate = serviceNote.ServiceDate;
+                model.ServiceType = serviceNote.ServiceType;
+                model.ServiceFlow = serviceNote.ServiceFlow;
+                model.ThemeOrSermonTitle = serviceNote.ThemeOrSermonTitle;
+                model.MinisterOrGuestSpeaker = serviceNote.MinisterOrGuestSpeaker;
+                model.ServiceStartTime = serviceNote.ServiceStartTime ?? new TimeSpan(9, 0, 0);
+                model.ServiceEndTime = serviceNote.ServiceEndTime ?? new TimeSpan(12, 0, 0);
+                model.TechnicalIssues = serviceNote.TechnicalIssues;
+                model.OrderOfServiceChanges = serviceNote.OrderOfServiceChanges;
+                model.Disruptions = serviceNote.Disruptions;
+                model.SafetyConcerns = serviceNote.SafetyConcerns;
+                model.NotableGuests = serviceNote.NotableGuests;
+                model.AttendancePattern = serviceNote.AttendancePattern;
+                model.SpecialParticipation = serviceNote.SpecialParticipation;
+                model.LeadershipAwareness = serviceNote.LeadershipAwareness;
+                model.FollowUpNeeded = serviceNote.FollowUpNeeded;
+                model.AdditionalNotes = serviceNote.AdditionalNotes;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading service note: {ex.Message}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private bool CanEditNote()
+    {
+        if (AuthService.CurrentWorker == null || serviceNote == null)
+            return false;
+        return serviceNote.RecordedByWorkerId == AuthService.CurrentWorker.Id;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+
+        try
+        {
+            await ServiceNoteService.UpdateServiceNoteAsync(Id, model);
+            Navigation.NavigateTo("/Offering/NoteList");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating service note: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/Offering/NoteList");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/Offering/NoteList");
+    }
+
+    private void HandleStartTimeChange(ChangeEventArgs e)
+    {
+        if (TimeSpan.TryParse(e.Value?.ToString(), out var time))
+        {
+            model.ServiceStartTime = time;
+        }
+        else
+        {
+            model.ServiceStartTime = new TimeSpan(9, 0, 0);
+        }
+    }
+
+    private void HandleEndTimeChange(ChangeEventArgs e)
+    {
+        if (TimeSpan.TryParse(e.Value?.ToString(), out var time))
+        {
+            model.ServiceEndTime = time;
+        }
+        else
+        {
+            model.ServiceEndTime = new TimeSpan(12, 0, 0);
+        }
+    }
+}

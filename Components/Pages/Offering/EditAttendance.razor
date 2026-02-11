@@ -1,0 +1,525 @@
+﻿@page "/Offering/EditAttendance/{id:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AttendanceService AttendanceService
+@inject WorkerService WorkerService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject RecordNominationService RecordNominationService
+
+<PageTitle>Edit Attendance - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>
+                        Edit Attendance Record
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (isLoading)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3">Loading attendance record...</p>
+                        </div>
+                    }
+                    else if (attendance == null)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Attendance record not found.
+                        </div>
+                    }
+                    else if (!canEdit)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-ban me-2"></i>
+                            @authorizationMessage
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Success/Error Messages -->
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="fas fa-check-circle me-2"></i>
+                                @successMessage
+                                <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                @errorMessage
+                                <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+                            </div>
+                        }
+
+                        <!-- Edit Form -->
+                        <div class="row g-3">
+                            <!-- Service Name (Read-only) -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Service</label>
+                                <input type="text" class="form-control" value="@attendance.ServiceName" readonly />
+                            </div>
+
+                            <!-- Date -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Date *</label>
+                                <input type="date" class="form-control" @bind="attendance.AttendanceDate"
+                                       max="@DateTime.Now.ToString("yyyy-MM-dd")"
+                                       disabled="@(!canEdit)" />
+                            </div>
+
+                            <!-- Attendance Counters -->
+                            <div class="col-12">
+                                <div class="row g-3">
+                                    <!-- Men -->
+                                    <div class="col-sm-6 col-md-3">
+                                        <div class="card bg-light border-0 text-center">
+                                            <div class="card-body py-3">
+                                                <i class="fas fa-male fa-2x text-primary mb-2"></i>
+                                                <h5 class="text-primary">@attendance.Men</h5>
+                                                <label class="form-label small fw-semibold">Men</label>
+                                                <input type="number" class="form-control form-control-sm text-center"
+                                                       @bind="attendance.Men" min="0"
+                                                       disabled="@(!canEdit)" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Women -->
+                                    <div class="col-sm-6 col-md-3">
+                                        <div class="card bg-light border-0 text-center">
+                                            <div class="card-body py-3">
+                                                <i class="fas fa-female fa-2x text-danger mb-2"></i>
+                                                <h5 class="text-danger">@attendance.Women</h5>
+                                                <label class="form-label small fw-semibold">Women</label>
+                                                <input type="number" class="form-control form-control-sm text-center"
+                                                       @bind="attendance.Women" min="0"
+                                                       disabled="@(!canEdit)" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Teenagers -->
+                                    <div class="col-sm-6 col-md-3">
+                                        <div class="card bg-light border-0 text-center">
+                                            <div class="card-body py-3">
+                                                <i class="fas fa-user-graduate fa-2x text-warning mb-2"></i>
+                                                <h5 class="text-warning">@attendance.Teenagers</h5>
+                                                <label class="form-label small fw-semibold">Teenagers</label>
+                                                <input type="number" class="form-control form-control-sm text-center"
+                                                       @bind="attendance.Teenagers" min="0"
+                                                       disabled="@(!canEdit)" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Children -->
+                                    <div class="col-sm-6 col-md-3">
+                                        <div class="card bg-light border-0 text-center">
+                                            <div class="card-body py-3">
+                                                <i class="fas fa-child fa-2x text-info mb-2"></i>
+                                                <h5 class="text-info">@attendance.Children</h5>
+                                                <label class="form-label small fw-semibold">Children</label>
+                                                <input type="number" class="form-control form-control-sm text-center"
+                                                       @bind="attendance.Children" min="0"
+                                                       disabled="@(!canEdit)" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">
+                                    <i class="fas fa-sticky-note me-1"></i> Notes
+                                </label>
+                                <textarea class="form-control" rows="3"
+                                          @bind="attendance.Notes"
+                                          placeholder="Any additional notes..."
+                                          disabled="@(!canEdit)"></textarea>
+                            </div>
+
+                            <!-- Recorded By Information -->
+                            <div class="col-12">
+                                <div class="card bg-light">
+                                    <div class="card-body py-3">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Recorded By:</small>
+                                                <div class="fw-bold">
+                                                    @if (recordedByWorker != null)
+                                                    {
+                                                        @recordedByWorker.FirstName@recordedByWorker.LastName
+                                                        <span class="text-muted">(@recordedByWorker.WorkerId)</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">Worker ID: @attendance.RecordedByWorkerId</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-muted">Recorded On:</small>
+                                                <div class="fw-bold">@attendance.RecordedDate.ToString("yyyy-MM-dd HH:mm")</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Total Summary -->
+                            <div class="col-12">
+                                <div class="card bg-dark text-white">
+                                    <div class="card-body text-center py-3">
+                                        <h4 class="mb-0">
+                                            <i class="fas fa-users me-2"></i>
+                                            Total Attendance: <strong>@attendance.Total</strong>
+                                        </h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @if (attendance != null && canEdit && !isLoading)
+                {
+                    <div class="card-footer bg-light">
+                        <div class="d-flex gap-2 justify-content-between">
+                            <button class="btn btn-outline-secondary" @onclick="NavigateBack">
+                                <i class="fas fa-arrow-left me-2"></i>Back
+                            </button>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-danger" @onclick="DeleteAttendance" disabled="@isSubmitting">
+                                    @if (isDeleting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-trash me-2"></i>
+                                    }
+                                    Delete
+                                </button>
+                                <button class="btn btn-primary" @onclick="UpdateAttendance" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <span>Saving...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-save me-2"></i>
+                                        <span>Update Attendance</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private AttendanceRecord? attendance;
+    private Worker? recordedByWorker;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool isDeleting = false;
+    private bool canEdit = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+    private string authorizationMessage = "You do not have permission to edit this attendance record.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.CurrentWorker == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadAttendanceRecord();
+    }
+
+    private async Task LoadAttendanceRecord()
+    {
+        try
+        {
+            isLoading = true;
+            attendance = await AttendanceService.GetAttendanceByIdAsync(Id);
+
+            if (attendance != null)
+            {
+                // Load the recorded by worker information
+                await LoadRecordedByWorker();
+
+                // Check if current user can edit this attendance
+                await CheckEditAuthorization();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading attendance record: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CheckEditAuthorization()
+    {
+        if (attendance == null) return;
+
+        var currentWorker = AuthService.CurrentWorker;
+        if (currentWorker == null) return;
+
+        // 1. Check if user is Head of FIG Directorate (always authorized)
+        if (IsHeadOfFIGDirectorate(currentWorker))
+        {
+            canEdit = true;
+            authorizationMessage = "Authorized as: Head of FIG Directorate";
+            return;
+        }
+
+        // 2. Check if user is Assistant Head of FIG Directorate (always authorized)
+        if (IsAssistantHeadOfFIGDirectorate(currentWorker))
+        {
+            canEdit = true;
+            authorizationMessage = "Authorized as: Assistant Head of FIG Directorate";
+            return;
+        }
+
+        // 3. Check if current user was the original recorder
+        if (attendance.RecordedByWorkerId == currentWorker.WorkerId)
+        {
+            canEdit = true;
+            authorizationMessage = "Authorized as: Original Recorder";
+            return;
+        }
+
+        // 4. Check if user is nominated for this service and date for ChurchAttendance
+        try
+        {
+            var isNominated = await RecordNominationService.IsWorkerNominatedForRecord(
+                currentWorker.WorkerId,
+                attendance.ServiceId,
+                attendance.AttendanceDate,
+                "ChurchAttendance"
+            );
+
+            if (isNominated)
+            {
+                canEdit = true;
+                authorizationMessage = "Authorized as: Nominated Attendance Recorder";
+            }
+            else
+            {
+                canEdit = false;
+                authorizationMessage = "You are not authorized to edit this attendance record. " +
+                                     "Only FIG Directorate leaders, the original recorder, or nominated attendance recorders can edit.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking nomination: {ex.Message}");
+            canEdit = false;
+            authorizationMessage = "Unable to verify nomination status. You may not be authorized to edit.";
+        }
+    }
+
+    private async Task LoadRecordedByWorker()
+    {
+        if (attendance == null || string.IsNullOrEmpty(attendance.RecordedByWorkerId))
+            return;
+
+        try
+        {
+            // Method 1: If GetAttendanceByIdAsync includes the RecordedBy navigation property
+            if (attendance.RecordedBy != null)
+            {
+                recordedByWorker = attendance.RecordedBy;
+            }
+            else
+            {
+                // Method 2: Use WorkerService to get the worker by WorkerId
+                recordedByWorker = await WorkerService.GetWorkerByWorkerIdAsync(attendance.RecordedByWorkerId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading recorded by worker: {ex.Message}");
+        }
+    }
+
+    private async Task UpdateAttendance()
+    {
+        if (attendance == null) return;
+
+        if (!ValidateForm())
+            return;
+
+        isSubmitting = true;
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            // Re-check authorization before updating
+            await CheckEditAuthorization();
+
+            if (!canEdit)
+            {
+                errorMessage = "Your authorization to edit this record has changed. Please refresh the page.";
+                isSubmitting = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Set modified date
+            attendance.ModifiedDate = DateTime.UtcNow;
+
+            var success = await AttendanceService.UpdateAttendanceAsync(attendance);
+
+            if (success)
+            {
+                successMessage = "Attendance record updated successfully!";
+
+                // Wait a bit then navigate back
+                await Task.Delay(1500);
+                Navigation.NavigateTo("/Offering/Attendance-list");
+            }
+            else
+            {
+                errorMessage = "Failed to update attendance record. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating attendance: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteAttendance()
+    {
+        if (attendance == null) return;
+
+        // Check authorization before deletion
+        if (!canEdit)
+        {
+            errorMessage = "You are not authorized to delete this attendance record.";
+            StateHasChanged();
+            return;
+        }
+
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            "Are you sure you want to delete this attendance record?\n\n" +
+            $"Service: {attendance.ServiceName}\n" +
+            $"Date: {attendance.AttendanceDate:yyyy-MM-dd}\n" +
+            $"Total: {attendance.Total} people\n\n" +
+            "This action cannot be undone.");
+
+        if (!confirmed) return;
+
+        isDeleting = true;
+        errorMessage = "";
+
+        try
+        {
+            var success = await AttendanceService.DeleteAttendanceAsync(attendance.Id);
+
+            if (success)
+            {
+                successMessage = "Attendance record deleted successfully!";
+                await Task.Delay(1500);
+                Navigation.NavigateTo("/Offering/Attendance-list");
+            }
+            else
+            {
+                errorMessage = "Failed to delete attendance record. You may not have permission.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting attendance: {ex.Message}";
+        }
+        finally
+        {
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool ValidateForm()
+    {
+        if (attendance == null) return false;
+
+        if (attendance.AttendanceDate > DateTime.Today)
+        {
+            errorMessage = "Attendance date cannot be in the future.";
+            return false;
+        }
+        if (attendance.Total == 0)
+        {
+            errorMessage = "Please enter attendance numbers for at least one category.";
+            return false;
+        }
+        return true;
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/Offering/Attendance-list");
+    }
+
+    private void ClearSuccessMessage()
+    {
+        successMessage = "";
+        StateHasChanged();
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = "";
+        StateHasChanged();
+    }
+
+    private bool IsHeadOfFIGDirectorate(Worker worker)
+    {
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        return role.Contains("head of directorate") && directorateName.Contains("fig");
+    }
+
+    private bool IsAssistantHeadOfFIGDirectorate(Worker worker)
+    {
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        return (role.Contains("assistant head of directorate") || role.Contains("asst head of directorate"))
+               && directorateName.Contains("fig");
+    }
+}

@@ -1,0 +1,455 @@
+﻿@page "/offering/types"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject OfferingService OfferingService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Offering Types - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Offering Types Management
+                    </h5>
+                    <button class="btn btn-light btn-sm" @onclick="ShowAddModal">
+                        <i class="fas fa-plus me-2"></i>Add New Type
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- Success Message -->
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            @successMessage
+                            <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
+                        </div>
+                    }
+
+                    <!-- Error Message -->
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            @errorMessage
+                            <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+                        </div>
+                    }
+
+                    @if (isLoading)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary"></div>
+                            <p class="mt-2">Loading offering types...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Status</th>
+                                        <th>Created Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var type in offeringTypes)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@type.Name</strong>
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(type.Description))
+                                                {
+                                                    <span class="text-muted">@type.Description</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (type.IsActive)
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    @type.CreatedDate.ToString("MMM dd, yyyy")
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @onclick="() => ShowEditModal(type)" title="Edit">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn @(type.IsActive ? "btn-outline-warning" : "btn-outline-success")" 
+                                                            @onclick="() => ToggleStatus(type)" 
+                                                            title="@(type.IsActive ? "Deactivate" : "Activate")">
+                                                        <i class="fas @(type.IsActive ? "fa-times" : "fa-check")"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" @onclick="() => ShowDeleteModal(type)" title="Delete">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Summary -->
+                        <div class="row mt-4">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h4 class="text-primary">@offeringTypes.Count</h4>
+                                        <p class="mb-0 text-muted">Total Types</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h4 class="text-success">@offeringTypes.Count(t => t.IsActive)</h4>
+                                        <p class="mb-0 text-muted">Active Types</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h4 class="text-secondary">@offeringTypes.Count(t => !t.IsActive)</h4>
+                                        <p class="mb-0 text-muted">Inactive Types</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+@if (showModal)
+{
+    <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header @(isEditMode ? "bg-warning text-dark" : "bg-primary text-white")">
+                    <h5 class="modal-title">
+                        <i class="fas @(isEditMode ? "fa-edit" : "fa-plus") me-2"></i>
+                        @(isEditMode ? "Edit Offering Type" : "Add New Offering Type")
+                    </h5>
+                    <button type="button" class="btn-close @(isEditMode ? "" : "btn-close-white")" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-control" @bind="currentOfferingType.Name" 
+                               placeholder="Enter offering type name" />
+                        @if (string.IsNullOrEmpty(currentOfferingType.Name) && showValidation)
+                        {
+                            <small class="text-danger">Name is required</small>
+                        }
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" @bind="currentOfferingType.Description" 
+                                  rows="3" placeholder="Enter description (optional)"></textarea>
+                    </div>
+                    @if (isEditMode)
+                    {
+                        <div class="form-group mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" @bind="currentOfferingType.IsActive" />
+                                <label class="form-check-label">Active</label>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn @(isEditMode ? "btn-warning" : "btn-primary")" 
+                            @onclick="SaveOfferingType" disabled="@isSaving">
+                        @if (isSaving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Saving...</span>
+                        }
+                        else
+                        {
+                            <i class="fas @(isEditMode ? "fa-save" : "fa-plus") me-2"></i>
+                            <span>@(isEditMode ? "Update" : "Save")</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirm Deletion
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this offering type?</p>
+                    <div class="alert alert-warning">
+                        <strong>Warning:</strong> This action cannot be undone.
+                    </div>
+                    <div class="card">
+                        <div class="card-body">
+                            <strong>@offeringTypeToDelete?.Name</strong><br />
+                            <small class="text-muted">@offeringTypeToDelete?.Description</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isDeleting">
+                        @if (isDeleting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Deleting...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-trash me-2"></i>
+                            <span>Delete Offering Type</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<OfferingType> offeringTypes = new();
+    private bool isLoading = true;
+    private string errorMessage = "";
+    private string successMessage = "";
+
+    // Modal variables
+    private bool showModal = false;
+    private bool isEditMode = false;
+    private bool isSaving = false;
+    private bool showValidation = false;
+    private OfferingType currentOfferingType = new();
+
+    // Delete modal variables
+    private bool showDeleteModal = false;
+    private OfferingType? offeringTypeToDelete = null;
+    private bool isDeleting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if user has permission to access this page
+        if (!AuthService.CanAccessAdminPanel() && !AuthService.IsInRole("Church Admin"))
+        {
+            Navigation.NavigateTo("/unauthorized");
+            return;
+        }
+
+        await LoadOfferingTypes();
+        isLoading = false;
+    }
+
+    private async Task LoadOfferingTypes()
+    {
+        try
+        {
+            offeringTypes = await OfferingService.GetOfferingTypesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading offering types: {ex.Message}";
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        currentOfferingType = new OfferingType { IsActive = true };
+        isEditMode = false;
+        showModal = true;
+        showValidation = false;
+        StateHasChanged();
+    }
+
+    private void ShowEditModal(OfferingType offeringType)
+    {
+        currentOfferingType = new OfferingType
+        {
+            Id = offeringType.Id,
+            Name = offeringType.Name,
+            Description = offeringType.Description,
+            IsActive = offeringType.IsActive
+        };
+        isEditMode = true;
+        showModal = true;
+        showValidation = false;
+        StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        currentOfferingType = new OfferingType();
+        showValidation = false;
+        isSaving = false;
+        StateHasChanged();
+    }
+
+private async Task SaveOfferingType()
+{
+    if (string.IsNullOrEmpty(currentOfferingType.Name))
+    {
+        showValidation = true;
+        StateHasChanged();
+        return;
+    }
+
+    isSaving = true;
+    StateHasChanged();
+
+    try
+    {
+        bool success;
+        if (isEditMode)
+        {
+            success = await OfferingService.UpdateOfferingTypeAsync(currentOfferingType);
+            successMessage = "Offering type updated successfully!";
+        }
+        else
+        {
+            // Get the current worker's ID from AuthService
+            var creatorWorkerId = AuthService.CurrentWorker?.WorkerId;
+            
+            if (string.IsNullOrEmpty(creatorWorkerId))
+            {
+                errorMessage = "Unable to determine current user. Please log in again.";
+                isSaving = false;
+                StateHasChanged();
+                return;
+            }
+            
+            success = await OfferingService.CreateOfferingTypeAsync(currentOfferingType, creatorWorkerId);
+            successMessage = "Offering type created successfully!";
+        }
+
+        if (success)
+        {
+            await LoadOfferingTypes();
+            CloseModal();
+        }
+    }
+    catch (Exception ex)
+    {
+        errorMessage = ex.Message;
+    }
+    finally
+    {
+        isSaving = false;
+        StateHasChanged();
+    }
+}
+
+    private async Task ToggleStatus(OfferingType offeringType)
+    {
+        try
+        {
+            var success = await OfferingService.ToggleOfferingTypeStatusAsync(offeringType.Id);
+            if (success)
+            {
+                successMessage = $"Offering type {(offeringType.IsActive ? "deactivated" : "activated")} successfully!";
+                await LoadOfferingTypes();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating offering type status: {ex.Message}";
+        }
+    }
+
+    private void ShowDeleteModal(OfferingType offeringType)
+    {
+        offeringTypeToDelete = offeringType;
+        showDeleteModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseDeleteModal()
+    {
+        showDeleteModal = false;
+        offeringTypeToDelete = null;
+        isDeleting = false;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (offeringTypeToDelete == null)
+            return;
+
+        isDeleting = true;
+        StateHasChanged();
+
+        try
+        {
+            var success = await OfferingService.DeleteOfferingTypeAsync(offeringTypeToDelete.Id);
+            if (success)
+            {
+                successMessage = "Offering type deleted successfully!";
+                await LoadOfferingTypes();
+                CloseDeleteModal();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            isDeleting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ClearSuccessMessage()
+    {
+        successMessage = "";
+        StateHasChanged();
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = "";
+        StateHasChanged();
+    }
+}

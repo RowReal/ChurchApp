@@ -1,0 +1,325 @@
+﻿@page "/Offering/view/{attendanceId:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AttendanceService AttendanceService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Attendance Details - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            @if (isLoading)
+            {
+                <div class="text-center">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2">Loading attendance details...</p>
+                </div>
+            }
+            else if (attendance == null)
+            {
+                <div class="alert alert-danger">
+                    <h4>Attendance Record Not Found</h4>
+                    <p>The attendance record you're looking for doesn't exist or you don't have permission to view it.</p>
+                    <a href="/Offering/Attendance-list" class="btn btn-primary">Back to Attendance List</a>
+                </div>
+            }
+            else
+            {
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-eye me-2"></i>
+                            Attendance Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Header Information -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h4 class="text-primary">@attendance.ServiceName</h4>
+                                <p class="text-muted mb-0">
+                                    <i class="fas fa-calendar me-2"></i>
+                                    @attendance.AttendanceDate.ToString("dddd, MMMM dd, yyyy")
+                                </p>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <div class="display-4 text-success">@attendance.Total</div>
+                                <small class="text-muted">Total Attendance</small>
+                            </div>
+                        </div>
+
+                        <!-- Attendance Breakdown -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="border-bottom pb-2">Attendance Breakdown</h6>
+                            </div>
+                            <div class="col-sm-6 col-md-3 text-center">
+                                <div class="card border-primary">
+                                    <div class="card-body">
+                                        <i class="fas fa-male fa-2x text-primary mb-2"></i>
+                                        <h3 class="text-primary">@attendance.Men</h3>
+                                        <small class="text-muted">Men</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-md-3 text-center">
+                                <div class="card border-danger">
+                                    <div class="card-body">
+                                        <i class="fas fa-female fa-2x text-danger mb-2"></i>
+                                        <h3 class="text-danger">@attendance.Women</h3>
+                                        <small class="text-muted">Women</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-md-3 text-center">
+                                <div class="card border-warning">
+                                    <div class="card-body">
+                                        <i class="fas fa-user-graduate fa-2x text-warning mb-2"></i>
+                                        <h3 class="text-warning">@attendance.Teenagers</h3>
+                                        <small class="text-muted">Teenagers</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-md-3 text-center">
+                                <div class="card border-info">
+                                    <div class="card-body">
+                                        <i class="fas fa-child fa-2x text-info mb-2"></i>
+                                        <h3 class="text-info">@attendance.Children</h3>
+                                        <small class="text-muted">Children</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Record Information -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Record Information</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <table class="table table-borderless">
+                                            <tr>
+                                                <th width="40%">Recorded By:</th>
+                                                <td>
+                                                    @if (recordedByWorker != null)
+                                                    {
+                                                        <div>
+                                                            <div>@recordedByWorker.FirstName @recordedByWorker.LastName</div>
+                                                            <small class="text-muted">@recordedByWorker.WorkerId</small>
+                                                        </div>
+                                                    }
+                                                    else if (!string.IsNullOrEmpty(attendance.RecordedByWorkerId))
+                                                    {
+                                                        <div>
+                                                            <div class="text-muted">Worker ID: @attendance.RecordedByWorkerId</div>
+                                                            <small class="text-muted">(Name not available)</small>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">Not recorded</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>Recorded Date:</th>
+                                                <td>@attendance.RecordedDate.ToString("MMM dd, yyyy hh:mm tt")</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Last Modified:</th>
+                                                <td>
+                                                    @if (attendance.ModifiedDate.HasValue)
+                                                    {
+                                                        @attendance.ModifiedDate.Value.ToString("MMM dd, yyyy hh:mm tt")
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">Never modified</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Service Statistics</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <table class="table table-borderless">
+                                            <tr>
+                                                <th width="60%">Service Type:</th>
+                                                <td><span class="badge bg-primary">@attendance.ServiceName</span></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Adult Attendance:</th>
+                                                <td><strong>@(attendance.Men + attendance.Women)</strong></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Youth Attendance:</th>
+                                                <td><strong>@(attendance.Teenagers + attendance.Children)</strong></td>
+                                            </tr>
+                                            <tr>
+                                                <th>Male/Female Ratio:</th>
+                                                <td>@attendance.Men / @attendance.Women</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes Section -->
+                        @if (!string.IsNullOrEmpty(attendance.Notes))
+                        {
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="card">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-sticky-note me-2"></i>Notes
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="mb-0">@attendance.Notes</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-footer">
+                        <div class="d-flex gap-2">
+                            <a href="/Offering/Attendance-list" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to List
+                            </a>
+                            @if (CanEditAttendance())
+                            {
+                                <a href="/Offering/EditAttendance/@attendance.Id" class="btn btn-warning">
+                                    <i class="fas fa-edit me-2"></i>Edit Record
+                                </a>
+                            }
+                            <button class="btn btn-outline-info ms-auto" onclick="window.print()">
+                                <i class="fas fa-print me-2"></i>Print
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int attendanceId { get; set; }
+
+    private AttendanceRecord? attendance = null;
+    private Worker? recordedByWorker = null;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAttendanceRecord();
+        isLoading = false;
+    }
+
+    private async Task LoadAttendanceRecord()
+    {
+        try
+        {
+            attendance = await AttendanceService.GetAttendanceByIdAsync(attendanceId);
+
+            if (attendance != null)
+            {
+                // Load the worker who recorded this attendance
+                await LoadRecordedByWorker();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading attendance record: {ex.Message}");
+        }
+    }
+
+    private async Task LoadRecordedByWorker()
+    {
+        if (attendance == null || string.IsNullOrEmpty(attendance.RecordedByWorkerId))
+            return;
+
+        try
+        {
+            // Method 1: If GetAttendanceByIdAsync includes the RecordedBy navigation property
+            if (attendance.RecordedBy != null)
+            {
+                recordedByWorker = attendance.RecordedBy;
+            }
+            else
+            {
+                // Method 2: You need to add a method to your AttendanceService to get worker by WorkerId
+                // Or use a separate WorkerService
+                recordedByWorker = await GetWorkerByWorkerIdAsync(attendance.RecordedByWorkerId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading recorded by worker: {ex.Message}");
+        }
+    }
+
+    // Helper method to get worker by WorkerId
+    private async Task<Worker?> GetWorkerByWorkerIdAsync(string workerId)
+    {
+        try
+        {
+            // You might need to create a WorkerService or use AppDbContext directly
+            // For now, let's assume you have access to AppDbContext
+            // If not, you'll need to inject AppDbContext or create a WorkerService
+
+            // TODO: Implement this method based on your data access approach
+            // Example:
+            // return await _context.Workers.FirstOrDefaultAsync(w => w.WorkerId == workerId);
+
+            return null; // Placeholder
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private bool CanEditAttendance()
+    {
+        if (attendance == null || AuthService.CurrentWorker == null)
+            return false;
+
+        // Allow editing if user is Church Admin OR in Ushering Department
+        if (AuthService.CanAccessAdminPanel() ||
+            AuthService.IsInRole("Church Admin") ||
+            IsUsheringDepartment())
+        {
+            return true;
+        }
+
+        // Original recorder can edit their own attendance
+        // Using WorkerId comparison instead of Id
+        return attendance.RecordedByWorkerId == AuthService.CurrentWorker.WorkerId;
+    }
+
+    private bool IsUsheringDepartment()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker?.Department == null)
+        {
+            return false;
+        }
+
+        return worker.Department.Name?.Contains("Ushering", StringComparison.OrdinalIgnoreCase) == true;
+    }
+}

@@ -1,0 +1,673 @@
+﻿@page "/admin/directorate-setup"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@using System.ComponentModel.DataAnnotations
+@inject WorkerService WorkerService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+@if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+{
+    <PageTitle>Directorate Setup - Admin Panel</PageTitle>
+
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h2>Directorate Setup</h2>
+                <p class="text-muted">Manage church directorates and assign leadership</p>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary" @onclick="ShowCreateForm">
+                    <i class="fas fa-plus me-2"></i>Add Directorate
+                </button>
+            </div>
+        </div>
+
+        <!-- Create/Edit Directorate Form -->
+        @if (showCreateForm)
+        {
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">@(editingDirectorate == null ? "Add New Directorate" : "Edit Directorate")</h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@directorateModel" OnValidSubmit="@SaveDirectorate">
+                        <DataAnnotationsValidator />
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="name" class="form-label">Directorate Name *</label>
+                                    <InputText id="name" @bind-Value="directorateModel.Name" class="form-control" />
+                                    <ValidationMessage For="@(() => directorateModel.Name)" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group mb-3">
+                                    <label for="code" class="form-label">Code *</label>
+                                    <InputText id="code" @bind-Value="directorateModel.Code" class="form-control" />
+                                    <ValidationMessage For="@(() => directorateModel.Code)" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Status</label>
+                                    <div class="form-check form-switch mt-2">
+                                        <input class="form-check-input" type="checkbox" @bind="directorateModel.IsActive" id="isActive">
+                                        <label class="form-check-label" for="isActive">
+                                            @(directorateModel.IsActive ? "Active" : "Inactive")
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="headWorkerId" class="form-label">Head of Directorate</label>
+                                    <select @bind="directorateModel.HeadWorkerId" class="form-select" id="headWorkerId">
+                                        <option value="">Select Head of Directorate</option>
+                                        @foreach (var worker in availableHeads)
+                                        {
+                                            <option value="@worker.Id">@worker.FirstName @worker.LastName (@worker.WorkerId) - @worker.Role</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="assistantHeadWorkerId" class="form-label">Assistant Head of Directorate</label>
+                                    <select @bind="directorateModel.AssistantHeadWorkerId" class="form-select" id="assistantHeadWorkerId">
+                                        <option value="">Select Assistant Head</option>
+                                        @foreach (var worker in availableHeads)
+                                        {
+                                            <option value="@worker.Id">@worker.FirstName @worker.LastName (@worker.WorkerId) - @worker.Role</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="form-group mb-3">
+                                    <label for="description" class="form-label">Description</label>
+                                    <InputTextArea id="description" @bind-Value="directorateModel.Description" class="form-control" rows="3" />
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success">
+                                @successMessage
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">
+                                @errorMessage
+                            </div>
+                        }
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save me-2"></i>
+                                @(editingDirectorate == null ? "Create Directorate" : "Update Directorate")
+                            </button>
+                            <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        }
+
+        <!-- Departments Modal -->
+        @if (showDepartmentsModal && selectedDirectorate != null)
+        {
+            <div class="modal show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">Departments in @selectedDirectorate.Name</h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CloseDepartmentsModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            @if (selectedDirectorate.Departments?.Any() == true)
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Department Name</th>
+                                                <th>Head of Department</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var department in selectedDirectorate.Departments)
+                                            {
+                                                <tr>
+                                                    <td>@department.Name</td>
+                                                    <td>
+                                                        @if (department.HeadWorkerId.HasValue)
+                                                        {
+                                                            var head = workers.FirstOrDefault(w => w.Id == department.HeadWorkerId);
+                                                            if (head != null)
+                                                            {
+                                                                <span>@head.FirstName @head.LastName</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="text-muted">Not Assigned</span>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted">Not Assigned</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge @(department.IsActive ? "bg-success" : "bg-secondary")">
+                                                            @(department.IsActive ? "Active" : "Inactive")
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center py-4">
+                                    <i class="fas fa-building fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">No departments found in this directorate.</p>
+                                    @if (selectedDirectorate.IsActive)
+                                    {
+                                        <button class="btn btn-primary" @onclick="NavigateToDepartmentSetup">
+                                            <i class="fas fa-plus me-2"></i>Add Department
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            Cannot add departments to an inactive directorate. Please activate the directorate first.
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseDepartmentsModal">Close</button>
+                            @if (selectedDirectorate.IsActive)
+                            {
+                                <button type="button" class="btn btn-primary" @onclick="NavigateToDepartmentSetup">
+                                    <i class="fas fa-cog me-2"></i>Manage Departments
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-primary" disabled title="Cannot manage departments for inactive directorates">
+                                    <i class="fas fa-cog me-2"></i>Manage Departments
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Directorates List -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">All Directorates</h5>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox"
+                           @bind="showInactiveDirectorates"
+                           @bind:after="ApplyFilter"
+                           id="showInactive">
+                    <label class="form-check-label" for="showInactive">
+                        Show Inactive Directorates
+                    </label>
+                </div>
+            </div>
+            <div class="card-body">
+                @if (filteredDirectorates.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Directorate Name</th>
+                                    <th>Head of Directorate</th>
+                                    <th>Asst Head</th>
+                                    <th>Departments</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var directorate in filteredDirectorates)
+                                {
+                                    <tr class="@(directorate.IsActive ? "" : "table-secondary")">
+                                        <td><strong>@directorate.Code</strong></td>
+                                        <td>
+                                            <div class="fw-bold">@directorate.Name</div>
+                                            @if (!string.IsNullOrEmpty(directorate.Description))
+                                            {
+                                                <small class="text-muted">@directorate.Description</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (directorate.HeadWorkerId.HasValue)
+                                            {
+                                                var head = workers.FirstOrDefault(w => w.Id == directorate.HeadWorkerId);
+                                                if (head != null)
+                                                {
+                                                    <div>@head.FirstName @head.LastName</div>
+                                                    <small class="text-muted">@head.WorkerId</small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Not Assigned</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Not Assigned</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (directorate.AssistantHeadWorkerId.HasValue)
+                                            {
+                                                var asstHead = workers.FirstOrDefault(w => w.Id == directorate.AssistantHeadWorkerId);
+                                                if (asstHead != null)
+                                                {
+                                                    <div>@asstHead.FirstName @asstHead.LastName</div>
+                                                    <small class="text-muted">@asstHead.WorkerId</small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Not Assigned</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Not Assigned</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (directorate.IsActive)
+                                            {
+                                                <a href="javascript:void(0)" class="department-link" @onclick="() => ShowDepartments(directorate)">
+                                                    <span class="badge bg-info">
+                                                        <i class="fas fa-building me-1"></i>
+                                                        @(directorate.Departments?.Count ?? 0) Departments
+                                                    </span>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary" title="Directorate is inactive - departments cannot be managed">
+                                                    <i class="fas fa-building me-1"></i>
+                                                    @(directorate.Departments?.Count ?? 0) Departments
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge @(directorate.IsActive ? "bg-success" : "bg-secondary")">
+                                                @(directorate.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                @if (directorate.IsActive)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => EditDirectorate(directorate)" title="Edit Directorate">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-info" @onclick="() => ManageDepartments(directorate)" title="Manage Departments">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-warning" @onclick="() => ToggleDirectorateStatus(directorate, false)" title="Deactivate">
+                                                        <i class="fas fa-pause"></i>
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-sm btn-outline-primary" disabled title="Cannot edit inactive directorates">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-info" disabled title="Cannot manage departments for inactive directorates">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success" @onclick="() => ToggleDirectorateStatus(directorate, true)" title="Activate">
+                                                        <i class="fas fa-play"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-sitemap fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No directorates found. Create your first directorate to get started.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+else if (AuthService.IsAuthenticated && !AuthService.CanAccessAdminPanel())
+{
+    <!-- Access denied content -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">Access Denied</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-ban fa-3x text-danger mb-3"></i>
+                        <h4>Access Denied</h4>
+                        <p class="text-muted">You don't have permission to access this page.</p>
+                        <a href="/" class="btn btn-primary">Return to Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Not authenticated -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">Authentication Required</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h4>Please Log In</h4>
+                        <p class="text-muted">You need to be logged in to access this page.</p>
+                        <a href="/login" class="btn btn-primary">Go to Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Directorate> directorates = new();
+    private List<Directorate> filteredDirectorates = new();
+    private List<Worker> workers = new();
+    private List<Worker> availableHeads = new();
+    private Directorate? editingDirectorate = null;
+    private Directorate? selectedDirectorate = null;
+    private DirectorateModel directorateModel = new();
+    private bool showCreateForm = false;
+    private bool showDepartmentsModal = false;
+    private bool showInactiveDirectorates = true;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            directorates = await WorkerService.GetDirectoratesAsync() ?? new List<Directorate>();
+            workers = await WorkerService.GetAllWorkersAsync() ?? new List<Worker>();
+            ApplyFilter();
+
+            availableHeads = workers
+                .Where(w => w.Role == "Head of Directorate" ||
+                           w.Role == "Assistant Head of Directorate" ||
+                           w.Role == "Pastor in Charge" ||
+                           w.Role == "Church Admin")
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error loading data: " + ex.Message;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        if (showInactiveDirectorates)
+        {
+            filteredDirectorates = directorates.ToList();
+        }
+        else
+        {
+            filteredDirectorates = directorates.Where(d => d.IsActive).ToList();
+        }
+        StateHasChanged();
+    }
+
+    private void ShowCreateForm()
+    {
+        editingDirectorate = null;
+        directorateModel = new DirectorateModel { IsActive = true };
+        showCreateForm = true;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
+
+    private void EditDirectorate(Directorate directorate)
+    {
+        // Prevent editing inactive directorates
+        if (!directorate.IsActive)
+        {
+            errorMessage = "Cannot edit an inactive directorate. Please activate it first.";
+            return;
+        }
+
+        editingDirectorate = directorate;
+        directorateModel = new DirectorateModel
+        {
+            Name = directorate.Name,
+            Code = directorate.Code,
+            Description = directorate.Description,
+            HeadWorkerId = directorate.HeadWorkerId,
+            AssistantHeadWorkerId = directorate.AssistantHeadWorkerId,
+            IsActive = directorate.IsActive
+        };
+        showCreateForm = true;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
+
+    private void CancelEdit()
+    {
+        showCreateForm = false;
+        editingDirectorate = null;
+        directorateModel = new DirectorateModel();
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
+
+    private async Task SaveDirectorate()
+    {
+        try
+        {
+            if (editingDirectorate == null)
+            {
+                var newDirectorate = new Directorate
+                {
+                    Name = directorateModel.Name?.Trim() ?? string.Empty,
+                    Code = directorateModel.Code?.ToUpper().Trim() ?? string.Empty,
+                    Description = directorateModel.Description?.Trim() ?? string.Empty,
+                    HeadWorkerId = directorateModel.HeadWorkerId,
+                    AssistantHeadWorkerId = directorateModel.AssistantHeadWorkerId,
+                    IsActive = directorateModel.IsActive,
+                    CreatedDate = DateTime.UtcNow
+                };
+
+                await WorkerService.CreateDirectorateAsync(newDirectorate);
+                successMessage = "Directorate created successfully!";
+            }
+            else
+            {
+                // Prevent updating inactive directorates
+                if (!editingDirectorate.IsActive && !directorateModel.IsActive)
+                {
+                    errorMessage = "Cannot update an inactive directorate. Please activate it first.";
+                    return;
+                }
+
+                editingDirectorate.Name = directorateModel.Name?.Trim() ?? string.Empty;
+                editingDirectorate.Code = directorateModel.Code?.ToUpper().Trim() ?? string.Empty;
+                editingDirectorate.Description = directorateModel.Description?.Trim() ?? string.Empty;
+                editingDirectorate.HeadWorkerId = directorateModel.HeadWorkerId;
+                editingDirectorate.AssistantHeadWorkerId = directorateModel.AssistantHeadWorkerId;
+                editingDirectorate.IsActive = directorateModel.IsActive;
+
+                await WorkerService.UpdateDirectorateAsync(editingDirectorate);
+                successMessage = "Directorate updated successfully!";
+            }
+
+            await LoadData();
+            showCreateForm = false;
+            editingDirectorate = null;
+            directorateModel = new DirectorateModel();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error saving directorate: " + ex.Message;
+        }
+    }
+
+    private async Task ToggleDirectorateStatus(Directorate directorate, bool isActive)
+    {
+        try
+        {
+            directorate.IsActive = isActive;
+            await WorkerService.UpdateDirectorateAsync(directorate);
+            await LoadData();
+            successMessage = $"Directorate {(isActive ? "activated" : "deactivated")} successfully!";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error updating directorate status: " + ex.Message;
+        }
+    }
+
+    private void ShowDepartments(Directorate directorate)
+    {
+        // Allow viewing departments even for inactive directorates, but with restrictions
+        selectedDirectorate = directorate;
+        showDepartmentsModal = true;
+    }
+
+    private void CloseDepartmentsModal()
+    {
+        showDepartmentsModal = false;
+        selectedDirectorate = null;
+    }
+
+    private void NavigateToDepartmentSetup()
+    {
+        if (selectedDirectorate != null && selectedDirectorate.IsActive)
+        {
+            Navigation.NavigateTo($"/admin/department-setup?directorateId={selectedDirectorate.Id}");
+        }
+        else
+        {
+            errorMessage = "Cannot manage departments for an inactive directorate. Please activate the directorate first.";
+        }
+    }
+
+    private void ManageDepartments(Directorate directorate)
+    {
+        // Prevent managing departments for inactive directorates
+        if (!directorate.IsActive)
+        {
+            errorMessage = "Cannot manage departments for an inactive directorate. Please activate the directorate first.";
+            return;
+        }
+        Navigation.NavigateTo($"/admin/department-setup?directorateId={directorate.Id}");
+    }
+
+    public class DirectorateModel
+    {
+        [Required(ErrorMessage = "Directorate name is required")]
+        [MaxLength(50, ErrorMessage = "Name cannot exceed 50 characters")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Directorate code is required")]
+        [MaxLength(10, ErrorMessage = "Code cannot exceed 10 characters")]
+        public string Code { get; set; } = string.Empty;
+
+        [MaxLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
+        public string Description { get; set; } = string.Empty;
+
+        public int? HeadWorkerId { get; set; }
+        public int? AssistantHeadWorkerId { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+}
+
+<style>
+    .department-link {
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+        .department-link:hover .badge {
+            background-color: #0b5ed7 !important;
+            transform: scale(1.05);
+            transition: all 0.2s ease;
+        }
+
+    .modal {
+        backdrop-filter: blur(5px);
+    }
+
+    .btn-group .btn {
+        border-radius: 4px;
+        margin: 1px;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .bg-success {
+        background-color: #198754 !important;
+    }
+
+    .bg-secondary {
+        background-color: #6c757d !important;
+    }
+
+    .bg-info {
+        background-color: #0dcaf0 !important;
+    }
+
+    .table-secondary {
+        background-color: rgba(108, 117, 125, 0.1);
+    }
+</style>

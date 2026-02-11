@@ -1,0 +1,391 @@
+﻿@page "/guest/search"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject GuestService GuestService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Search Guests - BCC ServiceHub</PageTitle>
+
+@if (AuthService.IsAuthenticated && IsFIGDirectorateMember())
+{
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header bg-dark-blue text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-search me-2"></i>Search Guest Records
+                            </h5>
+                            <div>
+                                <a href="/guest" class="btn btn-sm btn-light">
+                                    <i class="fas fa-arrow-left me-1"></i>Back to Guest Management
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Search Form -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <label class="form-label">Search by Name</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                    <input type="text" class="form-control" @bind="searchName" placeholder="First or last name" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Search by Phone</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-phone"></i>
+                                    </span>
+                                    <input type="tel" class="form-control" @bind="searchPhone" placeholder="Phone number" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Guest Number</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-hashtag"></i>
+                                    </span>
+                                    <input type="text" class="form-control" @bind="searchGuestNumber" placeholder="e.g., 151223/1" />
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" @onclick="SearchGuests" disabled="@isSearching">
+                                    @if (isSearching)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-search me-1"></i>
+                                    }
+                                    Search
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Date Range Filters -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-3">
+                                <label class="form-label">From Date</label>
+                                <input type="date" class="form-control" @bind="startDate" 
+                                       @bind:format="yyyy-MM-dd" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">To Date</label>
+                                <input type="date" class="form-control" @bind="endDate" 
+                                       @bind:format="yyyy-MM-dd" 
+                                       max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Guest Type</label>
+                                <select class="form-select" @bind="guestType">
+                                    <option value="">All Guests</option>
+                                    <option value="first">First Timers Only</option>
+                                    <option value="second">Second Timers Only</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Sort By</label>
+                                <select class="form-select" @bind="sortBy">
+                                    <option value="date">Date (Newest)</option>
+                                    <option value="name">Name (A-Z)</option>
+                                    <option value="number">Guest Number</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-outline-secondary w-100" @onclick="ResetSearch">
+                                    <i class="fas fa-redo me-1"></i>Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Results -->
+                        @if (searchResults.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Guest #</th>
+                                            <th>Name</th>
+                                            <th>Contact</th>
+                                            <th>Visit Date</th>
+                                            <th>Service</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var guest in searchResults)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <span class="badge bg-info">@guest.GuestNumber</span>
+                                                </td>
+                                                <td>
+                                                    <strong>@guest.Title @guest.FirstName @guest.Surname</strong>
+                                                    <div class="small text-muted">
+                                                        @guest.Sex | @guest.AgeGroup
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    @if (!string.IsNullOrEmpty(guest.PhoneNumber))
+                                                    {
+                                                        <div>📱 @guest.PhoneNumber</div>
+                                                    }
+                                                    @if (!string.IsNullOrEmpty(guest.Email))
+                                                    {
+                                                        <div class="small">📧 @guest.Email</div>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    @guest.VisitingDate.ToString("dd-MMM-yyyy")
+                                                </td>
+                                                <td>
+                                                    @guest.Service?.Name
+                                                </td>
+                                                <td>
+                                                    @if (guest.IsSecondTimer)
+                                                    {
+                                                        <span class="badge bg-success">
+                                                            <i class="fas fa-user-check me-1"></i>Second Timer
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-primary">
+                                                            <i class="fas fa-user-plus me-1"></i>First Timer
+                                                        </span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewGuestDetails(guest.Id)">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    @if (!guest.IsSecondTimer)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-success ms-1" @onclick="() => MarkAsSecondTimer(guest.Id)">
+                                                            <i class="fas fa-user-check"></i>
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Pagination/Summary -->
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div>
+                                    <span class="text-muted">
+                                        Showing @searchResults.Count guest(s)
+                                    </span>
+                                </div>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="ExportToExcel">
+                                        <i class="fas fa-download me-1"></i>Export
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                        else if (hasSearched)
+                        {
+                            <div class="text-center py-5">
+                                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                                <h5>No guests found</h5>
+                                <p class="text-muted">Try different search criteria</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5">
+                                <i class="fas fa-search fa-3x text-primary mb-3"></i>
+                                <h5>Search Guest Records</h5>
+                                <p class="text-muted">Use the filters above to search for guest records</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">Access Restricted</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-lock fa-3x text-warning mb-3"></i>
+                        <h4>Access Denied</h4>
+                        <p class="text-muted">This section is only accessible to FIG Directorate members.</p>
+                        <a href="/guest" class="btn btn-primary">Back to Guest Management</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Guest Details Modal -->
+@if (selectedGuest != null)
+{
+    <!-- Use the same modal code from DailyList.razor -->
+}
+
+@code {
+    private List<Guest> searchResults = new();
+    private Guest selectedGuest = null;
+    private string searchName = "";
+    private string searchPhone = "";
+    private string searchGuestNumber = "";
+    private DateTime? startDate = null;
+    private DateTime? endDate = null;
+    private string guestType = "";
+    private string sortBy = "date";
+    private bool isSearching = false;
+    private bool hasSearched = false;
+
+    private bool IsFIGDirectorateMember()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        var isInFIG = directorateName.Contains("fig");
+        var hasValidRole = role.Contains("head of directorate") ||
+                          role.Contains("asst head of directorate") ||
+                          role.Contains("directorate member") ||
+                          AuthService.IsInRole("Church Admin") ||
+                          AuthService.IsInRole("Pastor in Charge");
+
+        return isInFIG && hasValidRole;
+    }
+
+    private async Task SearchGuests()
+    {
+        isSearching = true;
+        hasSearched = true;
+
+        try
+        {
+            // Get all guests first
+            var allGuests = await GuestService.GetAllGuestsAsync();
+            
+            // Apply filters
+            var query = allGuests.AsQueryable();
+
+            if (!string.IsNullOrEmpty(searchName))
+            {
+                query = query.Where(g => 
+                    g.FirstName.Contains(searchName, StringComparison.OrdinalIgnoreCase) ||
+                    g.Surname.Contains(searchName, StringComparison.OrdinalIgnoreCase) ||
+                    g.FullName.Contains(searchName, StringComparison.OrdinalIgnoreCase)
+                );
+            }
+
+            if (!string.IsNullOrEmpty(searchPhone))
+            {
+                query = query.Where(g => 
+                    g.PhoneNumber.Contains(searchPhone) ||
+                    g.WhatsAppNumber.Contains(searchPhone) ||
+                    g.CurrentPhoneNumber.Contains(searchPhone)
+                );
+            }
+
+            if (!string.IsNullOrEmpty(searchGuestNumber))
+            {
+                query = query.Where(g => g.GuestNumber.Contains(searchGuestNumber));
+            }
+
+            if (startDate.HasValue)
+            {
+                query = query.Where(g => g.VisitingDate >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(g => g.VisitingDate <= endDate.Value);
+            }
+
+            if (!string.IsNullOrEmpty(guestType))
+            {
+                if (guestType == "first")
+                    query = query.Where(g => !g.IsSecondTimer);
+                else if (guestType == "second")
+                    query = query.Where(g => g.IsSecondTimer);
+            }
+
+            // Apply sorting
+            searchResults = sortBy switch
+            {
+                "name" => query.OrderBy(g => g.Surname).ThenBy(g => g.FirstName).ToList(),
+                "number" => query.OrderBy(g => g.GuestNumber).ToList(),
+                _ => query.OrderByDescending(g => g.VisitingDate).ToList()
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error searching guests: {ex.Message}");
+        }
+        finally
+        {
+            isSearching = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetSearch()
+    {
+        searchName = "";
+        searchPhone = "";
+        searchGuestNumber = "";
+        startDate = null;
+        endDate = null;
+        guestType = "";
+        sortBy = "date";
+        searchResults.Clear();
+        hasSearched = false;
+    }
+
+    private async Task ViewGuestDetails(int guestId)
+    {
+        try
+        {
+            selectedGuest = await GuestService.GetGuestByIdAsync(guestId);
+            // Open modal - you can reuse the modal logic from DailyList.razor
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading guest: {ex.Message}");
+        }
+    }
+
+    private void MarkAsSecondTimer(int guestId)
+    {
+        Navigation.NavigateTo($"/guest/second-timer?guestId={guestId}");
+    }
+
+    private void ExportToExcel()
+    {
+        // Implement export logic here
+        Console.WriteLine("Export to Excel functionality");
+    }
+}

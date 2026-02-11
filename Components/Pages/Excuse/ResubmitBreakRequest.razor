@@ -1,0 +1,516 @@
+﻿@page "/excuse/resubmit-break/{RequestId:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@using System.ComponentModel.DataAnnotations
+@inject ExcuseService ExcuseService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>BCC ServiceHub - Resubmit Break Request</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="h3 mb-1">Resubmit Break Request</h2>
+                    <p class="text-muted mb-0">Update your break request based on supervisor feedback</p>
+                </div>
+                <a href="/break/my-requests" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to My Break Requests
+                </a>
+            </div>
+
+            @if (originalRequest == null)
+            {
+                <!-- Loading or Error State -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-center py-5">
+                        @if (isLoading)
+                        {
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading request details...</p>
+                        }
+                        else
+                        {
+                            <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                            <h5 class="text-warning">Request Not Found</h5>
+                            <p class="text-muted">The requested break request could not be found or you don't have permission to access it.</p>
+                            <a href="/break/my-requests" class="btn btn-primary">View My Break Requests</a>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Original Request Details -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-light border-0 py-3">
+                        <h5 class="mb-0 fw-semibold text-primary">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Original Request Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-4">Break Period:</dt>
+                                    <dd class="col-sm-8 fw-semibold">@originalRequest.StartDate.ToString("MMM dd, yyyy") - @originalRequest.EndDate.ToString("MMM dd, yyyy")</dd>
+
+                                    <dt class="col-sm-4">Duration:</dt>
+                                    <dd class="col-sm-8">@GetBreakDuration(originalRequest) days</dd>
+
+                                    <dt class="col-sm-4">Relieve Officer:</dt>
+                                    <dd class="col-sm-8">@originalRequest.RelieveOfficer?.FirstName @originalRequest.RelieveOfficer?.LastName</dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row">
+                                    <dt class="col-sm-4">Status:</dt>
+                                    <dd class="col-sm-8">
+                                        <span class="badge bg-info">Needs Resubmission</span>
+                                    </dd>
+
+                                    <dt class="col-sm-4">Supervisor:</dt>
+                                    <dd class="col-sm-8">@originalRequest.Supervisor?.FirstName @originalRequest.Supervisor?.LastName</dd>
+
+                                    <dt class="col-sm-4">Submitted:</dt>
+                                    <dd class="col-sm-8">@originalRequest.SubmittedDate.ToString("MMM dd, yyyy 'at' hh:mm tt")</dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <!-- Original Purpose -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <dt class="fw-semibold">Original Purpose:</dt>
+                                <dd class="border rounded p-3 bg-light mt-2">
+                                    @originalRequest.Purpose
+                                </dd>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(originalRequest.PendingAssignments))
+                        {
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <dt class="fw-semibold">Pending Assignments:</dt>
+                                    <dd class="border rounded p-3 bg-light mt-2">
+                                        @originalRequest.PendingAssignments
+                                        @if (!string.IsNullOrEmpty(originalRequest.AssignmentHandler))
+                                        {
+                                            <div class="mt-2">
+                                                <strong>Handler:</strong> @originalRequest.AssignmentHandler
+                                            </div>
+                                        }
+                                    </dd>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Supervisor Feedback -->
+                <div class="card border-warning border-0 shadow-sm mb-4">
+                    <div class="card-header bg-warning bg-opacity-10 border-0 py-3">
+                        <h5 class="mb-0 fw-semibold text-warning">
+                            <i class="fas fa-comment-exclamation me-2"></i>
+                            Supervisor Feedback
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        @if (latestResubmissionRequest != null)
+                        {
+                            <div class="alert alert-warning">
+                                <div class="d-flex">
+                                    <i class="fas fa-exclamation-circle me-3 mt-1 text-warning"></i>
+                                    <div>
+                                        <h6 class="alert-heading">Resubmission Required</h6>
+                                        <p class="mb-2">@latestResubmissionRequest.Comments</p>
+                                        <small class="text-muted">
+                                            Feedback provided by @latestResubmissionRequest.ActionByWorker?.FirstName @latestResubmissionRequest.ActionByWorker?.LastName 
+                                            on @latestResubmissionRequest.ActionDate.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                No specific feedback provided. Please review and update your request.
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Resubmission Form -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0 fw-semibold text-success">
+                            <i class="fas fa-edit me-2"></i>
+                            Update Your Break Request
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <EditForm Model="resubmitModel" OnValidSubmit="SubmitResubmission">
+                            <DataAnnotationsValidator />
+                            
+                            <!-- Updated Purpose -->
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Updated Purpose *</label>
+                                <InputTextArea @bind-Value="resubmitModel.UpdatedPurpose" class="form-control" 
+                                              placeholder="Please update your purpose based on the supervisor's feedback..." 
+                                              rows="5" />
+                                <ValidationMessage For="@(() => resubmitModel.UpdatedPurpose)" />
+                                <div class="form-text">
+                                    Address the supervisor's feedback in your updated purpose. Explain any changes you've made.
+                                    <span class="text-danger">Note: You cannot modify the break period or relieve officer, only the purpose and assignments.</span>
+                                </div>
+                            </div>
+
+                            <!-- Updated Pending Assignments -->
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Updated Pending Assignments</label>
+                                <InputTextArea @bind-Value="resubmitModel.UpdatedPendingAssignments" class="form-control"
+                                              placeholder="Update any pending assignments or responsibilities..."
+                                              rows="3" />
+                                <div class="form-text">
+                                    Update the list of pending assignments based on supervisor feedback
+                                </div>
+                            </div>
+
+                            <!-- Updated Assignment Handler -->
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Updated Assignment Handler</label>
+                                <InputText @bind-Value="resubmitModel.UpdatedAssignmentHandler" class="form-control"
+                                          placeholder="Who will handle these assignments?" />
+                                <div class="form-text">
+                                    Update the person responsible for handling pending assignments
+                                </div>
+                            </div>
+
+                            <!-- Changes Summary -->
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Summary of Changes</label>
+                                <div class="border rounded p-3 bg-light">
+                                    @if (HasPurposeChanged())
+                                    {
+                                        <div class="mb-2">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            <strong>Purpose updated</strong> - Modified based on supervisor feedback
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="mb-2">
+                                            <i class="fas fa-info text-info me-2"></i>
+                                            <strong>No changes to purpose</strong> - Only additional notes provided
+                                        </div>
+                                    }
+                                    @if (HasAssignmentsChanged())
+                                    {
+                                        <div class="mb-2">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            <strong>Assignments updated</strong> - Modified pending assignments
+                                        </div>
+                                    }
+                                    <div>
+                                        <i class="fas fa-calendar-check text-primary me-2"></i>
+                                        <strong>Break period unchanged</strong> - Same start and end dates
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-user-check text-primary me-2"></i>
+                                        <strong>Relieve officer unchanged</strong> - Same coverage arrangement
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Validation Messages -->
+                            @if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                <div class="alert alert-danger">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>@errorMessage
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(successMessage))
+                            {
+                                <div class="alert alert-success">
+                                    <i class="fas fa-check-circle me-2"></i>@successMessage
+                                </div>
+                            }
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex gap-2 justify-content-end pt-3">
+                                <a href="/break/my-requests" class="btn btn-secondary">Cancel</a>
+                                <button type="submit" class="btn btn-success" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <text>Resubmitting...</text>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-paper-plane me-2"></i>
+                                        <text>Resubmit Request</text>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+
+                <!-- Request History -->
+                <div class="card border-0 shadow-sm mt-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0 fw-semibold">
+                            <i class="fas fa-history me-2 text-primary"></i>
+                            Request History
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="timeline">
+                            @foreach (var history in originalRequest.History.OrderBy(h => h.ActionDate))
+                            {
+                                <div class="timeline-item">
+                                    <div class="timeline-marker @GetHistoryMarkerClass(history.Action)"></div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-header">
+                                            <strong>@history.ActionByWorker?.FirstName @history.ActionByWorker?.LastName</strong>
+                                            <span class="text-muted ms-2">(@history.ActionByRole)</span>
+                                            <small class="text-muted ms-2">@history.ActionDate.ToString("MMM dd, yyyy 'at' hh:mm tt")</small>
+                                        </div>
+                                        <div class="timeline-body">
+                                            <span class="badge @GetActionBadgeClass(history.Action)">@history.Action</span>
+                                            <p class="mb-0 mt-1">@history.Comments</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int RequestId { get; set; }
+
+    private ChurchApp.Models.BreakRequest? originalRequest = null;
+    private ChurchApp.Models.BreakRequestHistory? latestResubmissionRequest = null;
+    private ResubmitBreakModel resubmitModel = new();
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadRequestDetails();
+    }
+
+    private async Task LoadRequestDetails()
+    {
+        try
+        {
+            originalRequest = await ExcuseService.GetBreakRequestByIdAsync(RequestId);
+
+            if (originalRequest != null)
+            {
+                // Verify the current user owns this request
+                if (originalRequest.WorkerId != AuthService.CurrentWorker?.Id)
+                {
+                    originalRequest = null;
+                    errorMessage = "You don't have permission to access this request.";
+                }
+                else if (originalRequest.RequestStatus != "ResubmissionRequested")
+                {
+                    errorMessage = "This request is not available for resubmission.";
+                    originalRequest = null;
+                }
+                else
+                {
+                    // Find the latest resubmission request feedback
+                    latestResubmissionRequest = originalRequest.History
+                        .Where(h => h.Action == "ResubmissionRequested")
+                        .OrderByDescending(h => h.ActionDate)
+                        .FirstOrDefault();
+
+                    // Pre-fill the form with original data
+                    resubmitModel.UpdatedPurpose = originalRequest.Purpose;
+                    resubmitModel.UpdatedPendingAssignments = originalRequest.PendingAssignments;
+                    resubmitModel.UpdatedAssignmentHandler = originalRequest.AssignmentHandler;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading request: {ex.Message}";
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private string GetBreakDuration(ChurchApp.Models.BreakRequest request)
+    {
+        var duration = (request.EndDate - request.StartDate).Days + 1;
+        return duration.ToString();
+    }
+
+    private string GetHistoryMarkerClass(string action)
+    {
+        return action switch
+        {
+            "Submitted" => "bg-primary",
+            "Approved" => "bg-success",
+            "Rejected" => "bg-danger",
+            "ResubmissionRequested" => "bg-warning",
+            "Resubmitted" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetActionBadgeClass(string action)
+    {
+        return action switch
+        {
+            "Submitted" => "bg-primary",
+            "Approved" => "bg-success",
+            "Rejected" => "bg-danger",
+            "ResubmissionRequested" => "bg-warning",
+            "Resubmitted" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    private bool HasPurposeChanged()
+    {
+        return originalRequest != null && 
+               !string.IsNullOrEmpty(resubmitModel.UpdatedPurpose) &&
+               resubmitModel.UpdatedPurpose.Trim() != originalRequest.Purpose.Trim();
+    }
+
+    private bool HasAssignmentsChanged()
+    {
+        var originalAssignments = originalRequest?.PendingAssignments ?? string.Empty;
+        var updatedAssignments = resubmitModel.UpdatedPendingAssignments ?? string.Empty;
+        
+        return originalAssignments.Trim() != updatedAssignments.Trim() ||
+               (originalRequest?.AssignmentHandler ?? string.Empty) != (resubmitModel.UpdatedAssignmentHandler ?? string.Empty);
+    }
+
+    private async Task SubmitResubmission()
+    {
+        if (originalRequest == null || string.IsNullOrEmpty(resubmitModel.UpdatedPurpose))
+        {
+            errorMessage = "Please provide an updated purpose for your request.";
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var success = await ExcuseService.ResubmitBreakRequestAsync(
+                originalRequest.Id,
+                resubmitModel.UpdatedPurpose,
+                resubmitModel.UpdatedPendingAssignments ?? "",
+                resubmitModel.UpdatedAssignmentHandler ?? ""
+            );
+
+            if (success)
+            {
+                successMessage = "Your break request has been resubmitted successfully! Your supervisor has been notified.";
+                
+                // Redirect to my break requests page after a short delay
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/break/my-requests");
+            }
+            else
+            {
+                errorMessage = "Failed to resubmit the request. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error resubmitting request: {ex.Message}";
+        }
+
+        isSubmitting = false;
+        StateHasChanged();
+    }
+
+    // Helper class for resubmission form
+    private class ResubmitBreakModel
+    {
+        [Required(ErrorMessage = "Updated purpose is required")]
+        [MinLength(10, ErrorMessage = "Please provide a detailed purpose (at least 10 characters)")]
+        public string UpdatedPurpose { get; set; } = string.Empty;
+
+        public string? UpdatedPendingAssignments { get; set; }
+        public string? UpdatedAssignmentHandler { get; set; }
+    }
+}
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -2rem;
+        top: 0.25rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 0 3px var(--bs-primary);
+    }
+
+    .timeline-content {
+        padding-bottom: 1rem;
+        border-left: 2px solid #e9ecef;
+        padding-left: 1.5rem;
+    }
+
+    .timeline-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .timeline-body {
+        font-size: 0.9rem;
+    }
+
+    .bg-warning { background-color: #ffc107 !important; }
+    .bg-success { background-color: #198754 !important; }
+    .bg-danger { background-color: #dc3545 !important; }
+    .bg-info { background-color: #0dcaf0 !important; }
+    .bg-primary { background-color: #0d6efd !important; }
+</style>

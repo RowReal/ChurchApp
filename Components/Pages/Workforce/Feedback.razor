@@ -1,0 +1,363 @@
+﻿@page "/Workforce/feedback"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AccountabilityService AccountabilityService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject ILogger<Feedback> Logger
+
+<PageTitle>Growth Feedback</PageTitle>
+
+@if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+{
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="mb-1">Growth Feedback</h4>
+                <p class="text-muted mb-0">
+                    View all feedback cases involving you and your team members
+                </p>
+            </div>
+            <a href="/Workforce/create-feedback" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>New Feedback
+            </a>
+        </div>
+
+        <!-- Filters -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Status</label>
+                       <select @bind="filters.Status" @bind:after="LoadCases" class="form-select form-select-sm">
+                            <option value="">All Status</option>
+                            <option value="Open">Open</option>
+                            <option value="InProgress">In Progress</option>
+                            <option value="Escalated">Escalated</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Date From</label>
+                        <InputDate @bind-Value="filters.StartDate" @onchange="LoadCases" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Date To</label>
+                        <InputDate @bind-Value="filters.EndDate" @onchange="LoadCases" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Search</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" @bind="filters.SearchTerm" @oninput="LoadCases" 
+                                   class="form-control" placeholder="Search by name..." />
+                            <button class="btn btn-outline-secondary" type="button" @onclick="ClearFilters">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cases Table -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                @if (isLoading)
+                {
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                }
+                else if (!cases.Any())
+                {
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Feedback Cases</h5>
+                        <p class="text-muted small">No growth feedback cases found matching your criteria</p>
+                        <a href="/Workforce/create-feedback" class="btn btn-sm btn-primary">
+                            Create Your First Feedback
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Case Code</th>
+                                    <th>Title</th>
+                                    <th>Worker</th>
+                                    <th>Created By</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var caseItem in cases)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@caseItem.CaseCode</strong>
+                                            @if (caseItem.IsConfidential)
+                                            {
+                                                <i class="fas fa-lock text-warning ms-1" title="Confidential"></i>
+                                            }
+                                        </td>
+                                        <td>@caseItem.Title</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                @if (!string.IsNullOrEmpty(caseItem.Worker?.PassportPhotoPath))
+                                                {
+                                                    <img src="/uploads/@caseItem.Worker.PassportPhotoPath"
+                                                         alt="@caseItem.Worker.FirstName"
+                                                         class="rounded-circle me-2"
+                                                         style="width: 30px; height: 30px; object-fit: cover;" />
+                                                }
+                                                <div>
+                                                    <div>@caseItem.Worker?.FirstName @caseItem.Worker?.LastName</div>
+                                                    <small class="text-muted">@caseItem.Worker?.Role</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                @if (!string.IsNullOrEmpty(caseItem.CreatedByWorker?.PassportPhotoPath))
+                                                {
+                                                    <img src="/uploads/@caseItem.CreatedByWorker.PassportPhotoPath"
+                                                         alt="@caseItem.CreatedByWorker.FirstName"
+                                                         class="rounded-circle me-2"
+                                                         style="width: 30px; height: 30px; object-fit: cover;" />
+                                                }
+                                                <div>
+                                                    <div>@caseItem.CreatedByWorker?.FirstName @caseItem.CreatedByWorker?.LastName</div>
+                                                    <small class="text-muted">@caseItem.CreatedByWorker?.Role</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>@caseItem.CreatedDate.ToString("dd MMM yyyy")</div>
+                                            <small class="text-muted">@caseItem.CreatedDate.ToString("hh:mm tt")</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge @GetStatusBadgeClass(caseItem.Status)">
+                                                @caseItem.Status
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge @GetPriorityBadgeClass(caseItem.Priority)">
+                                                @caseItem.Priority
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary view-detail-btn"
+                                                    @onclick="() => ViewCaseDetails(caseItem.Id)"
+                                                    title="View full details of this case">
+                                                <i class="fas fa-eye me-1"></i>View Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    @if (totalPages > 1)
+                    {
+                        <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                            <small class="text-muted">
+                                Showing @((filters.Page - 1) * filters.PageSize + 1) to 
+                                @Math.Min(filters.Page * filters.PageSize, totalCount) of @totalCount cases
+                            </small>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li class="page-item @(filters.Page == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => ChangePage(filters.Page - 1)">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </button>
+                                    </li>
+                                    @for (int i = 1; i <= totalPages; i++)
+                                    {
+                                        <li class="page-item @(i == filters.Page ? "active" : "")">
+                                            <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
+                                        </li>
+                                    }
+                                    <li class="page-item @(filters.Page == totalPages ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => ChangePage(filters.Page + 1)">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AccountabilityCase> cases = new();
+    private bool isLoading = true;
+    private int totalCount = 0;
+    private int totalPages = 1;
+
+    private CaseFilters filters = new()
+    {
+        Page = 1,
+        PageSize = 10,
+        StartDate = DateTime.Today.AddMonths(-1),
+        EndDate = DateTime.Today
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+        {
+            await LoadCases();
+        }
+    }
+
+    private async Task LoadCases()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Get all visible cases
+            var visibleCases = await AccountabilityService.GetVisibleCasesAsync(AuthService.CurrentWorker.Id);
+            
+            // Apply filters
+            var filteredCases = ApplyFilters(visibleCases);
+            
+            // Sort by creation date descending
+            filteredCases = filteredCases
+                .OrderByDescending(c => c.CreatedDate)
+                .ToList();
+
+            // Pagination
+            totalCount = filteredCases.Count;
+            totalPages = (int)Math.Ceiling((double)totalCount / filters.PageSize);
+            
+            cases = filteredCases
+                .Skip((filters.Page - 1) * filters.PageSize)
+                .Take(filters.PageSize)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading cases");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private List<AccountabilityCase> ApplyFilters(List<AccountabilityCase> allCases)
+    {
+        var filtered = allCases.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(filters.Status))
+        {
+            filtered = filtered.Where(c => c.Status == filters.Status);
+        }
+
+        if (filters.StartDate.HasValue)
+        {
+            filtered = filtered.Where(c => c.CreatedDate.Date >= filters.StartDate.Value.Date);
+        }
+
+        if (filters.EndDate.HasValue)
+        {
+            filtered = filtered.Where(c => c.CreatedDate.Date <= filters.EndDate.Value.Date);
+        }
+
+        if (!string.IsNullOrEmpty(filters.SearchTerm))
+        {
+            var searchTerm = filters.SearchTerm.ToLower();
+            filtered = filtered.Where(c => 
+                c.Title.ToLower().Contains(searchTerm) ||
+                c.Worker?.FirstName.ToLower().Contains(searchTerm) == true ||
+                c.Worker?.LastName.ToLower().Contains(searchTerm) == true ||
+                c.CreatedByWorker?.FirstName.ToLower().Contains(searchTerm) == true ||
+                c.CreatedByWorker?.LastName.ToLower().Contains(searchTerm) == true
+            );
+        }
+
+        return filtered.ToList();
+    }
+
+    private void ViewCaseDetails(int caseId)
+    {
+        Navigation.NavigateTo($"/Workforce/case/{caseId}");
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (page >= 1 && page <= totalPages && page != filters.Page)
+        {
+            filters.Page = page;
+            await LoadCases();
+        }
+    }
+
+    private async Task ClearFilters()
+    {
+        filters = new CaseFilters
+        {
+            Page = 1,
+            PageSize = 10,
+            StartDate = DateTime.Today.AddMonths(-1),
+            EndDate = DateTime.Today
+        };
+        await LoadCases();
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        switch (status)
+        {
+            case "Open": return "bg-info";
+            case "InProgress": return "bg-primary";
+            case "Escalated": return "bg-warning";
+            case "Resolved": return "bg-success";
+            case "Closed": return "bg-secondary";
+            default: return "bg-light text-dark";
+        }
+    }
+
+    private string GetPriorityBadgeClass(string priority)
+    {
+        switch (priority)
+        {
+            case "Low": return "bg-success";
+            case "Medium": return "bg-primary";
+            case "High": return "bg-warning";
+            case "Critical": return "bg-danger";
+            default: return "bg-secondary";
+        }
+    }
+
+    // Helper classes
+    public class CaseFilters
+    {
+        public int Page { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+        public string? Status { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? SearchTerm { get; set; }
+    }
+}

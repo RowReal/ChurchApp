@@ -1,0 +1,313 @@
+﻿@page "/Offering/NoteList"
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ServiceNoteService ServiceNoteService
+@inject ServiceService ServiceService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<h3 class="mb-4">Service Notes</h3>
+
+<!-- Filter Section -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <i class="fas fa-filter me-2"></i> Filter Service Notes
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label for="startDate" class="form-label">From Date</label>
+                <input type="date" id="startDate" class="form-control"
+                       value="@filterStartDateString"
+                       @onchange="@(async (e) => {
+                                                  filterStartDateString = e.Value?.ToString();
+                       await ApplyFilters();
+                                              })" />
+            </div>
+            <div class="col-md-3">
+                <label for="endDate" class="form-label">To Date</label>
+                <input type="date" id="endDate" class="form-control"
+                       value="@filterEndDateString"
+                       @onchange="@(async (e) => {
+                                                  filterEndDateString = e.Value?.ToString();
+                       await ApplyFilters();
+                                              })" />
+            </div>
+            <div class="col-md-4">
+                <label for="serviceFilter" class="form-label">Service</label>
+                <select id="serviceFilter" class="form-select"
+                        value="@filterServiceId"
+                        @onchange="@(async (e) => {
+                                                    if (int.TryParse(e.Value?.ToString(), out var id))
+                            filterServiceId = id;
+                        await ApplyFilters();
+                                                })">
+                    <option value="0">All Services</option>
+                    @foreach (var service in allServices)
+                    {
+                        <option value="@service.Id">@service.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-outline-secondary w-100" @onclick="ResetFilters">
+                    <i class="fas fa-redo me-1"></i> Reset
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading service notes...</p>
+    </div>
+}
+else if (!filteredNotes.Any())
+{
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i> No service notes found. @(hasFilters ? "Try adjusting your filters." : "Click 'Add New Note' to create your first service note.")
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover table-striped">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Service</th>
+                    <th>Theme/Sermon</th>
+                    <th>Minister</th>
+                    <th>Service Flow</th>
+                    <th>Recorded By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var note in filteredNotes)
+                {
+                    <tr>
+                        <td>
+                            <strong>@note.ServiceDate.ToString("dd/MM/yyyy")</strong><br />
+                            <small class="text-muted">@note.ServiceDate.ToString("ddd")</small>
+                        </td>
+                        <td>@note.Service?.Name</td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(note.ThemeOrSermonTitle))
+                            {
+                                <span title="@note.ThemeOrSermonTitle">
+                                    @(note.ThemeOrSermonTitle.Length > 30 ? note.ThemeOrSermonTitle.Substring(0, 30) + "..." : note.ThemeOrSermonTitle)
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">N/A</span>
+                            }
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(note.MinisterOrGuestSpeaker))
+                            {
+                                @note.MinisterOrGuestSpeaker
+                            }
+                            else
+                            {
+                                <span class="text-muted">N/A</span>
+                            }
+                    </td>
+                    <td>
+                        <span class="badge
+                                    @(note.ServiceFlow == "Smooth" ? "bg-success" :
+                                                                note.ServiceFlow == "Delayed" ? "bg-warning" :
+                                                                note.ServiceFlow == "Extended" ? "bg-info" :
+                                                                note.ServiceFlow == "Rushed" ? "bg-danger" : "bg-secondary")">
+                        @note.ServiceFlow
+                    </span>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-circle me-2 text-muted"></i>
+                        <span>@note.RecordedBy?.FullName</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-info" @onclick="() => ViewNote(note.Id)" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        @if (CanEditNote(note))
+                                {
+                                    <button class="btn btn-outline-warning" @onclick="() => EditNote(note.Id)" title="Edit Note">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Summary -->
+    <div class="alert alert-light mt-3">
+        <i class="fas fa-chart-bar me-2"></i>
+        Showing <strong>@filteredNotes.Count</strong> of <strong>@allServiceNotes.Count</strong> service notes
+        @if (hasFilters)
+        {
+            <span>with applied filters</span>
+        }
+    </div>
+}
+
+<div class="mt-4">
+    <button class="btn btn-primary" @onclick="AddNewNote">
+        <i class="fas fa-plus me-2"></i> Add New Note
+    </button>
+</div>
+
+@code {
+    private List<ServiceNote> allServiceNotes = new List<ServiceNote>();
+    private List<ServiceNote> filteredNotes = new List<ServiceNote>();
+    private List<Service> allServices = new List<Service>();
+    private bool isLoading = true;
+
+    // Filter variables
+    private string filterStartDateString = "";
+    private string filterEndDateString = "";
+    private int filterServiceId = 0;
+
+    // Computed properties for DateTime? filters
+    private DateTime? filterStartDate
+    {
+        get => string.IsNullOrEmpty(filterStartDateString) ? null : DateTime.Parse(filterStartDateString);
+        set => filterStartDateString = value?.ToString("yyyy-MM-dd") ?? "";
+    }
+
+    private DateTime? filterEndDate
+    {
+        get => string.IsNullOrEmpty(filterEndDateString) ? null : DateTime.Parse(filterEndDateString);
+        set => filterEndDateString = value?.ToString("yyyy-MM-dd") ?? "";
+    }
+
+    private bool hasFilters => !string.IsNullOrEmpty(filterStartDateString) ||
+                               !string.IsNullOrEmpty(filterEndDateString) ||
+                               filterServiceId > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Load services for filter dropdown
+            allServices = await ServiceService.GetActiveServicesAsync();
+
+            // Load all service notes
+            allServiceNotes = await ServiceNoteService.GetAllServiceNotesAsync();
+
+            // Apply default sorting (most recent first)
+            allServiceNotes = allServiceNotes
+                .OrderByDescending(n => n.ServiceDate)
+                .ToList(); // Removed .ThenByDescending(n => n.CreatedAt)
+
+            // Initially show all notes
+            filteredNotes = allServiceNotes.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        // Small delay to prevent rapid filtering
+        await Task.Delay(100);
+
+        try
+        {
+            var query = allServiceNotes.AsQueryable();
+
+            // Apply date range filter
+            if (!string.IsNullOrEmpty(filterStartDateString))
+            {
+                var startDate = DateTime.Parse(filterStartDateString);
+                query = query.Where(n => n.ServiceDate >= startDate);
+            }
+
+            if (!string.IsNullOrEmpty(filterEndDateString))
+            {
+                var endDate = DateTime.Parse(filterEndDateString);
+                query = query.Where(n => n.ServiceDate <= endDate);
+            }
+
+            // Apply service filter
+            if (filterServiceId > 0)
+            {
+                query = query.Where(n => n.ServiceId == filterServiceId);
+            }
+
+            filteredNotes = query.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error applying filters: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetFilters()
+    {
+        filterStartDateString = "";
+        filterEndDateString = "";
+        filterServiceId = 0;
+
+        // Reset to show all notes
+        filteredNotes = allServiceNotes.ToList();
+        StateHasChanged();
+    }
+
+    private void AddNewNote()
+    {
+        Navigation.NavigateTo("/Offering/CreateNote");
+    }
+
+    private void ViewNote(int id)
+    {
+        Navigation.NavigateTo($"/Offering/ViewNote/{id}");
+    }
+
+    private void EditNote(int id)
+    {
+        Navigation.NavigateTo($"/Offering/EditNote/{id}");
+    }
+
+    private bool CanEditNote(ServiceNote note)
+    {
+        if (AuthService.CurrentWorker == null) return false;
+        return note.RecordedByWorkerId == AuthService.CurrentWorker.Id;
+    }
+}

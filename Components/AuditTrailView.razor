@@ -1,0 +1,97 @@
+﻿@using ChurchApp.Models
+@using ChurchApp.Services
+@using ChurchApp.Components
+@inject AuditService AuditService
+
+<div class="audit-trail">
+    <h5>Audit Trail</h5>
+
+    @if (auditEntries.Any())
+    {
+        <div class="timeline">
+            @foreach (var audit in auditEntries)
+            {
+                <div class="timeline-item">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <div class="d-flex justify-content-between">
+                            <strong>@audit.Action by @audit.ChangedByWorker?.FirstName @audit.ChangedByWorker?.LastName</strong>
+                            <small class="text-muted">@audit.ChangedAt.ToString("MMM dd, yyyy HH:mm")</small>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(audit.FieldName))
+                        {
+                            <div class="change-details mt-1">
+                                <small>
+                                    <strong>@audit.FieldName:</strong>
+                                    <span class="text-danger">@(audit.OldValues ?? "Empty")</span>
+                                    →
+                                    <span class="text-success">@(audit.NewValues ?? "Empty")</span>
+                                </small>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(audit.Notes))
+                        {
+                            <div class="notes mt-1">
+                                <small class="text-muted">@audit.Notes</small>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="text-muted">No audit entries found.</p>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int WorkerId { get; set; }
+
+    private List<AuditTrail> auditEntries = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (WorkerId > 0)
+        {
+            auditEntries = await AuditService.GetWorkerAuditTrailsAsync(WorkerId);
+        }
+    }
+}
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 20px;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1rem;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -20px;
+        top: 6px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #0d6efd;
+    }
+
+    .timeline-content {
+        padding: 0.5rem;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        border-left: 3px solid #0d6efd;
+    }
+
+    .change-details {
+        font-family: monospace;
+    }
+</style>

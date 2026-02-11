@@ -1,0 +1,202 @@
+﻿@page "/Workforce/assigned"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AccountabilityService AccountabilityService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject ILogger<Assigned> Logger
+
+<PageTitle>Assigned Growth Cases</PageTitle>
+
+@if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+{
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="mb-1">Cases Assigned to Me</h4>
+                <p class="text-muted mb-0">
+                    Cases where you need to provide feedback or response
+                </p>
+            </div>
+            <div>
+                <span class="badge bg-primary me-2">@assignedCases.Count assigned</span>
+                <a href="/Workforce/create-feedback" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus me-1"></i>New Case
+                </a>
+            </div>
+        </div>
+
+        <!-- Cases Cards -->
+        <div class="row">
+            @if (isLoading)
+            {
+                <div class="col-12 text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (!assignedCases.Any())
+            {
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h5 class="text-muted">No Assigned Cases</h5>
+                            <p class="text-muted small">Great! You don't have any cases pending your response.</p>
+                            <a href="/Workforce/feedback" class="btn btn-sm btn-outline-primary">
+                                View All Cases
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @foreach (var caseItem in assignedCases)
+                {
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <!-- Case Header -->
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h6 class="card-title mb-1">@caseItem.Title</h6>
+                                        <small class="text-muted">@caseItem.CaseCode</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge @GetPriorityBadgeClass(caseItem.Priority)">
+                                            @caseItem.Priority
+                                        </span>
+                                        @if (caseItem.IsOverdue)
+                                        {
+                                            <span class="badge bg-danger ms-1">Overdue</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <!-- Worker Info -->
+                                <div class="d-flex align-items-center mb-3">
+                                    @if (!string.IsNullOrEmpty(caseItem.Worker?.PassportPhotoPath))
+                                    {
+                                        <img src="/uploads/@caseItem.Worker.PassportPhotoPath"
+                                             alt="@caseItem.Worker.FirstName"
+                                             class="rounded-circle me-3"
+                                             style="width: 45px; height: 45px; object-fit: cover;" />
+                                    }
+                                    <div>
+                                        <div class="fw-semibold">
+                                            @caseItem.Worker?.FirstName @caseItem.Worker?.LastName
+                                        </div>
+                                        <div class="small text-muted">
+                                            @caseItem.Worker?.Role • @caseItem.Worker?.Directorate?.Name
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Case Details -->
+                                <div class="mb-3">
+                                    <div class="small text-muted">Created By</div>
+                                    <div>@caseItem.CreatedByWorker?.FirstName @caseItem.CreatedByWorker?.LastName</div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <div class="small text-muted">Created</div>
+                                        <div>@caseItem.CreatedDate.ToString("dd MMM")</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="small text-muted">Due Date</div>
+                                        <div class="@(caseItem.IsOverdue ? "text-danger" : "text-muted")">
+                                            @caseItem.FormattedDueDate
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-primary respond-btn"
+                                            @onclick="() => RespondToCase(caseItem.Id)"
+                                            title="Respond to this case">
+                                        <i class="fas fa-reply me-2"></i>Respond
+                                    </button>
+                                    <button class="btn btn-outline-secondary view-detail-btn"
+                                            @onclick="() => ViewCaseDetails(caseItem.Id)"
+                                            title="View case details">
+                                        <i class="fas fa-eye me-2"></i>View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private List<AccountabilityCase> assignedCases = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+        {
+            await LoadAssignedCases();
+        }
+    }
+
+    private async Task LoadAssignedCases()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Get all visible cases
+            var visibleCases = await AccountabilityService.GetVisibleCasesAsync(AuthService.CurrentWorker.Id);
+
+            // Filter cases assigned to current worker
+            assignedCases = visibleCases
+                .Where(c => c.AssignedToWorkerId == AuthService.CurrentWorker.Id &&
+                           c.Status != "Resolved" &&
+                           c.Status != "Closed")
+                .OrderByDescending(c => c.CreatedDate)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading assigned cases");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void RespondToCase(int caseId)
+    {
+        Navigation.NavigateTo($"/Workforce/case/{caseId}?respond=true");
+    }
+
+    private void ViewCaseDetails(int caseId)
+    {
+        Navigation.NavigateTo($"/Workforce/case/{caseId}");
+    }
+
+    private string GetPriorityBadgeClass(string priority)
+    {
+        switch (priority)
+        {
+            case "Low": return "bg-success";
+            case "Medium": return "bg-primary";
+            case "High": return "bg-warning";
+            case "Critical": return "bg-danger";
+            default: return "bg-secondary";
+        }
+    }
+}

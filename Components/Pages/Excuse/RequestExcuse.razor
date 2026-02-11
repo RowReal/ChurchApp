@@ -1,0 +1,461 @@
+﻿@page "/excuse/request"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ExcuseService ExcuseService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IServiceProvider ServiceProvider
+
+<PageTitle>Excuse Request - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-3">
+    <!-- Header -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-calendar-times fa-lg text-warning me-3"></i>
+                    <div>
+                        <h4 class="fw-bold text-dark-blue mb-1">Request Service Excuse</h4>
+                        <p class="text-muted mb-0">Submit formal request to be excused from church services</p>
+                    </div>
+                </div>
+                <a href="/excuse/my-requests" class="btn btn-outline-primary">
+                    <i class="fas fa-list me-2"></i>My Requests
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Warning Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger border-2 shadow-sm">
+                <div class="card-header bg-danger text-white py-2">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Important Requirements - Read Before Submitting
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start mb-3">
+                                <i class="fas fa-clock text-danger fa-lg me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="fw-bold text-danger mb-1">Time Requirement</h6>
+                                    <p class="text-muted mb-0">Requests must be submitted at least <strong>1 hour before</strong> the scheduled service time. Late submissions will be automatically rejected.</p>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-start mb-3">
+                                <i class="fas fa-user-check text-danger fa-lg me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="fw-bold text-danger mb-1">Backup Arrangement</h6>
+                                    <p class="text-muted mb-0">You must nominate a <strong>backup worker from your department</strong> who will cover your responsibilities during your absence.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-start mb-3">
+                                <i class="fas fa-envelope text-danger fa-lg me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="fw-bold text-danger mb-1">Approval Process</h6>
+                                    <p class="text-muted mb-0">Your <strong>supervisor will be automatically notified</strong> and must approve your request. You'll receive email updates on the status.</p>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-history text-danger fa-lg me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="fw-bold text-danger mb-1">Tracking & Updates</h6>
+                                    <p class="text-muted mb-0">Monitor your request status in <strong>"My Requests"</strong>. You'll be notified of approval, rejection, or if additional information is needed.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Form -->
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-gradient-primary text-white py-3">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="fas fa-file-alt me-2"></i>Excuse Request Form
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <EditForm Model="excuseModel" OnValidSubmit="SubmitExcuseRequest">
+                        <DataAnnotationsValidator />
+
+                        <!-- Service Type Selection -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <label class="form-label fw-bold mb-3 text-primary">Service Type Selection</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="serviceType" id="predefinedService"
+                                           @onchange="@((e) => { usePredefinedService = true; StateHasChanged(); })"
+                                           checked="@usePredefinedService" />
+                                    <label class="btn btn-outline-primary py-2" for="predefinedService">
+                                        <i class="fas fa-list me-2"></i>Select from Predefined Services
+                                    </label>
+
+                                    <input type="radio" class="btn-check" name="serviceType" id="customService"
+                                           @onchange="@((e) => { usePredefinedService = false; StateHasChanged(); })"
+                                           checked="@(!usePredefinedService)" />
+                                    <label class="btn btn-outline-primary py-2" for="customService">
+                                        <i class="fas fa-edit me-2"></i>Enter Custom Service Details
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Service Information Row -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                @if (usePredefinedService)
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold text-primary">Select Service *</label>
+                                        <InputSelect @bind-Value="excuseModel.ServiceId" class="form-select">
+                                            <option value="">Choose a scheduled service...</option>
+                                            @foreach (var service in services)
+                                            {
+                                                <option value="@service.Id">@service.Name - @GetServiceSchedule(service)</option>
+                                            }
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => excuseModel.ServiceId)" class="text-danger" />
+                                        <div class="form-text">Choose from regularly scheduled church services</div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold text-primary">Custom Service Name *</label>
+                                        <InputText @bind-Value="excuseModel.CustomServiceName" class="form-control"
+                                                   placeholder="e.g., Special Prayer Meeting, Outreach Program" />
+                                        <ValidationMessage For="@(() => excuseModel.CustomServiceName)" class="text-danger" />
+                                        <div class="form-text">Enter the name of the special service or event</div>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-primary">Requested Excuse Date *</label>
+                                    <InputDate @bind-Value="excuseModel.RequestedDate" class="form-control" />
+                                    <ValidationMessage For="@(() => excuseModel.RequestedDate)" class="text-danger" />
+                                    <div class="form-text">The date you need to be excused from service</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Custom Service Details (Only for custom services) -->
+                        @if (!usePredefinedService)
+                        {
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold text-primary">Service Date *</label>
+                                        <InputDate @bind-Value="excuseModel.CustomServiceDate" class="form-control" />
+                                        <ValidationMessage For="@(() => excuseModel.CustomServiceDate)" class="text-danger" />
+                                        <div class="form-text">Actual date of the custom service</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold text-primary">Service Time *</label>
+                                        <InputText @bind-Value="customServiceTimeString" class="form-control" type="time" />
+                                        @if (!string.IsNullOrEmpty(customServiceTimeError))
+                                        {
+                                            <div class="text-danger">@customServiceTimeError</div>
+                                        }
+                                        <div class="form-text">Scheduled time of the custom service</div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Backup and Reason Row -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-primary">Nominated Backup Worker *</label>
+                                    <InputSelect @bind-Value="excuseModel.NominatedBackupId" class="form-select">
+                                        <option value="">Select a backup worker from your department...</option>
+                                        @foreach (var worker in availableBackups)
+                                        {
+                                            <option value="@worker.Id">@worker.FirstName @worker.LastName (@worker.WorkerId)</option>
+                                        }
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => excuseModel.NominatedBackupId)" class="text-danger" />
+                                    <div class="form-text">Choose someone to cover your responsibilities</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-primary">Reason for Excuse *</label>
+                                    <InputTextArea @bind-Value="excuseModel.Reason" class="form-control"
+                                                   placeholder="Please provide a detailed explanation for your excuse request..."
+                                                   rows="4" />
+                                    <ValidationMessage For="@(() => excuseModel.Reason)" class="text-danger" />
+                                    <div class="form-text">Be specific about why you need to be excused</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Error Message -->
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="alert alert-danger">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>@errorMessage
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Submit Buttons -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex gap-3 justify-content-end border-top pt-4">
+                                    <a href="/" class="btn btn-outline-secondary btn-lg">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </a>
+                                    <button type="submit" class="btn btn-primary btn-lg" disabled="@isLoading">
+                                        @if (isLoading)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                            <span>Submitting Request...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-paper-plane me-2"></i>
+                                            <span>Submit Excuse Request</span>
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+@if (showSuccessModal)
+{
+    <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-success text-white border-0 py-3">
+                    <h5 class="modal-title mb-0 fw-bold">
+                        <i class="fas fa-check-circle me-2"></i>Request Submitted Successfully!
+                    </h5>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h4 class="text-success mb-2">Excuse Request Submitted</h4>
+                    <p class="text-muted mb-0">Your request has been sent to your supervisor for approval. You will be notified of the decision.</p>
+                </div>
+                <div class="modal-footer border-0 py-3">
+                    <button class="btn btn-success btn-lg w-100" @onclick="CloseSuccessModal">
+                        <i class="fas fa-list me-2"></i>View My Requests
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private ExcuseRequestModel excuseModel = new();
+    private List<Service> services = new();
+    private List<Worker> availableBackups = new();
+    private bool usePredefinedService = true;
+    private bool isLoading = false;
+    private bool showSuccessModal = false;
+    private string errorMessage = string.Empty;
+    private string customServiceTimeString = "09:00";
+    private string customServiceTimeError = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadServices();
+        await LoadAvailableBackups();
+    }
+
+    private async Task LoadServices()
+    {
+        services = await ExcuseService.GetServicesAsync();
+    }
+
+    private async Task LoadAvailableBackups()
+    {
+        if (AuthService.CurrentWorker != null)
+        {
+            availableBackups = await ExcuseService.GetAvailableBackupsAsync(
+                AuthService.CurrentWorker.Id,
+                null,
+                DateTime.Today
+            );
+        }
+    }
+
+    private string GetServiceSchedule(Service service)
+    {
+        if (service.RecurrencePattern == "OneTime")
+        {
+            return $"{service.SpecificDate:MMM dd, yyyy} at {service.SpecificStartTime:hh\\:mm}";
+        }
+        else
+        {
+            var dayName = service.DayOfWeek.ToString();
+            var schedule = $"{dayName}s at {service.StartTime:hh\\:mm}";
+            if (service.WeekOfMonth.HasValue)
+            {
+                schedule = $"{service.WeekOfMonth.ToString().ToLower()} {dayName} at {service.StartTime:hh\\:mm}";
+            }
+            return schedule;
+        }
+    }
+
+    private async Task SubmitExcuseRequest()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        customServiceTimeError = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            // Validate custom service fields
+            if (!usePredefinedService)
+            {
+                if (string.IsNullOrEmpty(excuseModel.CustomServiceName))
+                {
+                    errorMessage = "Custom service name is required.";
+                    isLoading = false;
+                    StateHasChanged();
+                    return;
+                }
+
+                if (!excuseModel.CustomServiceDate.HasValue)
+                {
+                    errorMessage = "Custom service date is required.";
+                    isLoading = false;
+                    StateHasChanged();
+                    return;
+                }
+
+                // Convert custom service time string to TimeSpan
+                if (!string.IsNullOrEmpty(customServiceTimeString))
+                {
+                    if (TimeSpan.TryParse(customServiceTimeString, out var customTime))
+                    {
+                        excuseModel.CustomServiceTime = customTime;
+                    }
+                    else
+                    {
+                        customServiceTimeError = "Please enter a valid time format (HH:MM).";
+                        isLoading = false;
+                        StateHasChanged();
+                        return;
+                    }
+                }
+                else
+                {
+                    customServiceTimeError = "Custom service time is required.";
+                    isLoading = false;
+                    StateHasChanged();
+                    return;
+                }
+            }
+            else
+            {
+                // For predefined services, clear custom fields
+                excuseModel.CustomServiceName = null;
+                excuseModel.CustomServiceDate = null;
+                excuseModel.CustomServiceTime = null;
+            }
+
+            if (AuthService.CurrentWorker == null)
+            {
+                errorMessage = "User authentication failed. Please log in again.";
+                isLoading = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Submit the excuse request
+            var request = await ExcuseService.CreateExcuseRequestAsync(excuseModel, AuthService.CurrentWorker.Id);
+
+            // Show success modal instead of inline message
+            showSuccessModal = true;
+
+            // Reset form
+            excuseModel = new ExcuseRequestModel();
+            customServiceTimeString = "09:00";
+            customServiceTimeError = string.Empty;
+
+            // Reload backups in case availability changed
+            await LoadAvailableBackups();
+
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error submitting request: {ex.Message}";
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void CloseSuccessModal()
+    {
+        showSuccessModal = false;
+        Navigation.NavigateTo("/excuse/my-requests");
+    }
+}
+
+<style>
+    .text-dark-blue {
+        color: #2c3e50 !important;
+    }
+
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    }
+
+    .card {
+        border-radius: 0.5rem;
+    }
+
+    .btn-group .btn {
+        font-size: 1rem;
+        padding: 0.75rem 1rem;
+    }
+
+    .shadow-lg {
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .border-2 {
+        border-width: 2px !important;
+    }
+
+    .fw-bold {
+        font-weight: 700 !important;
+    }
+</style>

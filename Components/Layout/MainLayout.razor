@@ -1,0 +1,78 @@
+﻿@inherits LayoutComponentBase
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="bcc-layout-container">
+    <!-- Top Navigation Bar - REMOVED BOOTSTRAP CLASSES -->
+    <div class="bcc-top-navbar">
+        <div class="bcc-navbar-brand">
+            <div class="bcc-church-logo">
+                <img src="/images/bcc-logo.png" alt="BCC Logo" class="bcc-logo-img" />
+            </div>
+            <span class="bcc-brand-text">BCC ServiceHub</span>
+        </div>
+
+        <!-- User Info -->
+        <div class="bcc-navbar-user">
+            @if (AuthService.IsAuthenticated)
+            {
+                <div class="bcc-user-info">
+                    <span class="bcc-user-name">@AuthService.CurrentWorker?.FirstName @AuthService.CurrentWorker?.LastName</span>
+                    <span class="bcc-user-role">@AuthService.CurrentWorker?.Role</span>
+                </div>
+                <button class="bcc-btn-signout" @onclick="SignOut">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Sign Out
+                </button>
+            }
+            else
+            {
+                <a href="/login" class="bcc-btn-signout">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Login
+                </a>
+            }
+        </div>
+
+        <button class="bcc-navbar-toggler" @onclick="ToggleSidebar">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
+
+    <!-- Main Layout Container -->
+    <div class="bcc-main-container">
+        <!-- Sidebar - Only show when authenticated -->
+        @if (AuthService.IsAuthenticated)
+        {
+            <Sidebar />
+        }
+
+        <!-- Main Content Area -->
+        <main class="bcc-main-content @(!AuthService.IsAuthenticated ? "bcc-full-width" : "")">
+            @Body
+        </main>
+    </div>
+
+    <!-- Mobile Backdrop - Only show when authenticated and sidebar is visible -->
+    @if (AuthService.IsAuthenticated && isSidebarVisible)
+    {
+        <div class="bcc-sidebar-backdrop" @onclick="ToggleSidebar"></div>
+    }
+</div>
+
+@code {
+    private bool isSidebarVisible = false;
+
+    private void ToggleSidebar()
+    {
+        isSidebarVisible = !isSidebarVisible;
+    }
+
+    private void SignOut()
+    {
+        AuthService.Logout();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+}

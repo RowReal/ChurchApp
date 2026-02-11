@@ -1,0 +1,1061 @@
+﻿@page "/offering/record"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject OfferingService OfferingService
+@inject ServiceService ServiceService
+@inject AuthService AuthService
+@inject RecordNominationService RecordNominationService
+
+<PageTitle>Record Offering - BCC ServiceHub</PageTitle>
+
+@if (AuthService.IsAuthenticated)
+{
+    @if (isLoading)
+    {
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="spinner-border text-primary mb-3"></div>
+                            <p>Loading user permissions and nominations...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Authorization Message -->
+        @if (!string.IsNullOrEmpty(authorizationMessage))
+        {
+            <div class="container mt-5">
+                <div class="row justify-content-center">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Access Limited</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-info-circle me-2"></i> @authorizationMessage
+                                </div>
+
+                                <!-- Nominated Users Information -->
+                                @if (nominatedUsers.Any())
+                                {
+                                    <div class="card mt-3">
+                                        <div class="card-header bg-info text-white">
+                                            <h6 class="mb-0">Current Nominations for @selectedServiceName</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <h6>📋 Nominated Record Keepers:</h6>
+                                            <ul class="list-group list-group-flush">
+                                                @foreach (var nomination in nominatedUsers)
+                                                {
+                                                    <li class="list-group-item">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <strong>@nomination.NomineeName</strong>
+                                                                <br />
+                                                                <small class="text-muted">@nomination.RecordTypeDisplay</small>
+                                                            </div>
+                                                            <div>
+                                                                <span class="badge bg-primary">@nomination.Status</span>
+                                                            </div>
+                                                        </div>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </div>
+                                }
+
+                                <div class="mt-3">
+                                    <a href="/" class="btn btn-primary">
+                                        <i class="fas fa-home me-1"></i>Return to Dashboard
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (canRecordOffering)
+        {
+            <!-- Your existing offering form content -->
+            <div class="container-fluid py-4">
+                <!-- Success Message -->
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle me-2"></i> @successMessage
+                        <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
+                    </div>
+                }
+
+                <!-- Error Message -->
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i> @errorMessage
+                        <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+                    </div>
+                }
+
+                <!-- Rejected Offerings Alert -->
+                @if (rejectedOfferingsCount > 0)
+                {
+                    <div class="alert alert-warning">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                You have <strong>@rejectedOfferingsCount</strong> rejected offering(s) that need attention.
+                            </div>
+                            <a href="/offering/rejected" class="btn btn-warning btn-sm">
+                                <i class="fas fa-edit me-1"></i>Review Rejected Offerings
+                            </a>
+                        </div>
+                    </div>
+                }
+
+                <!-- Nomination Status Badge -->
+                @if (!string.IsNullOrEmpty(currentNominationStatus))
+                {
+                    <div class="alert alert-info d-flex align-items-center">
+                        <i class="fas fa-user-check me-2"></i>
+                        <div>
+                            <strong>Authorized as:</strong> @currentNominationStatus
+                            @if (!string.IsNullOrEmpty(recordTypeForService))
+                            {
+                                <br />
+                                <small>Record Type: @recordTypeForService</small>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header bg-dark-blue text-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Record New Offering</h5>
+                                @if (!string.IsNullOrEmpty(recordTypeForService))
+                                {
+                                    <span class="badge bg-info">@recordTypeForService</span>
+                                }
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <!-- Service Selection -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Service *</label>
+                                        <select class="form-select" @bind="newOffering.ServiceId" @bind:after="OnServiceSelected">
+                                            <option value="0">Select Service</option>
+                                            @foreach (var service in availableServices)
+                                            {
+                                                <option value="@service.Id">@service.Name</option>
+                                            }
+                                        </select>
+                                        @if (newOffering.ServiceId > 0)
+                                        {
+                                            var selectedService = availableServices.FirstOrDefault(s => s.Id == newOffering.ServiceId);
+                                            if (selectedService != null)
+                                            {
+                                                if (!string.IsNullOrEmpty(selectedService.Description))
+                                                {
+                                                    <small class="text-muted d-block mt-1">@selectedService.Description</small>
+                                                }
+
+                                                <!-- Show warning if service day doesn't match selected date -->
+                                                @if (!IsServiceValidForDate(selectedService, offeringDate))
+                                                {
+                                                    var serviceType = GetServiceTypeFromName(selectedService.Name);
+                                                    var expectedDay = serviceType == "Sunday" ? "Sunday" :
+                                                    serviceType == "MidWeek" ? "Wednesday" : "";
+
+                                                    @if (!string.IsNullOrEmpty(expectedDay))
+                                                    {
+                                                        <small class="text-warning d-block mt-1">
+                                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                                            Note: @selectedService.Name services are typically held on @expectedDay
+                                                        </small>
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    </div>
+
+                                    <!-- Offering Date -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Offering Date *</label>
+                                        <input type="date" class="form-control" @bind="offeringDate"
+                                               @bind:format="yyyy-MM-dd"
+                                               max="@DateTime.Now.ToString("yyyy-MM-dd")"
+                                               @bind:after="OnDateChanged" />
+                                    </div>
+
+                                    <!-- Offering Type -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Offering Type *</label>
+                                        <select class="form-select" @bind="newOffering.OfferingTypeId">
+                                            <option value="0">Select Offering Type</option>
+                                            @foreach (var type in activeOfferingTypes)
+                                            {
+                                                <option value="@type.Id">@type.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Payment Mode *</label>
+                                        <select class="form-select" @bind="newOffering.PaymentMode">
+                                            <option value="">Select Mode</option>
+                                            <option value="Cash">Cash</option>
+                                            <option value="Cheque">Cheque</option>
+                                            <option value="Bank Transfer">Bank Transfer</option>
+                                            <option value="POS">POS</option>
+                                            <option value="Mobile Money">Mobile Money</option>
+                                            <option value="Online Payment">Online Payment</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Currency *</label>
+                                        <select class="form-select" @bind="newOffering.Currency">
+                                            <option value="">Select Currency</option>
+                                            <option value="NGN">Naira (₦)</option>
+                                            <option value="USD">Dollar ($)</option>
+                                            <option value="GBP">Pound (£)</option>
+                                            <option value="EUR">Euro (€)</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Amount *</label>
+                                        <input type="number" class="form-control" @bind="newOffering.Amount"
+                                               step="0.01" min="0" placeholder="0.00" />
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label class="form-label">Remarks (Optional)</label>
+                                        <textarea class="form-control" @bind="newOffering.Remarks" rows="3"
+                                                  placeholder="Any additional notes about this offering..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn bcc-btn-primary" @onclick="SaveOffering" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-save me-2"></i>
+                                    }
+                                    Record Offering
+                                </button>
+                                <button class="btn btn-secondary ms-2" @onclick="ResetForm">Reset</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="col-lg-4">
+                        <!-- Nominated Users Card -->
+                        @if (nominatedUsers.Any() && newOffering.ServiceId > 0)
+                        {
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0"><i class="fas fa-user-check me-2"></i>Current Nominations</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="small mb-2">Authorized record keepers for this service:</p>
+                                    <div class="list-group list-group-flush">
+                                        @foreach (var nomination in nominatedUsers)
+                                        {
+                                            <div class="list-group-item px-0 py-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <strong class="small">@nomination.NomineeName</strong>
+                                                        <br />
+                                                        <small class="text-muted">@nomination.RecordTypeDisplay</small>
+                                                    </div>
+                                                    <span class="badge bg-primary small">@nomination.Status</span>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Recent Offerings Card -->
+                        <div class="card mt-3">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0">My Recent Offerings</h5>
+                            </div>
+                            <div class="card-body">
+                                @if (recentOfferings.Any())
+                                {
+                                    <div class="list-group list-group-flush">
+                                        @foreach (var offering in recentOfferings.Take(5))
+                                        {
+                                            <div class="list-group-item px-0">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6 class="mb-1">@offering.OfferingTypeName</h6>
+                                                        <small class="text-muted">@offering.OfferingDate.ToString("MMM dd, yyyy")</small>
+                                                        <br>
+                                                        @if (offering.Service != null)
+                                                        {
+                                                            <small class="text-muted">Service: @offering.Service.Name</small>
+                                                        }
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <strong>@offering.Amount.ToString("N2") @offering.Currency</strong>
+                                                        <br />
+                                                        <span class="badge @(offering.Status == "Approved" ? "bg-success" : offering.Status == "Pending" ? "bg-warning" : "bg-danger")">
+                                                            @offering.Status
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                    @if (recentOfferings.Count > 5)
+                                    {
+                                        <div class="text-center mt-2">
+                                            <small class="text-muted">Showing 5 of @recentOfferings.Count recent offerings</small>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="text-muted text-center">No recent offerings found.</p>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Quick Info Card -->
+                        <div class="card mt-3">
+                            <div class="card-header bg-dark-blue text-white">
+                                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i> Quick Info</h6>
+                            </div>
+                            <div class="card-body">
+                                <small class="text-muted">
+                                    <i class="fas fa-check-circle text-success me-1"></i>
+                                    Only nominated record keepers can record offerings for specific services.
+                                    <br /><br />
+                                    <strong>Authorized Roles:</strong><br />
+                                    • Nominated FIG Members (for specific record types)<br />
+                                    • Head of FIG Directorate<br />
+                                    • Assistant Head of FIG Directorate<br />
+                                    <br />
+                                    <strong>Note:</strong> When no nomination exists, FIG Directorate heads can record.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        <!-- Rejected Offerings Warning -->
+        @if (rejectedOfferingsCount > 0 && !string.IsNullOrEmpty(currentNominationStatus) && currentNominationStatus.Contains("Rejected"))
+        {
+            <div class="alert alert-warning mb-4">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle me-3 fa-2x"></i>
+                    <div>
+                        <h5 class="alert-heading mb-1">Attention Required</h5>
+                        <p class="mb-1">
+                            You have <strong>@rejectedOfferingsCount rejected offering(s)</strong> that need attention.
+                            You can access this page to review and resubmit them.
+                        </p>
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Access granted due to pending rejected offerings. Please review them under "My Recent Offerings".
+                        </small>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+}
+else
+{
+    <!-- Authentication Required -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">Authentication Required</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h4>Please Log In</h4>
+                        <p class="text-muted">You need to be logged in to access this page.</p>
+                        <a href="/login" class="btn btn-primary">Go to Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<OfferingType> activeOfferingTypes = new();
+    private List<OfferingRecord> recentOfferings = new();
+    private List<Service> availableServices = new();
+    private List<RecordNominationDTO> nominatedUsers = new();
+    private OfferingRecord newOffering = new();
+    private DateTime offeringDate = DateTime.Today;
+    private bool isSubmitting = false;
+    private bool isLoading = true;
+    private bool canRecordOffering = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+    private string authorizationMessage = "";
+    private string currentNominationStatus = "";
+    private string recordTypeForService = "";
+    private string selectedServiceName = "";
+    private int rejectedOfferingsCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await EnsureWorkerDataLoaded();
+        await LoadData();
+        await LoadRejectedCount();
+        await LoadServicesForDateAsync();
+        await CheckInitialAuthorization();
+        isLoading = false;
+    }
+
+    private async Task EnsureWorkerDataLoaded()
+    {
+        try
+        {
+            if (!AuthService.IsDepartmentLoaded())
+            {
+                await AuthService.ReloadCurrentWorkerAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error ensuring worker data loaded: {ex.Message}");
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            activeOfferingTypes = await OfferingService.GetActiveOfferingTypesAsync();
+            var workerId = AuthService.CurrentWorker?.WorkerId;
+            if (!string.IsNullOrEmpty(workerId))
+            {
+                recentOfferings = await OfferingService.GetMyRecentOfferingsAsync(workerId);
+            }
+            newOffering.Currency = "NGN";
+            newOffering.OfferingDate = offeringDate;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+        }
+    }
+
+    private async Task LoadServicesForDateAsync()
+    {
+        try
+        {
+            // First, load all active services
+            var allServices = await ServiceService.GetActiveServicesAsync();
+
+            // If user has rejected offerings, show services related to those offerings
+            if (rejectedOfferingsCount > 0)
+            {
+                await LoadServicesForRejectedOfferings(allServices);
+                return;
+            }
+
+            // If user is FIG Directorate Head, show all services
+            var currentWorker = AuthService.CurrentWorker;
+            if (currentWorker != null &&
+                (IsHeadOfFIGDirectorate(currentWorker) || IsAssistantHeadOfFIGDirectorate(currentWorker)))
+            {
+                availableServices = allServices;
+                StateHasChanged();
+                return;
+            }
+
+            // For other users, filter services based on their nominations for the selected date
+            try
+            {
+                var nominations = await RecordNominationService.GetNominationsForUserAsync(
+                    currentWorker.WorkerId,
+                    offeringDate
+                );
+
+                if (nominations.Any())
+                {
+                    // Get service IDs from nominations
+                    var nominatedServiceIds = nominations.Select(n => n.ServiceId).Distinct().ToList();
+
+                    // Filter services to only those the user is nominated for
+                    availableServices = allServices
+                        .Where(s => nominatedServiceIds.Contains(s.Id))
+                        .ToList();
+                }
+                else
+                {
+                    // User has no nominations, show no services
+                    availableServices = new List<Service>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading nominations for service filtering: {ex.Message}");
+                // Fallback: show all services if nomination check fails
+                availableServices = allServices;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading services: {ex.Message}");
+            availableServices = new List<Service>();
+        }
+    }
+
+    private async Task CheckInitialAuthorization()
+    {
+        var currentWorker = AuthService.CurrentWorker;
+        if (currentWorker == null)
+        {
+            authorizationMessage = "User not found. Please log in again.";
+            return;
+        }
+
+        // Check if user is Head or Assistant Head of FIG Directorate
+        if (IsHeadOfFIGDirectorate(currentWorker) || IsAssistantHeadOfFIGDirectorate(currentWorker))
+        {
+            canRecordOffering = true;
+            currentNominationStatus = "FIG Directorate Head";
+            return;
+        }
+
+        // Check if user has rejected offerings that need attention
+        await LoadRejectedCount();
+        if (rejectedOfferingsCount > 0)
+        {
+            canRecordOffering = true;
+            currentNominationStatus = "Rejected Offerings Pending Review";
+            authorizationMessage = ""; // Clear any previous authorization message
+            return;
+        }
+
+        // For other users, check if they're authorized for today's date
+        await CheckAuthorizationForDate(offeringDate);
+    }
+
+    private async Task CheckAuthorizationForDate(DateTime date)
+    {
+        var currentWorker = AuthService.CurrentWorker;
+        if (currentWorker == null) return;
+
+        // Skip authorization check if user has rejected offerings
+        if (rejectedOfferingsCount > 0)
+        {
+            canRecordOffering = true;
+            currentNominationStatus = "Rejected Offerings Pending Review";
+            authorizationMessage = "";
+            return;
+        }
+
+        // TEMPORARY: If the method doesn't exist, skip this check
+        try
+        {
+            // Check nominations for this user on this date
+            var nominations = await RecordNominationService.GetNominationsForUserAsync(
+                currentWorker.WorkerId,
+                date
+            );
+
+            if (nominations.Any())
+            {
+                canRecordOffering = true;
+                currentNominationStatus = "Nominated Record Keeper";
+                nominatedUsers = nominations.ToList();
+
+                // If we have a service selected, filter nominations
+                if (newOffering.ServiceId > 0)
+                {
+                    nominatedUsers = nominations
+                        .Where(n => n.ServiceId == newOffering.ServiceId)
+                        .ToList();
+                }
+            }
+            else
+            {
+                authorizationMessage = "You are not nominated to make records for today's services.";
+                canRecordOffering = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            // If service methods don't exist yet, fall back to old logic
+            Console.WriteLine($"Error checking nominations: {ex.Message}");
+            await FallbackAuthorizationCheck();
+        }
+    }
+
+    private async Task FallbackAuthorizationCheck()
+    {
+        // Fallback to old logic if nomination methods don't exist
+        if (IsChurchAdmin() || IsUsheringDepartment())
+        {
+            canRecordOffering = true;
+            currentNominationStatus = "Church Admin/Ushering Dept";
+        }
+        else
+        {
+            authorizationMessage = "You are not authorized to record offerings.";
+            canRecordOffering = false;
+        }
+    }
+
+    private async Task OnServiceSelected()
+    {
+        if (newOffering.ServiceId <= 0) return;
+
+        // If user has rejected offerings, skip authorization check
+        if (rejectedOfferingsCount > 0)
+        {
+            canRecordOffering = true;
+            currentNominationStatus = "Rejected Offerings Pending Review";
+            authorizationMessage = "";
+
+            // Still load nominations for information purposes
+            try
+            {
+                var serviceNominations = await RecordNominationService.GetNominationsForServiceAsync(
+                    newOffering.ServiceId,
+                    offeringDate
+                );
+                nominatedUsers = serviceNominations.ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading nominations: {ex.Message}");
+            }
+            return;
+        }
+
+        await CheckAuthorizationForSelectedService();
+    }
+
+    private async Task OnDateChanged()
+    {
+        newOffering.OfferingDate = offeringDate;
+
+        // If user has rejected offerings, don't restrict services by date
+        if (rejectedOfferingsCount > 0)
+        {
+            await LoadServicesForDateAsync();
+            canRecordOffering = true;
+            currentNominationStatus = "Rejected Offerings Pending Review";
+            authorizationMessage = "";
+        }
+        else
+        {
+            await LoadServicesForDateAsync();
+            await CheckAuthorizationForDate(offeringDate);
+
+            // If a service is selected, check authorization for that service
+            if (newOffering.ServiceId > 0)
+            {
+                await CheckAuthorizationForSelectedService();
+            }
+        }
+    }
+
+    private async Task CheckAuthorizationForSelectedService()
+    {
+        if (newOffering.ServiceId <= 0) return;
+
+        var currentWorker = AuthService.CurrentWorker;
+        if (currentWorker == null) return;
+
+        // Reset
+        canRecordOffering = false;
+        authorizationMessage = "";
+        currentNominationStatus = "";
+        recordTypeForService = "";
+        nominatedUsers.Clear();
+
+        var selectedService = availableServices.FirstOrDefault(s => s.Id == newOffering.ServiceId);
+        selectedServiceName = selectedService?.Name ?? "";
+
+        // Check if user is FIG Directorate Head (always authorized)
+        if (IsHeadOfFIGDirectorate(currentWorker) || IsAssistantHeadOfFIGDirectorate(currentWorker))
+        {
+            canRecordOffering = true;
+            currentNominationStatus = "FIG Directorate Head";
+
+            try
+            {
+                // Load nominations for this service to show who's nominated
+                var serviceNominations = await RecordNominationService.GetNominationsForServiceAsync(
+                    newOffering.ServiceId,
+                    offeringDate
+                );
+                nominatedUsers = serviceNominations.ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading nominations: {ex.Message}");
+            }
+            return;
+        }
+
+        try
+        {
+            // Check if user is nominated for this specific service and date
+            var userNominations = await RecordNominationService.GetNominationsForUserAndServiceAsync(
+                currentWorker.WorkerId,
+                newOffering.ServiceId,
+                offeringDate
+            );
+
+            if (userNominations.Any())
+            {
+                canRecordOffering = true;
+                var nomination = userNominations.First();
+                currentNominationStatus = "Nominated Record Keeper";
+                recordTypeForService = GetRecordTypeDisplay(nomination.RecordType);
+
+                // Also load all nominations for this service
+                var allServiceNominations = await RecordNominationService.GetNominationsForServiceAsync(
+                    newOffering.ServiceId,
+                    offeringDate
+                );
+                nominatedUsers = allServiceNominations.ToList();
+            }
+            else
+            {
+                authorizationMessage = $"You are not nominated to record offerings for '{selectedServiceName}' on {offeringDate:MMMM dd, yyyy}.";
+
+                // Load nominations to show who IS authorized
+                var serviceNominations = await RecordNominationService.GetNominationsForServiceAsync(
+                    newOffering.ServiceId,
+                    offeringDate
+                );
+                nominatedUsers = serviceNominations.ToList();
+
+                if (nominatedUsers.Any())
+                {
+                    authorizationMessage += " The following users are nominated:";
+                }
+                else
+                {
+                    authorizationMessage += " No users are currently nominated for this service. Only FIG Directorate heads can record.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking service authorization: {ex.Message}");
+            await FallbackAuthorizationCheck();
+        }
+    }
+
+    private async Task SaveOffering()
+    {
+        if (!ValidateForm()) return;
+        if (!canRecordOffering)
+        {
+            errorMessage = "You are not authorized to record offerings for this service.";
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            var selectedType = activeOfferingTypes.FirstOrDefault(t => t.Id == newOffering.OfferingTypeId);
+            if (selectedType != null)
+            {
+                newOffering.OfferingTypeName = selectedType.Name;
+            }
+
+            var currentWorker = AuthService.CurrentWorker;
+            if (currentWorker != null)
+            {
+                newOffering.RecordedByWorkerId = currentWorker.WorkerId;
+                newOffering.RecordedByName = $"{currentWorker.FirstName} {currentWorker.LastName}";
+            }
+
+            // Determine status based on user role
+            if (IsHeadOfFIGDirectorate(currentWorker) || IsAssistantHeadOfFIGDirectorate(currentWorker))
+            {
+                newOffering.Status = "Approved";
+            }
+            else
+            {
+                newOffering.Status = "Pending";
+            }
+
+            var success = await OfferingService.CreateOfferingRecordAsync(newOffering);
+            if (success)
+            {
+                successMessage = $"Offering recorded successfully! Status: {newOffering.Status}";
+                await LoadData();
+                ResetForm();
+            }
+            else
+            {
+                errorMessage = "Failed to record offering. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error recording offering: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool ValidateForm()
+    {
+        if (newOffering.ServiceId <= 0)
+        {
+            errorMessage = "Please select a service";
+            return false;
+        }
+        if (newOffering.OfferingTypeId <= 0)
+        {
+            errorMessage = "Please select an offering type";
+            return false;
+        }
+        if (newOffering.OfferingDate > DateTime.Today)
+        {
+            errorMessage = "Offering date cannot be in the future";
+            return false;
+        }
+        if (string.IsNullOrEmpty(newOffering.PaymentMode))
+        {
+            errorMessage = "Please select payment mode";
+            return false;
+        }
+        if (string.IsNullOrEmpty(newOffering.Currency))
+        {
+            errorMessage = "Please select currency";
+            return false;
+        }
+        if (newOffering.Amount <= 0)
+        {
+            errorMessage = "Please enter a valid amount";
+            return false;
+        }
+        return true;
+    }
+
+    private void ResetForm()
+    {
+        newOffering = new OfferingRecord { Currency = "NGN" };
+        offeringDate = DateTime.Today;
+        newOffering.OfferingDate = offeringDate;
+        errorMessage = "";
+        successMessage = "";
+        selectedServiceName = "";
+        nominatedUsers.Clear();
+
+        // Reload services based on today's date and nominations/rejected offerings
+        _ = LoadServicesForDateAsync();
+
+        // If user has rejected offerings, ensure they can still record
+        if (rejectedOfferingsCount > 0)
+        {
+            canRecordOffering = true;
+            currentNominationStatus = "Rejected Offerings Pending Review";
+            authorizationMessage = "";
+        }
+    }
+
+    private void ClearSuccessMessage()
+    {
+        successMessage = "";
+        StateHasChanged();
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = "";
+        StateHasChanged();
+    }
+
+    private bool IsHeadOfFIGDirectorate(Worker worker)
+    {
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        return role.Contains("head of directorate") && directorateName.Contains("fig");
+    }
+
+    private bool IsAssistantHeadOfFIGDirectorate(Worker worker)
+    {
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        return (role.Contains("assistant head of directorate") || role.Contains("asst head of directorate"))
+               && directorateName.Contains("fig");
+    }
+
+    private bool IsChurchAdmin()
+    {
+        return AuthService.CurrentWorker?.Role?.Equals("Church Admin", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private bool IsUsheringDepartment()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker?.Department == null) return false;
+        return worker.Department.Name?.Contains("Ushering", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private string GetRecordTypeDisplay(string recordType)
+    {
+        return recordType switch
+        {
+            "ChurchAttendance" => "Church Attendance",
+            "Offering" => "Offering Recording",
+            "FirstTimer" => "First Timer",
+            "SecondTimer" => "Second Timer",
+            "ServicesNote" => "Services Note",
+            _ => recordType
+        };
+    }
+
+    private async Task LoadRejectedCount()
+    {
+        try
+        {
+            if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+            {
+                var workerId = AuthService.CurrentWorker.WorkerId;
+                if (!string.IsNullOrEmpty(workerId))
+                {
+                    var rejectedOfferings = await OfferingService.GetRejectedOfferingsByUserAsync(workerId);
+                    rejectedOfferingsCount = rejectedOfferings.Count;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading rejected count: {ex.Message}");
+        }
+    }
+
+    // New helper methods
+    private bool IsServiceValidForDate(Service service, DateTime date)
+    {
+        if (service == null) return false;
+
+        var serviceName = service.Name.ToLowerInvariant();
+        var dayOfWeek = date.DayOfWeek;
+
+        // Check for Sunday services
+        if (serviceName.Contains("sunday") && dayOfWeek != DayOfWeek.Sunday)
+            return false;
+
+        // Check for Mid Week services
+        if ((serviceName.Contains("mid week") || serviceName.Contains("mid-week") || serviceName.Contains("wednesday"))
+            && dayOfWeek != DayOfWeek.Wednesday)
+            return false;
+
+        return true;
+    }
+
+    private string GetServiceTypeFromName(string serviceName)
+    {
+        if (string.IsNullOrEmpty(serviceName))
+            return "Unknown";
+
+        var serviceNameLower = serviceName.ToLowerInvariant();
+
+        if (serviceNameLower.Contains("sunday"))
+            return "Sunday";
+
+        if (serviceNameLower.Contains("mid week") || serviceNameLower.Contains("mid-week") || serviceNameLower.Contains("wednesday"))
+            return "MidWeek";
+
+        return "Unknown";
+    }
+    private async Task LoadServicesForRejectedOfferings(List<Service> allServices)
+    {
+        try
+        {
+            var workerId = AuthService.CurrentWorker?.WorkerId;
+            if (string.IsNullOrEmpty(workerId)) return;
+
+            // Get rejected offerings to find their service IDs
+            var rejectedOfferings = await OfferingService.GetRejectedOfferingsByUserAsync(workerId);
+            var rejectedServiceIds = rejectedOfferings
+                .Select(o => o.ServiceId)
+                .Distinct()
+                .ToList();
+
+            if (rejectedServiceIds.Any())
+            {
+                // Show services related to rejected offerings
+                availableServices = allServices
+                    .Where(s => rejectedServiceIds.Contains(s.Id))
+                    .ToList();
+
+                // Also include services the user is nominated for today (if any)
+                try
+                {
+                    var todayNominations = await RecordNominationService.GetNominationsForUserAsync(
+                        workerId,
+                        offeringDate
+                    );
+
+                    if (todayNominations.Any())
+                    {
+                        var nominatedServiceIds = todayNominations.Select(n => n.ServiceId).Distinct().ToList();
+                        var nominatedServices = allServices
+                            .Where(s => nominatedServiceIds.Contains(s.Id) && !availableServices.Any(asvc => asvc.Id == s.Id))
+                            .ToList();
+
+                        availableServices.AddRange(nominatedServices);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error loading today's nominations: {ex.Message}");
+                }
+            }
+            else
+            {
+                availableServices = new List<Service>();
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading services for rejected offerings: {ex.Message}");
+            availableServices = new List<Service>();
+        }
+    }
+}

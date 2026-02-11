@@ -1,0 +1,363 @@
+﻿@page "/about"
+@layout Components.Layout.MainLayout
+
+<PageTitle>About - BCC ServiceHub</PageTitle>
+
+<div class="min-vh-100 bg-light">
+    <!-- Header Section (dark purple, reduced height) -->
+    <div class="bg-dark-purple text-white py-3">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8 text-center">
+                    <img src="/images/bcc-logo.png" alt="BCC Logo" class="mb-2" style="max-height:50px;">
+                    <h1 class="display-6 fw-bold mb-1">Welcome to Your SmartService Dashboard</h1>
+                    <p class="small mb-0 opacity-90">Serving with Excellence, Integrity, and a God-Centered Approach</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Section -->
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <!-- Introduction (compact) -->
+                <div class="card compact-card shadow-sm border-0 mb-4">
+                    <div class="card-body compact-body">
+                        <div class="text-center mb-3">
+                            <!-- Intro avatar (church icon, purple) -->
+                            <span class="avatar avatar-lg avatar-purple mb-2" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" width="26" height="26" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="church">
+                                    <path fill="#ffffff" d="M12 2l6 4v2h1v10h-6v4h-2v-4H5V8h1V6l6-4zM9 10h6v6H9v-6z" />
+                                </svg>
+                            </span>
+                            <h2 class="h5 text-dark-purple mb-1">A Sacred Calling of Service</h2>
+                        </div>
+                        <p class="mb-0 text-muted text-center small">
+                            At BCC, we believe that service is a sacred calling — one that deserves excellence, transparency, and care.
+                            The SmartService Portal is designed to empower you in your journey of ministry and service.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Features Grid (avatars represent each card) -->
+                <div class="row g-3 mb-4">
+                    <!-- Profile Management -->
+                    <div class="col-md-6">
+                        <div class="card feature-card border-0 shadow-sm">
+                            <div class="card-body compact-body d-flex align-items-start">
+                                <div class="me-3">
+                                    <span class="avatar avatar-md avatar-green" aria-hidden="true">
+                                        <!-- user avatar svg -->
+                                        <svg viewBox="0 0 24 24" width="28" height="28" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="profile">
+                                            <path fill="#ffffff" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5z" />
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title small text-dark-purple mb-1">Profile Management</h5>
+                                    <p class="card-text text-muted small mb-0">
+                                        Maintain your personal profile with ease and accuracy — keep contact details, roles and preferences up to date.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Service Tracking -->
+                    <div class="col-md-6">
+                        <div class="card feature-card border-0 shadow-sm">
+                            <div class="card-body compact-body d-flex align-items-start">
+                                <div class="me-3">
+                                    <span class="avatar avatar-md avatar-lightblue" aria-hidden="true">
+                                        <!-- chart avatar svg -->
+                                        <svg viewBox="0 0 24 24" width="28" height="28" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="tracking">
+                                            <path fill="#ffffff" d="M3 13h3v7H3v-7zM10 7h3v13h-3V7zM17 3h3v17h-3V3z" />
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title small text-dark-purple mb-1">Service Tracking</h5>
+                                    <p class="card-text text-muted small mb-0">
+                                        Track your service performance, see trends, and celebrate growth in ministry and leadership.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Permission Management -->
+                    <div class="col-md-6">
+                        <div class="card feature-card border-0 shadow-sm">
+                            <div class="card-body compact-body d-flex align-items-start">
+                                <div class="me-3">
+                                    <span class="avatar avatar-md avatar-green" aria-hidden="true">
+                                        <!-- calendar/check svg -->
+                                        <svg viewBox="0 0 24 24" width="28" height="28" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="permission">
+                                            <path fill="#ffffff" d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM9.5 13.5l-2-2L6 13l3.5 3.5L18 8l-1.5-1.5-7 7z" />
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title small text-dark-purple mb-1">Permission Management</h5>
+                                    <p class="card-text text-muted small mb-0">
+                                        Request permissions and manage your availability quickly and transparently.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attendance & Collaboration -->
+                    <div class="col-md-6">
+                        <div class="card feature-card border-0 shadow-sm">
+                            <div class="card-body compact-body d-flex align-items-start">
+                                <div class="me-3">
+                                    <span class="avatar avatar-md avatar-purple-outline" aria-hidden="true">
+                                        <!-- group/users svg -->
+                                        <svg viewBox="0 0 24 24" width="28" height="28" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="attendance">
+                                            <path fill="#3a0f6f" d="M16 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM8 11c1.657 0 3-1.343 3-3S9.657 5 8 5 5 6.343 5 8s1.343 3 3 3zM8 13c-2.67 0-8 1.337-8 4v2h22v-2c0-2.663-5.33-4-10-4zM16 13c-.29 0-.586.02-.888.058C17.5 14.02 20 15.5 20 17v2h4v-2c0-2.663-5.33-4-8-4z" />
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title small text-dark-purple mb-1">Attendance & Collaboration</h5>
+                                    <p class="card-text text-muted small mb-0">
+                                        View attendance records, stay accountable, and collaborate with your teams.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mission Statement (compact, dark purple) -->
+                <div class="card bg-dark-purple text-white border-0 shadow-lg compact-card">
+                    <div class="card-body compact-body text-center">
+                        <i class="fas fa-star fa-lg mb-2 opacity-75" aria-hidden="true"></i>
+                        <h3 class="h5 mb-2">Commitment to Godly Excellence</h3>
+                        <p class="small mb-2 opacity-90">
+                            All of this is done with a commitment to godly excellence, ensuring that every aspect of your service
+                            reflects the values we uphold in BCC.
+                        </p>
+
+                        <!-- Quote panel: keep translucent white background but purple text for readability -->
+                        <div class="quote-panel rounded p-3 mt-3">
+                            <blockquote class="blockquote mb-0 text-center">
+                                <p class="mb-0 fst-italic small quote-highlight">
+                                    "Whatever you do, work at it with all your heart, as working for the Lord, not for human masters."
+                                </p>
+                                <footer class="blockquote-footer mt-2 small quote-highlight">
+                                    Colossians 3:23 <cite title="Source Title">(NIV)</cite>
+                                </footer>
+                            </blockquote>
+                        </div>
+
+
+                    </div>
+                </div>
+
+                <!-- Call to Action (compact buttons) -->
+                <div class="text-center mt-4">
+                    <a href="/login" class="btn btn-dark-purple btn-lg px-4 py-2 fw-semibold me-2">
+                        <i class="fas fa-sign-in-alt me-2" aria-hidden="true"></i>Get Started
+                    </a>
+                    <a href="/" class="btn btn-outline-dark-purple btn-lg px-4 py-2 fw-semibold">
+                        <i class="fas fa-home me-2" aria-hidden="true"></i>Back to Home
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Optional initialization
+    }
+}
+
+<style>
+    /* Colors */
+    :root {
+        --dark-purple: #3a0f6f;
+        --dark-purple-contrast: #fff;
+        --light-blue: #2aa9e0;
+        --green: #28a745; /* bootstrap success */
+    }
+
+    /* Header */
+    .bg-dark-purple {
+        background-color: var(--dark-purple) !important;
+    }
+
+    .text-dark-purple {
+        color: var(--dark-purple) !important;
+    }
+
+    /* Buttons */
+    .btn-dark-purple {
+        background-color: var(--dark-purple);
+        color: #fff;
+        border: none;
+    }
+
+        .btn-dark-purple:hover,
+        .btn-dark-purple:focus {
+            background-color: #311154;
+            color: #fff;
+        }
+
+    .btn-outline-dark-purple {
+        color: var(--dark-purple);
+        border: 2px solid var(--dark-purple);
+        background: transparent;
+    }
+
+        .btn-outline-dark-purple:hover,
+        .btn-outline-dark-purple:focus {
+            background-color: var(--dark-purple);
+            color: #fff;
+        }
+
+    /* Avatars (circle containers for SVG icons) */
+    .avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        flex-shrink: 0;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    .avatar-lg {
+        width: 56px;
+        height: 56px;
+    }
+
+    .avatar-md {
+        width: 48px;
+        height: 48px;
+    }
+
+    /* purple filled avatar */
+    .avatar-purple {
+        background-color: var(--dark-purple);
+    }
+
+    /* green filled avatar */
+    .avatar-green {
+        background-color: var(--green);
+    }
+
+    /* light-blue filled avatar */
+    .avatar-lightblue {
+        background-color: var(--light-blue);
+    }
+
+    /* purple outlined avatar (only border, white background) */
+    .avatar-purple-outline {
+        background-color: #fff;
+        border: 2px solid var(--dark-purple);
+    }
+
+    /* Avatar SVGs should be white inside filled avatars */
+    .avatar-purple svg path,
+    .avatar-green svg path,
+    .avatar-lightblue svg path {
+        fill: #ffffff;
+    }
+
+    /* In outlined avatar we use purple SVG stroke/fill */
+    .avatar-purple-outline svg path {
+        fill: var(--dark-purple);
+    }
+
+    /* Compact card adjustments to reduce vertical length */
+    .compact-card {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    /* Reduce padding inside cards to make them shorter */
+    .compact-body {
+        padding: 0.65rem 0.9rem; /* slightly smaller padding */
+    }
+
+    /* Feature cards: make them compact and consistent height */
+    .feature-card {
+        min-height: 130px; /* compact but readable */
+        display: flex;
+        align-items: center;
+    }
+
+        /* Ensure card-body width in flex layout */
+        .feature-card .card-body {
+            width: 100%;
+        }
+
+    /* Smaller headline sizes to save vertical space */
+    .display-6 {
+        font-size: 1.25rem;
+    }
+
+    /* Smaller text & tightened margins */
+    .card-title.small {
+        margin-bottom: 0.25rem;
+    }
+
+    .card-text.small {
+        margin-bottom: 0;
+    }
+
+    /* Quote / mission panel */
+    .quote-panel {
+        background-color: rgba(255,255,255,0.18); /* translucent white */
+    }
+
+    /* Make the quote text and footer purple so it's readable on translucent white */
+    .quote-text {
+        color: var(--dark-purple);
+    }
+
+    .quote-footer {
+        color: var(--dark-purple);
+    }
+
+    /* Reduce spacing around big sections */
+    .container.py-4, .container.py-3 {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    /* Utility: neutralize stray bootstrap blue/yellow backgrounds on this page */
+    :where(.bg-primary, .bg-warning) {
+        background-color: transparent !important;
+        color: inherit !important;
+    }
+
+    /* Accessibility: ensure sufficient contrast for small text */
+    .card-text.small, .card-title.small {
+        color: #495057; /* muted but readable */
+    }
+
+    /* Responsive tweak: slightly reduce feature-card min height on small screens */
+    <style >
+    @@media (max-width: 575.98px) {
+        .feature-card
+
+    {
+        min-height: 120px;
+    }
+
+    .avatar-md {
+        width: 40px;
+        height: 40px;
+    }
+
+    }
+</style>
+
+</style>

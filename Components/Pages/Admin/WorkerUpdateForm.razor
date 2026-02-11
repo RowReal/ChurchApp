@@ -1,0 +1,1065 @@
+﻿@page "/admin/worker-update-form/{WorkerId:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@using System.ComponentModel.DataAnnotations
+@inject WorkerService WorkerService
+@inject RoleService RoleService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IWebHostEnvironment Environment
+
+<PageTitle>Update Worker</PageTitle>
+
+@if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+{
+    @if (worker != null)
+    {
+        <EditForm Model="@workerModel" OnValidSubmit="@UpdateWorker" id="updateForm">
+            <DataAnnotationsValidator />
+
+            <div class="container-fluid py-3">
+                <!-- Header -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h4 class="mb-1">Update Worker</h4>
+                        <p class="text-muted mb-0">@worker?.FirstName @worker?.LastName (@worker?.WorkerId)</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" type="button" @onclick="NavigateBack">
+                            <i class="fas fa-arrow-left me-1"></i>Back
+                        </button>
+                        <button class="btn btn-success btn-sm" type="submit" disabled="@isUpdating">
+                            @if (isUpdating)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-save me-1"></i>
+                                <span>Save Changes</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success alert-dismissible fade show mb-3">
+                        <i class="fas fa-check-circle me-2"></i>@successMessage
+                        <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible fade show mb-3">
+                        <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
+                        <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                    </div>
+                }
+
+                <!-- Quick Info Card -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body p-3">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
+                                {
+                                    <img src="/uploads/@worker.PassportPhotoPath"
+                                         alt="Photo"
+                                         class="rounded-circle"
+                                         style="width: 60px; height: 60px; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center"
+                                         style="width: 60px; height: 60px;">
+                                        <i class="fas fa-user text-muted"></i>
+                                    </div>
+                                }
+                            </div>
+                            <div class="col">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <small class="text-muted">Sex</small>
+                                        <div class="fw-semibold">@(worker.Sex ?? "-")</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted">Directorate</small>
+                                        <div class="fw-semibold">@(worker.Directorate?.Name ?? "-")</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted">Department</small>
+                                        <div class="fw-semibold">@(worker.Department?.Name ?? "-")</div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted">Current Role</small>
+                                        <div class="fw-semibold">@worker.Role</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body">
+                                <!-- Personal Info -->
+                                <h6 class="mb-3 text-primary border-bottom pb-2">
+                                    <i class="fas fa-user me-2"></i>Personal Information
+                                </h6>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold">First Name *</label>
+                                        <InputText @bind-Value="workerModel.FirstName" class="form-control form-control-sm" />
+                                        <ValidationMessage For="@(() => workerModel.FirstName)" class="text-danger small" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold">Middle Name</label>
+                                        <InputText @bind-Value="workerModel.MiddleName" class="form-control form-control-sm" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold">Last Name *</label>
+                                        <InputText @bind-Value="workerModel.LastName" class="form-control form-control-sm" />
+                                        <ValidationMessage For="@(() => workerModel.LastName)" class="text-danger small" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold">Sex</label>
+                                        <select @bind="workerModel.Sex" class="form-select form-select-sm">
+                                            <option value="">Select</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                        <ValidationMessage For="@(() => workerModel.Sex)" class="text-danger small" />
+                                    </div>
+                                </div>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold">Date of Birth</label>
+                                        <InputDate @bind-Value="workerModel.DateOfBirth" class="form-control form-control-sm" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold">Marital Status</label>
+                                        <select @bind="workerModel.MaritalStatus" class="form-select form-select-sm">
+                                            <option value="Single">Single</option>
+                                            <option value="Married">Married</option>
+                                            <option value="Divorced">Divorced</option>
+                                            <option value="Widowed">Widowed</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold">Wedding Anniversary</label>
+                                        <InputDate @bind-Value="workerModel.WeddingAnniversary" class="form-control form-control-sm" />
+                                    </div>
+                                </div>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Email</label>
+                                        <InputText @bind-Value="workerModel.Email" class="form-control form-control-sm" />
+                                        <ValidationMessage For="@(() => workerModel.Email)" class="text-danger small" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Phone</label>
+                                        <InputText @bind-Value="workerModel.Phone" class="form-control form-control-sm" />
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Address</label>
+                                    <textarea @bind="workerModel.Address" class="form-control form-control-sm" rows="2"></textarea>
+                                </div>
+
+                                <!-- Church Info -->
+                                <h6 class="mb-3 text-primary border-bottom pb-2 mt-4">
+                                    <i class="fas fa-church me-2"></i>Church Information
+                                </h6>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold">Directorate</label>
+                                        <select @bind="workerModel.DirectorateId" @bind:after="OnDirectorateChanged"
+                                                class="form-select form-select-sm">
+                                            <option value="">Select</option>
+                                            @foreach (var directorate in directorates)
+                                            {
+                                                <option value="@directorate.Id">@directorate.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold">Department</label>
+                                        <select @bind="workerModel.DepartmentId" @bind:after="OnDepartmentChanged"
+                                                class="form-select form-select-sm" disabled="@(filteredDepartments.Count == 0)">
+                                            <option value="">Select</option>
+                                            @foreach (var department in filteredDepartments)
+                                            {
+                                                <option value="@department.Id">@department.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold">Unit</label>
+                                        <select @bind="workerModel.UnitId" class="form-select form-select-sm"
+                                                disabled="@(filteredUnits.Count == 0)">
+                                            <option value="">Select</option>
+                                            @foreach (var unit in filteredUnits)
+                                            {
+                                                <option value="@unit.Id">@unit.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Role *</label>
+                                        <select @bind="workerModel.Role" class="form-select form-select-sm">
+                                            <option value="">Select Role</option>
+                                            @foreach (var role in rolesFromDb)
+                                            {
+                                                <option value="@role.Name">@role.Name</option>
+                                            }
+                                        </select>
+                                        <ValidationMessage For="@(() => workerModel.Role)" class="text-danger small" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Supervisor</label>
+                                        <select @bind="workerModel.SupervisorId" class="form-select form-select-sm">
+                                            <option value="">Select</option>
+                                            @foreach (var w in workers.Where(w => w.Id != WorkerId))
+                                            {
+                                                <option value="@w.Id">@w.FirstName @w.LastName</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Date Joined Church</label>
+                                        <InputDate @bind-Value="workerModel.DateJoinedChurch" class="form-control form-control-sm" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Worker Status</label>
+                                        <select @bind="workerModel.WorkerStatus" class="form-select form-select-sm">
+                                            <option value="Temp Worker">Temp Worker</option>
+                                            <option value="Full Worker">Full Worker</option>
+                                            <option value="On Leave">On Leave</option>
+                                            <option value="Inactive">Inactive</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Professional Info -->
+                                <h6 class="mb-3 text-primary border-bottom pb-2 mt-4">
+                                    <i class="fas fa-briefcase me-2"></i>Professional Information
+                                </h6>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Profession</label>
+                                        <InputText @bind-Value="workerModel.Profession" class="form-control form-control-sm" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Organization</label>
+                                        <InputText @bind-Value="workerModel.Organization" class="form-control form-control-sm" />
+                                    </div>
+                                </div>
+
+                                <!-- Previous Church Information -->
+                                <h6 class="mb-3 text-primary border-bottom pb-2 mt-4">
+                                    <i class="fas fa-history me-2"></i>Previous Church Information
+                                </h6>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Previous Church</label>
+                                        <InputText @bind-Value="workerModel.PreviousChurch" class="form-control form-control-sm" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Previous Role</label>
+                                        <InputText @bind-Value="workerModel.PreviousChurchRole" class="form-control form-control-sm" />
+                                    </div>
+                                </div>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-12">
+                                        <label class="form-label small fw-semibold">Previous Unit/Department</label>
+                                        <InputText @bind-Value="workerModel.PreviousChurchUnit" class="form-control form-control-sm" />
+                                    </div>
+                                </div>
+
+                                <!-- Ordination Info -->
+                                <h6 class="mb-3 text-primary border-bottom pb-2 mt-4">
+                                    <i class="fas fa-hands-praying me-2"></i>Ordination Information
+                                </h6>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Ordination Level</label>
+                                        <select @bind="workerModel.OrdinationLevel" class="form-select form-select-sm">
+                                            <option value="Not Ordained">Not Ordained</option>
+                                            <option value="Deacon">Deacon</option>
+                                            <option value="Deaconess">Deaconess</option>
+                                            <option value="Asst Pastor">Asst Pastor</option>
+                                            <option value="Pastor">Pastor</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold">Last Ordination Date</label>
+                                        <InputDate @bind-Value="workerModel.LastOrdinationDate" class="form-control form-control-sm" />
+                                    </div>
+                                </div>
+
+                                <!-- Qualifications -->
+                                <h6 class="mb-3 text-primary border-bottom pb-2 mt-4">
+                                    <i class="fas fa-certificate me-2"></i>Qualifications
+                                </h6>
+
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <div class="row g-3">
+                                            <!-- Believer's Baptism -->
+                                            <div class="col-md-6">
+                                                <div class="card border">
+                                                    <div class="card-body p-3">
+                                                        <div class="form-check mb-2">
+                                                            <input class="form-check-input" type="checkbox" @bind="workerModel.HasBelieverBaptism" />
+                                                            <label class="form-check-label small fw-semibold">Believer's Baptism</label>
+                                                        </div>
+                                                        <div class="d-flex gap-2 align-items-center">
+                                                            <InputFile id="believerBaptismCert"
+                                                                       OnChange="@(async (e) => await OnCertificateChanged(e, "believerBaptism"))"
+                                                                       class="form-control form-control-sm"
+                                                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                                       disabled="@(!workerModel.HasBelieverBaptism)" />
+                                                            @if (!string.IsNullOrEmpty(believerBaptismPath))
+                                                            {
+                                                                <a href="/uploads/@believerBaptismPath" target="_blank" class="btn btn-sm btn-outline-success">
+                                                                    <i class="fas fa-download"></i>
+                                                                </a>
+                                                            }
+                                                        </div>
+                                                        <small class="text-muted">Upload certificate (PDF, Image, Word)</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Worker in Training -->
+                                            <div class="col-md-6">
+                                                <div class="card border">
+                                                    <div class="card-body p-3">
+                                                        <div class="form-check mb-2">
+                                                            <input class="form-check-input" type="checkbox" @bind="workerModel.HasWorkerInTraining" />
+                                                            <label class="form-check-label small fw-semibold">Worker in Training</label>
+                                                        </div>
+                                                        <div class="d-flex gap-2 align-items-center">
+                                                            <InputFile id="workerInTrainingCert"
+                                                                       OnChange="@(async (e) => await OnCertificateChanged(e, "workerInTraining"))"
+                                                                       class="form-control form-control-sm"
+                                                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                                       disabled="@(!workerModel.HasWorkerInTraining)" />
+                                                            @if (!string.IsNullOrEmpty(workerInTrainingPath))
+                                                            {
+                                                                <a href="/uploads/@workerInTrainingPath" target="_blank" class="btn btn-sm btn-outline-success">
+                                                                    <i class="fas fa-download"></i>
+                                                                </a>
+                                                            }
+                                                        </div>
+                                                        <small class="text-muted">Upload certificate (PDF, Image, Word)</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- SOD -->
+                                            <div class="col-md-6">
+                                                <div class="card border">
+                                                    <div class="card-body p-3">
+                                                        <div class="form-check mb-2">
+                                                            <input class="form-check-input" type="checkbox" @bind="workerModel.HasSOD" />
+                                                            <label class="form-check-label small fw-semibold">School of Discipleship</label>
+                                                        </div>
+                                                        <div class="d-flex gap-2 align-items-center">
+                                                            <InputFile id="sodCert"
+                                                                       OnChange="@(async (e) => await OnCertificateChanged(e, "sod"))"
+                                                                       class="form-control form-control-sm"
+                                                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                                       disabled="@(!workerModel.HasSOD)" />
+                                                            @if (!string.IsNullOrEmpty(sodPath))
+                                                            {
+                                                                <a href="/uploads/@sodPath" target="_blank" class="btn btn-sm btn-outline-success">
+                                                                    <i class="fas fa-download"></i>
+                                                                </a>
+                                                            }
+                                                        </div>
+                                                        <small class="text-muted">Upload certificate (PDF, Image, Word)</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Bible College -->
+                                            <div class="col-md-6">
+                                                <div class="card border">
+                                                    <div class="card-body p-3">
+                                                        <div class="form-check mb-2">
+                                                            <input class="form-check-input" type="checkbox" @bind="workerModel.HasBibleCollege" />
+                                                            <label class="form-check-label small fw-semibold">Bible College</label>
+                                                        </div>
+                                                        <div class="d-flex gap-2 align-items-center">
+                                                            <InputFile id="bibleCollegeCert"
+                                                                       OnChange="@(async (e) => await OnCertificateChanged(e, "bibleCollege"))"
+                                                                       class="form-control form-control-sm"
+                                                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                                       disabled="@(!workerModel.HasBibleCollege)" />
+                                                            @if (!string.IsNullOrEmpty(bibleCollegePath))
+                                                            {
+                                                                <a href="/uploads/@bibleCollegePath" target="_blank" class="btn btn-sm btn-outline-success">
+                                                                    <i class="fas fa-download"></i>
+                                                                </a>
+                                                            }
+                                                        </div>
+                                                        <small class="text-muted">Upload certificate (PDF, Image, Word)</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Action Buttons -->
+                        <!-- Bottom Action Buttons -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <!-- Duplicate Messages for Bottom Section -->
+                                        @if (!string.IsNullOrEmpty(successMessage))
+                                        {
+                                            <div class="alert alert-success alert-dismissible fade show mb-3">
+                                                <i class="fas fa-check-circle me-2"></i>@successMessage
+                                                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+                                            </div>
+                                        }
+
+                                        @if (!string.IsNullOrEmpty(errorMessage))
+                                        {
+                                            <div class="alert alert-danger alert-dismissible fade show mb-3">
+                                                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
+                                                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                                            </div>
+                                        }
+
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <button class="btn btn-outline-secondary" type="button" @onclick="NavigateBack">
+                                                <i class="fas fa-arrow-left me-1"></i>Back
+                                            </button>
+
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-success" type="submit" form="updateForm" disabled="@isUpdating">
+                                                    @if (isUpdating)
+                                                    {
+                                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                                        <span>Saving Changes...</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="fas fa-save me-1"></i>
+                                                        <span>Save Changes</span>
+                                                    }
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="col-lg-4">
+                        <!-- Photo Upload -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-body">
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-camera me-2"></i>Passport Photo
+                                </h6>
+                                <div class="text-center mb-3">
+                                    @if (!string.IsNullOrEmpty(workerModel.PassportPhotoPath))
+                                    {
+                                        <img src="/uploads/@workerModel.PassportPhotoPath"
+                                             alt="Photo"
+                                             class="img-thumbnail mb-2"
+                                             style="max-width: 150px;" />
+                                    }
+                                    else
+                                    {
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center mb-2"
+                                             style="width: 150px; height: 150px; margin: 0 auto;">
+                                            <i class="fas fa-user text-muted fa-3x"></i>
+                                        </div>
+                                    }
+                                </div>
+                                <div class="d-grid">
+                                    <InputFile id="passportPhoto" OnChange="@OnPassportPhotoChanged"
+                                               class="form-control form-control-sm"
+                                               accept=".jpg,.jpeg,.png,.gif" />
+                                    <small class="text-muted mt-1">Max 2MB, JPG/PNG/GIF</small>
+                                </div>
+                                @if (isUploading)
+                                {
+                                    <div class="text-center mt-2">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                        <small class="text-muted ms-2">Uploading...</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-body">
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-chart-line me-2"></i>Status
+                                </h6>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Active</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" @bind="workerModel.IsActive" role="switch" />
+                                        <label class="form-check-label small">Worker is active</label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-semibold">Compliance Percentage</label>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar bg-success" role="progressbar"
+                                             style="width: @workerModel.CompliancePercentage%;"
+                                             aria-valuenow="@workerModel.CompliancePercentage"
+                                             aria-valuemin="0"
+                                             aria-valuemax="100">
+                                            @workerModel.CompliancePercentage%
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                                </h6>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-sm btn-outline-primary" type="button" @onclick="NavigateToDetails">
+                                        <i class="fas fa-eye me-1"></i>View Details
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning" type="button" @onclick="NavigateToResetPassword">
+                                        <i class="fas fa-key me-1"></i>Reset Password
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" type="button" @onclick="NavigateToDeactivate" disabled="@(!workerModel.IsActive)">
+                                        <i class="fas fa-user-slash me-1"></i>Deactivate Worker
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+            <p class="text-muted">Worker not found</p>
+            <a href="/admin/workers" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-arrow-left me-1"></i>Back to List
+            </a>
+        </div>
+    }
+}
+else if (AuthService.IsAuthenticated && !AuthService.CanAccessAdminPanel())
+{
+    <div class="container py-5">
+        <div class="text-center">
+            <i class="fas fa-lock fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Access Denied</h5>
+            <p class="text-muted small mb-3">You don't have permission to access this page</p>
+            <a href="/" class="btn btn-sm btn-primary">Return to Dashboard</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container py-5">
+        <div class="text-center">
+            <i class="fas fa-sign-in-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Please Login</h5>
+            <a href="/login" class="btn btn-sm btn-primary">Go to Login</a>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int WorkerId { get; set; }
+
+    private Worker? worker = null;
+    private WorkerUpdateModel workerModel = new();
+    private List<Directorate> directorates = new();
+    private List<Department> departments = new();
+    private List<Department> filteredDepartments = new();
+    private List<Unit> units = new();
+    private List<Unit> filteredUnits = new();
+    private List<Worker> workers = new();
+    private List<Role> rolesFromDb = new();
+    private bool isUpdating = false;
+    private bool isUploading = false;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    // Certificate paths
+    private string believerBaptismPath = string.Empty;
+    private string workerInTrainingPath = string.Empty;
+    private string sodPath = string.Empty;
+    private string bibleCollegePath = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+        {
+            await LoadData();
+            if (WorkerId > 0)
+            {
+                await LoadWorkerData(WorkerId);
+            }
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            workers = await WorkerService.GetAllWorkersAsync();
+            directorates = await WorkerService.GetDirectoratesAsync();
+            departments = await WorkerService.GetDepartmentsAsync();
+            units = await WorkerService.GetUnitsAsync();
+            rolesFromDb = await RoleService.GetRolesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading data: {ex.Message}";
+        }
+    }
+
+    private async Task LoadWorkerData(int workerId)
+    {
+        try
+        {
+            worker = await WorkerService.GetWorkerByIdAsync(workerId);
+            if (worker != null)
+            {
+                workerModel = new WorkerUpdateModel
+                {
+                    FirstName = worker.FirstName,
+                    MiddleName = worker.MiddleName,
+                    LastName = worker.LastName,
+                    Sex = worker.Sex,
+                    Email = worker.Email,
+                    Phone = worker.Phone,
+                    DateOfBirth = worker.DateOfBirth,
+                    MaritalStatus = worker.MaritalStatus,
+                    WeddingAnniversary = worker.WeddingAnniversary,
+                    Address = worker.Address,
+                    Profession = worker.Profession,
+                    Organization = worker.Organization,
+                    PreviousChurch = worker.PreviousChurch ?? string.Empty,
+                    PreviousChurchRole = worker.PreviousChurchRole ?? string.Empty,
+                    PreviousChurchUnit = worker.PreviousChurchUnit ?? string.Empty,
+                    DirectorateId = worker.DirectorateId,
+                    DepartmentId = worker.DepartmentId,
+                    UnitId = worker.UnitId,
+                    Role = worker.Role,
+                    SupervisorId = worker.SupervisorId,
+                    DateJoinedChurch = worker.DateJoinedChurch,
+                    WorkerStatus = worker.WorkerStatus,
+                    OrdinationLevel = worker.OrdinationLevel ?? "Not Ordained",
+                    LastOrdinationDate = worker.LastOrdinationDate,
+                    HasBelieverBaptism = worker.HasBelieverBaptism,
+                    HasWorkerInTraining = worker.HasWorkerInTraining,
+                    HasSOD = worker.HasSOD,
+                    HasBibleCollege = worker.HasBibleCollege,
+                    PassportPhotoPath = worker.PassportPhotoPath,
+                    BelieverBaptismCertificatePath = worker.BelieverBaptismCertificatePath ?? string.Empty,
+                    WorkerInTrainingCertificatePath = worker.WorkerInTrainingCertificatePath ?? string.Empty,
+                    SODCertificatePath = worker.SODCertificatePath ?? string.Empty,
+                    BibleCollegeCertificatePath = worker.BibleCollegeCertificatePath ?? string.Empty,
+                    IsActive = worker.IsActive,
+                    CompliancePercentage = worker.CompliancePercentage
+                };
+
+                // Load certificate paths
+                believerBaptismPath = worker.BelieverBaptismCertificatePath ?? string.Empty;
+                workerInTrainingPath = worker.WorkerInTrainingCertificatePath ?? string.Empty;
+                sodPath = worker.SODCertificatePath ?? string.Empty;
+                bibleCollegePath = worker.BibleCollegeCertificatePath ?? string.Empty;
+
+                await FilterDepartments();
+                await FilterUnits();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading worker data: {ex.Message}";
+        }
+    }
+
+    private async Task OnDirectorateChanged()
+    {
+        await FilterDepartments();
+        workerModel.DepartmentId = null;
+        workerModel.UnitId = null;
+        await FilterUnits();
+    }
+
+    private async Task OnDepartmentChanged()
+    {
+        await FilterUnits();
+        workerModel.UnitId = null;
+    }
+
+    private async Task FilterDepartments()
+    {
+        if (workerModel.DirectorateId.HasValue)
+        {
+            filteredDepartments = departments
+                .Where(d => d.DirectorateId == workerModel.DirectorateId.Value && d.IsActive)
+                .ToList();
+        }
+        else
+        {
+            filteredDepartments = new List<Department>();
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task FilterUnits()
+    {
+        if (workerModel.DepartmentId.HasValue)
+        {
+            filteredUnits = units
+                .Where(u => u.DepartmentId == workerModel.DepartmentId.Value && u.IsActive)
+                .ToList();
+        }
+        else
+        {
+            filteredUnits = new List<Unit>();
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task UpdateWorker()
+    {
+        if (worker == null) return;
+
+        isUpdating = true;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+
+        try
+        {
+            worker.FirstName = workerModel.FirstName;
+            worker.MiddleName = workerModel.MiddleName;
+            worker.LastName = workerModel.LastName;
+            worker.Sex = workerModel.Sex;
+            worker.Email = workerModel.Email;
+            worker.Phone = workerModel.Phone;
+            worker.DateOfBirth = workerModel.DateOfBirth;
+            worker.MaritalStatus = workerModel.MaritalStatus;
+            worker.WeddingAnniversary = workerModel.WeddingAnniversary;
+            worker.Address = workerModel.Address;
+            worker.Profession = workerModel.Profession;
+            worker.Organization = workerModel.Organization;
+            worker.PreviousChurch = workerModel.PreviousChurch;
+            worker.PreviousChurchRole = workerModel.PreviousChurchRole;
+            worker.PreviousChurchUnit = workerModel.PreviousChurchUnit;
+            worker.DirectorateId = workerModel.DirectorateId;
+            worker.DepartmentId = workerModel.DepartmentId;
+            worker.UnitId = workerModel.UnitId;
+            worker.Role = workerModel.Role;
+            worker.SupervisorId = workerModel.SupervisorId;
+            worker.DateJoinedChurch = workerModel.DateJoinedChurch;
+            worker.WorkerStatus = workerModel.WorkerStatus;
+            worker.OrdinationLevel = workerModel.OrdinationLevel;
+            worker.LastOrdinationDate = workerModel.LastOrdinationDate;
+            worker.HasBelieverBaptism = workerModel.HasBelieverBaptism;
+            worker.HasWorkerInTraining = workerModel.HasWorkerInTraining;
+            worker.HasSOD = workerModel.HasSOD;
+            worker.HasBibleCollege = workerModel.HasBibleCollege;
+            worker.PassportPhotoPath = workerModel.PassportPhotoPath;
+            worker.BelieverBaptismCertificatePath = believerBaptismPath;
+            worker.WorkerInTrainingCertificatePath = workerInTrainingPath;
+            worker.SODCertificatePath = sodPath;
+            worker.BibleCollegeCertificatePath = bibleCollegePath;
+            worker.IsActive = workerModel.IsActive;
+            worker.CompliancePercentage = workerModel.CompliancePercentage;
+            worker.LastUpdated = DateTime.UtcNow;
+
+            await WorkerService.UpdateWorkerAsync(worker);
+            successMessage = "Worker updated successfully";
+
+            // Refresh worker data
+            await LoadWorkerData(WorkerId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating worker: {ex.Message}";
+        }
+        finally
+        {
+            isUpdating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnPassportPhotoChanged(InputFileChangeEventArgs e)
+    {
+        isUploading = true;
+        StateHasChanged();
+
+        try
+        {
+            var file = e.File;
+            if (file != null && file.Size <= 2 * 1024 * 1024)
+            {
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+                var fileExtension = Path.GetExtension(file.Name).ToLower();
+
+                if (allowedExtensions.Contains(fileExtension))
+                {
+                    var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
+                    if (!Directory.Exists(uploadsDir))
+                        Directory.CreateDirectory(uploadsDir);
+
+                    var fileName = $"{worker.WorkerId}_passport_{Guid.NewGuid()}{fileExtension}";
+                    var filePath = Path.Combine(uploadsDir, fileName);
+
+                    using var stream = new FileStream(filePath, FileMode.Create);
+                    await file.OpenReadStream().CopyToAsync(stream);
+
+                    workerModel.PassportPhotoPath = fileName;
+                    successMessage = "Photo uploaded successfully";
+                }
+                else
+                {
+                    errorMessage = "Only JPG, PNG, and GIF files are allowed";
+                }
+            }
+            else
+            {
+                errorMessage = "File size must be less than 2MB";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error uploading photo: {ex.Message}";
+        }
+        finally
+        {
+            isUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnCertificateChanged(InputFileChangeEventArgs e, string certificateType)
+    {
+        if (worker == null) return;
+
+        try
+        {
+            var file = e.File;
+            if (file != null && file.Size <= 5 * 1024 * 1024) // 5MB limit
+            {
+                var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+                var fileExtension = Path.GetExtension(file.Name).ToLower();
+
+                if (allowedExtensions.Contains(fileExtension))
+                {
+                    var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
+                    if (!Directory.Exists(uploadsDir))
+                        Directory.CreateDirectory(uploadsDir);
+
+                    var fileName = $"{worker.WorkerId}_{certificateType}_{Guid.NewGuid()}{fileExtension}";
+                    var filePath = Path.Combine(uploadsDir, fileName);
+
+                    using var stream = new FileStream(filePath, FileMode.Create);
+                    await file.OpenReadStream().CopyToAsync(stream);
+
+                    // Update the appropriate certificate path
+                    switch (certificateType)
+                    {
+                        case "believerBaptism":
+                            believerBaptismPath = fileName;
+                            break;
+                        case "workerInTraining":
+                            workerInTrainingPath = fileName;
+                            break;
+                        case "sod":
+                            sodPath = fileName;
+                            break;
+                        case "bibleCollege":
+                            bibleCollegePath = fileName;
+                            break;
+                    }
+
+                    var displayName = certificateType switch
+                    {
+                        "believerBaptism" => "Believer's Baptism",
+                        "workerInTraining" => "Worker in Training",
+                        "sod" => "SOD",
+                        "bibleCollege" => "Bible College",
+                        _ => certificateType
+                    };
+
+                    successMessage = $"{displayName} certificate uploaded successfully";
+                }
+                else
+                {
+                    errorMessage = "Only PDF, JPG, PNG, and DOC files are allowed";
+                }
+            }
+            else
+            {
+                errorMessage = "File size must be less than 5MB";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error uploading certificate: {ex.Message}";
+        }
+
+        StateHasChanged();
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo($"/admin/worker-details/{WorkerId}");
+    }
+
+    private void NavigateToDetails()
+    {
+        Navigation.NavigateTo($"/admin/worker-details/{WorkerId}");
+    }
+
+    private void NavigateToResetPassword()
+    {
+        Navigation.NavigateTo($"/admin/reset-password/{WorkerId}");
+    }
+
+    private void NavigateToDeactivate()
+    {
+        Navigation.NavigateTo($"/admin/deactivate-worker/{WorkerId}");
+    }
+
+    public class WorkerUpdateModel
+    {
+        [Required(ErrorMessage = "First name is required")]
+        [MaxLength(50, ErrorMessage = "First name cannot exceed 50 characters")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [MaxLength(50, ErrorMessage = "Middle name cannot exceed 50 characters")]
+        public string MiddleName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required")]
+        [MaxLength(50, ErrorMessage = "Last name cannot exceed 50 characters")]
+        public string LastName { get; set; } = string.Empty;
+
+        [MaxLength(10, ErrorMessage = "Sex cannot exceed 10 characters")]
+        [RegularExpression("^(Male|Female|Other)$", ErrorMessage = "Sex must be Male, Female, or Other")]
+        public string Sex { get; set; } = string.Empty;
+
+        [EmailAddress(ErrorMessage = "Invalid email address")]
+        [MaxLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
+        public string Email { get; set; } = string.Empty;
+
+        [MaxLength(20, ErrorMessage = "Phone cannot exceed 20 characters")]
+        public string Phone { get; set; } = string.Empty;
+
+        public DateTime? DateOfBirth { get; set; }
+
+        [MaxLength(20, ErrorMessage = "Marital status cannot exceed 20 characters")]
+        public string MaritalStatus { get; set; } = "Single";
+
+        public DateTime? WeddingAnniversary { get; set; }
+
+        [MaxLength(500, ErrorMessage = "Address cannot exceed 500 characters")]
+        public string Address { get; set; } = string.Empty;
+
+        [MaxLength(100, ErrorMessage = "Profession cannot exceed 100 characters")]
+        public string Profession { get; set; } = string.Empty;
+
+        [MaxLength(100, ErrorMessage = "Organization cannot exceed 100 characters")]
+        public string Organization { get; set; } = string.Empty;
+
+        [MaxLength(200, ErrorMessage = "Previous church cannot exceed 200 characters")]
+        public string PreviousChurch { get; set; } = string.Empty;
+
+        [MaxLength(100, ErrorMessage = "Previous church role cannot exceed 100 characters")]
+        public string PreviousChurchRole { get; set; } = string.Empty;
+
+        [MaxLength(100, ErrorMessage = "Previous church unit cannot exceed 100 characters")]
+        public string PreviousChurchUnit { get; set; } = string.Empty;
+
+        public int? DirectorateId { get; set; }
+        public int? DepartmentId { get; set; }
+        public int? UnitId { get; set; }
+
+        [Required(ErrorMessage = "Role is required")]
+        [MaxLength(50, ErrorMessage = "Role cannot exceed 50 characters")]
+        public string Role { get; set; } = string.Empty;
+
+        public int? SupervisorId { get; set; }
+        public DateTime? DateJoinedChurch { get; set; }
+
+        [MaxLength(20, ErrorMessage = "Worker status cannot exceed 20 characters")]
+        public string WorkerStatus { get; set; } = "Temp Worker";
+
+        [MaxLength(50, ErrorMessage = "Ordination level cannot exceed 50 characters")]
+        public string OrdinationLevel { get; set; } = "Not Ordained";
+
+        public DateTime? LastOrdinationDate { get; set; }
+        public bool HasBelieverBaptism { get; set; }
+        public bool HasWorkerInTraining { get; set; }
+        public bool HasSOD { get; set; }
+        public bool HasBibleCollege { get; set; }
+
+        [MaxLength(500, ErrorMessage = "Photo path cannot exceed 500 characters")]
+        public string PassportPhotoPath { get; set; } = string.Empty;
+
+        [MaxLength(500, ErrorMessage = "Certificate path cannot exceed 500 characters")]
+        public string BelieverBaptismCertificatePath { get; set; } = string.Empty;
+
+        [MaxLength(500, ErrorMessage = "Certificate path cannot exceed 500 characters")]
+        public string WorkerInTrainingCertificatePath { get; set; } = string.Empty;
+
+        [MaxLength(500, ErrorMessage = "Certificate path cannot exceed 500 characters")]
+        public string SODCertificatePath { get; set; } = string.Empty;
+
+        [MaxLength(500, ErrorMessage = "Certificate path cannot exceed 500 characters")]
+        public string BibleCollegeCertificatePath { get; set; } = string.Empty;
+
+        public bool IsActive { get; set; } = true;
+        public int CompliancePercentage { get; set; }
+    }
+}

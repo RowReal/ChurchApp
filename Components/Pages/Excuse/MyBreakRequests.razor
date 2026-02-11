@@ -1,0 +1,540 @@
+﻿@page "/excuse/mybreak-requests"
+
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ExcuseService ExcuseService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>BCC ServiceHub - My Break Requests</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="h3 mb-1">My Break Requests</h2>
+                    <p class="text-muted mb-0">View and track your break requests</p>
+                </div>
+                <a href="/excuse/break-request" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>New Break Request
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>@errorMessage
+        </div>
+    }
+
+    @if (breakRequests == null)
+    {
+        <!-- Loading State -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading your break requests...</p>
+            </div>
+        </div>
+    }
+    else if (breakRequests.Any())
+    {
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card card-hover border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary p-3 rounded">
+                                    <i class="fas fa-clock fa-2x text-white"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0 fw-bold text-primary">@breakRequests.Count(r => r.RequestStatus == "Pending")</h3>
+                                <p class="text-muted mb-0">Pending</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card card-hover border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-success p-3 rounded">
+                                    <i class="fas fa-check-circle fa-2x text-white"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0 fw-bold text-success">@breakRequests.Count(r => r.RequestStatus == "Approved")</h3>
+                                <p class="text-muted mb-0">Approved</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card card-hover border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-danger p-3 rounded">
+                                    <i class="fas fa-times-circle fa-2x text-white"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0 fw-bold text-danger">@breakRequests.Count(r => r.RequestStatus == "Rejected")</h3>
+                                <p class="text-muted mb-0">Rejected</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card card-hover border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-warning p-3 rounded">
+                                    <i class="fas fa-edit fa-2x text-white"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0 fw-bold text-warning">@breakRequests.Count(r => r.RequestStatus == "ResubmissionRequested")</h3>
+                                <p class="text-muted mb-0">Needs Resubmission</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Requests Table -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 py-3">
+                <h5 class="mb-0 fw-semibold">
+                    <i class="fas fa-umbrella-beach me-2 text-info"></i>
+                    All Break Requests (@breakRequests.Count)
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Break Period</th>
+                                <th>Duration</th>
+                                <th>Relieve Officer</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in breakRequests.OrderByDescending(r => r.SubmittedDate))
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">
+                                            @request.StartDate.ToString("MMM dd, yyyy") - @request.EndDate.ToString("MMM dd, yyyy")
+                                        </div>
+                                        <small class="text-muted">@GetBreakDuration(request) days</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">@GetBreakDuration(request) days</div>
+                                    </td>
+                                    <td>
+                                        @if (request.RelieveOfficer != null)
+                                        {
+                                            <div>@request.RelieveOfficer.FirstName @request.RelieveOfficer.LastName</div>
+                                            <small class="text-muted">@request.RelieveOfficer.WorkerId</small>
+                                        }
+                                        else
+                                        {
+                                            <div class="text-muted">Not assigned</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetStatusBadgeClass(request.RequestStatus)">
+                                            @GetStatusDisplay(request.RequestStatus)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div>@request.SubmittedDate.ToString("MMM dd, yyyy")</div>
+                                        <small class="text-muted">@request.SubmittedDate.ToString("hh:mm tt")</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" @onclick="() => ViewRequestDetails(request)" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            @if (request.RequestStatus == "ResubmissionRequested")
+                                            {
+                                                <button class="btn btn-outline-warning" @onclick="() => ResubmitRequest(request)" title="Resubmit">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            }
+                                            @if (request.RequestStatus == "Pending")
+                                            {
+                                                <button class="btn btn-outline-danger" @onclick="() => ShowCancelConfirmation(request)" title="Cancel">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Empty State -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-umbrella-beach fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Break Requests</h5>
+                <p class="text-muted mb-3">You haven't submitted any break requests yet.</p>
+                <a href="/excuse/break-request" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Submit Your First Break Request
+                </a>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Request Details Modal -->
+@if (showDetailsModal && selectedRequest != null)
+{
+    <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Break Request Details</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetailsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">Break Information</h6>
+                            <dl class="row">
+                                <dt class="col-sm-4">Period:</dt>
+                                <dd class="col-sm-8 fw-semibold">@selectedRequest.StartDate.ToString("MMM dd, yyyy") - @selectedRequest.EndDate.ToString("MMM dd, yyyy")</dd>
+
+                                <dt class="col-sm-4">Duration:</dt>
+                                <dd class="col-sm-8">@GetBreakDuration(selectedRequest) days</dd>
+
+                                <dt class="col-sm-4">Submitted:</dt>
+                                <dd class="col-sm-8">@selectedRequest.SubmittedDate.ToString("MMM dd, yyyy 'at' hh:mm tt")</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">Approval Information</h6>
+                            <dl class="row">
+                                <dt class="col-sm-4">Status:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge @GetStatusBadgeClass(selectedRequest.RequestStatus)">
+                                        @GetStatusDisplay(selectedRequest.RequestStatus)
+                                    </span>
+                                </dd>
+
+                                <dt class="col-sm-4">Relieve Officer:</dt>
+                                <dd class="col-sm-8">
+                                    @if (selectedRequest.RelieveOfficer != null)
+                                    {
+                                        @selectedRequest.RelieveOfficer.FirstName @selectedRequest.RelieveOfficer.LastName
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not assigned</span>
+                                    }
+                                </dd>
+
+                                <dt class="col-sm-4">Supervisor:</dt>
+                                <dd class="col-sm-8">
+                                    @if (selectedRequest.Supervisor != null)
+                                    {
+                                        @selectedRequest.Supervisor.FirstName @selectedRequest.Supervisor.LastName
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not assigned</span>
+                                    }
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-primary mb-3">Purpose of Break</h6>
+                            <div class="border rounded p-3 bg-light">
+                                @selectedRequest.Purpose
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(selectedRequest.PendingAssignments))
+                    {
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3">Pending Assignments</h6>
+                                <div class="border rounded p-3 bg-light">
+                                    @selectedRequest.PendingAssignments
+                                    @if (!string.IsNullOrEmpty(selectedRequest.AssignmentHandler))
+                                    {
+                                        <div class="mt-2">
+                                            <strong>Handler:</strong> @selectedRequest.AssignmentHandler
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetailsModal">Close</button>
+                    @if (selectedRequest.RequestStatus == "ResubmissionRequested")
+                    {
+                        <button type="button" class="btn btn-warning" @onclick="ResubmitSelectedRequest">
+                            <i class="fas fa-edit me-2"></i>Resubmit Request
+                        </button>
+                    }
+                    @if (selectedRequest.RequestStatus == "Pending")
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="() => ShowCancelConfirmation(selectedRequest)">
+                            <i class="fas fa-times me-2"></i>Cancel Request
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Cancel Confirmation Modal -->
+@if (showCancelModal && requestToCancel != null)
+{
+    <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title text-white">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Cancel Request
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseCancelModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Are you sure you want to cancel this break request?</strong>
+                    </div>
+                    <div class="border rounded p-3 bg-light">
+                        <strong>Break Period:</strong> @requestToCancel.StartDate.ToString("MMM dd, yyyy") - @requestToCancel.EndDate.ToString("MMM dd, yyyy")<br>
+                        <strong>Duration:</strong> @GetBreakDuration(requestToCancel) days<br>
+                        <strong>Relieve Officer:</strong>
+                        @if (requestToCancel.RelieveOfficer != null)
+                        {
+                            @requestToCancel.RelieveOfficer.FirstName @requestToCancel.RelieveOfficer.LastName
+                        }
+                        else
+                        {
+                            <span class="text-muted">Not assigned</span>
+                        }
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label fw-semibold">Cancellation Reason (Optional)</label>
+                        <InputTextArea @bind-Value="cancellationReason" class="form-control"
+                                       placeholder="Why are you cancelling this request?"
+                                       rows="3" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCancelModal">Keep Request</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmCancelRequest" disabled="@isCancelling">
+                        @if (isCancelling)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <text>Cancelling...</text>
+                        }
+                        else
+                        {
+                            <i class="fas fa-times me-2"></i>
+                            <text>Yes, Cancel Request</text>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ChurchApp.Models.BreakRequest>? breakRequests;
+    private bool showDetailsModal = false;
+    private ChurchApp.Models.BreakRequest? selectedRequest = null;
+    private bool showCancelModal = false;
+    private ChurchApp.Models.BreakRequest? requestToCancel = null;
+    private string cancellationReason = string.Empty;
+    private bool isCancelling = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadMyBreakRequests();
+    }
+
+    private async Task LoadMyBreakRequests()
+    {
+        try
+        {
+            if (AuthService.CurrentWorker != null)
+            {
+                breakRequests = await ExcuseService.GetMyBreakRequestsAsync(AuthService.CurrentWorker.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading break requests: {ex.Message}";
+        }
+    }
+
+    private string GetBreakDuration(ChurchApp.Models.BreakRequest request)
+    {
+        var duration = (request.EndDate - request.StartDate).Days + 1;
+        return duration.ToString();
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Pending" => "bg-warning",
+            "Approved" => "bg-success",
+            "Rejected" => "bg-danger",
+            "ResubmissionRequested" => "bg-info",
+            "Cancelled" => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetStatusDisplay(string status)
+    {
+        return status switch
+        {
+            "Pending" => "Pending Approval",
+            "Approved" => "Approved",
+            "Rejected" => "Rejected",
+            "ResubmissionRequested" => "Needs Resubmission",
+            "Cancelled" => "Cancelled",
+            _ => status
+        };
+    }
+
+    private void ViewRequestDetails(ChurchApp.Models.BreakRequest request)
+    {
+        selectedRequest = request;
+        showDetailsModal = true;
+    }
+
+    private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        selectedRequest = null;
+    }
+
+    private void ResubmitRequest(ChurchApp.Models.BreakRequest request)
+    {
+        Navigation.NavigateTo($"/break/resubmit/{request.Id}");
+    }
+
+    private void ResubmitSelectedRequest()
+    {
+        if (selectedRequest != null)
+        {
+            ResubmitRequest(selectedRequest);
+        }
+    }
+
+    private void ShowCancelConfirmation(ChurchApp.Models.BreakRequest request)
+    {
+        requestToCancel = request;
+        cancellationReason = string.Empty;
+        showCancelModal = true;
+    }
+
+    private void CloseCancelModal()
+    {
+        showCancelModal = false;
+        requestToCancel = null;
+        cancellationReason = string.Empty;
+        isCancelling = false;
+    }
+
+    private async Task ConfirmCancelRequest()
+    {
+        if (requestToCancel == null) return;
+
+        isCancelling = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var success = await ExcuseService.CancelBreakRequestAsync(requestToCancel.Id, cancellationReason);
+
+            if (success)
+            {
+                CloseCancelModal();
+                await LoadMyBreakRequests();
+                StateHasChanged();
+            }
+            else
+            {
+                errorMessage = "Failed to cancel the request. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error cancelling request: {ex.Message}";
+        }
+
+        isCancelling = false;
+        StateHasChanged();
+    }
+}
+
+<style>
+    .card-hover {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+    }
+
+    .bg-warning { background-color: #ffc107 !important; }
+    .bg-success { background-color: #198754 !important; }
+    .bg-danger { background-color: #dc3545 !important; }
+    .bg-info { background-color: #0dcaf0 !important; }
+</style>

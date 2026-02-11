@@ -1,0 +1,48 @@
+﻿@* Components/NominationCheck.razor *@
+@using ChurchApp.Services
+@inject RecordNominationService RecordNominationService
+@inject AuthService AuthService
+
+@if (IsAuthorized)
+{
+    @ChildContent
+}
+else
+{
+    <div class="alert alert-warning mt-3">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        You are not nominated to record @RecordTypeDisplay for this service.
+        Please contact the Head of FIG Directorate.
+    </div>
+}
+
+@code {
+    [Parameter] public int ServiceId { get; set; }
+    [Parameter] public DateTime ServiceDate { get; set; }
+    [Parameter] public string RecordType { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool IsAuthorized { get; set; } = false;
+    private string RecordTypeDisplay => RecordType switch
+    {
+        "ChurchAttendance" => "attendance",
+        "Offering" => "offering",
+        "FirstTimer" => "first timers",
+        "SecondTimer" => "second timers",
+        "ServicesNote" => "service notes",
+        _ => "records"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.CurrentWorker != null)
+        {
+            IsAuthorized = await RecordNominationService.IsWorkerNominatedForRecord(
+                AuthService.CurrentWorker.WorkerId,
+                ServiceId,
+                ServiceDate,
+                RecordType
+            );
+        }
+    }
+}

@@ -1,0 +1,260 @@
+﻿@page "/Offering/viewnote/{id:int}"
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ServiceNoteService ServiceNoteService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<h3 class="mb-4">Service Note Details</h3>
+
+@if (loading)
+{
+    <div class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading service note...</p>
+    </div>
+}
+else if (serviceNote == null)
+{
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i> Service note not found.
+    </div>
+    <button class="btn btn-secondary" @onclick="GoBack">
+        <i class="fas fa-arrow-left me-2"></i> Back to List
+    </button>
+}
+else
+{
+    <!-- Header with Actions -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-church me-2"></i>
+                <strong>@(serviceNote.Service?.Name ?? "Service")</strong>
+                <span class="ms-3">@serviceNote.ServiceDate.ToString("dddd, dd MMMM yyyy")</span>
+            </div>
+            <div>
+                @if (CanEditNote())
+                {
+                    <button class="btn btn-sm btn-warning me-2" @onclick="EditNote">
+                        <i class="fas fa-edit me-1"></i> Edit
+                    </button>
+                }
+            <button class="btn btn-sm btn-light" @onclick="GoBack">
+                <i class="fas fa-arrow-left me-1"></i> Back
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Left Column - Service Details & Attendance -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <i class="fas fa-info-circle me-2"></i> Service Details
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted small mb-1">Service Flow</label>
+                    <div class="d-flex align-items-center">
+                        <span class="badge
+                                @(serviceNote.ServiceFlow == "Smooth" ? "bg-success" :
+                                                                serviceNote.ServiceFlow == "Delayed" ? "bg-warning" :
+                                                                serviceNote.ServiceFlow == "Extended" ? "bg-info" :
+                                                                serviceNote.ServiceFlow == "Rushed" ? "bg-danger" : "bg-secondary") me-2">
+                            @serviceNote.ServiceFlow
+                        </span>
+                        <span>@serviceNote.ServiceStartTime?.ToString(@"hh\:mm") - @serviceNote.ServiceEndTime?.ToString(@"hh\:mm")</span>
+                    </div>
+                </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Theme / Sermon</label>
+                        <p class="mb-0">@(string.IsNullOrEmpty(serviceNote.ThemeOrSermonTitle) ? "N/A" : serviceNote.ThemeOrSermonTitle)</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Minister / Speaker</label>
+                        <p class="mb-0">@(string.IsNullOrEmpty(serviceNote.MinisterOrGuestSpeaker) ? "N/A" : serviceNote.MinisterOrGuestSpeaker)</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Recorded By</label>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user-circle me-2 text-muted"></i>
+                            <div>
+                                <div>@(serviceNote.RecordedBy?.FullName ?? "Unknown")</div>
+                                <small class="text-muted">@serviceNote.RecordedDate.ToString("dd/MM/yyyy HH:mm")</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Pattern -->
+                    <div class="mt-4 pt-3 border-top">
+                        <label class="form-label text-muted small mb-1">Attendance Pattern</label>
+                        <p class="mb-0 small">@(string.IsNullOrEmpty(serviceNote.AttendancePattern) ? "Not recorded" : serviceNote.AttendancePattern)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Column - Observations & Notable Guests -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Observations
+                </div>
+                <div class="card-body">
+                @if (!string.IsNullOrEmpty(serviceNote.TechnicalIssues))
+                    {
+                        <div class="mb-3">
+                            <label class="form-label text-muted small mb-1">Technical Issues</label>
+                            <p class="mb-0 small">@serviceNote.TechnicalIssues</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-3">No technical issues</p>
+                    }
+
+                    @if (!string.IsNullOrEmpty(serviceNote.OrderOfServiceChanges))
+                    {
+                        <div class="mb-3">
+                            <label class="form-label text-muted small mb-1">Order Changes</label>
+                            <p class="mb-0 small">@serviceNote.OrderOfServiceChanges</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-3">No order changes</p>
+                    }
+
+                    @if (!string.IsNullOrEmpty(serviceNote.Disruptions))
+                    {
+                        <div class="mb-3">
+                            <label class="form-label text-muted small mb-1">Disruptions</label>
+                            <p class="mb-0 small">@serviceNote.Disruptions</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-3">No disruptions</p>
+                    }
+
+                    @if (!string.IsNullOrEmpty(serviceNote.SafetyConcerns))
+                    {
+                        <div class="mb-3">
+                            <label class="form-label text-muted small mb-1">Safety Concerns</label>
+                            <p class="mb-0 small">@serviceNote.SafetyConcerns</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-3">No safety concerns</p>
+                    }
+
+                    <!-- Notable Guests within Observations card -->
+                    <div class="mt-4 pt-3 border-top">
+                        <label class="form-label text-muted small mb-1">Notable Guests</label>
+                        <p class="mb-0 small">@(string.IsNullOrEmpty(serviceNote.NotableGuests) ? "No notable guests recorded" : serviceNote.NotableGuests)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - General Remarks, Special Participation & Additional Notes -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-comments me-2"></i> General Remarks
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(serviceNote.LeadershipAwareness))
+                    {
+                        <div class="mb-3">
+                            <label class="form-label text-muted small mb-1">Leadership Awareness</label>
+                            <p class="mb-0 small">@serviceNote.LeadershipAwareness</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-3">Nothing for leadership</p>
+                    }
+
+                    @if (!string.IsNullOrEmpty(serviceNote.FollowUpNeeded))
+                    {
+                        <div class="mb-3">
+                            <label class="form-label text-muted small mb-1">Follow-up Needed</label>
+                            <p class="mb-0 small">@serviceNote.FollowUpNeeded</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-3">No follow-up needed</p>
+                    }
+
+                    <!-- Special Participation within General Remarks card -->
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Special Participation</label>
+                        <p class="mb-0 small">@(string.IsNullOrEmpty(serviceNote.SpecialParticipation) ? "No special participation" : serviceNote.SpecialParticipation)</p>
+                    </div>
+
+                    <!-- Additional Notes in RED -->
+                    <div class="mt-4 pt-3 border-top">
+                        <label class="form-label text-muted small mb-1">Additional Notes</label>
+                        @if (!string.IsNullOrEmpty(serviceNote.AdditionalNotes))
+                        {
+                            <p class="mb-0 small text-danger">@serviceNote.AdditionalNotes</p>
+                        }
+                        else
+                        {
+                            <p class="mb-0 small text-muted">No additional notes</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private ServiceNote? serviceNote;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            serviceNote = await ServiceNoteService.GetServiceNoteByIdAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading service note: {ex.Message}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private bool CanEditNote()
+    {
+        if (AuthService.CurrentWorker == null || serviceNote == null)
+            return false;
+        return serviceNote.RecordedByWorkerId == AuthService.CurrentWorker.Id;
+    }
+
+    private void EditNote()
+    {
+        Navigation.NavigateTo($"/Offering/editnote/{Id}");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/Offering/NoteList");
+    }
+}

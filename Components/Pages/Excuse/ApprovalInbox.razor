@@ -1,0 +1,750 @@
+﻿@page "/excuse/approvals"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ExcuseService ExcuseService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>BCC ServiceHub - Approval Inbox</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="h3 mb-1">Approval Inbox</h2>
+                    <p class="text-muted mb-0">Review and approve requests from your team</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/excuse/my-requests" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-2"></i>My Requests
+                    </a>
+                    <a href="/" class="btn btn-secondary">
+                        <i class="fas fa-home me-2"></i>Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card card-hover border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning p-3 rounded">
+                                <i class="fas fa-inbox fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0 fw-bold text-warning">@(pendingExcuseApprovals.Count + pendingBreakApprovals.Count)</h3>
+                            <p class="text-muted mb-0">Total Pending</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card card-hover border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary p-3 rounded">
+                                <i class="fas fa-clock fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0 fw-bold text-primary">@pendingExcuseApprovals.Count</h3>
+                            <p class="text-muted mb-0">Excuse Requests</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card card-hover border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info p-3 rounded">
+                                <i class="fas fa-umbrella-beach fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0 fw-bold text-info">@pendingBreakApprovals.Count</h3>
+                            <p class="text-muted mb-0">Break Requests</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card card-hover border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-secondary p-3 rounded">
+                                <i class="fas fa-history fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0 fw-bold text-secondary">@totalRecentActivity</h3>
+                            <p class="text-muted mb-0">Recent Activity</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Excuse Approvals -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <h5 class="mb-0 fw-semibold">
+                <i class="fas fa-clock me-2 text-warning"></i>
+                Pending Excuse Requests (@pendingExcuseApprovals.Count)
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            @if (pendingExcuseApprovals.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Worker</th>
+                                <th>Service</th>
+                                <th>Date</th>
+                                <th>Backup</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in pendingExcuseApprovals)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">@GetWorkerDisplayName(request.Worker)</div>
+                                        <small class="text-muted">@GetWorkerId(request.Worker)</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">@GetServiceDisplayName(request)</div>
+                                        <small class="text-muted">@GetServiceTimeDisplay(request)</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">@request.RequestedDate.ToString("MMM dd, yyyy")</div>
+                                    </td>
+                                    <td>
+                                        <div>@GetWorkerDisplayName(request.NominatedBackup)</div>
+                                        <small class="text-muted">@GetWorkerId(request.NominatedBackup)</small>
+                                    </td>
+                                    <td>
+                                        <div>@request.SubmittedDate.ToString("MMM dd, yyyy")</div>
+                                        <small class="text-muted">@request.SubmittedDate.ToString("hh:mm tt")</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" @onclick="() => ReviewExcuseRequest(request)">
+                                                <i class="fas fa-eye me-1"></i>Review
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h5 class="text-success">All Caught Up!</h5>
+                    <p class="text-muted">No pending excuse requests at this time.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Pending Break Approvals -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <h5 class="mb-0 fw-semibold">
+                <i class="fas fa-umbrella-beach me-2 text-info"></i>
+                Pending Break Requests (@pendingBreakApprovals.Count)
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            @if (pendingBreakApprovals.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Worker</th>
+                                <th>Break Period</th>
+                                <th>Duration</th>
+                                <th>Relieve Officer</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in pendingBreakApprovals)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">@GetWorkerDisplayName(request.Worker)</div>
+                                        <small class="text-muted">@GetWorkerId(request.Worker)</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">@request.StartDate.ToString("MMM dd, yyyy") - @request.EndDate.ToString("MMM dd, yyyy")</div>
+                                        <small class="text-muted">@GetBreakDuration(request) days</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">@GetBreakDuration(request) days</div>
+                                    </td>
+                                    <td>
+                                        <div>@GetWorkerDisplayName(request.RelieveOfficer)</div>
+                                        <small class="text-muted">@GetWorkerId(request.RelieveOfficer)</small>
+                                    </td>
+                                    <td>
+                                        <div>@request.SubmittedDate.ToString("MMM dd, yyyy")</div>
+                                        <small class="text-muted">@request.SubmittedDate.ToString("hh:mm tt")</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-info" @onclick="() => ReviewBreakRequest(request)">
+                                                <i class="fas fa-eye me-1"></i>Review
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h5 class="text-success">All Caught Up!</h5>
+                    <p class="text-muted">No pending break requests at this time.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Review Excuse Request Modal -->
+@if (showExcuseReviewModal && selectedExcuseRequest != null)
+{
+    <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Review Excuse Request</h5>
+                    <button type="button" class="btn-close" @onclick="CloseExcuseReviewModal"></button>
+                </div>
+                <EditForm Model="excuseApprovalModel" OnValidSubmit="ProcessExcuseApproval">
+                    <div class="modal-body">
+                        <!-- Request Details -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3">Request Details</h6>
+                                <dl class="row">
+                                    <dt class="col-sm-4">Worker:</dt>
+                                    <dd class="col-sm-8 fw-semibold">@GetWorkerDisplayName(selectedExcuseRequest.Worker)</dd>
+
+                                    <dt class="col-sm-4">Service:</dt>
+                                    <dd class="col-sm-8">@GetServiceDisplayName(selectedExcuseRequest)</dd>
+
+                                    <dt class="col-sm-4">Date:</dt>
+                                    <dd class="col-sm-8">@selectedExcuseRequest.RequestedDate.ToString("MMM dd, yyyy")</dd>
+
+                                    <dt class="col-sm-4">Time:</dt>
+                                    <dd class="col-sm-8">@GetServiceTimeDisplay(selectedExcuseRequest)</dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3">Backup Information</h6>
+                                <dl class="row">
+                                    <dt class="col-sm-4">Nominated Backup:</dt>
+                                    <dd class="col-sm-8 fw-semibold">@GetWorkerDisplayName(selectedExcuseRequest.NominatedBackup)</dd>
+
+                                    <dt class="col-sm-4">Backup Worker ID:</dt>
+                                    <dd class="col-sm-8">@GetWorkerId(selectedExcuseRequest.NominatedBackup)</dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <!-- Reason for Excuse -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3">Reason for Excuse</h6>
+                                <div class="border rounded p-3 bg-light">
+                                    @selectedExcuseRequest.Reason
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Approval Action -->
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3">Your Decision</h6>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Action *</label>
+                                    <div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="excuseApprovalAction" id="approveExcuseAction"
+                                                   checked="@(excuseApprovalModel.Action == "Approve")"
+                                                   @onchange='() => { excuseApprovalModel.Action = "Approve"; }' />
+                                            <label class="form-check-label text-success fw-semibold" for="approveExcuseAction">
+                                                <i class="fas fa-check-circle me-2"></i>Approve Request
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="excuseApprovalAction" id="rejectExcuseAction"
+                                                   checked="@(excuseApprovalModel.Action == "Reject")"
+                                                   @onchange='() => { excuseApprovalModel.Action = "Reject"; }' />
+                                            <label class="form-check-label text-danger fw-semibold" for="rejectExcuseAction">
+                                                <i class="fas fa-times-circle me-2"></i>Reject Request
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="excuseApprovalAction" id="resubmitExcuseAction"
+                                                   checked="@(excuseApprovalModel.Action == "Resubmit")"
+                                                   @onchange='() => { excuseApprovalModel.Action = "Resubmit"; }' />
+                                            <label class="form-check-label text-purple fw-semibold" for="resubmitExcuseAction">
+                                                <i class="fas fa-edit me-2"></i>Request Resubmission
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Comments *</label>
+                                    <InputTextArea @bind-Value="excuseApprovalModel.Comments" class="form-control" placeholder="Please provide comments for your decision..." rows="3" />
+                                    <div class="form-text">Your comments will be shared with the worker</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>@errorMessage
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseExcuseReviewModal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>Processing...</span>
+                            }
+                            else
+                            {
+                                <span>Submit Decision</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Review Break Request Modal -->
+@if (showBreakReviewModal && selectedBreakRequest != null)
+{
+    <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Review Break Request</h5>
+                    <button type="button" class="btn-close" @onclick="CloseBreakReviewModal"></button>
+                </div>
+                <EditForm Model="breakApprovalModel" OnValidSubmit="ProcessBreakApproval">
+                    <div class="modal-body">
+                        <!-- Request Details -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3">Request Details</h6>
+                                <dl class="row">
+                                    <dt class="col-sm-4">Worker:</dt>
+                                    <dd class="col-sm-8 fw-semibold">@GetWorkerDisplayName(selectedBreakRequest.Worker)</dd>
+
+                                    <dt class="col-sm-4">Break Period:</dt>
+                                    <dd class="col-sm-8 fw-semibold">@selectedBreakRequest.StartDate.ToString("MMM dd, yyyy") - @selectedBreakRequest.EndDate.ToString("MMM dd, yyyy")</dd>
+
+                                    <dt class="col-sm-4">Duration:</dt>
+                                    <dd class="col-sm-8">@GetBreakDuration(selectedBreakRequest) days</dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary mb-3">Relieve Information</h6>
+                                <dl class="row">
+                                    <dt class="col-sm-4">Relieve Officer:</dt>
+                                    <dd class="col-sm-8 fw-semibold">@GetWorkerDisplayName(selectedBreakRequest.RelieveOfficer)</dd>
+
+                                    <dt class="col-sm-4">Officer ID:</dt>
+                                    <dd class="col-sm-8">@GetWorkerId(selectedBreakRequest.RelieveOfficer)</dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <!-- Purpose and Assignments -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3">Purpose of Break</h6>
+                                <div class="border rounded p-3 bg-light mb-3">
+                                    @selectedBreakRequest.Purpose
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(selectedBreakRequest.PendingAssignments))
+                        {
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h6 class="text-primary mb-3">Pending Assignments</h6>
+                                    <div class="border rounded p-3 bg-light">
+                                        @selectedBreakRequest.PendingAssignments
+                                        @if (!string.IsNullOrEmpty(selectedBreakRequest.AssignmentHandler))
+                                        {
+                                            <div class="mt-2">
+                                                <strong>Handler:</strong> @selectedBreakRequest.AssignmentHandler
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Approval Action -->
+                        <div class="row">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3">Your Decision</h6>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Action *</label>
+                                    <div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="breakApprovalAction" id="approveBreakAction"
+                                                   checked="@(breakApprovalModel.Action == "Approve")"
+                                                   @onchange='() => { breakApprovalModel.Action = "Approve"; }' />
+                                            <label class="form-check-label text-success fw-semibold" for="approveBreakAction">
+                                                <i class="fas fa-check-circle me-2"></i>Approve Request
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="breakApprovalAction" id="rejectBreakAction"
+                                                   checked="@(breakApprovalModel.Action == "Reject")"
+                                                   @onchange='() => { breakApprovalModel.Action = "Reject"; }' />
+                                            <label class="form-check-label text-danger fw-semibold" for="rejectBreakAction">
+                                                <i class="fas fa-times-circle me-2"></i>Reject Request
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="breakApprovalAction" id="resubmitBreakAction"
+                                                   checked="@(breakApprovalModel.Action == "Resubmit")"
+                                                   @onchange='() => { breakApprovalModel.Action = "Resubmit"; }' />
+                                            <label class="form-check-label text-purple fw-semibold" for="resubmitBreakAction">
+                                                <i class="fas fa-edit me-2"></i>Request Resubmission
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Comments *</label>
+                                    <InputTextArea @bind-Value="breakApprovalModel.Comments" class="form-control" placeholder="Please provide comments for your decision..." rows="3" />
+                                    <div class="form-text">Your comments will be shared with the worker</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>@errorMessage
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseBreakReviewModal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>Processing...</span>
+                            }
+                            else
+                            {
+                                <span>Submit Decision</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ChurchApp.Models.ExcuseRequest> pendingExcuseApprovals = new();
+    private List<ChurchApp.Models.BreakRequest> pendingBreakApprovals = new();
+    private bool showExcuseReviewModal = false;
+    private bool showBreakReviewModal = false;
+    private bool isProcessing = false;
+    private string errorMessage = string.Empty;
+    private ChurchApp.Models.ExcuseRequest? selectedExcuseRequest = null;
+    private ChurchApp.Models.BreakRequest? selectedBreakRequest = null;
+    private ApprovalModel excuseApprovalModel = new();
+    private ApprovalModel breakApprovalModel = new();
+    private int totalRecentActivity = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated || AuthService.CurrentWorker == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadApprovalData();
+    }
+
+    private async Task LoadApprovalData()
+    {
+        try
+        {
+            pendingExcuseApprovals = await ExcuseService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
+            pendingBreakApprovals = await ExcuseService.GetPendingBreakApprovalsAsync(AuthService.CurrentWorker.Id);
+            totalRecentActivity = pendingExcuseApprovals.Count + pendingBreakApprovals.Count;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading approval data: {ex.Message}";
+        }
+    }
+
+    private string GetWorkerDisplayName(ChurchApp.Models.Worker? worker)
+    {
+        return worker != null ? $"{worker.FirstName} {worker.LastName}" : "Not Available";
+    }
+
+    private string GetWorkerId(ChurchApp.Models.Worker? worker)
+    {
+        return worker?.WorkerId ?? "N/A";
+    }
+
+    private string GetServiceDisplayName(ChurchApp.Models.ExcuseRequest request)
+    {
+        return request.Service?.Name ?? request.CustomServiceName ?? "Custom Service";
+    }
+
+    private string GetServiceTimeDisplay(ChurchApp.Models.ExcuseRequest request)
+    {
+        if (request.ServiceId.HasValue && request.Service != null)
+        {
+            var service = request.Service;
+            if (service.RecurrencePattern == "OneTime" && service.SpecificStartTime.HasValue)
+            {
+                return service.SpecificStartTime.Value.ToString(@"hh\:mm");
+            }
+            else if (service.StartTime.HasValue)
+            {
+                return service.StartTime.Value.ToString(@"hh\:mm");
+            }
+        }
+        else if (request.CustomServiceTime.HasValue)
+        {
+            return request.CustomServiceTime.Value.ToString(@"hh\:mm");
+        }
+        return "Time not specified";
+    }
+
+    private string GetBreakDuration(ChurchApp.Models.BreakRequest request)
+    {
+        var duration = (request.EndDate - request.StartDate).Days + 1;
+        return duration.ToString();
+    }
+
+    private void ReviewExcuseRequest(ChurchApp.Models.ExcuseRequest request)
+    {
+        selectedExcuseRequest = request;
+        excuseApprovalModel = new ApprovalModel();
+        showExcuseReviewModal = true;
+        errorMessage = string.Empty;
+    }
+
+    private void ReviewBreakRequest(ChurchApp.Models.BreakRequest request)
+    {
+        selectedBreakRequest = request;
+        breakApprovalModel = new ApprovalModel();
+        showBreakReviewModal = true;
+        errorMessage = string.Empty;
+    }
+
+    private void CloseExcuseReviewModal()
+    {
+        showExcuseReviewModal = false;
+        selectedExcuseRequest = null;
+        excuseApprovalModel = new ApprovalModel();
+        errorMessage = string.Empty;
+    }
+
+    private void CloseBreakReviewModal()
+    {
+        showBreakReviewModal = false;
+        selectedBreakRequest = null;
+        breakApprovalModel = new ApprovalModel();
+        errorMessage = string.Empty;
+    }
+
+    private async Task ProcessExcuseApproval()
+    {
+        if (selectedExcuseRequest == null || string.IsNullOrEmpty(excuseApprovalModel.Action) || string.IsNullOrEmpty(excuseApprovalModel.Comments))
+        {
+            errorMessage = "Please select an action and provide comments.";
+            return;
+        }
+
+        await ProcessApproval(selectedExcuseRequest.Id, excuseApprovalModel, "excuse");
+    }
+
+    private async Task ProcessBreakApproval()
+    {
+        if (selectedBreakRequest == null || string.IsNullOrEmpty(breakApprovalModel.Action) || string.IsNullOrEmpty(breakApprovalModel.Comments))
+        {
+            errorMessage = "Please select an action and provide comments.";
+            return;
+        }
+
+        await ProcessApproval(selectedBreakRequest.Id, breakApprovalModel, "break");
+    }
+
+    private async Task ProcessApproval(int requestId, ApprovalModel model, string requestType)
+    {
+        isProcessing = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            bool success = false;
+
+            if (requestType == "excuse")
+            {
+                switch (model.Action)
+                {
+                    case "Approve":
+                        success = await ExcuseService.ApproveExcuseRequestAsync(requestId, AuthService.CurrentWorker!.Id, model.Comments);
+                        break;
+                    case "Reject":
+                        success = await ExcuseService.RejectExcuseRequestAsync(requestId, AuthService.CurrentWorker!.Id, model.Comments);
+                        break;
+                    case "Resubmit":
+                        success = await ExcuseService.RequestResubmissionAsync(requestId, AuthService.CurrentWorker!.Id, model.Comments);
+                        break;
+                }
+            }
+            else if (requestType == "break")
+            {
+                switch (model.Action)
+                {
+                    case "Approve":
+                        success = await ExcuseService.ApproveBreakRequestAsync(requestId, AuthService.CurrentWorker!.Id, model.Comments);
+                        break;
+                    case "Reject":
+                        success = await ExcuseService.RejectBreakRequestAsync(requestId, AuthService.CurrentWorker!.Id, model.Comments);
+                        break;
+                    case "Resubmit":
+                        success = await ExcuseService.RequestBreakResubmissionAsync(requestId, AuthService.CurrentWorker!.Id, model.Comments);
+                        break;
+                }
+            }
+
+            if (success)
+            {
+                if (requestType == "excuse")
+                    CloseExcuseReviewModal();
+                else
+                    CloseBreakReviewModal();
+
+                await LoadApprovalData();
+                StateHasChanged();
+            }
+            else
+            {
+                errorMessage = "Failed to process the request. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error processing request: {ex.Message}";
+        }
+
+        isProcessing = false;
+    }
+
+    private class ApprovalModel
+    {
+        public string Action { get; set; } = string.Empty;
+        public string Comments { get; set; } = string.Empty;
+    }
+}
+
+<style>
+    .card-hover {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+        }
+
+    .bg-warning {
+        background-color: #ffc107 !important;
+    }
+
+    .bg-success {
+        background-color: #198754 !important;
+    }
+
+    .bg-danger {
+        background-color: #dc3545 !important;
+    }
+
+    .bg-info {
+        background-color: #0dcaf0 !important;
+    }
+
+    .bg-primary {
+        background-color: #0d6efd !important;
+    }
+
+    .form-check-input:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+
+    .text-purple {
+        color: #6f42c1 !important;
+    }
+
+    .bg-purple {
+        background-color: #6f42c1 !important;
+    }
+</style>

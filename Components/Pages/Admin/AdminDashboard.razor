@@ -1,0 +1,275 @@
+﻿@page "/admin"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@inject AuthService AuthService
+
+@if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+{
+    <PageTitle>Admin Panel - BCC ServiceHub</PageTitle>
+
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h1>Admin Panel</h1>
+                <p class="text-muted">Manage church operations and system setup</p>
+            </div>
+        </div>
+
+        <!-- Welcome Card -->
+        <div class="card bg-light mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4>Welcome, @AuthService.CurrentWorker?.FirstName!</h4>
+                        <p class="mb-0">You are logged in as <strong>@AuthService.CurrentWorker?.Role</strong> in the <strong>@AuthService.CurrentWorker?.Directorate?.Name</strong> directorate.</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <i class="fas fa-cogs fa-4x text-primary opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Setup Cards -->
+        <div class="row">
+            <div class="col-12">
+                <h4 class="mb-3">System Setup</h4>
+            </div>
+
+            <!-- Worker Setup -->
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card admin-card h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="icon-container bg-primary mb-3">
+                            <i class="fas fa-user-plus fa-2x text-white"></i>
+                        </div>
+                        <h5>Worker Setup</h5>
+                        <p class="text-muted small">Create and manage worker profiles and accounts</p>
+                        <a href="/admin/worker-setup" class="btn btn-primary btn-sm">Manage Workers</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Directorate Setup -->
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card admin-card h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="icon-container bg-success mb-3">
+                            <i class="fas fa-sitemap fa-2x text-white"></i>
+                        </div>
+                        <h5>Directorate Setup</h5>
+                        <p class="text-muted small">Manage church directorates and assign heads</p>
+                        <a href="/admin/directorate-setup" class="btn btn-success btn-sm">Manage Directorates</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Department Setup -->
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card admin-card h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="icon-container bg-info mb-3">
+                            <i class="fas fa-building fa-2x text-white"></i>
+                        </div>
+                        <h5>Department Setup</h5>
+                        <p class="text-muted small">Manage departments within directorates</p>
+                        <a href="/admin/department-setup" class="btn btn-info btn-sm">Manage Departments</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Role Setup -->
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card admin-card h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="icon-container bg-warning mb-3">
+                            <i class="fas fa-user-cog fa-2x text-white"></i>
+                        </div>
+                        <h5>Role Setup</h5>
+                        <p class="text-muted small">Manage user roles and system permissions</p>
+                        <a href="/admin/role-setup" class="btn btn-warning btn-sm">Manage Roles</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <h4 class="mb-3">Quick Overview</h4>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Total Workers</h6>
+                                <h3 class="text-primary">--</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-users fa-2x text-primary opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Active Directorates</h6>
+                                <h3 class="text-success">--</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-sitemap fa-2x text-success opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Departments</h6>
+                                <h3 class="text-info">--</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-building fa-2x text-info opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">User Roles</h6>
+                                <h3 class="text-warning">--</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-user-tag fa-2x text-warning opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (AuthService.IsAuthenticated && !AuthService.CanAccessAdminPanel())
+{
+    <!-- Access denied content -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0">Access Denied</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-ban fa-3x text-danger mb-3"></i>
+                        <h4>Access Denied</h4>
+                        <p class="text-muted">You don't have permission to access the admin panel.</p>
+                        <a href="/" class="btn btn-primary">Return to Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Not authenticated -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">Authentication Required</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h4>Please Log In</h4>
+                        <p class="text-muted">You need to be logged in to access this page.</p>
+                        <a href="/login" class="btn btn-primary">Go to Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .admin-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 2px solid;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+        .admin-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+
+    .icon-container {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        backdrop-filter: blur(10px);
+    }
+
+    .stat-card {
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        border-left: 4px solid;
+    }
+
+        .stat-card .card-body {
+            padding: 1.5rem;
+        }
+
+    /* Solid color variations */
+    .border-primary {
+        border-color: #0d6efd !important;
+    }
+
+    .border-success {
+        border-color: #198754 !important;
+    }
+
+    .border-info {
+        border-color: #0dcaf0 !important;
+    }
+
+    .border-warning {
+        border-color: #ffc107 !important;
+    }
+
+    .bg-primary {
+        background: linear-gradient(135deg, #0d6efd, #0a58ca) !important;
+    }
+
+    .bg-success {
+        background: linear-gradient(135deg, #198754, #146c43) !important;
+    }
+
+    .bg-info {
+        background: linear-gradient(135deg, #0dcaf0, #0aa2c0) !important;
+    }
+
+    .bg-warning {
+        background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+    }
+</style>

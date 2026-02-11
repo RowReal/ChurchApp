@@ -1,0 +1,539 @@
+﻿@page "/Offering/Attendance-list"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AttendanceService AttendanceService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject WorkerService WorkerService
+
+<PageTitle>Attendance Records - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-list me-2"></i>
+                        Attendance Records
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-light btn-sm" @onclick="ToggleSearchPanel">
+                            <i class="fas fa-search me-2"></i>
+                            @(showSearchPanel ? "Hide Search" : "Show Search")
+                        </button>
+                        <a href="/Offering/Attendance-record" class="btn btn-light btn-sm">
+                            <i class="fas fa-plus-circle me-2"></i> New Record
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Search Panel -->
+                @if (showSearchPanel)
+                {
+                    <div class="card-body border-bottom bg-light">
+                        <div class="row g-3">
+                            <!-- Quick Date Search -->
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Quick Date</label>
+                                <select class="form-select" @onchange="OnQuickDateChange">
+                                    <option value="">Select Period</option>
+                                    <option value="today">Today</option>
+                                    <option value="yesterday">Yesterday</option>
+                                    <option value="thisweek">This Week</option>
+                                    <option value="lastweek">Last Week</option>
+                                    <option value="thismonth">This Month</option>
+                                    <option value="lastmonth">Last Month</option>
+                                </select>
+                            </div>
+
+                            <!-- Date Range -->
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold">Date Range</label>
+                                <div class="input-group">
+                                    <input type="date" class="form-control" @bind="searchStartDate" 
+                                           placeholder="From Date" />
+                                    <span class="input-group-text">to</span>
+                                    <input type="date" class="form-control" @bind="searchEndDate" 
+                                           placeholder="To Date" />
+                                </div>
+                            </div>
+
+                            <!-- Service Type -->
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Service Type</label>
+                                <select class="form-select" @bind="searchServiceType">
+                                    <option value="">All Services</option>
+                                    @foreach (var service in serviceTypes)
+                                    {
+                                        <option value="@service">@service</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <!-- Search Button -->
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-primary w-100" @onclick="SearchRecords">
+                                    <i class="fas fa-search me-2"></i>Search
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Active Filters -->
+                        @if (HasActiveFilters())
+                        {
+                            <div class="mt-3">
+                                <div class="d-flex align-items-center">
+                                    <small class="text-muted me-2">Active filters:</small>
+                                    @if (!string.IsNullOrEmpty(searchServiceType))
+                                    {
+                                        <span class="badge bg-primary me-2">
+                                            Service: @searchServiceType
+                                            <button class="btn-close btn-close-white ms-1" @onclick="ClearServiceFilter"></button>
+                                        </span>
+                                    }
+                                    @if (searchStartDate.HasValue || searchEndDate.HasValue)
+                                    {
+                                        <span class="badge bg-success me-2">
+                                            Date: @(searchStartDate?.ToString("MMM dd") ?? "Start") - @(searchEndDate?.ToString("MMM dd") ?? "End")
+                                            <button class="btn-close btn-close-white ms-1" @onclick="ClearDateFilter"></button>
+                                        </span>
+                                    }
+                                    <button class="btn btn-sm btn-outline-secondary ms-auto" @onclick="ClearAllFilters">
+                                        <i class="fas fa-times me-1"></i>Clear All
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="card-body">
+                    <!-- Summary Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center py-3">
+                                    <i class="fas fa-calendar fa-2x mb-2"></i>
+                                    <h4>@filteredRecords.Count</h4>
+                                    <small>Records Found</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center py-3">
+                                    <i class="fas fa-users fa-2x mb-2"></i>
+                                    <h4>@TotalAttendance</h4>
+                                    <small>Total People</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center py-3">
+                                    <i class="fas fa-church fa-2x mb-2"></i>
+                                    <h4>@UniqueServices</h4>
+                                    <small>Service Types</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center py-3">
+                                    <i class="fas fa-user-friends fa-2x mb-2"></i>
+                                    <h4>@AverageAttendance</h4>
+                                    <small>Average/Service</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (filteredRecords.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Service</th>
+                                        <th>Attendance Breakdown</th>
+                                        <th>Total</th>
+                                        <th>Recorded By</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var record in filteredRecords)
+                                    {
+                                        var recordedByWorker = GetRecordedByWorkerFromCache(record.RecordedByWorkerId);
+                                        
+                                        <tr>
+                                            <td>
+                                                <strong>@record.AttendanceDate.ToString("MMM dd, yyyy")</strong>
+                                                <br>
+                                                <small class="text-muted">@record.AttendanceDate.ToString("dddd")</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">@record.ServiceName</span>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex gap-3 text-center">
+                                                    <div>
+                                                        <i class="fas fa-male text-primary"></i>
+                                                        <div class="small">@record.Men</div>
+                                                    </div>
+                                                    <div>
+                                                        <i class="fas fa-female text-danger"></i>
+                                                        <div class="small">@record.Women</div>
+                                                    </div>
+                                                    <div>
+                                                        <i class="fas fa-user-graduate text-warning"></i>
+                                                        <div class="small">@record.Teenagers</div>
+                                                    </div>
+                                                    <div>
+                                                        <i class="fas fa-child text-info"></i>
+                                                        <div class="small">@record.Children</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <strong class="text-success h5">@record.Total</strong>
+                                            </td>
+                                            <td>
+                                                @if (recordedByWorker != null)
+                                                {
+                                                    <div>
+                                                        <small>@recordedByWorker.FirstName @recordedByWorker.LastName</small>
+                                                        <br>
+                                                        <small class="text-muted">@recordedByWorker.WorkerId</small>
+                                                    </div>
+                                                }
+                                                else if (!string.IsNullOrEmpty(record.RecordedByWorkerId))
+                                                {
+                                                    <div>
+                                                        <small class="text-muted">Worker ID: @record.RecordedByWorkerId</small>
+                                                        <br>
+                                                        <small class="text-muted">@record.RecordedDate.ToString("MMM dd, h:mm tt")</small>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <small class="text-muted">Not recorded</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-info" @onclick="() => ViewDetails(record)" title="View Details">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                    @if (CanEditRecord(record))
+                                                    {
+                                                        <button class="btn btn-outline-warning" @onclick="() => EditRecord(record)" title="Edit Record">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination (if needed for large datasets) -->
+                        @if (filteredRecords.Count > 10)
+                        {
+                            <nav aria-label="Attendance records navigation">
+                                <ul class="pagination justify-content-center">
+                                    <li class="page-item disabled">
+                                        <span class="page-link">Showing @filteredRecords.Count records</span>
+                                    </li>
+                                </ul>
+                            </nav>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                            <h4>No Records Found</h4>
+                            <p class="text-muted">
+                                @if (HasActiveFilters())
+                                {
+                                    <text>No attendance records match your search criteria.</text>
+                                }
+                                else
+                                {
+                                    <text>No attendance records found. Start recording attendance for services.</text>
+                                }
+                            </p>
+                            @if (HasActiveFilters())
+                            {
+                                <button class="btn btn-primary me-2" @onclick="ClearAllFilters">
+                                    <i class="fas fa-times me-2"></i>Clear Filters
+                                </button>
+                            }
+                            <a href="/Offering/Attendance-record" class="btn btn-success">
+                                <i class="fas fa-plus-circle me-2"></i>Record Attendance
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<AttendanceRecord> attendanceRecords = new();
+    private List<AttendanceRecord> filteredRecords = new();
+    private List<string> serviceTypes = new();
+    private Dictionary<string, Worker> workerCache = new();
+    private bool isLoading = true;
+    private bool showSearchPanel = true;
+
+    // Search filters
+    private DateTime? searchStartDate = null;
+    private DateTime? searchEndDate = null;
+    private string searchServiceType = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAttendanceRecords();
+        serviceTypes = AttendanceService.GetServiceTypes();
+        isLoading = false;
+    }
+
+    private async Task LoadAttendanceRecords()
+    {
+        try
+        {
+            attendanceRecords = await AttendanceService.GetAllAttendanceAsync();
+            filteredRecords = attendanceRecords;
+            
+            // Pre-load worker names for better performance
+            await PreloadWorkerNames();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading attendance records: {ex.Message}");
+        }
+    }
+
+    private async Task PreloadWorkerNames()
+    {
+        try
+        {
+            // Get unique worker IDs from attendance records
+            var workerIds = attendanceRecords
+                .Select(r => r.RecordedByWorkerId)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Distinct()
+                .ToList();
+
+            foreach (var workerId in workerIds)
+            {
+                if (!workerCache.ContainsKey(workerId))
+                {
+                    var worker = await WorkerService.GetWorkerByWorkerIdAsync(workerId);
+                    if (worker != null)
+                    {
+                        workerCache[workerId] = worker;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error preloading worker names: {ex.Message}");
+        }
+    }
+
+    // Changed: This method is now synchronous and only accesses cache
+    private Worker? GetRecordedByWorkerFromCache(string workerId)
+    {
+        if (string.IsNullOrEmpty(workerId))
+            return null;
+
+        // Check cache - this is synchronous
+        if (workerCache.TryGetValue(workerId, out var cachedWorker))
+            return cachedWorker;
+
+        return null; // Not in cache, will be displayed as Worker ID
+    }
+
+    // Keep async version for other uses if needed
+    private async Task<Worker?> GetRecordedByWorkerAsync(string workerId)
+    {
+        if (string.IsNullOrEmpty(workerId))
+            return null;
+
+        // Check cache first
+        if (workerCache.TryGetValue(workerId, out var cachedWorker))
+            return cachedWorker;
+
+        // If not in cache, fetch from database
+        try
+        {
+            var worker = await WorkerService.GetWorkerByWorkerIdAsync(workerId);
+            if (worker != null)
+            {
+                workerCache[workerId] = worker;
+            }
+            return worker;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void SearchRecords()
+    {
+        var query = attendanceRecords.AsQueryable();
+
+        // Filter by service type
+        if (!string.IsNullOrEmpty(searchServiceType))
+        {
+            query = query.Where(r => r.ServiceName == searchServiceType);
+        }
+
+        // Filter by date range
+        if (searchStartDate.HasValue)
+        {
+            query = query.Where(r => r.AttendanceDate >= searchStartDate.Value);
+        }
+        if (searchEndDate.HasValue)
+        {
+            query = query.Where(r => r.AttendanceDate <= searchEndDate.Value);
+        }
+
+        filteredRecords = query.OrderByDescending(r => r.AttendanceDate).ToList();
+        StateHasChanged();
+    }
+
+    private void OnQuickDateChange(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        var today = DateTime.Today;
+
+        switch (value)
+        {
+            case "today":
+                searchStartDate = today;
+                searchEndDate = today;
+                break;
+            case "yesterday":
+                searchStartDate = today.AddDays(-1);
+                searchEndDate = today.AddDays(-1);
+                break;
+            case "thisweek":
+                var startOfWeek = today.AddDays(-(int)today.DayOfWeek);
+                searchStartDate = startOfWeek;
+                searchEndDate = today;
+                break;
+            case "lastweek":
+                var lastWeekStart = today.AddDays(-(int)today.DayOfWeek - 7);
+                var lastWeekEnd = lastWeekStart.AddDays(6);
+                searchStartDate = lastWeekStart;
+                searchEndDate = lastWeekEnd;
+                break;
+            case "thismonth":
+                searchStartDate = new DateTime(today.Year, today.Month, 1);
+                searchEndDate = today;
+                break;
+            case "lastmonth":
+                var firstDayLastMonth = new DateTime(today.Year, today.Month, 1).AddMonths(-1);
+                var lastDayLastMonth = firstDayLastMonth.AddMonths(1).AddDays(-1);
+                searchStartDate = firstDayLastMonth;
+                searchEndDate = lastDayLastMonth;
+                break;
+        }
+
+        if (!string.IsNullOrEmpty(value))
+        {
+            SearchRecords();
+        }
+    }
+
+    private void ClearServiceFilter()
+    {
+        searchServiceType = "";
+        SearchRecords();
+    }
+
+    private void ClearDateFilter()
+    {
+        searchStartDate = null;
+        searchEndDate = null;
+        SearchRecords();
+    }
+
+    private void ClearAllFilters()
+    {
+        searchServiceType = "";
+        searchStartDate = null;
+        searchEndDate = null;
+        filteredRecords = attendanceRecords;
+        StateHasChanged();
+    }
+
+    private bool HasActiveFilters()
+    {
+        return !string.IsNullOrEmpty(searchServiceType) || searchStartDate.HasValue || searchEndDate.HasValue;
+    }
+
+    private void ToggleSearchPanel()
+    {
+        showSearchPanel = !showSearchPanel;
+        StateHasChanged();
+    }
+
+    private bool CanEditRecord(AttendanceRecord record)
+    {
+        if (AuthService.CurrentWorker == null)
+            return false;
+
+        // Church Admin or Ushering Department can edit any record
+        if (AuthService.CanAccessAdminPanel() ||
+            AuthService.IsInRole("Church Admin") ||
+            IsUsheringDepartment())
+        {
+            return true;
+        }
+
+        // Original recorder can edit their own record
+        return record.RecordedByWorkerId == AuthService.CurrentWorker.WorkerId;
+    }
+
+    private bool IsUsheringDepartment()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker?.Department == null)
+        {
+            return false;
+        }
+
+        return worker.Department.Name?.Contains("Ushering", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private void ViewDetails(AttendanceRecord record)
+    {
+        Navigation.NavigateTo($"/Offering/view/{record.Id}");
+    }
+
+    private void EditRecord(AttendanceRecord record)
+    {
+        if (CanEditRecord(record))
+        {
+            Navigation.NavigateTo($"/Offering/EditAttendance/{record.Id}");
+        }
+    }
+
+    // Computed properties for summary cards
+    private int TotalAttendance => filteredRecords.Sum(r => r.Total);
+    private int UniqueServices => filteredRecords.Select(r => r.ServiceName).Distinct().Count();
+    private int AverageAttendance => filteredRecords.Any() ? TotalAttendance / filteredRecords.Count : 0;
+}

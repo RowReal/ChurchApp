@@ -1,0 +1,447 @@
+﻿@page "/offering/approvals"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject OfferingService OfferingService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Approve Offerings - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Pending Offerings Approval
+                        <span class="badge bg-light text-success ms-2">Church Admin Only</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Success Message -->
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            @successMessage
+                            <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
+                        </div>
+                    }
+
+                    <!-- Error Message -->
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            @errorMessage
+                            <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+                        </div>
+                    }
+
+                    <!-- Access Denied Message -->
+                    @if (!IsChurchAdmin())
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-ban fa-3x text-danger mb-3"></i>
+                            <h4>Access Denied</h4>
+                            <p class="text-muted">Only Church Administrators can approve offerings.</p>
+                            <p class="text-muted small">Your role: <strong>@AuthService.CurrentWorker?.Role</strong></p>
+                            <a href="/" class="btn btn-primary">
+                                <i class="fas fa-home me-2"></i>Return to Dashboard
+                            </a>
+                        </div>
+                    }
+                    else if (isLoading)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary"></div>
+                            <p class="mt-2">Loading pending offerings...</p>
+                        </div>
+                    }
+                    else if (pendingOfferings.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Offering Type</th>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Currency</th>
+                                        <th>Payment Mode</th>
+                                        <th>Recorded By</th>
+                                        <th>Remarks</th>
+                                        <th>Recorded Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var offering in pendingOfferings)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@offering.OfferingTypeName</strong>
+                                            </td>
+                                            <td>@offering.OfferingDate.ToString("MMM dd, yyyy")</td>
+                                            <td>
+                                                <span class="fw-bold">@offering.Amount.ToString("N2")</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-secondary">@offering.Currency</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">@offering.PaymentMode</span>
+                                            </td>
+                                            <td>@offering.RecordedByName</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(offering.Remarks))
+                                                {
+                                                    <small class="text-muted">@offering.Remarks</small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    @offering.RecordedDate.ToString("MMM dd, yyyy hh:mm tt")
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-success" @onclick="() => ApproveOffering(offering)" title="Approve Offering">
+                                                        <i class="fas fa-check me-1"></i>Approve
+                                                    </button>
+                                                    <button class="btn btn-warning" @onclick="() => ShowRejectionModal(offering)" title="Reject Offering">
+                                                        <i class="fas fa-times me-1"></i>Reject
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Summary -->
+                        <div class="row mt-4">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h4 class="text-success">@pendingOfferings.Count</h4>
+                                        <p class="mb-0 text-muted">Pending Offerings</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h4 class="text-primary">@pendingOfferings.Sum(o => o.Amount).ToString("N2")</h4>
+                                        <p class="mb-0 text-muted">Total Amount</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h4 class="text-info">@pendingOfferings.Select(o => o.RecordedByName).Distinct().Count()</h4>
+                                        <p class="mb-0 text-muted">Different Recorders</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else if (IsChurchAdmin())
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h4>No Pending Offerings</h4>
+                            <p class="text-muted">All offerings have been approved. Great work!</p>
+                            <div class="mt-3">
+                                <button class="btn btn-primary me-2" @onclick="RefreshList">
+                                    <i class="fas fa-sync-alt me-2"></i>Refresh
+                                </button>
+                                <a href="/offering/record" class="btn btn-outline-primary">
+                                    <i class="fas fa-plus-circle me-2"></i>Record New Offering
+                                </a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rejection Modal -->
+@if (showRejectionModal && IsChurchAdmin())
+{
+    <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Reject Offering
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseRejectionModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Please provide a reason for rejecting this offering:</p>
+                    
+                    <!-- Offering Details -->
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">Offering Details</h6>
+                            <div class="row small">
+                                <div class="col-6">
+                                    <strong>Type:</strong> @offeringToReject?.OfferingTypeName<br>
+                                    <strong>Date:</strong> @offeringToReject?.OfferingDate.ToString("MMM dd, yyyy")
+                                </div>
+                                <div class="col-6">
+                                    <strong>Amount:</strong> @offeringToReject?.Amount.ToString("N2") @offeringToReject?.Currency<br>
+                                    <strong>Recorded By:</strong> @offeringToReject?.RecordedByName
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(offeringToReject?.Remarks))
+                            {
+                                <div class="mt-2">
+                                    <strong>Remarks:</strong> 
+                                    <small class="text-muted">@offeringToReject.Remarks</small>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Rejection Reason Input -->
+                    <div class="form-group">
+                        <label class="form-label">Rejection Reason *</label>
+                        <textarea class="form-control" @bind="rejectionReason" rows="3" 
+                                  placeholder="Explain why this offering is being rejected..."></textarea>
+                        @if (string.IsNullOrEmpty(rejectionReason) && showValidation)
+                        {
+                            <small class="text-danger">Please provide a rejection reason</small>
+                        }
+                    </div>
+                    
+                    <div class="alert alert-info mt-2">
+                        <small>
+                            <i class="fas fa-info-circle me-1"></i>
+                            This reason will be visible to the user who recorded the offering.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseRejectionModal">Cancel</button>
+                    <button type="button" class="btn btn-warning" @onclick="ConfirmRejection" disabled="@isRejecting">
+                        @if (isRejecting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Rejecting...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-times me-2"></i>
+                            <span>Reject Offering</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<OfferingRecord> pendingOfferings = new();
+    private bool isLoading = true;
+    private string errorMessage = "";
+    private string successMessage = "";
+    
+    // Rejection modal variables
+    private bool showRejectionModal = false;
+    private OfferingRecord? offeringToReject = null;
+    private string rejectionReason = "";
+    private bool isRejecting = false;
+    private bool showValidation = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Only Church Admin can access this page
+        if (!IsChurchAdmin())
+        {
+            // Don't load data if not admin
+            isLoading = false;
+            return;
+        }
+
+        await LoadPendingOfferings();
+        isLoading = false;
+    }
+
+    private bool IsChurchAdmin()
+    {
+        return AuthService.IsInRole("Church Admin");
+    }
+
+    private async Task LoadPendingOfferings()
+    {
+        try
+        {
+            pendingOfferings = await OfferingService.GetPendingOfferingsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading pending offerings: {ex.Message}";
+        }
+    }
+
+    private async Task ApproveOffering(OfferingRecord offering)
+    {
+        // Double-check permission
+        if (!IsChurchAdmin()) return;
+
+        try
+        {
+            // Get the current worker's WorkerId (string) not Id (int)
+            var adminWorkerId = AuthService.CurrentWorker?.WorkerId;
+            var adminName = $"{AuthService.CurrentWorker?.FirstName} {AuthService.CurrentWorker?.LastName}";
+
+            if (string.IsNullOrEmpty(adminWorkerId))
+            {
+                errorMessage = "Unable to determine current user. Please log in again.";
+                StateHasChanged();
+                return;
+            }
+
+            var success = await OfferingService.ApproveOfferingAsync(
+                offering.Id,
+                adminWorkerId, // Pass string WorkerId
+                adminName
+            );
+
+            if (success)
+            {
+                successMessage = $"Offering from {offering.RecordedByName} approved successfully!";
+                await LoadPendingOfferings();
+                StateHasChanged();
+            }
+            else
+            {
+                errorMessage = "Failed to approve offering. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error approving offering: {ex.Message}";
+        }
+    }
+
+    private void ShowRejectionModal(OfferingRecord offering)
+    {
+        // Double-check permission
+        if (!IsChurchAdmin()) return;
+
+        offeringToReject = offering;
+        rejectionReason = "";
+        showRejectionModal = true;
+        showValidation = false;
+        StateHasChanged();
+    }
+
+    private void CloseRejectionModal()
+    {
+        showRejectionModal = false;
+        offeringToReject = null;
+        rejectionReason = "";
+        showValidation = false;
+        isRejecting = false;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmRejection()
+    {
+        // Double-check permission
+        if (!IsChurchAdmin() || offeringToReject == null)
+            return;
+
+        if (string.IsNullOrEmpty(rejectionReason))
+        {
+            showValidation = true;
+            StateHasChanged();
+            return;
+        }
+
+        isRejecting = true;
+        StateHasChanged();
+
+        try
+        {
+            // Get the current worker's WorkerId (string) not Id (int)
+            var adminWorkerId = AuthService.CurrentWorker?.WorkerId;
+            var adminName = $"{AuthService.CurrentWorker?.FirstName} {AuthService.CurrentWorker?.LastName}";
+
+            if (string.IsNullOrEmpty(adminWorkerId))
+            {
+                errorMessage = "Unable to determine current user. Please log in again.";
+                isRejecting = false;
+                StateHasChanged();
+                return;
+            }
+
+            var success = await OfferingService.RejectOfferingAsync(
+                offeringToReject.Id,
+                adminWorkerId, // Pass string WorkerId
+                adminName,
+                rejectionReason
+            );
+
+            if (success)
+            {
+                successMessage = $"Offering from {offeringToReject.RecordedByName} rejected successfully!";
+                await LoadPendingOfferings();
+                CloseRejectionModal();
+            }
+            else
+            {
+                errorMessage = "Failed to reject offering. Please try again.";
+                isRejecting = false;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error rejecting offering: {ex.Message}";
+            isRejecting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshList()
+    {
+        // Double-check permission
+        if (!IsChurchAdmin()) return;
+
+        isLoading = true;
+        StateHasChanged();
+        
+        await LoadPendingOfferings();
+        
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void ClearSuccessMessage()
+    {
+        successMessage = "";
+        StateHasChanged();
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = "";
+        StateHasChanged();
+    }
+}

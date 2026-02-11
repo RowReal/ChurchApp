@@ -1,0 +1,348 @@
+﻿@page "/excuse/break-request"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ExcuseService ExcuseService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IServiceProvider ServiceProvider
+
+<PageTitle>Break Request - BCC ServiceHub</PageTitle>
+
+<div class="container-fluid py-2">
+    <!-- Ultra-Compact Header -->
+    <div class="row mb-2">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-umbrella-beach fa-lg text-warning me-2"></i>
+                    <div>
+                        <h5 class="fw-bold text-dark-blue mb-0">REQUEST BREAK</h5>
+                        <small class="text-muted">Time off from church activities</small>
+                    </div>
+                </div>
+                <a href="/excuse/mybreak-requests" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-list me-1"></i>My Requests
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Single Row Form - No Scrolling -->
+    <div class="row g-2">
+        <div class="col-12">
+            <div class="card border-2 border-primary shadow">
+                <div class="card-header bg-primary text-white py-1 px-3">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="fas fa-file-contract me-2"></i>BREAK REQUEST FORM
+                    </h6>
+                </div>
+                <div class="card-body p-2">
+                    <EditForm Model="breakModel" OnValidSubmit="SubmitBreakRequest">
+                        <DataAnnotationsValidator />
+
+                        <div class="row g-2 align-items-end">
+                            <!-- Dates -->
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold mb-0 text-primary">START DATE *</label>
+                                <InputDate @bind-Value="breakModel.StartDate" class="form-control form-control-sm border-primary" min="@minDate" />
+                                <ValidationMessage For="@(() => breakModel.StartDate)" class="text-danger small" />
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small fw-bold mb-0 text-primary">END DATE *</label>
+                                <InputDate @bind-Value="breakModel.EndDate" class="form-control form-control-sm border-primary" min="@minDate" />
+                                <ValidationMessage For="@(() => breakModel.EndDate)" class="text-danger small" />
+                            </div>
+
+                            <!-- Duration Badge -->
+                            <div class="col-md-1">
+                                @if (breakModel.StartDate.HasValue && breakModel.EndDate.HasValue)
+                                {
+                                    <span class="badge bg-info text-dark fw-bold">
+                                        @GetBreakDuration() DAYS
+                                    </span>
+                                }
+                            </div>
+
+                            <!-- Relieve Officer -->
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold mb-0 text-primary">RELIEVE OFFICER *</label>
+                                <InputSelect @bind-Value="breakModel.RelieveOfficerId" class="form-select form-select-sm border-primary">
+                                    <option value="">Select officer...</option>
+                                    @foreach (var officer in availableOfficers)
+                                    {
+                                        <option value="@officer.Id">@officer.FirstName @officer.LastName</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => breakModel.RelieveOfficerId)" class="text-danger small" />
+                            </div>
+
+                            <!-- Purpose -->
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold mb-0 text-primary">PURPOSE *</label>
+                                <InputText @bind-Value="breakModel.Purpose" class="form-control form-control-sm border-primary"
+                                           placeholder="Reason for break..." />
+                                <ValidationMessage For="@(() => breakModel.Purpose)" class="text-danger small" />
+                            </div>
+                        </div>
+
+                        <!-- Second Row - Optional Fields -->
+                        <div class="row g-2 align-items-end mt-1">
+                            <!-- Pending Assignments -->
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold mb-0 text-muted">PENDING ASSIGNMENTS</label>
+                                <InputText @bind-Value="breakModel.PendingAssignments" class="form-control form-control-sm"
+                                           placeholder="Pending tasks..." />
+                            </div>
+
+                            <!-- Assignment Handler -->
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold mb-0 text-muted">ASSIGNMENT HANDLER</label>
+                                <InputText @bind-Value="breakModel.AssignmentHandler" class="form-control form-control-sm"
+                                           placeholder="Handler name..." />
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-success btn-sm w-100 fw-bold" disabled="@isLoading">
+                                    @if (isLoading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                        <span>SUBMITTING...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-paper-plane me-1"></i>
+                                        <span>SUBMIT REQUEST</span>
+                                    }
+                                </button>
+                            </div>
+
+                            <!-- Cancel Button -->
+                            <div class="col-md-2">
+                                <a href="/" class="btn btn-outline-danger btn-sm w-100 fw-bold">
+                                    <i class="fas fa-times me-1"></i>CANCEL
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Error Message -->
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="row mt-1">
+                                <div class="col-12">
+                                    <div class="alert alert-danger py-1 px-2 small fw-bold mb-0">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>@errorMessage
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ultra-Compact Requirements -->
+    <div class="row mt-2">
+        <div class="col-12">
+            <div class="card border-warning border-2 shadow-sm">
+                <div class="card-body py-1 px-2">
+                    <div class="row g-1 text-center">
+                        <div class="col">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="fas fa-calendar-check text-warning me-1 fa-xs"></i>
+                                <small class="fw-bold text-dark">3+ DAYS ADVANCE</small>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="fas fa-user-check text-warning me-1 fa-xs"></i>
+                                <small class="fw-bold text-dark">DEPARTMENT OFFICER</small>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="fas fa-envelope text-warning me-1 fa-xs"></i>
+                                <small class="fw-bold text-dark">SUPERVISOR NOTIFIED</small>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="fas fa-history text-warning me-1 fa-xs"></i>
+                                <small class="fw-bold text-dark">TRACK STATUS</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Compact Success Modal -->
+@if (showSuccessModal)
+{
+    <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-success text-white border-0 py-1">
+                    <h6 class="modal-title mb-0 fw-bold">
+                        <i class="fas fa-check-circle me-2"></i>SUCCESS!
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseSuccessModal"></button>
+                </div>
+                <div class="modal-body text-center py-2">
+                    <i class="fas fa-check-circle fa-2x text-success mb-1"></i>
+                    <h6 class="text-success mb-0 fw-bold">REQUEST SUBMITTED!</h6>
+                    <small class="text-muted">Supervisor notified</small>
+                </div>
+                <div class="modal-footer border-0 py-1">
+                    <button class="btn btn-success btn-sm w-100 py-1 fw-bold" @onclick="CloseSuccessModal">
+                        <i class="fas fa-list me-1"></i>VIEW REQUESTS
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private BreakRequestModel breakModel = new();
+    private List<Worker> availableOfficers = new();
+    private bool isLoading = false;
+    private bool showSuccessModal = false;
+    private string errorMessage = string.Empty;
+    private string minDate = DateTime.Today.ToString("yyyy-MM-dd");
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadAvailableOfficers();
+    }
+
+    private async Task LoadAvailableOfficers()
+    {
+        if (AuthService.CurrentWorker != null)
+        {
+            availableOfficers = await ExcuseService.GetAvailableRelieveOfficersAsync(AuthService.CurrentWorker.Id);
+        }
+    }
+
+    private string GetBreakDuration()
+    {
+        if (breakModel.StartDate.HasValue && breakModel.EndDate.HasValue)
+        {
+            var duration = (breakModel.EndDate.Value - breakModel.StartDate.Value).Days + 1;
+            return duration.ToString();
+        }
+        return "0";
+    }
+
+    private async Task SubmitBreakRequest()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            if (AuthService.CurrentWorker == null)
+            {
+                errorMessage = "User authentication failed. Please log in again.";
+                isLoading = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Submit the break request
+            var request = await ExcuseService.CreateBreakRequestAsync(breakModel, AuthService.CurrentWorker.Id);
+
+            // Show success modal
+            showSuccessModal = true;
+
+            // Reset form
+            breakModel = new BreakRequestModel();
+
+            // Reload officers in case availability changed
+            await LoadAvailableOfficers();
+
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error submitting request: {ex.Message}";
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void CloseSuccessModal()
+    {
+        showSuccessModal = false;
+        Navigation.NavigateTo("/excuse/mybreak-requests");
+    }
+}
+
+<style>
+    .text-dark-blue {
+        color: #2c3e50 !important;
+    }
+
+    .border-primary {
+        border-color: #2c3e50 !important;
+    }
+
+    .card {
+        border-radius: 0.375rem;
+    }
+
+    .form-control-sm, .form-select-sm {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.4rem;
+        height: calc(1.5em + 0.4rem);
+    }
+
+    .btn-sm {
+        padding: 0.2rem 0.6rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .alert {
+        font-size: 0.8rem;
+        border-radius: 0.25rem;
+        margin-bottom: 0;
+    }
+
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.3em 0.6em;
+    }
+
+    .modal-sm {
+        max-width: 280px;
+    }
+
+    .fa-xs {
+        font-size: 0.7rem;
+    }
+
+    .fw-bold {
+        font-weight: 700 !important;
+    }
+
+    .shadow {
+        box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .border-2 {
+        border-width: 2px !important;
+    }
+</style>

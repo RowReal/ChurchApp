@@ -1,0 +1,899 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow-x: hidden;
+}
+
+/* ===== UPDATED BCC COLOR SCHEME ===== */
+:root {
+    --bcc-primary: #f8f9fa; /* Off-white/Grey background */
+    --bcc-secondary: #6c757d; /* Muted grey */
+    --bcc-accent: #dee2e6; /* Lighter grey */
+    --bcc-light: #ffffff; /* White */
+    --bcc-dark: #212529; /* Dark text */
+    --bcc-success: #2e7d32; /* Green */
+    --bcc-warning: #f57c00; /* Orange */
+    --bcc-danger: #c62828; /* Red */
+    --bcc-gray: #f5f5f5; /* Light gray */
+    --bcc-purple: #6f42c1; /* Purple for accents */
+    --bcc-dark-purple: #59359a; /* Darker purple */
+}
+
+/* ===== FIXED LAYOUT STRUCTURE ===== */
+.bcc-layout-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Fixed Top Navbar - UPDATED WITH PURPLE ACCENTS */
+.bcc-top-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: var(--bcc-primary); /* Off-white */
+    color: var(--bcc-dark); /* Dark text */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-bottom: 1px solid #dee2e6; /* Light border */
+}
+
+.bcc-navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* UPDATED: Logo with dark purple background */
+.bcc-church-logo {
+    background-color: var(--bcc-dark-purple); /* CHANGED: Dark purple */
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bcc-logo-img {
+    height: 35px;
+    width: auto;
+    /*filter: brightness(0) invert(1);*/ /* Makes logo white on purple */
+}
+
+/* UPDATED: Purple brand text */
+.bcc-brand-text {
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: var(--bcc-purple); /* CHANGED: Purple color */
+}
+
+.bcc-navbar-user {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.bcc-user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+/* UPDATED: Purple user name */
+.bcc-user-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--bcc-purple); /* CHANGED: Purple color */
+}
+
+.bcc-user-role {
+    font-size: 0.8rem;
+    color: #6c757d; /* Grey text for role */
+}
+
+.bcc-btn-signout {
+    background: none;
+    border: 1px solid #dee2e6; /* Light grey border */
+    color: var(--bcc-dark); /* Dark text */
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+    .bcc-btn-signout:hover {
+        background: #e9ecef; /* Light grey on hover */
+        color: var(--bcc-dark);
+    }
+
+.bcc-navbar-toggler {
+    background: none;
+    border: none;
+    color: var(--bcc-dark); /* Dark icon */
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    display: none;
+}
+
+/* Main Container */
+.bcc-main-container {
+    display: flex;
+    margin-top: 70px;
+    min-height: calc(100vh - 70px);
+    width: 100%;
+}
+
+/* Sidebar - UPDATED WITH PURPLE ICONS */
+.bcc-sidebar {
+    width: 280px;
+    background: var(--bcc-primary); /* Off-white */
+    color: var(--bcc-dark); /* Dark text */
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+    position: fixed;
+    left: 0;
+    top: 70px;
+    bottom: 0;
+    z-index: 999;
+    transform: translateX(0);
+    border-right: 1px solid #dee2e6; /* Light border */
+}
+
+.bcc-sidebar-hidden {
+    transform: translateX(-100%);
+}
+
+.bcc-sidebar-visible {
+    transform: translateX(0);
+}
+
+.bcc-sidebar-content {
+    padding: 1rem 0;
+    height: 100%;
+}
+
+.bcc-nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0 1rem;
+}
+
+.bcc-nav-item, .bcc-nav-section-header {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: var(--bcc-dark); /* Dark text */
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+    .bcc-nav-item:hover, .bcc-nav-section-header:hover {
+        background: #e9ecef; /* Light grey on hover */
+        color: var(--bcc-dark);
+    }
+
+/* UPDATED: Purple icons like in the reference site */
+.bcc-nav-icon {
+    width: 24px; /* Slightly larger */
+    margin-right: 0.75rem;
+    text-align: center;
+    color: var(--bcc-purple); /* CHANGED: Purple icons */
+    font-size: 1.1rem;
+}
+
+    /* ADDED: Specific icon colors like reference site */
+    .bcc-nav-icon.fa-tachometer-alt {
+        color: var(--bcc-purple);
+    }
+
+    .bcc-nav-icon.fa-users {
+        color: #17a2b8;
+    }
+    /* Teal for Workforce */
+    .bcc-nav-icon.fa-calendar-times {
+        color: #ffc107;
+    }
+    /* Yellow for Permission */
+    .bcc-nav-icon.fa-hands-helping {
+        color: #dc3545;
+    }
+    /* Red for Ushering */
+    .bcc-nav-icon.fa-chart-bar {
+        color: #28a745;
+    }
+    /* Green for Reports */
+    .bcc-nav-icon.fa-chart-pie {
+        color: #6f42c1;
+    }
+    /* Purple for Budget */
+    .bcc-nav-icon.fa-money-check {
+        color: #20c997;
+    }
+    /* Teal for Remittance */
+    .bcc-nav-icon.fa-cogs {
+        color: #6c757d;
+    }
+/* Grey for Setup */
+
+.bcc-nav-text {
+    flex: 1;
+    font-weight: 500;
+    color: var(--bcc-dark); /* Dark text */
+    font-size: 0.95rem;
+}
+
+.bcc-nav-chevron {
+    font-size: 0.8rem;
+    color: #6c757d; /* Grey chevron */
+}
+
+.bcc-nav-submenu {
+    margin-left: 1rem;
+    padding-left: 1rem;
+    border-left: 2px solid #dee2e6; /* Light grey border */
+}
+
+.bcc-nav-subitem {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    color: #495057; /* Dark grey text */
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+    .bcc-nav-subitem:hover {
+        background: #e9ecef; /* Light grey on hover */
+        color: var(--bcc-dark);
+    }
+
+/* UPDATED: Purple badge */
+.bcc-nav-badge {
+    background: var(--bcc-purple); /* CHANGED: Purple badge */
+    color: white;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    min-width: 18px;
+    text-align: center;
+    margin-left: auto;
+}
+
+/* Main Content Area - FIXED: No more hidden content */
+.bcc-main-content {
+    flex: 1;
+    margin-left: 280px;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    min-height: calc(100vh - 70px);
+    overflow-y: auto;
+    transition: margin-left 0.3s ease;
+}
+
+/* Mobile Backdrop */
+.bcc-sidebar-backdrop {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 998;
+    display: none;
+}
+
+/* ===== DASHBOARD STYLES ===== */
+.bcc-welcome-card {
+    background: white;
+    border: 2px solid #dee2e6; /* Light grey border */
+    border-radius: 12px;
+    color: var(--bcc-dark);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+    .bcc-welcome-card .card-body {
+        background: white;
+    }
+
+    .bcc-welcome-card h1 {
+        color: var(--bcc-dark); /* Dark text */
+        font-weight: 700;
+    }
+
+    .bcc-welcome-card p {
+        color: var(--bcc-dark);
+        opacity: 0.8;
+    }
+
+/* UPDATED: Purple directorate badge */
+.bcc-directorate-badge {
+    background: var(--bcc-purple); /* CHANGED: Purple */
+    color: white;
+    border: 1px solid var(--bcc-purple);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.bcc-stat-card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+    .bcc-stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+/* UPDATED: Purple stat icons */
+.bcc-stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    color: white;
+    background: var(--bcc-purple); /* CHANGED: Purple background */
+}
+
+.bcc-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+}
+
+.bcc-card-header {
+    background: white;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 1rem 1.5rem;
+}
+
+.bcc-action-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem 0.5rem;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+    .bcc-action-card:hover {
+        background: var(--bcc-gray);
+        transform: translateY(-2px);
+        text-decoration: none;
+        color: inherit;
+    }
+
+/* UPDATED: Purple action icons */
+.bcc-action-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-bottom: 0.5rem;
+    background: var(--bcc-purple); /* CHANGED: Purple background */
+}
+
+.bcc-action-text {
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.bcc-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--bcc-danger);
+    color: white;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    min-width: 18px;
+    text-align: center;
+}
+
+.bcc-notification-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.bcc-notification-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.2s ease;
+}
+
+    .bcc-notification-item:hover {
+        background: var(--bcc-gray);
+    }
+
+.bcc-notification-icon {
+    flex-shrink: 0;
+    width: 32px;
+    text-align: center;
+    margin-right: 1rem;
+}
+
+.bcc-notification-content {
+    flex: 1;
+}
+
+.bcc-notification-text {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.bcc-notification-time {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.bcc-progress-container {
+    text-align: center;
+}
+
+.bcc-progress-bar {
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+/* UPDATED: Purple progress bar */
+.bcc-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--bcc-purple), var(--bcc-dark-purple)); /* CHANGED: Purple gradient */
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.bcc-progress-text {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+/* UPDATED: Purple progress action */
+.bcc-progress-action {
+    color: var(--bcc-purple); /* CHANGED: Purple */
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.bcc-landing-page {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); /* Light gradient */
+}
+
+.bcc-landing-logo {
+    max-height: 80px;
+    max-width: 80px;
+}
+
+/* UPDATED: Purple primary button */
+.bcc-btn-primary {
+    background: var(--bcc-purple); /* CHANGED: Purple */
+    border: none;
+    color: white;
+    font-weight: 600;
+}
+
+    .bcc-btn-primary:hover {
+        background: var(--bcc-dark-purple); /* CHANGED: Darker purple */
+        color: white;
+    }
+
+.bcc-btn-outline {
+    border: 2px solid #495057; /* Dark grey border */
+    color: #495057;
+    background: transparent;
+}
+
+    .bcc-btn-outline:hover {
+        background: #495057;
+        color: white;
+    }
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+    .bcc-navbar-toggler {
+        display: block;
+    }
+
+    .bcc-user-info {
+        display: none;
+    }
+
+    .bcc-sidebar {
+        transform: translateX(-100%);
+        width: 280px;
+    }
+
+    .bcc-sidebar-visible {
+        transform: translateX(0);
+    }
+
+    .bcc-main-content {
+        margin-left: 0 !important;
+        width: 100%;
+        padding: 1rem;
+    }
+
+    .bcc-sidebar-backdrop {
+        display: block;
+    }
+
+    /* Dashboard mobile optimizations */
+    .bcc-action-text {
+        font-size: 0.7rem;
+    }
+
+    .bcc-stat-card .card-body {
+        padding: 1rem 0.5rem;
+    }
+
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+@media (min-width: 769px) {
+    .bcc-navbar-toggler {
+        display: none;
+    }
+
+    .bcc-sidebar-backdrop {
+        display: none !important;
+    }
+}
+
+/* Utility Styles */
+.church-logo {
+    display: flex;
+    align-items: center;
+}
+
+.church-logo-img {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+}
+
+/* Ensure mobile responsiveness */
+@media (max-width: 576px) {
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    .row {
+        margin-left: -5px;
+        margin-right: -5px;
+    }
+
+    .col, .col-sm-6, .col-lg-4 {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+}
+
+/* Touch-friendly buttons for mobile */
+.btn, .action-card {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Improve loading states */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Full width for non-authenticated pages */
+.bcc-full-width {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+
+/* Ensure proper spacing for authenticated layout */
+.bcc-main-content {
+    transition: margin-left 0.3s ease;
+}
+
+/* UPDATED: Purple login button */
+.bcc-btn-signout[href="/login"] {
+    background: var(--bcc-purple); /* CHANGED: Purple */
+    color: white; /* White text */
+    border: none;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+    .bcc-btn-signout[href="/login"]:hover {
+        background: var(--bcc-dark-purple); /* CHANGED: Darker purple */
+        color: white;
+    }
+
+/* New Color Classes for Offering Module */
+.bg-purple {
+    background-color: var(--bcc-purple) !important; /* CHANGED: Purple */
+}
+
+.bg-bongoloase {
+    background-color: #8d6e63 !important;
+}
+
+.bg-dark-blue {
+    background-color: #1976d2 !important;
+}
+
+.bg-gold {
+    background-color: #b8860b !important;
+}
+
+.text-purple {
+    color: var(--bcc-purple) !important; /* CHANGED: Purple */
+}
+
+.text-bongoloase {
+    color: #8d6e63 !important;
+}
+
+.text-dark-blue {
+    color: #1976d2 !important;
+}
+
+.text-gold {
+    color: #b8860b !important;
+}
+
+.btn-outline-purple {
+    border-color: var(--bcc-purple); /* CHANGED: Purple */
+    color: var(--bcc-purple);
+}
+
+    .btn-outline-purple:hover {
+        background-color: var(--bcc-purple); /* CHANGED: Purple */
+        color: white;
+    }
+
+.btn-outline-bongoloase {
+    border-color: #8d6e63;
+    color: #8d6e63;
+}
+
+    .btn-outline-bongoloase:hover {
+        background-color: #8d6e63;
+        color: white;
+    }
+
+.bcc-btn-primary {
+    background-color: var(--bcc-purple) !important; /* CHANGED: Purple */
+    border-color: var(--bcc-purple) !important;
+    color: white !important;
+}
+
+    .bcc-btn-primary:hover {
+        background-color: var(--bcc-dark-purple) !important; /* CHANGED: Darker purple */
+        border-color: var(--bcc-dark-purple) !important;
+        color: white !important;
+    }
+
+/* Emoji Icon Styles */
+.bcc-nav-icon-container {
+    width: 32px;
+    height: 32px;
+    margin-right: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.bcc-nav-emoji {
+    font-size: 1.2rem;
+    line-height: 1;
+    display: inline-block;
+}
+
+/* Submenu emoji (slightly smaller) */
+.bcc-nav-subitem .bcc-nav-icon-container {
+    width: 28px;
+    height: 28px;
+    margin-right: 0.5rem;
+}
+
+.bcc-nav-subitem .bcc-nav-emoji {
+    font-size: 1rem;
+}
+
+/* Hide Font Awesome icons */
+.bcc-nav-icon {
+    display: none !important;
+}
+/* New Css*/
+/* Growth Hub Styling */
+.view-detail-btn {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+    .view-detail-btn:hover {
+        background-color: #0d6efd;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+    }
+
+        .view-detail-btn:hover i {
+            color: white;
+        }
+
+    .view-detail-btn::after {
+        content: 'View full case details and conversation';
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #333;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 1000;
+    }
+
+    .view-detail-btn:hover::after {
+        opacity: 1;
+        visibility: visible;
+        bottom: calc(100% + 5px);
+    }
+
+.respond-btn {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+    .respond-btn:hover {
+        background-color: #198754;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(25, 135, 84, 0.3);
+    }
+
+        .respond-btn:hover i {
+            color: white;
+        }
+
+    .respond-btn::after {
+        content: 'Respond to this case or escalate';
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #333;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 1000;
+    }
+
+    .respond-btn:hover::after {
+        opacity: 1;
+        visibility: visible;
+        bottom: calc(100% + 5px);
+    }
+
+/* Growth Hub specific badges */
+.badge.bg-growth {
+    background-color: #20c997 !important;
+}
+
+.badge.bg-growth-light {
+    background-color: #d1f7eb !important;
+    color: #0c6b4f !important;
+}
+
+/* Card hover effects for assigned cases */
+.card:hover {
+    transform: translateY(-4px);
+    transition: transform 0.3s ease;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Timeline styling for case history */
+.timeline {
+    position: relative;
+    padding-left: 20px;
+}
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: #dee2e6;
+    }
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -18px;
+    top: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #0d6efd;
+    border: 2px solid white;
+}
+
+/* Message styling */
+.message-sent .message-content {
+    border-left: 4px solid #0d6efd;
+}
+
+.message-received .message-content {
+    border-left: 4px solid #6c757d;
+}
+
+/* Responsive design */
+@@media (max-width: 768px) {
+    .view-detail-btn::after,
+    .respond-btn::after {
+        display: none; /* Hide tooltips on mobile */
+    }
+}

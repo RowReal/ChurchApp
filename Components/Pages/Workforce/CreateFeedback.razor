@@ -1,0 +1,31 @@
+﻿@page "/Workforce/create-feedback"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AccountabilityService AccountabilityService
+@inject WorkerService WorkerService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Create Growth Feedback</PageTitle>
+
+<!-- Reuse your create-case component with updated routing -->
+@if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+{
+    <!-- You can either redirect or include the create-case component -->
+    <div style="display: none;">
+        @{
+            Navigation.NavigateTo("/Workforce/create-case?from=Workforce");
+        }
+    </div>
+}
+else
+{
+    <div class="container py-5">
+        <div class="text-center">
+            <i class="fas fa-sign-in-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Please Login</h5>
+            <a href="/login" class="btn btn-sm btn-primary">Go to Login</a>
+        </div>
+    </div>
+}

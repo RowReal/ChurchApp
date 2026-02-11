@@ -1,0 +1,18 @@
+﻿@page "/growth-hub/case1/{caseId:int}"
+@layout Components.Layout.MainLayout
+
+<PageTitle>Growth Case Details</PageTitle>
+
+<!-- Simple test to verify it works -->
+<div class="container py-5">
+    <div class="text-center">
+        <h4>Case ID: @caseId</h4>
+        <p>This is the Growth Hub case detail page</p>
+        <a href="/Workforce/feedback" class="btn btn-primary">Back to Feedback</a>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int caseId { get; set; }
+}

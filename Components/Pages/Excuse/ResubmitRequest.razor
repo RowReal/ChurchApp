@@ -1,0 +1,806 @@
+﻿@page "/excuse/resubmit"
+@page "/excuse/resubmit/{RequestId:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@using System.ComponentModel.DataAnnotations
+@inject ExcuseService ExcuseService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>BCC ServiceHub - Resubmit Requests</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="h3 mb-1">
+                        @if (RequestId > 0)
+                        {
+                            <text>Resubmit Excuse Request</text>
+                        }
+                        else
+                        {
+                            <text>Requests Needing Resubmission</text>
+                        }
+                    </h2>
+                    <p class="text-muted mb-0">
+                        @if (RequestId > 0)
+                        {
+                            <text>Update your request based on supervisor feedback</text>
+                        }
+                        else
+                        {
+                            <text>Review and update your requests that require resubmission</text>
+                        }
+                    </p>
+                </div>
+                <a href="/excuse/my-requests" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to My Requests
+                </a>
+            </div>
+
+            @if (RequestId == 0)
+            {
+                <!-- List of requests needing resubmission -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-warning bg-opacity-10 border-0 py-3">
+                        <h5 class="mb-0 fw-semibold text-warning">
+                            <i class="fas fa-edit me-2"></i>
+                            Requests Requiring Resubmission (@resubmissionRequests.Count)
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (resubmissionRequests.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Service</th>
+                                            <th>Date</th>
+                                            <th>Backup</th>
+                                            <th>Supervisor Feedback</th>
+                                            <th>Submitted</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var request in resubmissionRequests)
+                                        {
+                                            var latestFeedback = request.History
+                                                .Where(h => h.Action == "ResubmissionRequested")
+                                                .OrderByDescending(h => h.ActionDate)
+                                                .FirstOrDefault();
+                                            
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-semibold">
+                                                        @(request.Service?.Name ?? request.CustomServiceName ?? "Custom Service")
+                                                    </div>
+                                                    <small class="text-muted">@GetServiceTimeDisplay(request)</small>
+                                                </td>
+                                                <td>
+                                                    <div class="fw-medium">@request.RequestedDate.ToString("MMM dd, yyyy")</div>
+                                                </td>
+                                                <td>
+                                                    <div>@request.NominatedBackup?.FirstName @request.NominatedBackup?.LastName</div>
+                                                    <small class="text-muted">@request.NominatedBackup?.WorkerId</small>
+                                                </td>
+                                                <td>
+                                                    @if (latestFeedback != null)
+                                                    {
+                                                        <div class="text-truncate" style="max-width: 200px;" 
+                                                             title="@latestFeedback.Comments">
+                                                            @latestFeedback.Comments
+                                                        </div>
+                                                        <small class="text-muted">
+                                                            by @latestFeedback.ActionByWorker?.FirstName @latestFeedback.ActionByWorker?.LastName
+                                                        </small>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">No specific feedback</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <div>@request.SubmittedDate.ToString("MMM dd, yyyy")</div>
+                                                    <small class="text-muted">@request.SubmittedDate.ToString("hh:mm tt")</small>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-warning" 
+                                                                @onclick="() => NavigateToResubmit(request.Id)"
+                                                                title="Update and resubmit this request based on supervisor feedback">
+                                                            <i class="fas fa-edit me-1"></i>Resubmit
+                                                        </button>
+                                                        <button class="btn btn-outline-danger" 
+                                                                @onclick="() => ShowCancelResubmitConfirmation(request)"
+                                                                title="Cancel this request instead of resubmitting">
+                                                            <i class="fas fa-times me-1"></i>Cancel
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5">
+                                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                <h5 class="text-success">All Caught Up!</h5>
+                                <p class="text-muted mb-3">You don't have any requests that need resubmission.</p>
+                                <a href="/excuse/my-requests" class="btn btn-primary">
+                                    <i class="fas fa-list me-2"></i>View All Requests
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Individual request resubmission form -->
+                @if (originalRequest == null)
+                {
+                    <!-- Loading or Error State -->
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center py-5">
+                            @if (isLoading)
+                            {
+                                <div class="spinner-border text-primary mb-3" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p>Loading request details...</p>
+                            }
+                            else
+                            {
+                                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                                <h5 class="text-warning">Request Not Found</h5>
+                                <p class="text-muted">The requested excuse request could not be found or you don't have permission to access it.</p>
+                                <a href="/excuse/resubmit" class="btn btn-primary">View Resubmission Requests</a>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <!-- Original Request Details -->
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-light border-0 py-3">
+                            <h5 class="mb-0 fw-semibold text-primary">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Original Request Details
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Service:</dt>
+                                        <dd class="col-sm-8 fw-semibold">@(originalRequest.Service?.Name ?? originalRequest.CustomServiceName ?? "Custom Service")</dd>
+
+                                        <dt class="col-sm-4">Date:</dt>
+                                        <dd class="col-sm-8">@originalRequest.RequestedDate.ToString("MMM dd, yyyy")</dd>
+
+                                        <dt class="col-sm-4">Time:</dt>
+                                        <dd class="col-sm-8">@GetServiceTimeDisplay(originalRequest)</dd>
+
+                                        <dt class="col-sm-4">Backup:</dt>
+                                        <dd class="col-sm-8">@originalRequest.NominatedBackup?.FirstName @originalRequest.NominatedBackup?.LastName</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Status:</dt>
+                                        <dd class="col-sm-8">
+                                            <span class="badge bg-info">Needs Resubmission</span>
+                                        </dd>
+
+                                        <dt class="col-sm-4">Supervisor:</dt>
+                                        <dd class="col-sm-8">@originalRequest.Supervisor?.FirstName @originalRequest.Supervisor?.LastName</dd>
+
+                                        <dt class="col-sm-4">Submitted:</dt>
+                                        <dd class="col-sm-8">@originalRequest.SubmittedDate.ToString("MMM dd, yyyy 'at' hh:mm tt")</dd>
+                                    </dl>
+                                </div>
+                            </div>
+
+                            <!-- Original Reason -->
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <dt class="fw-semibold">Original Reason:</dt>
+                                    <dd class="border rounded p-3 bg-light mt-2">
+                                        @originalRequest.Reason
+                                    </dd>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Supervisor Feedback -->
+                    <div class="card border-warning border-0 shadow-sm mb-4">
+                        <div class="card-header bg-warning bg-opacity-10 border-0 py-3">
+                            <h5 class="mb-0 fw-semibold text-warning">
+                                <i class="fas fa-comment-exclamation me-2"></i>
+                                Supervisor Feedback
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            @if (latestResubmissionRequest != null)
+                            {
+                                <div class="alert alert-warning">
+                                    <div class="d-flex">
+                                        <i class="fas fa-exclamation-circle me-3 mt-1 text-warning"></i>
+                                        <div>
+                                            <h6 class="alert-heading">Resubmission Required</h6>
+                                            <p class="mb-2">@latestResubmissionRequest.Comments</p>
+                                            <small class="text-muted">
+                                                Feedback provided by @latestResubmissionRequest.ActionByWorker?.FirstName @latestResubmissionRequest.ActionByWorker?.LastName 
+                                                on @latestResubmissionRequest.ActionDate.ToString("MMM dd, yyyy 'at' hh:mm tt")
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center text-muted py-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    No specific feedback provided. Please review and update your request.
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Resubmission Form -->
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white border-0 py-3">
+                            <h5 class="mb-0 fw-semibold text-success">
+                                <i class="fas fa-edit me-2"></i>
+                                Update Your Request
+                            </h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <EditForm Model="resubmitModel" OnValidSubmit="SubmitResubmission">
+                                <DataAnnotationsValidator />
+                                
+                                <!-- Updated Reason -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold">Updated Reason *</label>
+                                    <InputTextArea @bind-Value="resubmitModel.UpdatedReason" class="form-control" 
+                                                  placeholder="Please update your reason based on the supervisor's feedback..." 
+                                                  rows="5" />
+                                    <ValidationMessage For="@(() => resubmitModel.UpdatedReason)" />
+                                    <div class="form-text">
+                                        Address the supervisor's feedback in your updated reason. Explain any changes you've made.
+                                        <span class="text-danger">Note: You cannot modify the original service details, only the reason.</span>
+                                    </div>
+                                </div>
+
+                                <!-- Additional Notes -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold">Additional Notes (Optional)</label>
+                                    <InputTextArea @bind-Value="resubmitModel.AdditionalNotes" class="form-control" 
+                                                  placeholder="Any additional information or clarifications..." 
+                                                  rows="3" />
+                                    <div class="form-text">
+                                        Provide any additional context or explanations for your updates.
+                                    </div>
+                                </div>
+
+                                <!-- Changes Summary -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold">Summary of Changes</label>
+                                    <div class="border rounded p-3 bg-light">
+                                        @if (HasReasonChanged())
+                                        {
+                                            <div class="mb-2">
+                                                <i class="fas fa-check text-success me-2"></i>
+                                                <strong>Reason updated</strong> - Modified based on supervisor feedback
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="mb-2">
+                                                <i class="fas fa-info text-info me-2"></i>
+                                                <strong>No changes to reason</strong> - Only additional notes provided
+                                            </div>
+                                        }
+                                        <div>
+                                            <i class="fas fa-calendar-check text-primary me-2"></i>
+                                            <strong>Service details unchanged</strong> - Same service, date, and backup
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Validation Messages -->
+                                @if (!string.IsNullOrEmpty(errorMessage))
+                                {
+                                    <div class="alert alert-danger">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>@errorMessage
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(successMessage))
+                                {
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-check-circle me-2"></i>@successMessage
+                                    </div>
+                                }
+
+                                <!-- Action Buttons -->
+                                <div class="d-flex gap-2 justify-content-end pt-3">
+                                    <button type="button" class="btn btn-secondary" @onclick="NavigateToResubmitList"
+                                            title="Go back to the list of requests needing resubmission">
+                                        <i class="fas fa-arrow-left me-2"></i>Back to List
+                                    </button>
+                                    <button type="button" class="btn btn-danger" @onclick="() => ShowCancelResubmitConfirmation(originalRequest)"
+                                            title="Cancel this request instead of resubmitting">
+                                        <i class="fas fa-times me-2"></i>Cancel Request
+                                    </button>
+                                    <button type="submit" class="btn btn-success" disabled="@isSubmitting"
+                                            title="Submit your updated request for supervisor approval">
+                                        @if (isSubmitting)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                            <text>Resubmitting...</text>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-paper-plane me-2"></i>
+                                            <text>Resubmit Request</text>
+                                        }
+                                    </button>
+                                </div>
+                            </EditForm>
+                        </div>
+                    </div>
+
+                    <!-- Request History -->
+                    <div class="card border-0 shadow-sm mt-4">
+                        <div class="card-header bg-white border-0 py-3">
+                            <h5 class="mb-0 fw-semibold">
+                                <i class="fas fa-history me-2 text-primary"></i>
+                                Request History
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline">
+                                @foreach (var history in originalRequest.History.OrderBy(h => h.ActionDate))
+                                {
+                                    <div class="timeline-item">
+                                        <div class="timeline-marker @GetHistoryMarkerClass(history.Action)"></div>
+                                        <div class="timeline-content">
+                                            <div class="timeline-header">
+                                                <strong>@history.ActionByWorker?.FirstName @history.ActionByWorker?.LastName</strong>
+                                                <span class="text-muted ms-2">(@history.ActionByRole)</span>
+                                                <small class="text-muted ms-2">@history.ActionDate.ToString("MMM dd, yyyy 'at' hh:mm tt")</small>
+                                            </div>
+                                            <div class="timeline-body">
+                                                <span class="badge @GetActionBadgeClass(history.Action)">@history.Action</span>
+                                                <p class="mb-0 mt-1">@history.Comments</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Resubmission Confirmation Modal -->
+@if (showCancelResubmitModal && requestToCancelResubmit != null)
+{
+    <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title text-white">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Cancel Request
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseCancelResubmitModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Are you sure you want to cancel this request?</strong>
+                        <p class="mb-0 mt-2">This will permanently cancel the request instead of resubmitting it.</p>
+                    </div>
+                    <div class="border rounded p-3 bg-light">
+                        <strong>Service:</strong> @(requestToCancelResubmit.Service?.Name ?? requestToCancelResubmit.CustomServiceName ?? "Custom Service")<br>
+                        <strong>Date:</strong> @requestToCancelResubmit.RequestedDate.ToString("MMM dd, yyyy")<br>
+                        <strong>Time:</strong> @GetServiceTimeDisplay(requestToCancelResubmit)<br>
+                        <strong>Backup:</strong> @requestToCancelResubmit.NominatedBackup?.FirstName @requestToCancelResubmit.NominatedBackup?.LastName
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label fw-semibold">Cancellation Reason (Optional)</label>
+                        <InputTextArea @bind-Value="cancellationReason" class="form-control"
+                                       placeholder="Why are you cancelling this request instead of resubmitting?"
+                                       rows="3" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCancelResubmitModal"
+                            title="Go back to resubmission process">
+                        Continue Resubmission
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmCancelResubmitRequest" disabled="@isCancelling"
+                            title="Permanently cancel this request">
+                        @if (isCancelling)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <text>Cancelling...</text>
+                        }
+                        else
+                        {
+                            <i class="fas fa-times me-2"></i>
+                            <text>Yes, Cancel Request</text>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int RequestId { get; set; }
+
+    private List<ExcuseRequest> resubmissionRequests = new();
+    private ExcuseRequest? originalRequest = null;
+    private ExcuseRequestHistory? latestResubmissionRequest = null;
+    private ResubmitModel resubmitModel = new();
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool isCancelling = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool showCancelResubmitModal = false;
+    private ExcuseRequest? requestToCancelResubmit = null;
+    private string cancellationReason = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (RequestId > 0)
+        {
+            await LoadRequestDetails();
+        }
+        else
+        {
+            await LoadResubmissionRequests();
+        }
+    }
+
+    private async Task LoadResubmissionRequests()
+    {
+        try
+        {
+            if (AuthService.CurrentWorker != null)
+            {
+                var allRequests = await ExcuseService.GetMyExcuseRequestsAsync(AuthService.CurrentWorker.Id);
+                resubmissionRequests = allRequests.Where(r => r.RequestStatus == "ResubmissionRequested").ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading requests: {ex.Message}";
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadRequestDetails()
+    {
+        try
+        {
+            originalRequest = await ExcuseService.GetExcuseRequestByIdAsync(RequestId);
+
+            if (originalRequest != null)
+            {
+                // Verify the current user owns this request
+                if (originalRequest.WorkerId != AuthService.CurrentWorker?.Id)
+                {
+                    originalRequest = null;
+                    errorMessage = "You don't have permission to access this request.";
+                }
+                else if (originalRequest.RequestStatus != "ResubmissionRequested")
+                {
+                    errorMessage = "This request is not available for resubmission.";
+                    originalRequest = null;
+                }
+                else
+                {
+                    // Find the latest resubmission request feedback
+                    latestResubmissionRequest = originalRequest.History
+                        .Where(h => h.Action == "ResubmissionRequested")
+                        .OrderByDescending(h => h.ActionDate)
+                        .FirstOrDefault();
+
+                    // Pre-fill the form with original reason
+                    resubmitModel.UpdatedReason = originalRequest.Reason;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading request: {ex.Message}";
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void NavigateToResubmit(int requestId)
+    {
+        Navigation.NavigateTo($"/excuse/resubmit/{requestId}");
+    }
+
+    private void NavigateToResubmitList()
+    {
+        Navigation.NavigateTo("/excuse/resubmit");
+    }
+
+    private void ShowCancelResubmitConfirmation(ExcuseRequest request)
+    {
+        requestToCancelResubmit = request;
+        cancellationReason = string.Empty;
+        showCancelResubmitModal = true;
+    }
+
+    private void CloseCancelResubmitModal()
+    {
+        showCancelResubmitModal = false;
+        requestToCancelResubmit = null;
+        cancellationReason = string.Empty;
+        isCancelling = false;
+    }
+
+    private async Task ConfirmCancelResubmitRequest()
+    {
+        if (requestToCancelResubmit == null) return;
+
+        isCancelling = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var success = await ExcuseService.CancelExcuseRequestAsync(requestToCancelResubmit.Id, cancellationReason);
+
+            if (success)
+            {
+                CloseCancelResubmitModal();
+                if (RequestId > 0)
+                {
+                    // If we're on the individual request page, go back to list
+                    Navigation.NavigateTo("/excuse/resubmit");
+                }
+                else
+                {
+                    // If we're on the list page, reload the list
+                    await LoadResubmissionRequests();
+                }
+                StateHasChanged();
+            }
+            else
+            {
+                errorMessage = "Failed to cancel the request. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error cancelling request: {ex.Message}";
+        }
+
+        isCancelling = false;
+        StateHasChanged();
+    }
+
+    // Add the missing helper methods
+    private string GetServiceTimeDisplay(ExcuseRequest request)
+    {
+        if (request.ServiceId.HasValue && request.Service != null)
+        {
+            var service = request.Service;
+            if (service.RecurrencePattern == "OneTime" && service.SpecificStartTime.HasValue)
+            {
+                return service.SpecificStartTime.Value.ToString(@"hh\:mm");
+            }
+            else if (service.StartTime.HasValue)
+            {
+                return service.StartTime.Value.ToString(@"hh\:mm");
+            }
+        }
+        else if (request.CustomServiceTime.HasValue)
+        {
+            return request.CustomServiceTime.Value.ToString(@"hh\:mm");
+        }
+        return "Time not specified";
+    }
+
+    private bool HasReasonChanged()
+    {
+        return originalRequest != null && 
+               !string.IsNullOrEmpty(resubmitModel.UpdatedReason) &&
+               resubmitModel.UpdatedReason.Trim() != originalRequest.Reason.Trim();
+    }
+
+    private string GetHistoryMarkerClass(string action)
+    {
+        return action switch
+        {
+            "Submitted" => "bg-primary",
+            "Approved" => "bg-success",
+            "Rejected" => "bg-danger",
+            "ResubmissionRequested" => "bg-warning",
+            "Resubmitted" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetActionBadgeClass(string action)
+    {
+        return action switch
+        {
+            "Submitted" => "bg-primary",
+            "Approved" => "bg-success",
+            "Rejected" => "bg-danger",
+            "ResubmissionRequested" => "bg-warning",
+            "Resubmitted" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    private async Task SubmitResubmission()
+    {
+        if (originalRequest == null || string.IsNullOrEmpty(resubmitModel.UpdatedReason))
+        {
+            errorMessage = "Please provide an updated reason for your request.";
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            // Combine the updated reason with additional notes if provided
+            var finalReason = resubmitModel.UpdatedReason;
+            if (!string.IsNullOrEmpty(resubmitModel.AdditionalNotes))
+            {
+                finalReason += $"\n\nAdditional Notes: {resubmitModel.AdditionalNotes}";
+            }
+
+            var success = await ExcuseService.ResubmitExcuseRequestAsync(originalRequest.Id, finalReason);
+
+            if (success)
+            {
+                successMessage = "Your request has been resubmitted successfully! Your supervisor has been notified.";
+                
+                // Redirect to my requests page after a short delay
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/excuse/my-requests");
+            }
+            else
+            {
+                errorMessage = "Failed to resubmit the request. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error resubmitting request: {ex.Message}";
+        }
+
+        isSubmitting = false;
+        StateHasChanged();
+    }
+
+    // Helper class for resubmission form
+    private class ResubmitModel
+    {
+        [Required(ErrorMessage = "Updated reason is required")]
+        [MinLength(10, ErrorMessage = "Please provide a detailed reason (at least 10 characters)")]
+        public string UpdatedReason { get; set; } = string.Empty;
+
+        public string AdditionalNotes { get; set; } = string.Empty;
+    }
+}
+
+<style>
+    /* Your existing timeline styles */
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -2rem;
+        top: 0.25rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 0 3px var(--bs-primary);
+    }
+
+    .timeline-content {
+        padding-bottom: 1rem;
+        border-left: 2px solid #e9ecef;
+        padding-left: 1.5rem;
+    }
+
+    .timeline-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .timeline-body {
+        font-size: 0.9rem;
+    }
+
+    /* Status badge colors */
+    .bg-warning {
+        background-color: #ffc107 !important;
+    }
+
+    .bg-success {
+        background-color: #198754 !important;
+    }
+
+    .bg-danger {
+        background-color: #dc3545 !important;
+    }
+
+    .bg-info {
+        background-color: #0dcaf0 !important;
+    }
+
+    .bg-primary {
+        background-color: #0d6efd !important;
+    }
+
+    /* Hover effects for buttons */
+    .btn {
+        position: relative;
+    }
+
+    .btn:hover::after {
+        content: attr(title);
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #333;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        z-index: 1000;
+    }
+</style>

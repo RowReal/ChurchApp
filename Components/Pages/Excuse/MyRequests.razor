@@ -1,0 +1,646 @@
+﻿@page "/excuse/my-requests"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ExcuseService ExcuseService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>BCC ServiceHub - My Excuse Requests</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="h3 mb-1">My Off Service Requests</h2>
+                    <p class="text-muted mb-0">View and track your service excuse requests</p>
+                </div>
+                <a href="/excuse/request" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>New Request
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card card-hover border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary p-3 rounded">
+                                <i class="fas fa-clock fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0 fw-bold text-primary">@pendingCount</h3>
+                            <p class="text-muted mb-0">Pending</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card card-hover border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success p-3 rounded">
+                                <i class="fas fa-check-circle fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0 fw-bold text-success">@approvedCount</h3>
+                            <p class="text-muted mb-0">Approved</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card card-hover border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-danger p-3 rounded">
+                                <i class="fas fa-times-circle fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h3 class="mb-0 fw-bold text-danger">@rejectedCount</h3>
+                            <p class="text-muted mb-0">Rejected</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            @if (resubmissionCount > 0)
+            {
+                <a href="/excuse/resubmit" class="text-decoration-none">
+                    <div class="card card-hover border-0 shadow-sm clickable-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="bg-warning p-3 rounded">
+                                        <i class="fas fa-edit fa-2x text-white"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h3 class="mb-0 fw-bold text-warning">@resubmissionCount</h3>
+                                    <p class="text-muted mb-0">Needs Resubmission</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            }
+            else
+            {
+                <div class="card card-hover border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <div class="bg-warning p-3 rounded">
+                                    <i class="fas fa-edit fa-2x text-white"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h3 class="mb-0 fw-bold text-warning">@resubmissionCount</h3>
+                                <p class="text-muted mb-0">Needs Resubmission</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Rest of your existing code remains exactly the same -->
+    <!-- Requests Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 py-3">
+            <h5 class="mb-0 fw-semibold">
+                <i class="fas fa-list me-2 text-primary"></i>
+                All Requests
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            @if (excuseRequests.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Service</th>
+                                <th>Date</th>
+                                <th>Backup</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in excuseRequests)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">
+                                            @(request.Service?.Name ?? request.CustomServiceName ?? "Custom Service")
+                                        </div>
+                                        <small class="text-muted">@GetServiceTimeDisplay(request)</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">@request.RequestedDate.ToString("MMM dd, yyyy")</div>
+                                    </td>
+                                    <td>
+                                        <div>@request.NominatedBackup?.FirstName @request.NominatedBackup?.LastName</div>
+                                        <small class="text-muted">@request.NominatedBackup?.WorkerId</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetStatusBadgeClass(request.RequestStatus)">
+                                            @GetStatusDisplay(request.RequestStatus)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div>@request.SubmittedDate.ToString("MMM dd, yyyy")</div>
+                                        <small class="text-muted">@request.SubmittedDate.ToString("hh:mm tt")</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" @onclick="() => ViewRequestDetails(request)" title="View Request Details">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            @if (request.RequestStatus == "ResubmissionRequested")
+                                            {
+                                                <button class="btn btn-outline-warning" @onclick="() => ResubmitRequest(request)" title="Resubmit Request">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                            }
+                                            @if (request.RequestStatus == "Pending")
+                                            {
+                                                <button class="btn btn-outline-danger" @onclick="() => ShowCancelConfirmation(request)" title="Cancel Request">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Excuse Requests</h5>
+                    <p class="text-muted mb-3">You haven't submitted any excuse requests yet.</p>
+                    <a href="/excuse/request" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Submit Your First Request
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Request Details Modal -->
+@if (showDetailsModal && selectedRequest != null)
+{
+    <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Request Details</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetailsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">Service Information</h6>
+                            <dl class="row">
+                                <dt class="col-sm-4">Service:</dt>
+                                <dd class="col-sm-8">@(selectedRequest.Service?.Name ?? selectedRequest.CustomServiceName ?? "Custom Service")</dd>
+
+                                <dt class="col-sm-4">Date:</dt>
+                                <dd class="col-sm-8">@selectedRequest.RequestedDate.ToString("MMM dd, yyyy")</dd>
+
+                                <dt class="col-sm-4">Time:</dt>
+                                <dd class="col-sm-8">@GetServiceTimeDisplay(selectedRequest)</dd>
+
+                                <dt class="col-sm-4">Submitted:</dt>
+                                <dd class="col-sm-8">@selectedRequest.SubmittedDate.ToString("MMM dd, yyyy 'at' hh:mm tt")</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3">Approval Information</h6>
+                            <dl class="row">
+                                <dt class="col-sm-4">Status:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge @GetStatusBadgeClass(selectedRequest.RequestStatus)">
+                                        @GetStatusDisplay(selectedRequest.RequestStatus)
+                                    </span>
+                                </dd>
+
+                                <dt class="col-sm-4">Backup:</dt>
+                                <dd class="col-sm-8">@selectedRequest.NominatedBackup?.FirstName @selectedRequest.NominatedBackup?.LastName</dd>
+
+                                <dt class="col-sm-4">Supervisor:</dt>
+                                <dd class="col-sm-8">@(selectedRequest.Supervisor?.FirstName ?? "Not assigned") @(selectedRequest.Supervisor?.LastName ?? "")</dd>
+
+                                @if (selectedRequest.ApprovedDate.HasValue)
+                                {
+                                    <dt class="col-sm-4">Approved:</dt>
+                                    <dd class="col-sm-8">@selectedRequest.ApprovedDate.Value.ToString("MMM dd, yyyy 'at' hh:mm tt")</dd>
+                                }
+
+                                @if (selectedRequest.RejectedDate.HasValue)
+                                {
+                                    <dt class="col-sm-4">Rejected:</dt>
+                                    <dd class="col-sm-8">@selectedRequest.RejectedDate.Value.ToString("MMM dd, yyyy 'at' hh:mm tt")</dd>
+                                }
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="text-primary mb-3">Reason for Excuse</h6>
+                            <div class="border rounded p-3 bg-light">
+                                @selectedRequest.Reason
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- History Timeline -->
+                    @if (selectedRequest.History.Any())
+                    {
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3">Request History</h6>
+                                <div class="timeline">
+                                    @foreach (var history in selectedRequest.History.OrderBy(h => h.ActionDate))
+                                    {
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker @GetHistoryMarkerClass(history.Action)"></div>
+                                            <div class="timeline-content">
+                                                <div class="timeline-header">
+                                                    <strong>@history.ActionByWorker?.FirstName @history.ActionByWorker?.LastName</strong>
+                                                    <span class="text-muted ms-2">(@history.ActionByRole)</span>
+                                                    <small class="text-muted ms-2">@history.ActionDate.ToString("MMM dd, yyyy 'at' hh:mm tt")</small>
+                                                </div>
+                                                <div class="timeline-body">
+                                                    <span class="badge @GetActionBadgeClass(history.Action)">@history.Action</span>
+                                                    <p class="mb-0 mt-1">@history.Comments</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetailsModal">Close</button>
+                    @if (selectedRequest.RequestStatus == "ResubmissionRequested")
+                    {
+                        <button type="button" class="btn btn-warning" @onclick="ResubmitSelectedRequest">
+                            <i class="fas fa-edit me-2"></i>Resubmit Request
+                        </button>
+                    }
+                    @if (selectedRequest.RequestStatus == "Pending")
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="() => ShowCancelConfirmation(selectedRequest)">
+                            <i class="fas fa-times me-2"></i>Cancel Request
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Cancel Confirmation Modal -->
+@if (showCancelModal && requestToCancel != null)
+{
+    <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title text-white">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Cancel Request
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseCancelModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Are you sure you want to cancel this request?</strong>
+                    </div>
+                    <div class="border rounded p-3 bg-light">
+                        <strong>Service:</strong> @(requestToCancel.Service?.Name ?? requestToCancel.CustomServiceName ?? "Custom Service")<br>
+                        <strong>Date:</strong> @requestToCancel.RequestedDate.ToString("MMM dd, yyyy")<br>
+                        <strong>Time:</strong> @GetServiceTimeDisplay(requestToCancel)<br>
+                        <strong>Backup:</strong> @requestToCancel.NominatedBackup?.FirstName @requestToCancel.NominatedBackup?.LastName
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label fw-semibold">Cancellation Reason (Optional)</label>
+                        <InputTextArea @bind-Value="cancellationReason" class="form-control"
+                                       placeholder="Why are you cancelling this request?"
+                                       rows="3" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCancelModal">Keep Request</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmCancelRequest" disabled="@isCancelling">
+                        @if (isCancelling)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <text>Cancelling...</text>
+                        }
+                        else
+                        {
+                            <i class="fas fa-times me-2"></i>
+                            <text>Yes, Cancel Request</text>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ExcuseRequest> excuseRequests = new();
+    private bool showDetailsModal = false;
+    private ExcuseRequest? selectedRequest = null;
+    private bool showCancelModal = false;
+    private ExcuseRequest? requestToCancel = null;
+    private string cancellationReason = string.Empty;
+    private bool isCancelling = false;
+    private string errorMessage = string.Empty;
+
+    // Add the missing statistics variables
+    private int pendingCount = 0;
+    private int approvedCount = 0;
+    private int rejectedCount = 0;
+    private int resubmissionCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadMyRequests();
+    }
+
+    private async Task LoadMyRequests()
+    {
+        if (AuthService.CurrentWorker != null)
+        {
+            excuseRequests = await ExcuseService.GetMyExcuseRequestsAsync(AuthService.CurrentWorker.Id);
+            UpdateStatistics();
+        }
+    }
+
+    private void UpdateStatistics()
+    {
+        pendingCount = excuseRequests.Count(r => r.RequestStatus == "Pending");
+        approvedCount = excuseRequests.Count(r => r.RequestStatus == "Approved");
+        rejectedCount = excuseRequests.Count(r => r.RequestStatus == "Rejected");
+        resubmissionCount = excuseRequests.Count(r => r.RequestStatus == "ResubmissionRequested");
+    }
+
+    private string GetServiceTimeDisplay(ExcuseRequest request)
+    {
+        if (request.ServiceId.HasValue && request.Service != null)
+        {
+            var service = request.Service;
+            if (service.RecurrencePattern == "OneTime" && service.SpecificStartTime.HasValue)
+            {
+                return service.SpecificStartTime.Value.ToString(@"hh\:mm");
+            }
+            else if (service.StartTime.HasValue)
+            {
+                return service.StartTime.Value.ToString(@"hh\:mm");
+            }
+        }
+        else if (request.CustomServiceTime.HasValue)
+        {
+            return request.CustomServiceTime.Value.ToString(@"hh\:mm");
+        }
+        return "Time not specified";
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Pending" => "bg-warning",
+            "Approved" => "bg-success",
+            "Rejected" => "bg-danger",
+            "ResubmissionRequested" => "bg-info",
+            "Cancelled" => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetStatusDisplay(string status)
+    {
+        return status switch
+        {
+            "Pending" => "Pending Approval",
+            "Approved" => "Approved",
+            "Rejected" => "Rejected",
+            "ResubmissionRequested" => "Needs Resubmission",
+            "Cancelled" => "Cancelled",
+            _ => status
+        };
+    }
+
+    private string GetHistoryMarkerClass(string action)
+    {
+        return action switch
+        {
+            "Submitted" => "bg-primary",
+            "Approved" => "bg-success",
+            "Rejected" => "bg-danger",
+            "ResubmissionRequested" => "bg-purple",
+            "Cancelled" => "bg-secondary",
+            "Resubmitted" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetActionBadgeClass(string action)
+    {
+        return action switch
+        {
+            "Submitted" => "bg-primary",
+            "Approved" => "bg-success",
+            "Rejected" => "bg-danger",
+            "ResubmissionRequested" => "bg-purple",
+            "Cancelled" => "bg-secondary",
+            "Resubmitted" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    private void ViewRequestDetails(ExcuseRequest request)
+    {
+        selectedRequest = request;
+        showDetailsModal = true;
+    }
+
+    private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        selectedRequest = null;
+    }
+
+    private void ResubmitRequest(ExcuseRequest request)
+    {
+        Navigation.NavigateTo($"/excuse/resubmit/{request.Id}");
+    }
+
+    private void ResubmitSelectedRequest()
+    {
+        if (selectedRequest != null)
+        {
+            ResubmitRequest(selectedRequest);
+        }
+    }
+
+    private void ShowCancelConfirmation(ExcuseRequest request)
+    {
+        requestToCancel = request;
+        cancellationReason = string.Empty;
+        showCancelModal = true;
+    }
+
+    private void CloseCancelModal()
+    {
+        showCancelModal = false;
+        requestToCancel = null;
+        cancellationReason = string.Empty;
+        isCancelling = false;
+    }
+
+    private async Task ConfirmCancelRequest()
+    {
+        if (requestToCancel == null) return;
+
+        isCancelling = true;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var success = await ExcuseService.CancelExcuseRequestAsync(requestToCancel.Id, cancellationReason);
+
+            if (success)
+            {
+                CloseCancelModal();
+                await LoadMyRequests(); // Reload the requests to reflect the cancellation
+                StateHasChanged();
+            }
+            else
+            {
+                errorMessage = "Failed to cancel the request. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error cancelling request: {ex.Message}";
+        }
+
+        isCancelling = false;
+        StateHasChanged();
+    }
+}
+
+<style>
+    .card-hover {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+        }
+
+    .clickable-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15) !important;
+        cursor: pointer;
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -2rem;
+        top: 0.25rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 0 0 3px var(--bs-primary);
+    }
+
+    .timeline-content {
+        padding-bottom: 1rem;
+        border-left: 2px solid #e9ecef;
+        padding-left: 1.5rem;
+    }
+
+    .timeline-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .timeline-body {
+        font-size: 0.9rem;
+    }
+
+    /* Status badge colors */
+    .bg-warning {
+        background-color: #ffc107 !important;
+    }
+
+    .bg-success {
+        background-color: #198754 !important;
+    }
+
+    .bg-danger {
+        background-color: #dc3545 !important;
+    }
+
+    .bg-info {
+        background-color: #0dcaf0 !important;
+    }
+
+    .bg-purple {
+        background-color: #6f42c1 !important;
+    }
+</style>

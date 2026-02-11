@@ -1,0 +1,488 @@
+﻿@page "/Offering/record-nomination"
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject RecordNominationService RecordNominationService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>Record Nomination</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">📋 Record Nomination</h4>
+                    <a href="/Offering/list" class="btn btn-light btn-sm">
+                        <i class="fas fa-list"></i> View Nominations
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Error/Success Messages -->
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i> @errorMessage
+                            <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i> @successMessage
+                            <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
+                        </div>
+                    }
+
+                    @if (!canNominate)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> You are not authorized to nominate record keepers.
+                            Only Head of FIG Directorate or Assistant Head of FIG Directorate can access this feature.
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="@model" OnValidSubmit="@HandleSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+
+                            <div class="row">
+                                <!-- Service Selection -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Service *</label>
+                                    @if (isLoadingServices)
+                                    {
+                                        <div class="form-control">Loading services...</div>
+                                    }
+                                    else if (services.Count == 0)
+                                    {
+                                        <div class="alert alert-warning">No services available. Please add services first.</div>
+                                    }
+                                    else
+                                    {
+                                        <InputSelect @bind-Value="@model.ServiceId" class="form-select" disabled="@isSubmitting">
+                                            <option value="">Select a service</option>
+                                            @foreach (var service in services)
+                                            {
+                                                <option value="@service.Id">@service.Name</option>
+                                            }
+                                        </InputSelect>
+                                    }
+                                    <ValidationMessage For="@(() => model.ServiceId)" />
+                                </div>
+
+                                <!-- Service Date -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Service Date *</label>
+                                    <InputDate @bind-Value="@model.ServiceDate" class="form-control" disabled="@isSubmitting" />
+                                    <ValidationMessage For="@(() => model.ServiceDate)" />
+                                </div>
+
+                                <!-- Nominee Selection -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Nominee (Record Keeper) *</label>
+                                    @if (isLoadingMembers)
+                                    {
+                                        <div class="form-control">Loading FIG members...</div>
+                                    }
+                                    else if (figMembers.Count == 0)
+                                    {
+                                        <div class="alert alert-warning">No FIG members found. Please check if FIG directorate exists.</div>
+                                    }
+                                    else
+                                    {
+                                        <InputSelect @bind-Value="@model.NomineeWorkerId" class="form-select" disabled="@isSubmitting">
+                                            <option value="">Select a member</option>
+                                            @foreach (var member in figMembers)
+                                            {
+                                                <option value="@member.WorkerId">
+                                                    @member.LastName, @member.FirstName (@member.WorkerId)
+                                                </option>
+                                            }
+                                        </InputSelect>
+                                    }
+                                    <ValidationMessage For="@(() => model.NomineeWorkerId)" />
+                                </div>
+
+                                <!-- Record Type -->
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Record Type *</label>
+                                    <InputSelect @bind-Value="@model.RecordType" class="form-select" disabled="@isSubmitting">
+                                        <option value="">Select record type</option>
+                                        @foreach (var type in recordTypes)
+                                        {
+                                            <option value="@type">@GetRecordTypeDisplay(type)</option>
+                                        }
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => model.RecordType)" />
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        <text>Processing...</text>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-user-check me-2"></i>
+                                        <text>Nominate Record Keeper</text>
+                                    }
+                                </button>
+                                <button type="button" class="btn btn-secondary ms-2" @onclick="ResetForm" disabled="@isSubmitting">
+                                    <i class="fas fa-redo me-2"></i> Reset
+                                </button>
+                                <button type="button" class="btn btn-outline-info ms-2" @onclick="DebugInfo" disabled="@isSubmitting">
+                                    <i class="fas fa-bug me-2"></i> Debug
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RecordNominationModel model = new();
+    private List<Service> services = new();
+    private List<Worker> figMembers = new();
+    private List<string> recordTypes = new();
+    private bool canNominate = false;
+    private bool isLoadingServices = true;
+    private bool isLoadingMembers = true;
+    private bool isSubmitting = false;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+    private System.Timers.Timer? debugTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine("OnInitializedAsync started");
+
+        if (AuthService.CurrentWorker == null)
+        {
+            Console.WriteLine("No current worker - redirecting to login");
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        Console.WriteLine($"Current worker: {AuthService.CurrentWorker.WorkerId}");
+
+        try
+        {
+            canNominate = await RecordNominationService.CanNominateRecords(AuthService.CurrentWorker.WorkerId);
+            Console.WriteLine($"Can nominate: {canNominate}");
+
+            if (canNominate)
+            {
+                await LoadData();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in OnInitializedAsync: {ex.Message}");
+            errorMessage = $"Initialization error: {ex.Message}";
+        }
+
+        Console.WriteLine("OnInitializedAsync completed");
+    }
+
+    private async Task LoadData()
+    {
+        Console.WriteLine("LoadData started");
+
+        try
+        {
+            isLoadingServices = true;
+            isLoadingMembers = true;
+
+            // Load services
+            Console.WriteLine("Loading services...");
+            services = await RecordNominationService.GetServicesForNomination();
+            Console.WriteLine($"Loaded {services.Count} services");
+
+            // Load FIG members
+            Console.WriteLine("Loading FIG members...");
+            figMembers = await RecordNominationService.GetFIGMembers();
+            Console.WriteLine($"Loaded {figMembers.Count} FIG members");
+
+            // Load record types
+            recordTypes = await RecordNominationService.GetRecordTypes();
+            Console.WriteLine($"Loaded {recordTypes.Count} record types");
+
+            // Set default service date to today
+            model.ServiceDate = DateTime.Today;
+            Console.WriteLine($"Set default date to: {model.ServiceDate}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in LoadData: {ex.Message}");
+            errorMessage = $"Error loading data: {ex.Message}";
+            await JS.InvokeVoidAsync("console.error", $"LoadData error: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingServices = false;
+            isLoadingMembers = false;
+            Console.WriteLine("LoadData completed");
+            StateHasChanged();
+        }
+    }
+
+    private string GetRecordTypeDisplay(string recordType)
+    {
+        return recordType switch
+        {
+            "ChurchAttendance" => "Church Attendance",
+            "Offering" => "Offering Recording",
+            "Guest Record" => "Guest Record",
+            "ServicesNote" => "Services Note",
+            _ => recordType
+        };
+    }
+
+    private async Task HandleSubmit()
+    {
+        Console.WriteLine("HandleSubmit started");
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            Console.WriteLine($"Form data: ServiceId={model.ServiceId}, Nominee={model.NomineeWorkerId}, RecordType={model.RecordType}, Date={model.ServiceDate}");
+
+            // Basic validation
+            if (model.ServiceId <= 0)
+            {
+                errorMessage = "Please select a service";
+                Console.WriteLine("Validation failed: No service selected");
+                await ShowError(errorMessage);
+                isSubmitting = false;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(model.NomineeWorkerId))
+            {
+                errorMessage = "Please select a nominee";
+                Console.WriteLine("Validation failed: No nominee selected");
+                await ShowError(errorMessage);
+                isSubmitting = false;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(model.RecordType))
+            {
+                errorMessage = "Please select a record type";
+                Console.WriteLine("Validation failed: No record type selected");
+                await ShowError(errorMessage);
+                isSubmitting = false;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            // NEW: Validate service day matches service name
+            if (!ValidateServiceDay())
+            {
+                isSubmitting = false;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            Console.WriteLine("Calling CreateNomination service method...");
+
+            // Call the service
+            var nomination = await RecordNominationService.CreateNomination(
+                model,
+                AuthService.CurrentWorker!.WorkerId
+            );
+
+            Console.WriteLine($"CreateNomination returned: {(nomination != null ? "Success" : "Null")}");
+
+            if (nomination != null)
+            {
+                successMessage = $"Successfully nominated {GetNomineeName(model.NomineeWorkerId)} as {GetRecordTypeDisplay(model.RecordType)} record keeper!";
+                Console.WriteLine($"Success: {successMessage}");
+
+                await ShowSuccess(successMessage);
+                ResetForm();
+
+                // Optional: Redirect to list page after 3 seconds
+                await Task.Delay(3000);
+                Navigation.NavigateTo("/Offering/list");
+            }
+            else
+            {
+                errorMessage = "Nomination failed. This nomination may already exist for this service, date, and record type.";
+                Console.WriteLine($"Failed: {errorMessage}");
+                await ShowError(errorMessage);
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine($"Unauthorized: {ex.Message}");
+            await ShowError(errorMessage);
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine($"Argument error: {ex.Message}");
+            await ShowError(errorMessage);
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine($"Invalid operation: {ex.Message}");
+            await ShowError(errorMessage);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+            Console.WriteLine($"Unexpected error: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            await ShowError(errorMessage);
+        }
+        finally
+        {
+            isSubmitting = false;
+            Console.WriteLine("HandleSubmit completed");
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // NEW: Service day validation method
+    private bool ValidateServiceDay()
+    {
+        if (model.ServiceId <= 0)
+            return true; // Can't validate without service
+
+        var selectedService = services.FirstOrDefault(s => s.Id == model.ServiceId);
+        if (selectedService == null || string.IsNullOrEmpty(selectedService.Name))
+            return true; // Can't validate without service name
+
+        var serviceName = selectedService.Name.ToLowerInvariant();
+        var selectedDate = model.ServiceDate;
+        var dayOfWeek = selectedDate.DayOfWeek;
+
+        // Check for Mid Week services (should be Wednesday)
+        if ((serviceName.Contains("mid week") || serviceName.Contains("mid-week")) &&
+            dayOfWeek != DayOfWeek.Wednesday)
+        {
+            errorMessage = $"'{selectedService.Name}' services are typically held on Wednesdays. " +
+                          $"You selected {selectedDate:dddd}. Please check the date.";
+            Console.WriteLine($"Service day validation failed: {errorMessage}");
+            return false;
+        }
+
+        // Check for Sunday services
+        if (serviceName.Contains("sunday") && dayOfWeek != DayOfWeek.Sunday)
+        {
+            errorMessage = $"'{selectedService.Name}' services are held on Sundays. " +
+                          $"You selected {selectedDate:dddd}. Please check the date.";
+            Console.WriteLine($"Service day validation failed: {errorMessage}");
+            return false;
+        }
+
+        return true;
+    }
+
+    // Helper methods
+    private string GetNomineeName(string workerId)
+    {
+        var member = figMembers.FirstOrDefault(m => m.WorkerId == workerId);
+        return member != null ? $"{member.FirstName} {member.LastName}" : workerId;
+    }
+
+    private string GetServiceName(int serviceId)
+    {
+        var service = services.FirstOrDefault(s => s.Id == serviceId);
+        return service?.Name ?? $"Service {serviceId}";
+    }
+
+    private void ResetForm()
+    {
+        Console.WriteLine("Resetting form");
+        model = new RecordNominationModel
+        {
+            ServiceDate = DateTime.Today
+        };
+    }
+
+    private async Task DebugInfo()
+    {
+        Console.WriteLine("=== DEBUG INFO ===");
+        Console.WriteLine($"Services loaded: {services.Count}");
+        Console.WriteLine($"FIG members loaded: {figMembers.Count}");
+        Console.WriteLine($"Record types: {string.Join(", ", recordTypes)}");
+        Console.WriteLine($"Current worker: {AuthService.CurrentWorker?.WorkerId}");
+        Console.WriteLine($"Can nominate: {canNominate}");
+        Console.WriteLine($"Model: ServiceId={model.ServiceId}, Nominee={model.NomineeWorkerId}, RecordType={model.RecordType}");
+        Console.WriteLine("=== END DEBUG ===");
+
+        await JS.InvokeVoidAsync("alert",
+            $"DEBUG INFO:\n" +
+            $"Services: {services.Count}\n" +
+            $"FIG Members: {figMembers.Count}\n" +
+            $"Current Worker: {AuthService.CurrentWorker?.WorkerId}\n" +
+            $"Can Nominate: {canNominate}\n" +
+            $"Service Selected: {model.ServiceId}\n" +
+            $"Nominee Selected: {model.NomineeWorkerId}");
+    }
+
+    private async Task ShowSuccess(string message)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("showToast", "success", "Success", message);
+        }
+        catch
+        {
+            // Fallback
+            Console.WriteLine($"Success: {message}");
+        }
+    }
+
+    private async Task ShowError(string message)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("showToast", "error", "Error", message);
+        }
+        catch
+        {
+            // Fallback
+            Console.WriteLine($"Error: {message}");
+        }
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = string.Empty;
+        StateHasChanged();
+    }
+
+    private void ClearSuccessMessage()
+    {
+        successMessage = string.Empty;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        debugTimer?.Stop();
+        debugTimer?.Dispose();
+    }
+}

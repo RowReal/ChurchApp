@@ -1,0 +1,295 @@
+﻿@page "/Offering/createnote"
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ServiceNoteService ServiceNoteService
+@inject ServiceService ServiceService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<h3 class="mb-4">Create Service Note</h3>
+
+<EditForm Model="@model" OnValidSubmit="@HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="alert alert-danger mb-4" />
+
+    <div class="row">
+        <!-- Left Column - Basic Service Info -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-church me-2"></i> Service Details
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="serviceId" class="form-label">Service *</label>
+                        <InputSelect id="serviceId" class="form-select" @bind-Value="model.ServiceId">
+                            <option value="">Select Service</option>
+                            @foreach (var service in services)
+                            {
+                                <option value="@service.Id">@service.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => model.ServiceId)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="serviceDate" class="form-label">Service Date *</label>
+                        <InputDate id="serviceDate" class="form-control" @bind-Value="model.ServiceDate" />
+                        <ValidationMessage For="@(() => model.ServiceDate)" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="startTime" class="form-label">Start Time *</label>
+                            <input type="time" id="startTime" class="form-control"
+                                   value="@GetStartTimeString()"
+                                   @onchange="HandleStartTimeChange" />
+                            <ValidationMessage For="@(() => model.ServiceStartTime)" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="endTime" class="form-label">End Time *</label>
+                            <input type="time" id="endTime" class="form-control"
+                                   value="@GetEndTimeString()"
+                                   @onchange="HandleEndTimeChange" />
+                            <ValidationMessage For="@(() => model.ServiceEndTime)" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="serviceFlow" class="form-label">Service Flow *</label>
+                        <InputSelect id="serviceFlow" class="form-select" @bind-Value="model.ServiceFlow">
+                            <option value="Smooth">Smooth</option>
+                            <option value="Delayed">Delayed</option>
+                            <option value="Extended">Extended</option>
+                            <option value="Rushed">Rushed</option>
+                        </InputSelect>
+                    </div>
+
+                    <!-- Congregation item 1 -->
+                    <div class="mb-3">
+                        <label for="attendancePattern" class="form-label">Attendance Pattern</label>
+                        <InputTextArea id="attendancePattern" class="form-control" rows="2"
+                                       @bind-Value="model.AttendancePattern"
+                                       placeholder="Large turnout, unusual attendance pattern..."></InputTextArea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Column - Sermon & Notable Guests -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-bible me-2"></i> Sermon & Participants
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="theme" class="form-label">Theme / Sermon Title</label>
+                        <InputText id="theme" class="form-control" @bind-Value="model.ThemeOrSermonTitle" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="minister" class="form-label">Minister / Guest Speaker</label>
+                        <InputText id="minister" class="form-control" @bind-Value="model.MinisterOrGuestSpeaker" />
+                    </div>
+
+                    <!-- Congregation item 2 -->
+                    <div class="mb-3">
+                        <label for="notableGuests" class="form-label">Notable Guest Presence</label>
+                        <InputTextArea id="notableGuests" class="form-control" rows="2"
+                                       @bind-Value="model.NotableGuests"
+                                       placeholder="Guest ministers, VIPs, special visitors..."></InputTextArea>
+                    </div>
+
+                    <!-- Congregation item 3 -->
+                    <div class="mb-3">
+                        <label for="specialParticipation" class="form-label">Special Participation</label>
+                        <InputTextArea id="specialParticipation" class="form-control" rows="2"
+                                       @bind-Value="model.SpecialParticipation"
+                                       placeholder="Special choir, drama, youth presentation..."></InputTextArea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Observations & Safety -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Observations & Safety
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="technicalIssues" class="form-label">Technical Issues</label>
+                        <InputTextArea id="technicalIssues" class="form-control" rows="2"
+                                       @bind-Value="model.TechnicalIssues"
+                                       placeholder="Sound, power, projector issues..."></InputTextArea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="orderChanges" class="form-label">Order Changes</label>
+                        <InputTextArea id="orderChanges" class="form-control" rows="2"
+                                       @bind-Value="model.OrderOfServiceChanges"
+                                       placeholder="Changes to planned order..."></InputTextArea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="disruptions" class="form-label">Disruptions</label>
+                        <InputTextArea id="disruptions" class="form-control" rows="2"
+                                       @bind-Value="model.Disruptions"
+                                       placeholder="Interruptions during service..."></InputTextArea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="safetyConcerns" class="form-label">Safety Concerns</label>
+                        <InputTextArea id="safetyConcerns" class="form-control" rows="2"
+                                       @bind-Value="model.SafetyConcerns"
+                                       placeholder="Emergency situations..."></InputTextArea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- General Remarks Card - Full width below -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-comments me-2"></i> General Remarks
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="leadershipAwareness" class="form-label">Leadership Awareness</label>
+                            <InputTextArea id="leadershipAwareness" class="form-control" rows="3"
+                                           @bind-Value="model.LeadershipAwareness"
+                                           placeholder="Things leadership should know..."></InputTextArea>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="followUpNeeded" class="form-label">Follow-up Needed</label>
+                            <InputTextArea id="followUpNeeded" class="form-control" rows="3"
+                                           @bind-Value="model.FollowUpNeeded"
+                                           placeholder="Lost items, complaints, prayer requests..."></InputTextArea>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="additionalNotes" class="form-label">Additional Notes for Pastor</label>
+                            <InputTextArea id="additionalNotes" class="form-control" rows="3"
+                                           @bind-Value="model.AdditionalNotes"
+                                           placeholder="Other important observations..."></InputTextArea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Buttons -->
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                    <i class="fas fa-times me-2"></i> Cancel
+                </button>
+                <div>
+                    @if (isSubmitting)
+                    {
+                        <button type="submit" class="btn btn-primary" disabled>
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            Saving...
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i> Save Service Note
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    private ServiceNoteModel model = new ServiceNoteModel();
+    private List<Service> services = new List<Service>();
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            services = await ServiceService.GetActiveServicesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading services: {ex.Message}");
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (AuthService.CurrentWorker == null)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        isSubmitting = true;
+
+        try
+        {
+            await ServiceNoteService.CreateServiceNoteAsync(model, AuthService.CurrentWorker.Id);
+            Navigation.NavigateTo("/Offering/NoteList");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating service note: {ex.Message}");
+            // Show error message to user
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/Offering/NoteList");
+    }
+
+    private string GetStartTimeString()
+    {
+        if (model.ServiceStartTime != default(TimeSpan))
+        {
+            return model.ServiceStartTime.ToString(@"hh\:mm");
+        }
+        return "09:00";
+    }
+
+    private string GetEndTimeString()
+    {
+        if (model.ServiceEndTime != default(TimeSpan))
+        {
+            return model.ServiceEndTime.ToString(@"hh\:mm");
+        }
+        return "12:00";
+    }
+
+    private void HandleStartTimeChange(ChangeEventArgs e)
+    {
+        if (TimeSpan.TryParse(e.Value?.ToString(), out var time))
+        {
+            model.ServiceStartTime = time;
+        }
+    }
+
+    private void HandleEndTimeChange(ChangeEventArgs e)
+    {
+        if (TimeSpan.TryParse(e.Value?.ToString(), out var time))
+        {
+            model.ServiceEndTime = time;
+        }
+    }
+}

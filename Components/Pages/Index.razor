@@ -1,0 +1,2745 @@
+﻿@page "/"
+@page "/dashboard"
+
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject AuthService AuthService
+@inject WorkforceService WorkforceService
+@inject ExcuseService ExcuseService
+@inject WorkerService WorkerService
+@inject OfferingService OfferingService
+@inject AttendanceService AttendanceService
+@inject NavigationManager Navigation
+
+<PageTitle>BCC ServiceHub - Dashboard</PageTitle>
+
+@if (AuthService.IsAuthenticated)
+{
+    <div class="container-fluid py-3">
+        <!-- Welcome Section with User Avatar -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="dashboard-header">
+                    <div class="user-avatar-container">
+                        @if (!string.IsNullOrEmpty(AuthService.CurrentWorker?.PassportPhotoPath))
+                        {
+                            <img src="@AuthService.CurrentWorker.PassportPhotoPath" 
+                                 alt="@AuthService.CurrentWorker?.FirstName" 
+                                 class="user-avatar-img" />
+                        }
+                        else
+                        {
+                            <div class="user-avatar-placeholder">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        }
+                        <div class="user-status online"></div>
+                    </div>
+                    <div class="user-info">
+                        <h4 class="user-greeting">@GetGreeting(), <span class="text-primary">@AuthService.CurrentWorker?.FirstName!</span></h4>
+                        <p class="user-details">
+                            <i class="fas fa-calendar-day me-1"></i>
+                            @DateTime.Now.ToString("dddd, MMMM dd, yyyy")
+                            @if (!string.IsNullOrEmpty(AuthService.CurrentWorker?.Directorate?.Name))
+                            {
+                                <span class="ms-3">
+                                    <i class="fas fa-sitemap me-1"></i>
+                                    @AuthService.CurrentWorker?.Directorate?.Name
+                                </span>
+                            }
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats with Representative Images -->
+        <div class="row mb-4">
+            @if (IsChurchAdmin() || IsHeadOfMeatDirectorate())
+            {
+                <!-- Church Admin & Head of MEAT Stats -->
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="workers-image">
+                                <div class="worker-avatar small">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="worker-avatar medium">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="worker-avatar large">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="worker-avatar small">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@totalWorkers</h3>
+                            <p class="stat-label">Total Workers</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="active-workers-image">
+                                <div class="worker-avatar active">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                                <div class="worker-avatar active">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                                <div class="worker-avatar active">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@activeWorkers</h3>
+                            <p class="stat-label">Active Workers</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="pending-image">
+                                <div class="document-icon">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div class="clock-overlay">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@pendingApprovals</h3>
+                            <p class="stat-label">Pending Approvals</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="offering-image">
+                                <div class="coin-stack">
+                                    <div class="coin coin-1"></div>
+                                    <div class="coin coin-2"></div>
+                                    <div class="coin coin-3"></div>
+                                </div>
+                                <div class="hand-icon">
+                                    <i class="fas fa-hand-holding-usd"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@pendingOfferingsCount</h3>
+                            <p class="stat-label">Pending Offerings</p>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (IsUsheringDepartment())
+            {
+                <!-- Ushering Department Stats -->
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="church-time-image">
+                                <div class="church-building">
+                                    <i class="fas fa-church"></i>
+                                </div>
+                                <div class="calendar-icon">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@GetFormattedDaysInBCC()</h3>
+                            <p class="stat-label">Time in BCC</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="pending-requests-image">
+                                <div class="request-paper">
+                                    <i class="fas fa-scroll"></i>
+                                </div>
+                                <div class="hourglass-icon">
+                                    <i class="fas fa-hourglass-half"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@myPendingExcuses</h3>
+                            <p class="stat-label">Pending Requests</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="approved-image">
+                                <div class="checkmark-circle">
+                                    <i class="fas fa-check"></i>
+                                </div>
+                                <div class="document-approved">
+                                    <i class="fas fa-file-signature"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@myApprovedExcuses</h3>
+                            <p class="stat-label">Approved Requests</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="rejected-image">
+                                <div class="warning-triangle">
+                                    <i class="fas fa-exclamation"></i>
+                                </div>
+                                <div class="coin-falling">
+                                    <div class="coin coin-fall"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@rejectedOfferingsCount</h3>
+                            <p class="stat-label">Rejected Offerings</p>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Regular Worker Stats -->
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="church-membership-image">
+                                <div class="church-icon-large">
+                                    <i class="fas fa-church"></i>
+                                </div>
+                                <div class="membership-badge">
+                                    <span>BCC</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@GetFormattedDaysInBCC()</h3>
+                            <p class="stat-label">Time in BCC</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="pending-excuse-image">
+                                <div class="calendar-waiting">
+                                    <i class="fas fa-calendar"></i>
+                                </div>
+                                <div class="waiting-clock">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@myPendingExcuses</h3>
+                            <p class="stat-label">Pending Requests</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="approved-excuse-image">
+                                <div class="calendar-checked">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <div class="green-checkmark">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@myApprovedExcuses</h3>
+                            <p class="stat-label">Approved Requests</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="profile-complete-image">
+                                <div class="profile-avatar">
+                                    @if (!string.IsNullOrEmpty(AuthService.CurrentWorker?.PassportPhotoPath))
+                                    {
+                                        <img src="@AuthService.CurrentWorker.PassportPhotoPath" 
+                                             alt="Profile" 
+                                             class="profile-avatar-img" />
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-user"></i>
+                                    }
+                                </div>
+                                <div class="progress-ring">
+                                    <svg width="60" height="60">
+                                        <circle class="progress-ring-bg" cx="30" cy="30" r="24"></circle>
+                                        <circle class="progress-ring-fill" cx="30" cy="30" r="24" 
+                                                style="stroke-dasharray: @(2 * Math.PI * 24); stroke-dashoffset: @(2 * Math.PI * 24 * (1 - userCompliance / 100.0))"></circle>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-number">@userCompliance%</h3>
+                            <p class="stat-label">Profile Complete</p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="row">
+            <!-- Left Column - Quick Actions & Recent Activity -->
+            <div class="col-lg-8 mb-4">
+                <!-- Quick Actions -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0 d-flex align-items-center">
+                            <div class="action-header-icon me-2">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            Quick Actions
+                        </h5>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="row g-3">
+                            <!-- [All your action cards remain the same, just updating the visual style] -->
+                            @if (IsChurchAdmin() || IsHeadOfMeatDirectorate())
+                            {
+                                <!-- Church Admin & Head of MEAT Actions -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/admin/worker-setup" class="action-card">
+                                        <div class="action-image add-worker-image">
+                                            <div class="new-worker-avatar">
+                                                <i class="fas fa-user-plus"></i>
+                                            </div>
+                                            <div class="plus-sign">
+                                                <i class="fas fa-plus"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Add Worker</span>
+                                    </a>
+                                </div>
+
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/admin/worker-update" class="action-card">
+                                        <div class="action-image manage-workers-image">
+                                            <div class="worker-group">
+                                                <div class="mini-worker"></div>
+                                                <div class="mini-worker"></div>
+                                                <div class="mini-worker"></div>
+                                                <div class="mini-worker"></div>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Manage Workers</span>
+                                    </a>
+                                </div>
+
+                                @if (IsChurchAdmin())
+                                {
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/admin/services" class="action-card">
+                                            <div class="action-image service-image">
+                                                <div class="church-service">
+                                                    <i class="fas fa-church"></i>
+                                                </div>
+                                                <div class="calendar-tool">
+                                                    <i class="fas fa-calendar-alt"></i>
+                                                </div>
+                                            </div>
+                                            <span class="action-text">Manage Services</span>
+                                        </a>
+                                    </div>
+
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/offering/types" class="action-card">
+                                            <div class="action-image offering-types-image">
+                                                <div class="offering-list">
+                                                    <div class="list-item"></div>
+                                                    <div class="list-item"></div>
+                                                    <div class="list-item"></div>
+                                                </div>
+                                            </div>
+                                            <span class="action-text">Offering Types</span>
+                                        </a>
+                                    </div>
+
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/offering/approvals" class="action-card">
+                                            <div class="action-image approve-offering-image">
+                                                <div class="stamp-icon">
+                                                    <i class="fas fa-stamp"></i>
+                                                </div>
+                                                @if (pendingOfferingsCount > 0)
+                                                {
+                                                    <span class="pending-badge">@pendingOfferingsCount</span>
+                                                }
+                                            </div>
+                                            <span class="action-text">Approve Offerings</span>
+                                        </a>
+                                    </div>
+                                }
+                            }
+
+                            @if (IsChurchAdmin() || IsUsheringDepartment() || IsHeadOfMeatDirectorate())
+                            {
+                                <!-- Attendance for Admin, Ushering, and Head of MEAT -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/Offering/Attendance-record" class="action-card">
+                                        <div class="action-image attendance-image">
+                                            <div class="clipboard-icon">
+                                                <i class="fas fa-clipboard-check"></i>
+                                            </div>
+                                            <div class="people-group">
+                                                <div class="person-dot"></div>
+                                                <div class="person-dot"></div>
+                                                <div class="person-dot"></div>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Record Attendance</span>
+                                    </a>
+                                </div>
+
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/Offering/Attendance-list" class="action-card">
+                                        <div class="action-image view-attendance-image">
+                                            <div class="list-icon">
+                                                <i class="fas fa-list-ol"></i>
+                                            </div>
+                                            <div class="eye-icon">
+                                                <i class="fas fa-eye"></i>
+                                            </div>
+                                        </div>
+                                            <span class="action-text">View Attendance</span>
+                                    </a>
+                                </div>
+                            }
+
+                            <!-- Common Actions for All Users -->
+                            <div class="col-6 col-sm-4 col-lg-3">
+                                <a href="/offering/record" class="action-card">
+                                    <div class="action-image record-offering-image">
+                                        <div class="money-hand">
+                                            <i class="fas fa-hand-holding-usd"></i>
+                                        </div>
+                                        <div class="plus-circle">
+                                            <i class="fas fa-plus-circle"></i>
+                                        </div>
+                                        @if (rejectedOfferingsCount > 0)
+                                        {
+                                            <span class="rejected-badge">@rejectedOfferingsCount</span>
+                                        }
+                                    </div>
+                                    <span class="action-text">Record Offering</span>
+                                </a>
+                            </div>
+
+                            <div class="col-6 col-sm-4 col-lg-3">
+                                <a href="/workforce/my-profile" class="action-card">
+                                    <div class="action-image profile-image">
+                                        <div class="profile-avatar-small">
+                                            @if (!string.IsNullOrEmpty(AuthService.CurrentWorker?.PassportPhotoPath))
+                                            {
+                                                <img src="@AuthService.CurrentWorker.PassportPhotoPath" 
+                                                     alt="Profile" 
+                                                     class="profile-avatar-small-img" />
+                                            }
+                                            else
+                                            {
+                                                <i class="fas fa-user"></i>
+                                            }
+                                        </div>
+                                    </div>
+                                    <span class="action-text">My Profile</span>
+                                </a>
+                            </div>
+
+                            <div class="col-6 col-sm-4 col-lg-3">
+                                <a href="/excuse/mybreak-requests" class="action-card">
+                                    <div class="action-image break-image">
+                                        <div class="beach-icon">
+                                            <i class="fas fa-umbrella-beach"></i>
+                                        </div>
+                                        <div class="relax-icon">
+                                            <i class="fas fa-couch"></i>
+                                        </div>
+                                    </div>
+                                    <span class="action-text">Break Request</span>
+                                </a>
+                            </div>
+
+                            <div class="col-6 col-sm-4 col-lg-3">
+                                <a href="/excuse/my-requests" class="action-card">
+                                    <div class="action-image my-requests-image">
+                                        <div class="requests-list">
+                                            <div class="list-paper">
+                                                <i class="fas fa-scroll"></i>
+                                            </div>
+                                            <div class="my-badge">
+                                                <i class="fas fa-user-circle"></i>
+                                            </div>
+                                        </div>
+                                        @if (myPendingExcuses > 0)
+                                        {
+                                            <span class="pending-badge">@myPendingExcuses</span>
+                                        }
+                                    </div>
+                                    <span class="action-text">My Requests</span>
+                                </a>
+                            </div>
+
+                            @if (userPendingApprovals > 0)
+                            {
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/workforce/my-inbox" class="action-card">
+                                        <div class="action-image inbox-image">
+                                            <div class="inbox-icon">
+                                                <i class="fas fa-inbox"></i>
+                                            </div>
+                                            <div class="mail-stack">
+                                                <div class="mail-piece"></div>
+                                                <div class="mail-piece"></div>
+                                            </div>
+                                            <span class="inbox-badge">@userPendingApprovals</span>
+                                        </div>
+                                        <span class="action-text">My Inbox</span>
+                                    </a>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0 d-flex align-items-center">
+                            <div class="activity-header-icon me-2">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            Recent Activity
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (recentActivities.Any())
+                        {
+                            <div class="activity-list">
+                                @foreach (var activity in recentActivities.Take(4))
+                                {
+                                    <div class="activity-item">
+                                        <div class="activity-avatar">
+                                            @if (activity.Icon.Contains("money"))
+                                            {
+                                                <div class="activity-money-avatar">
+                                                    <i class="fas fa-money-bill-wave"></i>
+                                                </div>
+                                            }
+                                            else if (activity.Icon.Contains("calendar"))
+                                            {
+                                                <div class="activity-calendar-avatar">
+                                                    <i class="fas fa-calendar-times"></i>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="activity-default-avatar">
+                                                    <i class="fas @activity.Icon"></i>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="activity-content">
+                                            <p class="activity-text mb-0">@activity.Message</p>
+                                            <small class="activity-time text-muted">@activity.Time</small>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(activity.Badge))
+                                        {
+                                            <span class="activity-status @activity.Badge.ToLower()">@activity.Badge</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <div class="no-activity-avatar mb-3">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <p class="text-muted mb-0">No recent activities</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Notifications & Profile Status -->
+            <div class="col-lg-4 mb-4">
+                <!-- Notifications -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0 d-flex align-items-center">
+                            <div class="notification-header-icon me-2">
+                                <i class="fas fa-bell"></i>
+                                @if (notifications.Count(n => n.IsImportant) > 0)
+                                {
+                                    <span class="notification-count">@notifications.Count(n => n.IsImportant)</span>
+                                }
+                            </div>
+                            Notifications
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (notifications.Any())
+                        {
+                            <div class="notification-list">
+                                @foreach (var notification in notifications.Take(3))
+                                {
+                                    <div class="notification-item @(notification.IsImportant ? "important" : "")">
+                                        <div class="notification-avatar">
+                                            @if (notification.IsImportant)
+                                            {
+                                                <div class="notification-important-avatar">
+                                                    <i class="fas fa-exclamation-circle"></i>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="notification-normal-avatar">
+                                                    <i class="fas @notification.Icon"></i>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="notification-content">
+                                            <p class="notification-text mb-0">@notification.Message</p>
+                                            <small class="notification-time">@notification.Time</small>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <div class="no-notification-avatar mb-3">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <p class="text-muted mb-0">No new notifications</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Profile Status -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0 d-flex align-items-center">
+                            <div class="profile-header-icon me-2">
+                                <i class="fas fa-chart-pie"></i>
+                            </div>
+                            Profile Status
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="profile-progress-container">
+                            <div class="profile-avatar-progress">
+                                @if (!string.IsNullOrEmpty(AuthService.CurrentWorker?.PassportPhotoPath))
+                                {
+                                    <img src="@AuthService.CurrentWorker.PassportPhotoPath" 
+                                         alt="Profile" 
+                                         class="profile-progress-avatar" />
+                                }
+                                else
+                                {
+                                    <div class="profile-progress-avatar-placeholder">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                }
+                                <div class="progress-circle">
+                                    <svg width="80" height="80">
+                                        <circle class="progress-bg" cx="40" cy="40" r="35"></circle>
+                                        <circle class="progress-fill" cx="40" cy="40" r="35" 
+                                                style="stroke-dasharray: @(2 * Math.PI * 35); stroke-dashoffset: @(2 * Math.PI * 35 * (1 - userCompliance / 100.0))"></circle>
+                                    </svg>
+                                    <span class="progress-percent">@userCompliance%</span>
+                                </div>
+                            </div>
+                            @if (userCompliance < 100)
+                            {
+                                <div class="text-center mt-3">
+                                    <a href="/workforce/update-profile" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-edit me-1"></i>
+                                        Complete Profile
+                                    </a>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 py-3">
+                        <h5 class="mb-0 d-flex align-items-center">
+                            <div class="links-header-icon me-2">
+                                <i class="fas fa-link"></i>
+                            </div>
+                            Quick Links
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="/budget" class="btn btn-outline-secondary btn-sm text-start py-2">
+                                <div class="budget-icon me-2">
+                                    <i class="fas fa-chart-pie"></i>
+                                </div>
+                                Church Budget
+                            </a>
+                            <a href="/remittance" class="btn btn-outline-secondary btn-sm text-start py-2">
+                                <div class="remittance-icon me-2">
+                                    <i class="fas fa-money-check"></i>
+                                </div>
+                                Church Remittance
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Public Landing Page -->
+    <div class="min-vh-100 d-flex align-items-center justify-content-center bg-light">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6 text-center">
+                    <div class="landing-logo mb-4">
+                        <div class="church-logo">
+                            <div class="church-building-large">
+                                <i class="fas fa-church"></i>
+                            </div>
+                            <div class="people-around-church">
+                                <div class="person-around"></div>
+                                <div class="person-around"></div>
+                                <div class="person-around"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <h1 class="display-5 fw-bold mb-3">BCC ServiceHub</h1>
+                    <p class="lead text-muted mb-4">
+                        Streamlining Church Operations with Excellence and Integrity
+                    </p>
+                    <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                        <a href="/login" class="btn btn-primary btn-lg px-4 py-2">
+                            <i class="fas fa-sign-in-alt me-2"></i>
+                            Member Login
+                        </a>
+                        <a href="/about" class="btn btn-outline-secondary btn-lg px-4 py-2">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Learn More
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // ... [All your existing C# code remains EXACTLY THE SAME - no changes needed] ...
+    // Statistics
+    private int totalWorkers = 0;
+    private int activeWorkers = 0;
+    private int pendingApprovals = 0;
+    private int pendingOfferingsCount = 0;
+    private int rejectedOfferingsCount = 0;
+    private int myPendingExcuses = 0;
+    private int myApprovedExcuses = 0;
+    private int userCompliance = 0;
+    private int userPendingApprovals = 0;
+    private int daysSinceJoin = 0;
+    private int rejectionCount = 0;
+
+    private List<Notification> notifications = new();
+    private List<Activity> recentActivities = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+        {
+            await LoadDashboardData();
+        }
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            await LoadUserStatistics();
+            await LoadOfferingStatistics();
+            await LoadNotifications();
+            await LoadRecentActivities();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+    }
+
+    private async Task LoadUserStatistics()
+    {
+        if (AuthService.CurrentWorker != null)
+        {
+            // Calculate user compliance
+            userCompliance = CalculateCompleteness(AuthService.CurrentWorker);
+            
+            // Check for pending approvals (if user is an approver)
+            var approvals = await WorkforceService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
+            userPendingApprovals = approvals.Count;
+            
+            // Calculate days since joining church
+            if (AuthService.CurrentWorker.DateJoinedChurch.HasValue)
+            {
+                daysSinceJoin = (DateTime.UtcNow - AuthService.CurrentWorker.DateJoinedChurch.Value).Days;
+            }
+            
+            // Check for rejection notifications
+            var rejections = await WorkforceService.GetRejectionNotificationsAsync(AuthService.CurrentWorker.Id);
+            rejectionCount = rejections.Count;
+
+            // Load excuse system stats
+            try
+            {
+                var myExcuses = await ExcuseService.GetMyExcuseRequestsAsync(AuthService.CurrentWorker.Id);
+                myPendingExcuses = myExcuses.Count(e => e.RequestStatus == "Pending");
+                myApprovedExcuses = myExcuses.Count(e => e.RequestStatus == "Approved");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading user excuse statistics: {ex.Message}");
+            }
+
+            // Load admin statistics if applicable
+            if (IsChurchAdmin() || IsHeadOfMeatDirectorate())
+            {
+                var workers = await WorkerService.GetAllWorkersAsync();
+                totalWorkers = workers.Count;
+                activeWorkers = workers.Count(w => w.IsActive);
+                pendingApprovals = approvals.Count;
+            }
+        }
+    }
+
+    private async Task LoadOfferingStatistics()
+{
+    try
+    {
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+        {
+            var workerId = AuthService.CurrentWorker.WorkerId;
+            
+            if (string.IsNullOrEmpty(workerId))
+            {
+                Console.WriteLine("WorkerId is null or empty in LoadOfferingStatistics");
+                return;
+            }
+            
+            // Load pending offerings count for Church Admin
+            if (IsChurchAdmin())
+            {
+                var pendingOfferings = await OfferingService.GetPendingOfferingsAsync();
+                pendingOfferingsCount = pendingOfferings.Count;
+            }
+
+            // Load rejected offerings count for current user
+            var rejectedOfferings = await OfferingService.GetRejectedOfferingsByUserAsync(workerId);
+            rejectedOfferingsCount = rejectedOfferings.Count;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error loading offering statistics: {ex.Message}");
+    }
+}
+
+    private async Task LoadNotifications()
+    {
+        notifications.Clear();
+
+        if (AuthService.CurrentWorker != null)
+        {
+            // Profile completion notification
+            if (userCompliance < 50)
+            {
+                notifications.Add(new Notification
+                {
+                    Icon = "fa-exclamation-circle",
+                    Color = "danger",
+                    Message = "Your profile is incomplete. Please update your information.",
+                    Time = "Just now",
+                    IsImportant = true
+                });
+            }
+
+            // Pending offerings notification for Church Admin
+            if (IsChurchAdmin() && pendingOfferingsCount > 0)
+            {
+                notifications.Add(new Notification
+                {
+                    Icon = "fa-money-bill-wave",
+                    Color = "warning",
+                    Message = $"You have {pendingOfferingsCount} offering(s) pending approval.",
+                    Time = "Today",
+                    IsImportant = true
+                });
+            }
+
+            // Rejected offerings notification
+            if (rejectedOfferingsCount > 0)
+            {
+                notifications.Add(new Notification
+                {
+                    Icon = "fa-exclamation-triangle",
+                    Color = "danger",
+                    Message = $"You have {rejectedOfferingsCount} rejected offering(s) needing attention.",
+                    Time = "Attention needed",
+                    IsImportant = true
+                });
+            }
+
+            // Pending requests notification
+            if (myPendingExcuses > 0)
+            {
+                notifications.Add(new Notification
+                {
+                    Icon = "fa-clock",
+                    Color = "warning",
+                    Message = $"You have {myPendingExcuses} pending permission request(s).",
+                    Time = "Recently",
+                    IsImportant = false
+                });
+            }
+
+            // Approval inbox notification
+            if (userPendingApprovals > 0)
+            {
+                notifications.Add(new Notification
+                {
+                    Icon = "fa-inbox",
+                    Color = "info",
+                    Message = $"You have {userPendingApprovals} pending approval(s) in your inbox.",
+                    Time = "Today",
+                    IsImportant = true
+                });
+            }
+
+            // Welcome notification for new users
+            if (daysSinceJoin < 7)
+            {
+                notifications.Add(new Notification
+                {
+                    Icon = "fa-hand-wave",
+                    Color = "success",
+                    Message = "Welcome to BCC ServiceHub! Complete your profile to get started.",
+                    Time = "Welcome",
+                    IsImportant = false
+                });
+            }
+        }
+
+        // If no specific notifications, add a general one
+        if (!notifications.Any())
+        {
+            notifications.Add(new Notification
+            {
+                Icon = "fa-check-circle",
+                Color = "success",
+                Message = "All systems operational. No pending actions.",
+                Time = "System",
+                IsImportant = false
+            });
+        }
+    }
+
+    private async Task LoadRecentActivities()
+{
+    recentActivities.Clear();
+
+    if (AuthService.CurrentWorker != null)
+    {
+        var workerId = AuthService.CurrentWorker.WorkerId;
+        var workerDbId = AuthService.CurrentWorker.Id;
+        
+        if (string.IsNullOrEmpty(workerId))
+        {
+            Console.WriteLine("WorkerId is null or empty in LoadRecentActivities");
+            return;
+        }
+        
+        // Add recent offerings
+        try
+        {
+            var recentOfferings = await OfferingService.GetMyRecentOfferingsAsync(workerId);
+            foreach (var offering in recentOfferings.Take(2))
+            {
+                recentActivities.Add(new Activity
+                {
+                    Icon = "fa-money-bill-wave",
+                    Color = "success",
+                    Message = $"Recorded {offering.Amount:N2} {offering.Currency} for {offering.OfferingTypeName}",
+                    Time = GetRelativeTime(offering.RecordedDate),
+                    Badge = offering.Status,
+                    SortTime = offering.RecordedDate
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading recent offerings: {ex.Message}");
+        }
+
+        // Add recent excuse requests
+        try
+        {
+            var recentExcuses = await ExcuseService.GetMyExcuseRequestsAsync(workerDbId);
+            foreach (var excuse in recentExcuses.Take(2))
+            {
+                recentActivities.Add(new Activity
+                {
+                    Icon = "fa-calendar-times",
+                    Color = "info",
+                    Message = $"Requested time off for {excuse.RequestedDate:MMM dd}",
+                    Time = GetRelativeTime(excuse.SubmittedDate),
+                    Badge = excuse.RequestStatus,
+                    SortTime = excuse.SubmittedDate
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading recent excuses: {ex.Message}");
+        }
+    }
+
+    // Sort by time (most recent first) and limit to 4 items
+    recentActivities = recentActivities
+        .OrderByDescending(a => a.SortTime)
+        .Take(4)
+        .ToList();
+}
+
+    private int CalculateCompleteness(Worker worker)
+    {
+        var filledFields = 0;
+        var totalFields = 15;
+
+        // Personal Information
+        if (!string.IsNullOrEmpty(worker.FirstName)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.LastName)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Email)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Phone)) filledFields++;
+        if (worker.DateOfBirth.HasValue) filledFields++;
+
+        // Professional Information
+        if (!string.IsNullOrEmpty(worker.Profession)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Organization)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Address)) filledFields++;
+
+        // Church Information
+        if (worker.DirectorateId.HasValue) filledFields++;
+        if (worker.DepartmentId.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Role)) filledFields++;
+        if (worker.DateJoinedChurch.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.OrdinationLevel)) filledFields++;
+
+        // Qualifications
+        if (worker.HasBelieverBaptism || worker.HasWorkerInTraining ||
+            worker.HasSOD || worker.HasBibleCollege) filledFields++;
+        if (!string.IsNullOrEmpty(worker.PassportPhotoPath)) filledFields++;
+
+        return totalFields > 0 ? (int)Math.Round((double)filledFields / totalFields * 100) : 0;
+    }
+
+    // Permission methods
+    private bool IsChurchAdmin()
+    {
+        return AuthService.CurrentWorker?.Role?.Equals("Church Admin", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private bool IsHeadOfMeatDirectorate()
+    {
+        var worker = AuthService.CurrentWorker;
+        return worker?.Role?.Equals("Head of Directorate", StringComparison.OrdinalIgnoreCase) == true &&
+               worker?.Directorate?.Name?.Equals("MEAT", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private bool IsUsheringDepartment()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker?.Department == null)
+        {
+            return false;
+        }
+        return worker.Department.Name?.Contains("Ushering", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private string GetGreeting()
+    {
+        var hour = DateTime.Now.Hour;
+        if (hour < 12) return "Good morning";
+        if (hour < 17) return "Good afternoon";
+        return "Good evening";
+    }
+
+    private string GetFormattedDaysInBCC()
+    {
+        if (daysSinceJoin < 30)
+        {
+            return $"{daysSinceJoin}d";
+        }
+        else if (daysSinceJoin < 365)
+        {
+            int months = daysSinceJoin / 30;
+            return $"{months}m";
+        }
+        else
+        {
+            int years = daysSinceJoin / 365;
+            return $"{years}y";
+        }
+    }
+
+    private string GetRelativeTime(DateTime date)
+    {
+        var timeSpan = DateTime.Now - date;
+        if (timeSpan.TotalMinutes < 1) return "Just now";
+        if (timeSpan.TotalHours < 1) return $"{(int)timeSpan.TotalMinutes}m ago";
+        if (timeSpan.TotalDays < 1) return $"{(int)timeSpan.TotalHours}h ago";
+        if (timeSpan.TotalDays < 7) return $"{(int)timeSpan.TotalDays}d ago";
+        return date.ToString("MMM dd");
+    }
+
+    // Helper classes
+    private class Notification
+    {
+        public string Icon { get; set; } = string.Empty;
+        public string Color { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string Time { get; set; } = string.Empty;
+        public bool IsImportant { get; set; } = false;
+    }
+
+    private class Activity
+    {
+        public string Icon { get; set; } = string.Empty;
+        public string Color { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string Time { get; set; } = string.Empty;
+        public string Badge { get; set; } = string.Empty;
+        public DateTime SortTime { get; set; } = DateTime.Now;
+    }
+}
+
+<style>
+    /* Dashboard Styles with Images/Avatars */
+    .dashboard-header {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 3px 15px rgba(0,0,0,0.05);
+        border: 1px solid #eaeaea;
+    }
+
+    .user-avatar-container {
+        position: relative;
+        margin-right: 1.5rem;
+    }
+
+    .user-avatar-img {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #4a6cf7;
+        box-shadow: 0 4px 12px rgba(74, 108, 247, 0.2);
+    }
+
+    .user-avatar-placeholder {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4a6cf7, #6a11cb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.8rem;
+        border: 3px solid #eaeaea;
+    }
+
+    .user-status {
+        position: absolute;
+        bottom: 5px;
+        right: 5px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid white;
+        background-color: #28a745;
+    }
+
+    .user-info {
+        flex: 1;
+    }
+
+    .user-greeting {
+        margin: 0;
+        font-weight: 700;
+        color: #2c3e50;
+        font-size: 1.5rem;
+    }
+
+    .user-details {
+        margin: 0.5rem 0 0 0;
+        color: #6c757d;
+        font-size: 0.95rem;
+    }
+
+    /* Stat Cards with Images */
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.2rem;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+        transition: all 0.3s ease;
+        border: 1px solid #f0f0f0;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+
+    .stat-image-container {
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+
+    /* Total Workers Image */
+    .workers-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .worker-avatar {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #4a6cf7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .worker-avatar.small {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+        top: 10px;
+        left: 10px;
+    }
+
+    .worker-avatar.medium {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+        top: 5px;
+        left: 40px;
+    }
+
+    .worker-avatar.large {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+        bottom: 5px;
+        left: 20px;
+    }
+
+    /* Active Workers Image */
+    .active-workers-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .worker-avatar.active {
+        background: #28a745;
+        border: 2px solid white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .worker-avatar.active:nth-child(1) {
+        top: 15px;
+        left: 10px;
+    }
+
+    .worker-avatar.active:nth-child(2) {
+        top: 5px;
+        left: 40px;
+    }
+
+    .worker-avatar.active:nth-child(3) {
+        top: 15px;
+        left: 70px;
+    }
+
+    /* Pending Approvals Image */
+    .pending-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .document-icon {
+        position: absolute;
+        width: 50px;
+        height: 60px;
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        left: 25px;
+        top: 0;
+        box-shadow: 0 3px 6px rgba(255, 193, 7, 0.2);
+    }
+
+    .clock-overlay {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffc107;
+        font-size: 0.9rem;
+        right: 20px;
+        bottom: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Pending Offerings Image */
+    .offering-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .coin-stack {
+        position: absolute;
+        left: 20px;
+        top: 10px;
+    }
+
+    .coin {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #17a2b8, #138496);
+        position: absolute;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .coin-1 {
+        top: 0;
+        left: 0;
+        z-index: 3;
+    }
+
+    .coin-2 {
+        top: 5px;
+        left: 5px;
+        background: linear-gradient(135deg, #138496, #117a8b);
+        z-index: 2;
+    }
+
+    .coin-3 {
+        top: 10px;
+        left: 10px;
+        background: linear-gradient(135deg, #0c636e, #0a535c);
+        z-index: 1;
+    }
+
+    .hand-icon {
+        position: absolute;
+        right: 15px;
+        bottom: 10px;
+        font-size: 1.8rem;
+        color: #17a2b8;
+        background: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Church Time Image */
+    .church-time-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .church-building {
+        position: absolute;
+        left: 25px;
+        top: 10px;
+        font-size: 2rem;
+        color: white;
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 6px rgba(23, 162, 184, 0.2);
+    }
+
+    .calendar-icon {
+        position: absolute;
+        right: 20px;
+        bottom: 5px;
+        width: 30px;
+        height: 30px;
+        background: white;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #17a2b8;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Pending Requests Image */
+    .pending-requests-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .request-paper {
+        position: absolute;
+        left: 25px;
+        top: 5px;
+        width: 50px;
+        height: 50px;
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        box-shadow: 0 3px 6px rgba(255, 193, 7, 0.2);
+    }
+
+    .hourglass-icon {
+        position: absolute;
+        right: 20px;
+        bottom: 10px;
+        font-size: 1.5rem;
+        color: #ffc107;
+        background: white;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Approved Image */
+    .approved-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .checkmark-circle {
+        position: absolute;
+        left: 20px;
+        top: 10px;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+        box-shadow: 0 3px 6px rgba(40, 167, 69, 0.2);
+        border: 2px solid white;
+    }
+
+    .document-approved {
+        position: absolute;
+        right: 25px;
+        bottom: 5px;
+        font-size: 1.8rem;
+        color: #28a745;
+        background: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Rejected Image */
+    .rejected-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .warning-triangle {
+        position: absolute;
+        left: 25px;
+        top: 10px;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+        box-shadow: 0 3px 6px rgba(220, 53, 69, 0.2);
+        border: 2px solid white;
+    }
+
+    .coin-falling {
+        position: absolute;
+        right: 20px;
+        bottom: 15px;
+    }
+
+    .coin-fall {
+        width: 25px;
+        height: 25px;
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        border-radius: 50%;
+        border: 2px solid white;
+        animation: fall 2s infinite;
+        box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+    }
+
+    @@keyframes fall {
+        0% { transform: translateY(0); opacity: 1; }
+        100% { transform: translateY(20px); opacity: 0; }
+    }
+
+    /* Church Membership Image */
+    .church-membership-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .church-icon-large {
+        position: absolute;
+        left: 20px;
+        top: 5px;
+        font-size: 2.2rem;
+        color: white;
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(23, 162, 184, 0.3);
+    }
+
+    .membership-badge {
+        position: absolute;
+        right: 15px;
+        bottom: 10px;
+        width: 40px;
+        height: 40px;
+        background: #4a6cf7;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 0.8rem;
+        box-shadow: 0 3px 8px rgba(74, 108, 247, 0.3);
+        border: 2px solid white;
+    }
+
+    /* Pending Excuse Image */
+    .pending-excuse-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .calendar-waiting {
+        position: absolute;
+        left: 25px;
+        top: 10px;
+        font-size: 2rem;
+        color: white;
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 6px rgba(255, 193, 7, 0.2);
+    }
+
+    .waiting-clock {
+        position: absolute;
+        right: 25px;
+        bottom: 10px;
+        width: 30px;
+        height: 30px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffc107;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Approved Excuse Image */
+    .approved-excuse-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .calendar-checked {
+        position: absolute;
+        left: 20px;
+        top: 10px;
+        font-size: 2rem;
+        color: white;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 6px rgba(40, 167, 69, 0.2);
+    }
+
+    .green-checkmark {
+        position: absolute;
+        right: 20px;
+        bottom: 10px;
+        width: 35px;
+        height: 35px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #28a745;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Profile Complete Image */
+    .profile-complete-image {
+        position: relative;
+        width: 100px;
+        height: 60px;
+    }
+
+    .profile-avatar {
+        position: absolute;
+        left: 20px;
+        top: 10px;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: #4a6cf7;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+        overflow: hidden;
+        border: 3px solid white;
+        box-shadow: 0 3px 6px rgba(74, 108, 247, 0.2);
+    }
+
+    .profile-avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .progress-ring {
+        position: absolute;
+        right: 10px;
+        top: 0;
+    }
+
+    .progress-ring-bg {
+        fill: none;
+        stroke: #eaeaea;
+        stroke-width: 3;
+    }
+
+    .progress-ring-fill {
+        fill: none;
+        stroke: #4a6cf7;
+        stroke-width: 3;
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+        transition: stroke-dashoffset 0.5s ease;
+    }
+
+    .stat-content {
+        text-align: center;
+    }
+
+    .stat-number {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+
+    .stat-label {
+        margin: 0.3rem 0 0 0;
+        font-size: 0.85rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    /* Action Cards with Images */
+    .action-card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        text-align: center;
+        padding: 1rem 0.5rem;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .action-card:hover {
+        background: #f8f9fa;
+        text-decoration: none;
+        color: inherit;
+        transform: translateY(-3px);
+    }
+
+    .action-image {
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.8rem;
+        position: relative;
+    }
+
+    .action-text {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #2c3e50;
+        display: block;
+    }
+
+    /* Add Worker Image */
+    .add-worker-image {
+        width: 80px;
+        height: 70px;
+    }
+
+    .new-worker-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4a6cf7, #6a11cb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        border: 3px solid white;
+        box-shadow: 0 3px 6px rgba(74, 108, 247, 0.3);
+    }
+
+    .plus-sign {
+        position: absolute;
+        right: 10px;
+        bottom: 15px;
+        width: 30px;
+        height: 30px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #4a6cf7;
+        font-size: 1rem;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Manage Workers Image */
+    .manage-workers-image {
+        width: 80px;
+        height: 70px;
+    }
+
+    .worker-group {
+        position: relative;
+        width: 70px;
+        height: 50px;
+    }
+
+    .mini-worker {
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #17a2b8, #138496);
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .mini-worker:nth-child(1) {
+        top: 5px;
+        left: 5px;
+    }
+
+    .mini-worker:nth-child(2) {
+        top: 5px;
+        right: 5px;
+    }
+
+    .mini-worker:nth-child(3) {
+        bottom: 5px;
+        left: 5px;
+    }
+
+    .mini-worker:nth-child(4) {
+        bottom: 5px;
+        right: 5px;
+    }
+
+    /* Service Image */
+    .service-image {
+        width: 80px;
+        height: 70px;
+        position: relative;
+    }
+
+    .church-service {
+        position: absolute;
+        left: 15px;
+        top: 15px;
+        font-size: 1.8rem;
+        color: white;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(40, 167, 69, 0.3);
+    }
+
+    .calendar-tool {
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+        font-size: 1.3rem;
+        color: #28a745;
+        background: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Offering Types Image */
+    .offering-types-image {
+        width: 80px;
+        height: 70px;
+    }
+
+    .offering-list {
+        position: relative;
+        width: 60px;
+        height: 50px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        padding: 8px;
+        border: 2px solid #eaeaea;
+    }
+
+    .list-item {
+        height: 6px;
+        background: linear-gradient(90deg, #28a745, #20c997);
+        margin: 5px 0;
+        border-radius: 3px;
+    }
+
+    .list-item:nth-child(1) {
+        width: 80%;
+    }
+
+    .list-item:nth-child(2) {
+        width: 70%;
+    }
+
+    .list-item:nth-child(3) {
+        width: 60%;
+    }
+
+    /* Approve Offering Image */
+    .approve-offering-image {
+        width: 80px;
+        height: 70px;
+        position: relative;
+    }
+
+    .stamp-icon {
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        font-size: 2rem;
+        color: white;
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(255, 193, 7, 0.3);
+    }
+
+    .pending-badge {
+        position: absolute;
+        top: -5px;
+        right: 0;
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        color: white;
+        font-size: 0.7rem;
+        padding: 0.2em 0.5em;
+        border-radius: 10px;
+        font-weight: bold;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Attendance Image */
+    .attendance-image {
+        width: 80px;
+        height: 70px;
+        position: relative;
+    }
+
+    .clipboard-icon {
+        position: absolute;
+        left: 15px;
+        top: 15px;
+        font-size: 1.8rem;
+        color: white;
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(23, 162, 184, 0.3);
+    }
+
+    .people-group {
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+    }
+
+    .person-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        margin: 2px;
+        display: inline-block;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* View Attendance Image with Solid Background */
+    .view-attendance-image {
+        width: 80px;
+        height: 70px;
+        position: relative;
+    }
+
+    .list-icon {
+        position: absolute;
+        left: 15px;
+        top: 15px;
+        font-size: 1.8rem;
+        color: white;
+        background: linear-gradient(135deg, #4a6cf7, #6a11cb);
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(74, 108, 247, 0.3);
+    }
+
+    .eye-icon {
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+        font-size: 1.3rem;
+        color: #4a6cf7;
+        background: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Record Offering Image with Solid Background */
+    .record-offering-image {
+        width: 80px;
+        height: 70px;
+        position: relative;
+    }
+
+    .money-hand {
+        position: absolute;
+        left: 15px;
+        top: 15px;
+        font-size: 1.8rem;
+        color: white;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(40, 167, 69, 0.3);
+    }
+
+    .plus-circle {
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+        font-size: 1.3rem;
+        color: #28a745;
+        background: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    .rejected-badge {
+        position: absolute;
+        top: -5px;
+        right: 0;
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        font-size: 0.7rem;
+        padding: 0.2em 0.5em;
+        border-radius: 10px;
+        font-weight: bold;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Profile Image */
+    .profile-image {
+        width: 80px;
+        height: 70px;
+    }
+
+    .profile-avatar-small {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4a6cf7, #6a11cb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.3rem;
+        margin: 0 auto;
+        overflow: hidden;
+        border: 3px solid white;
+        box-shadow: 0 3px 8px rgba(74, 108, 247, 0.3);
+    }
+
+    .profile-avatar-small-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Break Image with Solid Background */
+    .break-image {
+        width: 80px;
+        height: 70px;
+        position: relative;
+    }
+
+    .beach-icon {
+        position: absolute;
+        left: 15px;
+        top: 15px;
+        font-size: 1.8rem;
+        color: white;
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(23, 162, 184, 0.3);
+    }
+
+    .relax-icon {
+        position: absolute;
+        right: 15px;
+        bottom: 15px;
+        font-size: 1.3rem;
+        color: #17a2b8;
+        background: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* My Requests Image with Solid Background */
+    .my-requests-image {
+        width: 80px;
+        height: 70px;
+        position: relative;
+    }
+
+    .requests-list {
+        position: relative;
+        width: 60px;
+        height: 50px;
+        margin: 0 auto;
+    }
+
+    .list-paper {
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        font-size: 1.8rem;
+        color: white;
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(255, 193, 7, 0.3);
+    }
+
+    .my-badge {
+        position: absolute;
+        right: 5px;
+        bottom: 5px;
+        font-size: 1.2rem;
+        color: #4a6cf7;
+        background: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 2px solid #f8f9fa;
+    }
+
+    /* Inbox Image */
+    .inbox-image {
+        width: 80px;
+        height: 70px;
+        position: relative;
+    }
+
+    .inbox-icon {
+        position: absolute;
+        left: 15px;
+        top: 15px;
+        font-size: 1.8rem;
+        color: white;
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 3px 8px rgba(255, 193, 7, 0.3);
+    }
+
+    .mail-stack {
+        position: absolute;
+        right: 15px;
+        bottom: 20px;
+    }
+
+    .mail-piece {
+        width: 30px;
+        height: 20px;
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        border-radius: 4px;
+        margin-bottom: -10px;
+        box-shadow: 0 2px 4px rgba(255, 193, 7, 0.2);
+    }
+
+    .mail-piece:nth-child(2) {
+        width: 25px;
+        margin-left: 5px;
+    }
+
+    .inbox-badge {
+        position: absolute;
+        top: -5px;
+        right: 0;
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+        color: white;
+        font-size: 0.7rem;
+        padding: 0.2em 0.5em;
+        border-radius: 10px;
+        font-weight: bold;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Header Icons */
+    .action-header-icon,
+    .activity-header-icon,
+    .notification-header-icon,
+    .profile-header-icon,
+    .links-header-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8f9fa;
+        color: #4a6cf7;
+        border: 2px solid #eaeaea;
+    }
+
+    .notification-header-icon {
+        position: relative;
+    }
+
+    .notification-count {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        font-size: 0.6rem;
+        padding: 0.2em 0.4em;
+        border-radius: 10px;
+        font-weight: bold;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Activity List */
+    .activity-list {
+        max-height: 220px;
+        overflow-y: auto;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid #f1f3f4;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+        background: #f8f9fa;
+        border: 2px solid #eaeaea;
+    }
+
+    .activity-money-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #28a745;
+        font-size: 1rem;
+        border: 2px solid #eaeaea;
+    }
+
+    .activity-calendar-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #17a2b8;
+        font-size: 1rem;
+        border: 2px solid #eaeaea;
+    }
+
+    .activity-default-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        font-size: 1rem;
+        border: 2px solid #eaeaea;
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-text {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #2c3e50;
+        line-height: 1.3;
+    }
+
+    .activity-time {
+        font-size: 0.75rem;
+    }
+
+    .activity-status {
+        font-size: 0.7rem;
+        padding: 0.2em 0.6em;
+        border-radius: 10px;
+        font-weight: 500;
+        border: 1px solid #dee2e6;
+    }
+
+    .activity-status.pending {
+        background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+        color: #856404;
+    }
+
+    .activity-status.approved {
+        background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        color: #155724;
+    }
+
+    .activity-status.rejected {
+        background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+        color: #721c24;
+    }
+
+    .no-activity-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        font-size: 1.5rem;
+        margin: 0 auto;
+        border: 2px solid #eaeaea;
+    }
+
+    /* Notification List */
+    .notification-list {
+        max-height: 180px;
+        overflow-y: auto;
+    }
+
+    .notification-item {
+        display: flex;
+        align-items: center;
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid #f1f3f4;
+    }
+
+    .notification-item:last-child {
+        border-bottom: none;
+    }
+
+    .notification-item.important {
+        background-color: #fff5f5;
+        border-left: 3px solid #dc3545;
+    }
+
+    .notification-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+        border: 2px solid #eaeaea;
+    }
+
+    .notification-important-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #dc3545;
+        font-size: 1rem;
+        border: 2px solid #eaeaea;
+    }
+
+    .notification-normal-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        font-size: 1rem;
+        border: 2px solid #eaeaea;
+    }
+
+    .notification-content {
+        flex: 1;
+    }
+
+    .notification-text {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #2c3e50;
+        line-height: 1.3;
+    }
+
+    .notification-time {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    .no-notification-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        font-size: 1.5rem;
+        margin: 0 auto;
+        border: 2px solid #eaeaea;
+    }
+
+    /* Profile Progress */
+    .profile-progress-container {
+        text-align: center;
+    }
+
+    .profile-avatar-progress {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 1rem;
+    }
+
+    .profile-progress-avatar {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        object-fit: cover;
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        z-index: 2;
+        border: 3px solid white;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    .profile-progress-avatar-placeholder {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4a6cf7, #6a11cb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        z-index: 2;
+        border: 3px solid white;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    .progress-circle {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100px;
+        height: 100px;
+    }
+
+    .progress-bg {
+        fill: none;
+        stroke: #eaeaea;
+        stroke-width: 6;
+    }
+
+    .progress-fill {
+        fill: none;
+        stroke: #4a6cf7;
+        stroke-width: 6;
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+        transition: stroke-dashoffset 0.5s ease;
+    }
+
+    .progress-percent {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-weight: bold;
+        color: #4a6cf7;
+        font-size: 1.2rem;
+    }
+
+    /* Landing Page */
+    .church-logo {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+
+    .church-building-large {
+        position: absolute;
+        top: 20px;
+        left: 40px;
+        font-size: 4rem;
+        color: white;
+        background: linear-gradient(135deg, #4a6cf7, #6a11cb);
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(74, 108, 247, 0.3);
+    }
+
+    .people-around-church {
+        position: absolute;
+        bottom: 10px;
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+    }
+
+    .person-around {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #28a745, #20c997);
+        animation: float 3s infinite ease-in-out;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .person-around:nth-child(2) {
+        animation-delay: 0.5s;
+        background: linear-gradient(135deg, #4a6cf7, #6a11cb);
+    }
+
+    .person-around:nth-child(3) {
+        animation-delay: 1s;
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+    }
+
+    @@keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    /* Button Icons */
+    .budget-icon,
+    .remittance-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: #f8f9fa;
+        color: #6c757d;
+        border: 1px solid #dee2e6;
+    }
+
+    /* Scrollbar Styling */
+    .activity-list::-webkit-scrollbar,
+    .notification-list::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .activity-list::-webkit-scrollbar-track,
+    .notification-list::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    .activity-list::-webkit-scrollbar-thumb,
+    .notification-list::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .activity-list::-webkit-scrollbar-thumb:hover,
+    .notification-list::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+</style>
