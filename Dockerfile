@@ -1,34 +1,25 @@
-# 1️⃣ Build stage: use .NET SDK to build the app
+# ---------- BUILD STAGE ----------
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
-WORKDIR /app
+WORKDIR /src
 
-# Copy project files
-COPY *.csproj ./
-COPY ChurchApp/*.csproj ./ChurchApp/
+# Copy everything from repo
+COPY . .
 
-# 1️⃣ Build stage
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
-WORKDIR /app
+# Restore dependencies
+RUN dotnet restore
 
-# Copy the csproj file and restore dependencies
-COPY churchapp/churchapp/churchapp/*.csproj ./churchapp/
-RUN dotnet restore ./churchapp/*.csproj
+# Publish the application
+RUN dotnet publish -c Release -o /app/publish
 
-# Copy everything else
-COPY . ./
-
-# Publish the app
-RUN dotnet publish ./churchapp/churchapp/churchapp/churchapp.csproj -c Release -o /app/out
-
-# 2️⃣ Runtime stage
+# ---------- RUNTIME STAGE ----------
 FROM mcr.microsoft.com/dotnet/aspnet:7.0
 WORKDIR /app
 
-# Copy from build stage
-COPY --from=build /app/out ./
+# Copy published files
+COPY --from=build /app/publish .
 
-# Expose port 10000
+# Render uses port 10000
 EXPOSE 10000
 
-# Run the app
-ENTRYPOINT ["dotnet", "churchapp.dll"]
+# IMPORTANT: Replace with your exact dll name if different
+ENTRYPOINT ["dotnet", "ChurchApp.dll"]
