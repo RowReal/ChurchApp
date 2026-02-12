@@ -6,24 +6,29 @@ WORKDIR /app
 COPY *.csproj ./
 COPY ChurchApp/*.csproj ./ChurchApp/
 
-# Restore dependencies
-RUN dotnet restore
+# 1️⃣ Build stage
+FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
+WORKDIR /app
 
-# Copy all source code
+# Copy the csproj file and restore dependencies
+COPY churchapp/churchapp/*.csproj ./churchapp/
+RUN dotnet restore ./churchapp/*.csproj
+
+# Copy everything else
 COPY . ./
 
-# Publish the app in Release mode
-RUN dotnet publish -c Release -o /app/out
+# Publish the app
+RUN dotnet publish ./churchapp/churchapp.csproj -c Release -o /app/out
 
-# 2️⃣ Runtime stage: smaller image to run the app
+# 2️⃣ Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:7.0
 WORKDIR /app
 
-# Copy the published output from build stage
+# Copy from build stage
 COPY --from=build /app/out ./
 
-# Expose port 10000 (Render will use this)
+# Expose port 10000
 EXPOSE 10000
 
-# Start the app
-ENTRYPOINT ["dotnet", "ChurchApp.dll"]
+# Run the app
+ENTRYPOINT ["dotnet", "churchapp.dll"]
