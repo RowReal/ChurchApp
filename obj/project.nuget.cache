@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "x2P7d+ZPtpY=",
+  "dgSpecHash": "RxyqXKFGP8E=",
   "success": true,
-  "projectFilePath": "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\ChurchApp.csproj",
+  "projectFilePath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\microsoft.aspnetcore.authorization\\8.0.0\\microsoft.aspnetcore.authorization.8.0.0.nupkg.sha512",

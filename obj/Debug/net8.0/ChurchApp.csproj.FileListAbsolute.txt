@@ -126,3 +126,4 @@ C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\refint\ChurchApp
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.pdb
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.genruntimeconfig.cache
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ref\ChurchApp.dll
+C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.sourcelink.json

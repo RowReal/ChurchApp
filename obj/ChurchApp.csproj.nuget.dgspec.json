@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\ChurchApp.csproj": {}
+    "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj": {}
   },
   "projects": {
-    "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\ChurchApp.csproj": {
+    "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\ChurchApp.csproj",
+        "projectUniqueName": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
         "projectName": "ChurchApp",
-        "projectPath": "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\ChurchApp.csproj",
+        "projectPath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
         "packagesPath": "C:\\Users\\rowland.adeoye\\.nuget\\packages\\",
-        "outputPath": "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\obj\\",
+        "outputPath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

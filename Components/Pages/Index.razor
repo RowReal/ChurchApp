@@ -11,6 +11,7 @@
 @inject OfferingService OfferingService
 @inject AttendanceService AttendanceService
 @inject NavigationManager Navigation
+@inject IServiceProvider ScopedServices
 
 <PageTitle>BCC ServiceHub - Dashboard</PageTitle>
 
@@ -323,149 +324,32 @@
         <div class="row">
             <!-- Left Column - Quick Actions & Recent Activity -->
             <div class="col-lg-8 mb-4">
-                <!-- Quick Actions -->
+                <!-- Quick Actions - Now includes ALL menu options from sidebar -->
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-header bg-white border-0 py-3">
                         <h5 class="mb-0 d-flex align-items-center">
                             <div class="action-header-icon me-2">
                                 <i class="fas fa-bolt"></i>
                             </div>
-                            Quick Actions
+                            Quick Menu
                         </h5>
                     </div>
                     <div class="card-body p-3">
                         <div class="row g-3">
-                            <!-- [All your action cards remain the same, just updating the visual style] -->
-                            @if (IsChurchAdmin() || IsHeadOfMeatDirectorate())
-                            {
-                                <!-- Church Admin & Head of MEAT Actions -->
-                                <div class="col-6 col-sm-4 col-lg-3">
-                                    <a href="/admin/worker-setup" class="action-card">
-                                        <div class="action-image add-worker-image">
-                                            <div class="new-worker-avatar">
-                                                <i class="fas fa-user-plus"></i>
-                                            </div>
-                                            <div class="plus-sign">
-                                                <i class="fas fa-plus"></i>
-                                            </div>
-                                        </div>
-                                        <span class="action-text">Add Worker</span>
-                                    </a>
-                                </div>
-
-                                <div class="col-6 col-sm-4 col-lg-3">
-                                    <a href="/admin/worker-update" class="action-card">
-                                        <div class="action-image manage-workers-image">
-                                            <div class="worker-group">
-                                                <div class="mini-worker"></div>
-                                                <div class="mini-worker"></div>
-                                                <div class="mini-worker"></div>
-                                                <div class="mini-worker"></div>
-                                            </div>
-                                        </div>
-                                        <span class="action-text">Manage Workers</span>
-                                    </a>
-                                </div>
-
-                                @if (IsChurchAdmin())
-                                {
-                                    <div class="col-6 col-sm-4 col-lg-3">
-                                        <a href="/admin/services" class="action-card">
-                                            <div class="action-image service-image">
-                                                <div class="church-service">
-                                                    <i class="fas fa-church"></i>
-                                                </div>
-                                                <div class="calendar-tool">
-                                                    <i class="fas fa-calendar-alt"></i>
-                                                </div>
-                                            </div>
-                                            <span class="action-text">Manage Services</span>
-                                        </a>
-                                    </div>
-
-                                    <div class="col-6 col-sm-4 col-lg-3">
-                                        <a href="/offering/types" class="action-card">
-                                            <div class="action-image offering-types-image">
-                                                <div class="offering-list">
-                                                    <div class="list-item"></div>
-                                                    <div class="list-item"></div>
-                                                    <div class="list-item"></div>
-                                                </div>
-                                            </div>
-                                            <span class="action-text">Offering Types</span>
-                                        </a>
-                                    </div>
-
-                                    <div class="col-6 col-sm-4 col-lg-3">
-                                        <a href="/offering/approvals" class="action-card">
-                                            <div class="action-image approve-offering-image">
-                                                <div class="stamp-icon">
-                                                    <i class="fas fa-stamp"></i>
-                                                </div>
-                                                @if (pendingOfferingsCount > 0)
-                                                {
-                                                    <span class="pending-badge">@pendingOfferingsCount</span>
-                                                }
-                                            </div>
-                                            <span class="action-text">Approve Offerings</span>
-                                        </a>
-                                    </div>
-                                }
-                            }
-
-                            @if (IsChurchAdmin() || IsUsheringDepartment() || IsHeadOfMeatDirectorate())
-                            {
-                                <!-- Attendance for Admin, Ushering, and Head of MEAT -->
-                                <div class="col-6 col-sm-4 col-lg-3">
-                                    <a href="/Offering/Attendance-record" class="action-card">
-                                        <div class="action-image attendance-image">
-                                            <div class="clipboard-icon">
-                                                <i class="fas fa-clipboard-check"></i>
-                                            </div>
-                                            <div class="people-group">
-                                                <div class="person-dot"></div>
-                                                <div class="person-dot"></div>
-                                                <div class="person-dot"></div>
-                                            </div>
-                                        </div>
-                                        <span class="action-text">Record Attendance</span>
-                                    </a>
-                                </div>
-
-                                <div class="col-6 col-sm-4 col-lg-3">
-                                    <a href="/Offering/Attendance-list" class="action-card">
-                                        <div class="action-image view-attendance-image">
-                                            <div class="list-icon">
-                                                <i class="fas fa-list-ol"></i>
-                                            </div>
-                                            <div class="eye-icon">
-                                                <i class="fas fa-eye"></i>
-                                            </div>
-                                        </div>
-                                            <span class="action-text">View Attendance</span>
-                                    </a>
-                                </div>
-                            }
-
-                            <!-- Common Actions for All Users -->
+                            <!-- ========== DASHBOARD ========== -->
                             <div class="col-6 col-sm-4 col-lg-3">
-                                <a href="/offering/record" class="action-card">
-                                    <div class="action-image record-offering-image">
-                                        <div class="money-hand">
-                                            <i class="fas fa-hand-holding-usd"></i>
+                                <a href="/" class="action-card">
+                                    <div class="action-image dashboard-image">
+                                        <div class="dashboard-icon">
+                                            <i class="fas fa-chart-pie"></i>
                                         </div>
-                                        <div class="plus-circle">
-                                            <i class="fas fa-plus-circle"></i>
-                                        </div>
-                                        @if (rejectedOfferingsCount > 0)
-                                        {
-                                            <span class="rejected-badge">@rejectedOfferingsCount</span>
-                                        }
                                     </div>
-                                    <span class="action-text">Record Offering</span>
+                                    <span class="action-text">Dashboard</span>
                                 </a>
                             </div>
 
+                            <!-- ========== WORKER PROFILE SECTION ========== -->
+                            <!-- My Profile (Everyone) -->
                             <div class="col-6 col-sm-4 col-lg-3">
                                 <a href="/workforce/my-profile" class="action-card">
                                     <div class="action-image profile-image">
@@ -486,20 +370,109 @@
                                 </a>
                             </div>
 
-                            <div class="col-6 col-sm-4 col-lg-3">
-                                <a href="/excuse/mybreak-requests" class="action-card">
-                                    <div class="action-image break-image">
-                                        <div class="beach-icon">
-                                            <i class="fas fa-umbrella-beach"></i>
+                            <!-- Profile Approval (Supervisors) -->
+                            @if (CanAccessProfileApproval())
+                            {
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/workforce/my-inbox" class="action-card">
+                                        <div class="action-image inbox-image">
+                                            <div class="inbox-icon">
+                                                <i class="fas fa-inbox"></i>
+                                            </div>
+                                            <div class="mail-stack">
+                                                <div class="mail-piece"></div>
+                                                <div class="mail-piece"></div>
+                                            </div>
+                                            @if (pendingApprovalCount > 0)
+                                            {
+                                                <span class="pending-badge">@pendingApprovalCount</span>
+                                            }
                                         </div>
-                                        <div class="relax-icon">
-                                            <i class="fas fa-couch"></i>
+                                        <span class="action-text">Profile Approval</span>
+                                    </a>
+                                </div>
+                            }
+
+                            <!-- My Team (Supervisors) -->
+                            @if (CanAccessMyTeam())
+                            {
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/workforce/my-team" class="action-card">
+                                        <div class="action-image manage-workers-image">
+                                            <div class="worker-group">
+                                                <div class="mini-worker"></div>
+                                                <div class="mini-worker"></div>
+                                                <div class="mini-worker"></div>
+                                                <div class="mini-worker"></div>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">My Team</span>
+                                    </a>
+                                </div>
+                            }
+
+                            <!-- ========== GROWTH HUB SECTION ========== -->
+                            <!-- Growth Feedback (All Cases) -->
+                            <div class="col-6 col-sm-4 col-lg-3">
+                                <a href="/Workforce/feedback" class="action-card">
+                                    <div class="action-image feedback-image">
+                                        <div class="feedback-icon">
+                                            <i class="fas fa-comment-dots"></i>
                                         </div>
                                     </div>
-                                    <span class="action-text">Break Request</span>
+                                    <span class="action-text">Growth Feedback</span>
+                                    @if (growthHubCounts.MyFeedback > 0)
+                                    {
+                                        <span class="pending-badge">@growthHubCounts.MyFeedback</span>
+                                    }
                                 </a>
                             </div>
 
+                            <!-- Assigned Cases -->
+                            <div class="col-6 col-sm-4 col-lg-3">
+                                <a href="/Workforce/assigned" class="action-card">
+                                    <div class="action-image assigned-image">
+                                        <div class="assigned-icon">
+                                            <i class="fas fa-tasks"></i>
+                                        </div>
+                                    </div>
+                                    <span class="action-text">Assigned to Me</span>
+                                    @if (growthHubCounts.AssignedToMe > 0)
+                                    {
+                                        <span class="pending-badge">@growthHubCounts.AssignedToMe</span>
+                                    }
+                                </a>
+                            </div>
+
+                            <!-- Create New Feedback (Everyone) -->
+                            <div class="col-6 col-sm-4 col-lg-3">
+                                <a href="/Workforce/create-feedback" class="action-card">
+                                    <div class="action-image add-feedback-image">
+                                        <div class="add-icon">
+                                            <i class="fas fa-plus-circle"></i>
+                                        </div>
+                                    </div>
+                                    <span class="action-text">New Feedback</span>
+                                </a>
+                            </div>
+
+                            <!-- Growth Reports (Supervisors) -->
+                            @if (CanViewGrowthReports())
+                            {
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/Workforce/reports" class="action-card">
+                                        <div class="action-image reports-image">
+                                            <div class="reports-icon">
+                                                <i class="fas fa-chart-line"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Growth Reports</span>
+                                    </a>
+                                </div>
+                            }
+
+                            <!-- ========== PERMISSION SECTION ========== -->
+                            <!-- Off Service Requests (Everyone) -->
                             <div class="col-6 col-sm-4 col-lg-3">
                                 <a href="/excuse/my-requests" class="action-card">
                                     <div class="action-image my-requests-image">
@@ -516,25 +489,372 @@
                                             <span class="pending-badge">@myPendingExcuses</span>
                                         }
                                     </div>
-                                    <span class="action-text">My Requests</span>
+                                    <span class="action-text">Off Service</span>
                                 </a>
                             </div>
 
-                            @if (userPendingApprovals > 0)
+                            <!-- Break Requests (Everyone) -->
+                            <div class="col-6 col-sm-4 col-lg-3">
+                                <a href="/excuse/mybreak-requests" class="action-card">
+                                    <div class="action-image break-image">
+                                        <div class="beach-icon">
+                                            <i class="fas fa-umbrella-beach"></i>
+                                        </div>
+                                        <div class="relax-icon">
+                                            <i class="fas fa-couch"></i>
+                                        </div>
+                                    </div>
+                                    <span class="action-text">Break Request</span>
+                                    @if (pendingBreakCount > 0)
+                                    {
+                                        <span class="pending-badge">@pendingBreakCount</span>
+                                    }
+                                </a>
+                            </div>
+
+                            <!-- Approval Inbox (Supervisors) -->
+                            @if (CanApprovePermissionRequests())
                             {
                                 <div class="col-6 col-sm-4 col-lg-3">
-                                    <a href="/workforce/my-inbox" class="action-card">
-                                        <div class="action-image inbox-image">
-                                            <div class="inbox-icon">
-                                                <i class="fas fa-inbox"></i>
+                                    <a href="/excuse/approvals" class="action-card">
+                                        <div class="action-image approve-permission-image">
+                                            <div class="approve-icon">
+                                                <i class="fas fa-check-double"></i>
                                             </div>
-                                            <div class="mail-stack">
-                                                <div class="mail-piece"></div>
-                                                <div class="mail-piece"></div>
-                                            </div>
-                                            <span class="inbox-badge">@userPendingApprovals</span>
+                                            @if ((pendingExcuseApprovals + pendingBreakApprovals) > 0)
+                                            {
+                                                <span class="pending-badge">@(pendingExcuseApprovals + pendingBreakApprovals)</span>
+                                            }
                                         </div>
-                                        <span class="action-text">My Inbox</span>
+                                        <span class="action-text">Approval Inbox</span>
+                                    </a>
+                                </div>
+                            }
+
+                            <!-- ========== SERVICE RECORDS SECTION ========== -->
+                            @if (CanAccessServiceRecords())
+                            {
+                                <!-- Record Nomination (Head/Asst Head FIG) -->
+                                @if (CanAccessRecordNomination())
+                                {
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/Offering/record-nomination" class="action-card">
+                                            <div class="action-image nomination-image">
+                                                <div class="nomination-icon">
+                                                    <i class="fas fa-vote-yea"></i>
+                                                </div>
+                                            </div>
+                                            <span class="action-text">Record Nomination</span>
+                                        </a>
+                                    </div>
+                                }
+
+                                <!-- Service Notes (Head/Asst Head MEAT) -->
+                                @if (CanAccessServiceNotes())
+                                {
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/Offering/NoteList" class="action-card">
+                                            <div class="action-image notes-image">
+                                                <div class="notes-icon">
+                                                    <i class="fas fa-sticky-note"></i>
+                                                </div>
+                                            </div>
+                                            <span class="action-text">Service Notes</span>
+                                        </a>
+                                    </div>
+                                }
+
+                                <!-- Approve Offerings (Church Admin & Pastor) -->
+                                @if (CanApproveOfferings())
+                                {
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/offering/approvals" class="action-card">
+                                            <div class="action-image approve-offering-image">
+                                                <div class="stamp-icon">
+                                                    <i class="fas fa-stamp"></i>
+                                                </div>
+                                                @if (pendingOfferingsCount > 0)
+                                                {
+                                                    <span class="pending-badge">@pendingOfferingsCount</span>
+                                                }
+                                            </div>
+                                            <span class="action-text">Approve Offerings</span>
+                                        </a>
+                                    </div>
+                                }
+
+                                <!-- Record Offering (Authorized Users) -->
+                                @if (CanRecordOfferings())
+                                {
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/offering/record" class="action-card">
+                                            <div class="action-image record-offering-image">
+                                                <div class="money-hand">
+                                                    <i class="fas fa-hand-holding-usd"></i>
+                                                </div>
+                                                <div class="plus-circle">
+                                                    <i class="fas fa-plus-circle"></i>
+                                                </div>
+                                                @if (rejectedOfferingsCount > 0)
+                                                {
+                                                    <span class="rejected-badge">@rejectedOfferingsCount</span>
+                                                }
+                                            </div>
+                                            <span class="action-text">Record Offering</span>
+                                        </a>
+                                    </div>
+                                }
+
+                                <!-- Record Attendance (Authorized Users) -->
+                                @if (CanRecordOfferings())
+                                {
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/Offering/Attendance-record" class="action-card">
+                                            <div class="action-image attendance-image">
+                                                <div class="clipboard-icon">
+                                                    <i class="fas fa-clipboard-check"></i>
+                                                </div>
+                                                <div class="people-group">
+                                                    <div class="person-dot"></div>
+                                                    <div class="person-dot"></div>
+                                                    <div class="person-dot"></div>
+                                                </div>
+                                            </div>
+                                            <span class="action-text">Record Attendance</span>
+                                        </a>
+                                    </div>
+                                }
+
+                                <!-- View Attendance (Authorized Users) -->
+                                @if (CanRecordOfferings())
+                                {
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/Offering/Attendance-list" class="action-card">
+                                            <div class="action-image view-attendance-image">
+                                                <div class="list-icon">
+                                                    <i class="fas fa-list-ol"></i>
+                                                </div>
+                                                <div class="eye-icon">
+                                                    <i class="fas fa-eye"></i>
+                                                </div>
+                                            </div>
+                                            <span class="action-text">View Attendance</span>
+                                        </a>
+                                    </div>
+                                }
+
+                                <!-- Guest Management (FIG Members) -->
+                                @if (IsFIGDirectorateMember())
+                                {
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/guest" class="action-card">
+                                            <div class="action-image guest-image">
+                                                <div class="guest-icon">
+                                                    <i class="fas fa-users"></i>
+                                                </div>
+                                            </div>
+                                            <span class="action-text">Guest Management</span>
+                                        </a>
+                                    </div>
+                                }
+                            }
+
+                            <!-- ========== REPORTS SECTION ========== -->
+                            @if (CanAccessReports())
+                            {
+                                <!-- Offering & Attendance Reports -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/reports" class="action-card">
+                                        <div class="action-image reports-image">
+                                            <div class="reports-icon">
+                                                <i class="fas fa-chart-bar"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Reports</span>
+                                    </a>
+                                </div>
+
+                                <!-- Offering Reports -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/reports/offering" class="action-card">
+                                        <div class="action-image offering-reports-image">
+                                            <div class="offering-icon">
+                                                <i class="fas fa-coins"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Offering Reports</span>
+                                    </a>
+                                </div>
+
+                                <!-- Attendance Reports -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/reports/attendance" class="action-card">
+                                        <div class="action-image attendance-reports-image">
+                                            <div class="attendance-icon">
+                                                <i class="fas fa-calendar-check"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Attendance Reports</span>
+                                    </a>
+                                </div>
+
+                                <!-- Financial Reports (Admin/Pastor) -->
+                                @if (AuthService.IsInRole("Church Admin") || AuthService.IsInRole("Pastor in Charge"))
+                                {
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/reports/financial" class="action-card">
+                                            <div class="action-image financial-image">
+                                                <div class="financial-icon">
+                                                    <i class="fas fa-chart-pie"></i>
+                                                </div>
+                                            </div>
+                                            <span class="action-text">Financial Reports</span>
+                                        </a>
+                                    </div>
+
+                                    <!-- Church Analytics (Admin/Pastor) -->
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/reports/analytics" class="action-card">
+                                            <div class="action-image analytics-image">
+                                                <div class="analytics-icon">
+                                                    <i class="fas fa-chart-line"></i>
+                                                </div>
+                                            </div>
+                                            <span class="action-text">Church Analytics</span>
+                                        </a>
+                                    </div>
+                                }
+                            }
+
+                            <!-- ========== BUDGET & REMITTANCE ========== -->
+                            <!-- Church Budget -->
+                            @if (CanAccessBudget())
+                            {
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/budget" class="action-card">
+                                        <div class="action-image budget-image">
+                                            <div class="budget-icon">
+                                                <i class="fas fa-wallet"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Church Budget</span>
+                                    </a>
+                                </div>
+                            }
+
+                            <!-- Church Remittance -->
+                            @if (CanAccessRemittance())
+                            {
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/remittance" class="action-card">
+                                        <div class="action-image remittance-image">
+                                            <div class="remittance-icon">
+                                                <i class="fas fa-exchange-alt"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Church Remittance</span>
+                                    </a>
+                                </div>
+                            }
+
+                            <!-- ========== SETUP SECTION (Admin Only) ========== -->
+                            @if (AuthService.CanAccessAdminPanel())
+                            {
+                                <!-- Worker Setup -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/admin/worker-setup" class="action-card">
+                                        <div class="action-image add-worker-image">
+                                            <div class="new-worker-avatar">
+                                                <i class="fas fa-user-plus"></i>
+                                            </div>
+                                            <div class="plus-sign">
+                                                <i class="fas fa-plus"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Worker Setup</span>
+                                    </a>
+                                </div>
+
+                                <!-- Workers Detail -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/admin/worker-update" class="action-card">
+                                        <div class="action-image manage-workers-image">
+                                            <div class="worker-group">
+                                                <div class="mini-worker"></div>
+                                                <div class="mini-worker"></div>
+                                                <div class="mini-worker"></div>
+                                                <div class="mini-worker"></div>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Workers Detail</span>
+                                    </a>
+                                </div>
+
+                                <!-- Service Management -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/admin/services" class="action-card">
+                                        <div class="action-image service-image">
+                                            <div class="church-service">
+                                                <i class="fas fa-church"></i>
+                                            </div>
+                                            <div class="calendar-tool">
+                                                <i class="fas fa-calendar-alt"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Service Mgmt</span>
+                                    </a>
+                                </div>
+
+                                <!-- Offering Setup (Admin/Pastor) -->
+                                @if (CanAccessOfferingSetup())
+                                {
+                                    <div class="col-6 col-sm-4 col-lg-3">
+                                        <a href="/offering/types" class="action-card">
+                                            <div class="action-image offering-types-image">
+                                                <div class="offering-list">
+                                                    <div class="list-item"></div>
+                                                    <div class="list-item"></div>
+                                                    <div class="list-item"></div>
+                                                </div>
+                                            </div>
+                                            <span class="action-text">Offering Setup</span>
+                                        </a>
+                                    </div>
+                                }
+
+                                <!-- Directorate Setup -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/admin/directorate-setup" class="action-card">
+                                        <div class="action-image directorate-image">
+                                            <div class="directorate-icon">
+                                                <i class="fas fa-building"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Directorate Setup</span>
+                                    </a>
+                                </div>
+
+                                <!-- Department Setup -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/admin/department-setup" class="action-card">
+                                        <div class="action-image department-image">
+                                            <div class="department-icon">
+                                                <i class="fas fa-sitemap"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Department Setup</span>
+                                    </a>
+                                </div>
+
+                                <!-- Role Setup -->
+                                <div class="col-6 col-sm-4 col-lg-3">
+                                    <a href="/admin/role-setup" class="action-card">
+                                        <div class="action-image role-image">
+                                            <div class="role-icon">
+                                                <i class="fas fa-user-tag"></i>
+                                            </div>
+                                        </div>
+                                        <span class="action-text">Role Setup</span>
                                     </a>
                                 </div>
                             }
@@ -720,17 +1040,29 @@
                     </div>
                     <div class="card-body">
                         <div class="d-grid gap-2">
-                            <a href="/budget" class="btn btn-outline-secondary btn-sm text-start py-2">
-                                <div class="budget-icon me-2">
-                                    <i class="fas fa-chart-pie"></i>
+                            @if (CanAccessBudget())
+                            {
+                                <a href="/budget" class="btn btn-outline-secondary btn-sm text-start py-2">
+                                    <div class="budget-icon me-2">
+                                        <i class="fas fa-chart-pie"></i>
+                                    </div>
+                                    Church Budget
+                                </a>
+                            }
+                            @if (CanAccessRemittance())
+                            {
+                                <a href="/remittance" class="btn btn-outline-secondary btn-sm text-start py-2">
+                                    <div class="remittance-icon me-2">
+                                        <i class="fas fa-money-check"></i>
+                                    </div>
+                                    Church Remittance
+                                </a>
+                            }
+                            <a href="/workforce/my-profile" class="btn btn-outline-secondary btn-sm text-start py-2">
+                                <div class="profile-icon me-2">
+                                    <i class="fas fa-user"></i>
                                 </div>
-                                Church Budget
-                            </a>
-                            <a href="/remittance" class="btn btn-outline-secondary btn-sm text-start py-2">
-                                <div class="remittance-icon me-2">
-                                    <i class="fas fa-money-check"></i>
-                                </div>
-                                Church Remittance
+                                My Profile
                             </a>
                         </div>
                     </div>
@@ -779,7 +1111,6 @@ else
 }
 
 @code {
-    // ... [All your existing C# code remains EXACTLY THE SAME - no changes needed] ...
     // Statistics
     private int totalWorkers = 0;
     private int activeWorkers = 0;
@@ -792,6 +1123,12 @@ else
     private int userPendingApprovals = 0;
     private int daysSinceJoin = 0;
     private int rejectionCount = 0;
+    private int pendingBreakCount = 0;
+    private int pendingExcuseApprovals = 0;
+    private int pendingBreakApprovals = 0;
+    private int pendingApprovalCount = 0;
+
+    private ChurchApp.Services.GrowthHubCounts growthHubCounts = new();
 
     private List<Notification> notifications = new();
     private List<Activity> recentActivities = new();
@@ -810,6 +1147,8 @@ else
         {
             await LoadUserStatistics();
             await LoadOfferingStatistics();
+            await LoadNotificationCounts();
+            await LoadGrowthHubCounts();
             await LoadNotifications();
             await LoadRecentActivities();
         }
@@ -829,6 +1168,7 @@ else
             // Check for pending approvals (if user is an approver)
             var approvals = await WorkforceService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
             userPendingApprovals = approvals.Count;
+            pendingApprovalCount = approvals.Count;
             
             // Calculate days since joining church
             if (AuthService.CurrentWorker.DateJoinedChurch.HasValue)
@@ -846,6 +1186,18 @@ else
                 var myExcuses = await ExcuseService.GetMyExcuseRequestsAsync(AuthService.CurrentWorker.Id);
                 myPendingExcuses = myExcuses.Count(e => e.RequestStatus == "Pending");
                 myApprovedExcuses = myExcuses.Count(e => e.RequestStatus == "Approved");
+
+                var myBreakRequests = await ExcuseService.GetMyBreakRequestsAsync(AuthService.CurrentWorker.Id);
+                pendingBreakCount = myBreakRequests.Count(b => b.RequestStatus == "Pending");
+
+                if (CanApprovePermissionRequests())
+                {
+                    var pendingExcuseRequests = await ExcuseService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
+                    pendingExcuseApprovals = pendingExcuseRequests.Count;
+
+                    var pendingBreakRequests = await ExcuseService.GetPendingBreakApprovalsAsync(AuthService.CurrentWorker.Id);
+                    pendingBreakApprovals = pendingBreakRequests.Count;
+                }
             }
             catch (Exception ex)
             {
@@ -864,36 +1216,73 @@ else
     }
 
     private async Task LoadOfferingStatistics()
-{
-    try
+    {
+        try
+        {
+            if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+            {
+                var workerId = AuthService.CurrentWorker.WorkerId;
+                
+                if (string.IsNullOrEmpty(workerId))
+                {
+                    Console.WriteLine("WorkerId is null or empty in LoadOfferingStatistics");
+                    return;
+                }
+                
+                // Load pending offerings count for Church Admin
+                if (CanApproveOfferings())
+                {
+                    var pendingOfferings = await OfferingService.GetPendingOfferingsAsync();
+                    pendingOfferingsCount = pendingOfferings.Count;
+                }
+
+                // Load rejected offerings count for current user
+                var rejectedOfferings = await OfferingService.GetRejectedOfferingsByUserAsync(workerId);
+                rejectedOfferingsCount = rejectedOfferings.Count;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading offering statistics: {ex.Message}");
+        }
+    }
+
+    private async Task LoadNotificationCounts()
     {
         if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
         {
-            var workerId = AuthService.CurrentWorker.WorkerId;
-            
-            if (string.IsNullOrEmpty(workerId))
+            try
             {
-                Console.WriteLine("WorkerId is null or empty in LoadOfferingStatistics");
-                return;
-            }
-            
-            // Load pending offerings count for Church Admin
-            if (IsChurchAdmin())
-            {
-                var pendingOfferings = await OfferingService.GetPendingOfferingsAsync();
-                pendingOfferingsCount = pendingOfferings.Count;
-            }
+                var workforceService = ScopedServices.GetRequiredService<WorkforceService>();
 
-            // Load rejected offerings count for current user
-            var rejectedOfferings = await OfferingService.GetRejectedOfferingsByUserAsync(workerId);
-            rejectedOfferingsCount = rejectedOfferings.Count;
+                var pendingRequests = await workforceService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
+                pendingApprovalCount = pendingRequests.Count;
+
+                var rejectionNotifications = await workforceService.GetRejectionNotificationsAsync(AuthService.CurrentWorker.Id);
+                rejectionCount = rejectionNotifications.Count;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading notification counts: {ex.Message}");
+            }
         }
     }
-    catch (Exception ex)
+
+    private async Task LoadGrowthHubCounts()
     {
-        Console.WriteLine($"Error loading offering statistics: {ex.Message}");
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+        {
+            try
+            {
+                var accountabilityService = ScopedServices.GetRequiredService<AccountabilityService>();
+                growthHubCounts = await accountabilityService.GetGrowthHubCountsAsync(AuthService.CurrentWorker.Id);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading growth hub counts: {ex.Message}");
+            }
+        }
     }
-}
 
     private async Task LoadNotifications()
     {
@@ -915,7 +1304,7 @@ else
             }
 
             // Pending offerings notification for Church Admin
-            if (IsChurchAdmin() && pendingOfferingsCount > 0)
+            if (CanApproveOfferings() && pendingOfferingsCount > 0)
             {
                 notifications.Add(new Notification
                 {
@@ -947,7 +1336,20 @@ else
                 {
                     Icon = "fa-clock",
                     Color = "warning",
-                    Message = $"You have {myPendingExcuses} pending permission request(s).",
+                    Message = $"You have {myPendingExcuses} pending off-service request(s).",
+                    Time = "Recently",
+                    IsImportant = false
+                });
+            }
+
+            // Pending break requests notification
+            if (pendingBreakCount > 0)
+            {
+                notifications.Add(new Notification
+                {
+                    Icon = "fa-umbrella-beach",
+                    Color = "warning",
+                    Message = $"You have {pendingBreakCount} pending break request(s).",
                     Time = "Recently",
                     IsImportant = false
                 });
@@ -963,6 +1365,31 @@ else
                     Message = $"You have {userPendingApprovals} pending approval(s) in your inbox.",
                     Time = "Today",
                     IsImportant = true
+                });
+            }
+
+            // Growth Hub notifications
+            if (growthHubCounts.AssignedToMe > 0)
+            {
+                notifications.Add(new Notification
+                {
+                    Icon = "fa-tasks",
+                    Color = "info",
+                    Message = $"You have {growthHubCounts.AssignedToMe} case(s) assigned to you.",
+                    Time = "Today",
+                    IsImportant = true
+                });
+            }
+
+            if (growthHubCounts.MyFeedback > 0)
+            {
+                notifications.Add(new Notification
+                {
+                    Icon = "fa-comment-dots",
+                    Color = "info",
+                    Message = $"You have {growthHubCounts.MyFeedback} feedback item(s) to review.",
+                    Time = "Today",
+                    IsImportant = false
                 });
             }
 
@@ -995,71 +1422,93 @@ else
     }
 
     private async Task LoadRecentActivities()
-{
-    recentActivities.Clear();
-
-    if (AuthService.CurrentWorker != null)
     {
-        var workerId = AuthService.CurrentWorker.WorkerId;
-        var workerDbId = AuthService.CurrentWorker.Id;
-        
-        if (string.IsNullOrEmpty(workerId))
+        recentActivities.Clear();
+
+        if (AuthService.CurrentWorker != null)
         {
-            Console.WriteLine("WorkerId is null or empty in LoadRecentActivities");
-            return;
-        }
-        
-        // Add recent offerings
-        try
-        {
-            var recentOfferings = await OfferingService.GetMyRecentOfferingsAsync(workerId);
-            foreach (var offering in recentOfferings.Take(2))
+            var workerId = AuthService.CurrentWorker.WorkerId;
+            var workerDbId = AuthService.CurrentWorker.Id;
+            
+            if (string.IsNullOrEmpty(workerId))
             {
-                recentActivities.Add(new Activity
-                {
-                    Icon = "fa-money-bill-wave",
-                    Color = "success",
-                    Message = $"Recorded {offering.Amount:N2} {offering.Currency} for {offering.OfferingTypeName}",
-                    Time = GetRelativeTime(offering.RecordedDate),
-                    Badge = offering.Status,
-                    SortTime = offering.RecordedDate
-                });
+                Console.WriteLine("WorkerId is null or empty in LoadRecentActivities");
+                return;
             }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading recent offerings: {ex.Message}");
+            
+            // Add recent offerings
+            try
+            {
+                var recentOfferings = await OfferingService.GetMyRecentOfferingsAsync(workerId);
+                foreach (var offering in recentOfferings.Take(2))
+                {
+                    recentActivities.Add(new Activity
+                    {
+                        Icon = "fa-money-bill-wave",
+                        Color = "success",
+                        Message = $"Recorded {offering.Amount:N2} {offering.Currency} for {offering.OfferingTypeName}",
+                        Time = GetRelativeTime(offering.RecordedDate),
+                        Badge = offering.Status,
+                        SortTime = offering.RecordedDate
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading recent offerings: {ex.Message}");
+            }
+
+            // Add recent excuse requests
+            try
+            {
+                var recentExcuses = await ExcuseService.GetMyExcuseRequestsAsync(workerDbId);
+                foreach (var excuse in recentExcuses.Take(2))
+                {
+                    recentActivities.Add(new Activity
+                    {
+                        Icon = "fa-calendar-times",
+                        Color = "info",
+                        Message = $"Requested time off for {excuse.RequestedDate:MMM dd}",
+                        Time = GetRelativeTime(excuse.SubmittedDate),
+                        Badge = excuse.RequestStatus,
+                        SortTime = excuse.SubmittedDate
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading recent excuses: {ex.Message}");
+            }
+
+            // Add recent break requests
+            try
+            {
+                var recentBreakRequests = await ExcuseService.GetMyBreakRequestsAsync(workerDbId);
+                foreach (var breakRequest in recentBreakRequests.Take(1))
+                {
+                    recentActivities.Add(new Activity
+                    {
+                        Icon = "fa-umbrella-beach",
+                        Color = "info",
+                        Message = $"Requested break for {breakRequest.StartDate:MMM dd}",
+                        Time = GetRelativeTime(breakRequest.SubmittedDate),
+                        Badge = breakRequest.RequestStatus,
+                        SortTime = breakRequest.SubmittedDate
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading recent break requests: {ex.Message}");
+            }
         }
 
-        // Add recent excuse requests
-        try
-        {
-            var recentExcuses = await ExcuseService.GetMyExcuseRequestsAsync(workerDbId);
-            foreach (var excuse in recentExcuses.Take(2))
-            {
-                recentActivities.Add(new Activity
-                {
-                    Icon = "fa-calendar-times",
-                    Color = "info",
-                    Message = $"Requested time off for {excuse.RequestedDate:MMM dd}",
-                    Time = GetRelativeTime(excuse.SubmittedDate),
-                    Badge = excuse.RequestStatus,
-                    SortTime = excuse.SubmittedDate
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading recent excuses: {ex.Message}");
-        }
+        // Sort by time (most recent first) and limit to 4 items
+        recentActivities = recentActivities
+            .OrderByDescending(a => a.SortTime)
+            .Take(4)
+            .ToList();
     }
-
-    // Sort by time (most recent first) and limit to 4 items
-    recentActivities = recentActivities
-        .OrderByDescending(a => a.SortTime)
-        .Take(4)
-        .ToList();
-}
 
     private int CalculateCompleteness(Worker worker)
     {
@@ -1093,7 +1542,7 @@ else
         return totalFields > 0 ? (int)Math.Round((double)filledFields / totalFields * 100) : 0;
     }
 
-    // Permission methods
+    // Permission methods (copied exactly from sidebar)
     private bool IsChurchAdmin()
     {
         return AuthService.CurrentWorker?.Role?.Equals("Church Admin", StringComparison.OrdinalIgnoreCase) == true;
@@ -1113,7 +1562,162 @@ else
         {
             return false;
         }
-        return worker.Department.Name?.Contains("Ushering", StringComparison.OrdinalIgnoreCase) == true;
+        var deptName = worker.Department.Name?.ToLowerInvariant() ?? "";
+        return deptName.Contains("ushering") ||
+               deptName.Contains("ushers") ||
+               deptName.Contains("greeters") ||
+               deptName.Contains("hospitality");
+    }
+
+    private bool CanAccessProfileApproval()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        return role.Contains("head of directorate") ||
+               role.Contains("asst head of directorate") ||
+               role.Contains("head of service") ||
+               role.Contains("pastor in charge") ||
+               role.Contains("senior pastor");
+    }
+
+    private bool CanAccessMyTeam()
+    {
+        return CanAccessProfileApproval();
+    }
+
+    private bool CanViewGrowthReports()
+    {
+        return AuthService.IsInRole("Pastor in Charge") ||
+               AuthService.IsInRole("Head of Service") ||
+               AuthService.IsInRole("Church Admin") ||
+               AuthService.CanAccessAdminPanel();
+    }
+
+    private bool CanApprovePermissionRequests()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        return role.Contains("head of directorate") ||
+               role.Contains("head of service") ||
+               role.Contains("pastor in charge") ||
+               role.Contains("senior pastor") ||
+               AuthService.IsInRole("Church Admin") ||
+               AuthService.CanAccessAdminPanel();
+    }
+
+    private bool CanAccessServiceRecords()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        // 1. Pastor in Charge and Church Admin always have access
+        var hasRoleAccess = role.Contains("pastor in charge") ||
+                            role.Contains("senior pastor") ||
+                            AuthService.IsInRole("Church Admin");
+
+        // 2. ALL members of FIG Directorate (regardless of role in FIG)
+        var isFIGDirectorateMember = IsFIGDirectorateMember();
+
+        // 3. Head of Service
+        var isHeadOfService = role.Contains("head of service");
+
+        // 4. Head/Assistant Head of MEAT Directorate (for Service Notes access)
+        var canAccessServiceNotes = CanAccessServiceNotes();
+
+        return hasRoleAccess || isFIGDirectorateMember || isHeadOfService || canAccessServiceNotes;
+    }
+
+    private bool CanAccessServiceNotes()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+
+        // Only Head or Assistant Head of MEAT Directorate can access
+        var isHeadOfMEATDirectorate = role.Contains("head of directorate") &&
+                                     directorateName.Contains("meat");
+
+        var isAssistantHeadOfMEATDirectorate = role.Contains("asst head of directorate") &&
+                                              directorateName.Contains("meat");
+
+        return isHeadOfMEATDirectorate || isAssistantHeadOfMEATDirectorate;
+    }
+
+    private bool CanAccessRecordNomination()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+
+        // Only Head or Assistant Head of FIG Directorate can access
+        var isHeadOfFIGDirectorate = role.Contains("head of directorate") &&
+                                     directorateName.Contains("fig");
+
+        var isAssistantHeadOfFIGDirectorate = role.Contains("asst head of directorate") &&
+                                              directorateName.Contains("fig");
+
+        return isHeadOfFIGDirectorate || isAssistantHeadOfFIGDirectorate;
+    }
+
+    private bool CanApproveOfferings()
+    {
+        return AuthService.IsInRole("Church Admin") ||
+               AuthService.IsInRole("Pastor in Charge");
+    }
+
+    private bool CanRecordOfferings()
+    {
+        return CanAccessServiceRecords();
+    }
+
+    private bool IsFIGDirectorateMember()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+
+        return directorateName.Contains("fig");
+    }
+
+    private bool CanAccessReports()
+    {
+        return AuthService.IsInRole("Pastor in Charge") ||
+               AuthService.IsInRole("Head of Directorate") ||
+               AuthService.IsInRole("Church Admin") ||
+               AuthService.CanAccessAdminPanel();
+    }
+
+    private bool CanAccessBudget()
+    {
+        return AuthService.IsInRole("Pastor in Charge") ||
+               AuthService.IsInRole("Church Admin") ||
+               AuthService.CanAccessAdminPanel() ||
+               AuthService.IsInRole("Head of Service") ||
+               AuthService.IsInRole("Head of Directorate");
+    }
+
+    private bool CanAccessRemittance()
+    {
+        return CanAccessBudget();
+    }
+
+    private bool CanAccessOfferingSetup()
+    {
+        return AuthService.IsInRole("Church Admin") ||
+               AuthService.IsInRole("Pastor in Charge");
     }
 
     private string GetGreeting()
@@ -2708,7 +3312,8 @@ else
 
     /* Button Icons */
     .budget-icon,
-    .remittance-icon {
+    .remittance-icon,
+    .profile-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -2741,5 +3346,100 @@ else
     .activity-list::-webkit-scrollbar-thumb:hover,
     .notification-list::-webkit-scrollbar-thumb:hover {
         background: #a8a8a8;
+    }
+
+    /* New Image Classes for Quick Menu */
+    .dashboard-image,
+    .feedback-image,
+    .assigned-image,
+    .add-feedback-image,
+    .reports-image,
+    .approve-permission-image,
+    .nomination-image,
+    .notes-image,
+    .guest-image,
+    .offering-reports-image,
+    .attendance-reports-image,
+    .financial-image,
+    .analytics-image,
+    .budget-image,
+    .remittance-image,
+    .directorate-image,
+    .department-image,
+    .role-image {
+        width: 80px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .dashboard-icon,
+    .feedback-icon,
+    .assigned-icon,
+    .add-icon,
+    .reports-icon,
+    .approve-icon,
+    .nomination-icon,
+    .notes-icon,
+    .guest-icon,
+    .offering-icon,
+    .attendance-icon,
+    .financial-icon,
+    .analytics-icon,
+    .budget-icon,
+    .remittance-icon,
+    .directorate-icon,
+    .department-icon,
+    .role-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #4a6cf7, #6a11cb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        box-shadow: 0 3px 8px rgba(74, 108, 247, 0.3);
+        border: 2px solid white;
+    }
+
+    .offering-icon {
+        background: linear-gradient(135deg, #28a745, #20c997);
+    }
+
+    .attendance-icon {
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+    }
+
+    .financial-icon,
+    .analytics-icon {
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+    }
+
+    .guest-icon {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+    }
+
+    .add-icon {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        font-size: 2rem;
+    }
+
+    .approve-icon {
+        background: linear-gradient(135deg, #28a745, #20c997);
+    }
+
+    .nomination-icon {
+        background: linear-gradient(135deg, #17a2b8, #0dcaf0);
+    }
+
+    .notes-icon {
+        background: linear-gradient(135deg, #ffc107, #e0a800);
+    }
+
+    .role-icon {
+        background: linear-gradient(135deg, #6f42c1, #6610f2);
     }
 </style>
