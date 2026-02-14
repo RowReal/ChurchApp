@@ -596,42 +596,63 @@ namespace ChurchApp.Services
 
         // Also update your existing ResetPasswordAsync method to be more flexible
         // (You already have this method, but we can add an overload)
-        public async Task<bool> ResetPasswordAsync(string workerId, string email = null)
+        public async Task<PasswordResetResult> ResetPasswordAsync(string workerId, string email = null)
         {
-            var worker = await _context.Workers
-                .FirstOrDefaultAsync(w => w.WorkerId == workerId && w.IsActive);
-
-            if (worker != null && (string.IsNullOrEmpty(email) || worker.Email == email))
+            try
             {
-                var tempPassword = GenerateTemporaryPassword();
-                worker.PasswordHash = HashPassword(tempPassword);
-                worker.IsFirstLogin = true;
-                worker.LastUpdated = DateTime.UtcNow;
+                var worker = await _context.Workers
+                    .FirstOrDefaultAsync(w => w.WorkerId == workerId && w.IsActive);
 
-                await _context.SaveChangesAsync();
-
-                if (_authService.IsAuthenticated && _authService.CurrentWorker != null)
+                if (worker != null && (string.IsNullOrEmpty(email) || worker.Email == email))
                 {
-                    await _auditService.LogWorkerUpdateAsync(
-                        null,
-                        worker,
-                        _authService.CurrentWorker.Id,
-                        new List<PropertyChange>
-                        {
-                    new PropertyChange
+                    var tempPassword = GenerateTemporaryPassword();
+                    worker.PasswordHash = HashPassword(tempPassword);
+                    worker.IsFirstLogin = true;
+                    worker.LastUpdated = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+
+                    if (_authService.IsAuthenticated && _authService.CurrentWorker != null)
                     {
-                        PropertyName = "Password",
-                        OldValue = "******",
-                        NewValue = "Reset to temporary password"
+                        await _auditService.LogWorkerUpdateAsync(
+                            null,
+                            worker,
+                            _authService.CurrentWorker.Id,
+                            new List<PropertyChange>
+                            {
+                        new PropertyChange
+                        {
+                            PropertyName = "Password",
+                            OldValue = "******",
+                            NewValue = "Reset to temporary password"
+                        }
+                            },
+                            $"Password reset for worker: {worker.FirstName} {worker.LastName} (ID: {worker.WorkerId})"
+                        );
                     }
-                        },
-                        $"Password reset for worker: {worker.FirstName} {worker.LastName} (ID: {worker.WorkerId})"
-                    );
+
+                    return new PasswordResetResult
+                    {
+                        Success = true,
+                        GeneratedPassword = tempPassword,
+                        Message = "Password reset successful"
+                    };
                 }
 
-                return true;
+                return new PasswordResetResult
+                {
+                    Success = false,
+                    ErrorMessage = "Worker ID and email combination not found. Please check your details."
+                };
             }
-            return false;
+            catch (Exception ex)
+            {
+                return new PasswordResetResult
+                {
+                    Success = false,
+                    ErrorMessage = "An error occurred while resetting password. Please try again."
+                };
+            }
         }
         // Quick fix method - add this to WorkerService
         public async Task<List<Worker>> GetWorkersByDirectorateAsync(int directorateId)
