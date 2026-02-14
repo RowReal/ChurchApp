@@ -24,12 +24,12 @@
             </div>
         </div>
 
-        <!-- Create/Edit Department Form -->
+        <!-- Create Department Form (kept at top for quick add) -->
         @if (showCreateForm)
         {
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">@(editingDepartment == null ? "Add New Department" : "Edit Department")</h5>
+                    <h5 class="mb-0">Add New Department</h5>
                 </div>
                 <div class="card-body">
                     <EditForm Model="@departmentModel" OnValidSubmit="@SaveDepartment">
@@ -133,12 +133,126 @@
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-success">
-                                <i class="fas fa-save me-2"></i>
-                                @(editingDepartment == null ? "Create Department" : "Update Department")
+                                <i class="fas fa-save me-2"></i>Create Department
                             </button>
-                            <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                            <button type="button" class="btn btn-secondary" @onclick="CancelCreate">Cancel</button>
                         </div>
                     </EditForm>
+                </div>
+            </div>
+        }
+
+        <!-- Edit Department Modal -->
+        @if (showEditModal && editingDepartment != null)
+        {
+            <div class="modal show d-block" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">Edit Department: @editingDepartment.Name</h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CloseEditModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <EditForm Model="@editDepartmentModel" OnValidSubmit="@UpdateDepartment">
+                                <DataAnnotationsValidator />
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="edit-name" class="form-label">Department Name *</label>
+                                            <InputText id="edit-name" @bind-Value="editDepartmentModel.Name" class="form-control" />
+                                            <ValidationMessage For="@(() => editDepartmentModel.Name)" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label for="edit-code" class="form-label">Code *</label>
+                                            <InputText id="edit-code" @bind-Value="editDepartmentModel.Code" class="form-control" />
+                                            <ValidationMessage For="@(() => editDepartmentModel.Code)" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label">Status</label>
+                                            <div class="form-check form-switch mt-2">
+                                                <input class="form-check-input" type="checkbox" @bind="editDepartmentModel.IsActive" id="edit-isActive">
+                                                <label class="form-check-label" for="edit-isActive">
+                                                    @(editDepartmentModel.IsActive ? "Active" : "Inactive")
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="edit-directorateId" class="form-label">Directorate *</label>
+                                            <select @bind="editDepartmentModel.DirectorateId" class="form-select" id="edit-directorateId">
+                                                <option value="0">Select Directorate</option>
+                                                @foreach (var directorate in activeDirectorates)
+                                                {
+                                                    <option value="@directorate.Id">@directorate.Name (@directorate.Code)</option>
+                                                }
+                                            </select>
+                                            <ValidationMessage For="@(() => editDepartmentModel.DirectorateId)" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="edit-headWorkerId" class="form-label">Head of Department</label>
+                                            <select @bind="editDepartmentModel.HeadWorkerId" class="form-select" id="edit-headWorkerId">
+                                                <option value="">Select Head of Department (Optional)</option>
+                                                @foreach (var worker in availableHeads)
+                                                {
+                                                    <option value="@worker.Id">@worker.FirstName @worker.LastName (@worker.WorkerId) - @worker.Role</option>
+                                                }
+                                            </select>
+                                            <small class="form-text text-muted">Can be assigned later</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="edit-assistantHeadWorkerId" class="form-label">Assistant Head of Department</label>
+                                            <select @bind="editDepartmentModel.AssistantHeadWorkerId" class="form-select" id="edit-assistantHeadWorkerId">
+                                                <option value="">Select Assistant Head (Optional)</option>
+                                                @foreach (var worker in availableHeads)
+                                                {
+                                                    <option value="@worker.Id">@worker.FirstName @worker.LastName (@worker.WorkerId) - @worker.Role</option>
+                                                }
+                                            </select>
+                                            <small class="form-text text-muted">Can be assigned later</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="form-group mb-3">
+                                            <label for="edit-description" class="form-label">Description</label>
+                                            <InputTextArea id="edit-description" @bind-Value="editDepartmentModel.Description" class="form-control" rows="3" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(editErrorMessage))
+                                {
+                                    <div class="alert alert-danger">
+                                        @editErrorMessage
+                                    </div>
+                                }
+                            </EditForm>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">Cancel</button>
+                            <button type="button" class="btn btn-success" @onclick="UpdateDepartment">
+                                <i class="fas fa-save me-2"></i>Update Department
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         }
@@ -453,11 +567,14 @@ else
     private Department? editingDepartment = null;
     private Department? selectedDepartment = null;
     private DepartmentModel departmentModel = new();
+    private DepartmentModel editDepartmentModel = new();
     private bool showCreateForm = false;
+    private bool showEditModal = false;
     private bool showUnitsModal = false;
     private bool showInactiveDepartments = true;
     private string successMessage = string.Empty;
     private string errorMessage = string.Empty;
+    private string editErrorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -485,18 +602,16 @@ else
     {
         if (showInactiveDepartments)
         {
-            // ORDER BY DIRECTORATE NAME (Adjustment 2)
             filteredDepartments = departments
-                .OrderBy(d => d.Directorate != null ? d.Directorate.Name : "ZZZ") // Put nulls at the end
+                .OrderBy(d => d.Directorate != null ? d.Directorate.Name : "ZZZ")
                 .ThenBy(d => d.Name)
                 .ToList();
         }
         else
         {
-            // ORDER BY DIRECTORATE NAME (Adjustment 2)
             filteredDepartments = departments
                 .Where(d => d.IsActive)
-                .OrderBy(d => d.Directorate != null ? d.Directorate.Name : "ZZZ") // Put nulls at the end
+                .OrderBy(d => d.Directorate != null ? d.Directorate.Name : "ZZZ")
                 .ThenBy(d => d.Name)
                 .ToList();
         }
@@ -514,7 +629,6 @@ else
 
     private void EditDepartment(Department department)
     {
-        // Prevent editing inactive departments (Adjustment 1)
         if (!department.IsActive)
         {
             errorMessage = "Cannot edit an inactive department. Please activate it first.";
@@ -522,7 +636,7 @@ else
         }
 
         editingDepartment = department;
-        departmentModel = new DepartmentModel
+        editDepartmentModel = new DepartmentModel
         {
             Name = department.Name,
             Code = department.Code,
@@ -532,78 +646,94 @@ else
             AssistantHeadWorkerId = department.AssistantHeadWorkerId,
             IsActive = department.IsActive
         };
-        showCreateForm = true;
+        showEditModal = true;
+        editErrorMessage = string.Empty;
+    }
+
+    private void CancelCreate()
+    {
+        showCreateForm = false;
+        departmentModel = new DepartmentModel();
         successMessage = string.Empty;
         errorMessage = string.Empty;
     }
 
-    private void CancelEdit()
+    private void CloseEditModal()
     {
-        showCreateForm = false;
+        showEditModal = false;
         editingDepartment = null;
-        departmentModel = new DepartmentModel();
-        successMessage = string.Empty;
-        errorMessage = string.Empty;
+        editDepartmentModel = new DepartmentModel();
+        editErrorMessage = string.Empty;
     }
 
     private async Task SaveDepartment()
     {
         try
         {
-            // Validate directorate selection
             if (departmentModel.DirectorateId == 0)
             {
                 errorMessage = "Please select a directorate.";
                 return;
             }
 
-            if (editingDepartment == null)
+            var newDepartment = new Department
             {
-                // Create new department
-                var newDepartment = new Department
-                {
-                    Name = departmentModel.Name?.Trim() ?? string.Empty,
-                    Code = departmentModel.Code?.ToUpper().Trim() ?? string.Empty,
-                    Description = departmentModel.Description?.Trim() ?? string.Empty,
-                    DirectorateId = departmentModel.DirectorateId,
-                    HeadWorkerId = departmentModel.HeadWorkerId,
-                    AssistantHeadWorkerId = departmentModel.AssistantHeadWorkerId,
-                    IsActive = departmentModel.IsActive,
-                    CreatedDate = DateTime.UtcNow
-                };
+                Name = departmentModel.Name?.Trim() ?? string.Empty,
+                Code = departmentModel.Code?.ToUpper().Trim() ?? string.Empty,
+                Description = departmentModel.Description?.Trim() ?? string.Empty,
+                DirectorateId = departmentModel.DirectorateId,
+                HeadWorkerId = departmentModel.HeadWorkerId,
+                AssistantHeadWorkerId = departmentModel.AssistantHeadWorkerId,
+                IsActive = departmentModel.IsActive,
+                CreatedDate = DateTime.UtcNow
+            };
 
-                await WorkerService.CreateDepartmentAsync(newDepartment);
-                successMessage = "Department created successfully!";
-            }
-            else
-            {
-                // Prevent updating inactive departments (Adjustment 1)
-                if (!editingDepartment.IsActive && !departmentModel.IsActive)
-                {
-                    errorMessage = "Cannot update an inactive department. Please activate it first.";
-                    return;
-                }
-
-                editingDepartment.Name = departmentModel.Name?.Trim() ?? string.Empty;
-                editingDepartment.Code = departmentModel.Code?.ToUpper().Trim() ?? string.Empty;
-                editingDepartment.Description = departmentModel.Description?.Trim() ?? string.Empty;
-                editingDepartment.DirectorateId = departmentModel.DirectorateId;
-                editingDepartment.HeadWorkerId = departmentModel.HeadWorkerId;
-                editingDepartment.AssistantHeadWorkerId = departmentModel.AssistantHeadWorkerId;
-                editingDepartment.IsActive = departmentModel.IsActive;
-
-                await WorkerService.UpdateDepartmentAsync(editingDepartment);
-                successMessage = "Department updated successfully!";
-            }
-
+            await WorkerService.CreateDepartmentAsync(newDepartment);
             await LoadData();
             showCreateForm = false;
-            editingDepartment = null;
             departmentModel = new DepartmentModel();
+            successMessage = "Department created successfully!";
         }
         catch (Exception ex)
         {
             errorMessage = "Error saving department: " + ex.Message;
+        }
+    }
+
+    private async Task UpdateDepartment()
+    {
+        try
+        {
+            if (editingDepartment == null) return;
+
+            if (editDepartmentModel.DirectorateId == 0)
+            {
+                editErrorMessage = "Please select a directorate.";
+                return;
+            }
+
+            if (!editingDepartment.IsActive && !editDepartmentModel.IsActive)
+            {
+                editErrorMessage = "Cannot update an inactive department. Please activate it first.";
+                return;
+            }
+
+            editingDepartment.Name = editDepartmentModel.Name?.Trim() ?? string.Empty;
+            editingDepartment.Code = editDepartmentModel.Code?.ToUpper().Trim() ?? string.Empty;
+            editingDepartment.Description = editDepartmentModel.Description?.Trim() ?? string.Empty;
+            editingDepartment.DirectorateId = editDepartmentModel.DirectorateId;
+            editingDepartment.HeadWorkerId = editDepartmentModel.HeadWorkerId;
+            editingDepartment.AssistantHeadWorkerId = editDepartmentModel.AssistantHeadWorkerId;
+            editingDepartment.IsActive = editDepartmentModel.IsActive;
+
+            await WorkerService.UpdateDepartmentAsync(editingDepartment);
+            await LoadData();
+            CloseEditModal();
+            successMessage = "Department updated successfully!";
+        }
+        catch (Exception ex)
+        {
+            editErrorMessage = "Error updating department: " + ex.Message;
         }
     }
 
@@ -624,7 +754,6 @@ else
 
     private void ShowUnits(Department department)
     {
-        // Allow viewing units even for inactive departments, but with restrictions
         selectedDepartment = department;
         showUnitsModal = true;
     }
@@ -649,7 +778,6 @@ else
 
     private void ManageUnits(Department department)
     {
-        // Prevent managing units for inactive departments (Adjustment 1)
         if (!department.IsActive)
         {
             errorMessage = "Cannot manage units for an inactive department. Please activate the department first.";
