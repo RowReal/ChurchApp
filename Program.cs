@@ -11,22 +11,34 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 
-// ? PRODUCTION-SAFE SQLITE CONFIGURATION
-var dataFolder = Path.Combine(builder.Environment.ContentRootPath, "Data");
 
-// Ensure Data folder exists
+// 1?? Determine dbPath and optional seed (your existing code)
+string dataFolder;
+if (builder.Environment.IsDevelopment())
+    dataFolder = Path.Combine(builder.Environment.ContentRootPath, "Data");
+else
+    dataFolder = "/var/data";
+
 if (!Directory.Exists(dataFolder))
-{
     Directory.CreateDirectory(dataFolder);
-}
 
-// Full database path
 var dbPath = Path.Combine(dataFolder, "churchapp.db");
 
+Console.WriteLine($"Using SQLite DB at: {dbPath}");
+
+// Seed from wwwroot/seed/churchapp.db if missing
+if (!builder.Environment.IsDevelopment())
+{
+    var seedDbPath = Path.Combine(builder.Environment.ContentRootPath, "wwwroot/seed/churchapp.db");
+    if (!File.Exists(dbPath) && File.Exists(seedDbPath))
+        File.Copy(seedDbPath, dbPath);
+}
+
+// 2?? Register DbContext FIRST
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
-// Register your services
+// 3?? Register services that depend on AppDbContext
 builder.Services.AddScoped<WorkerService>(provider =>
 {
     var context = provider.GetRequiredService<AppDbContext>();
@@ -34,6 +46,7 @@ builder.Services.AddScoped<WorkerService>(provider =>
     var authService = provider.GetRequiredService<AuthService>();
     return new WorkerService(context, auditService, authService);
 });
+
 
 builder.Services.AddScoped<DataSeederService>();
 builder.Services.AddScoped<AuthService>();
