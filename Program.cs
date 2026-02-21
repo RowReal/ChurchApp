@@ -64,16 +64,8 @@ builder.Services.AddScoped<GuestService>();
 
 builder.Services.AddCascadingAuthenticationState();
 
-builder.Services.Configure<EmailConfiguration>(options =>
-{
-    options.Username = Environment.GetEnvironmentVariable("EMAIL_USERNAME");
-    options.Password = Environment.GetEnvironmentVariable("EMAIL_PASSWORD");
-    options.SmtpServer = Environment.GetEnvironmentVariable("EMAIL_SMTP");
-    options.Port = int.Parse(Environment.GetEnvironmentVariable("EMAIL_PORT") ?? "587");
-    options.EnableSsl = bool.Parse(Environment.GetEnvironmentVariable("EMAIL_ENABLESSL") ?? "true");
-    options.FromEmail = Environment.GetEnvironmentVariable("EMAIL_FROMEMAIL");
-    options.FromName = Environment.GetEnvironmentVariable("EMAIL_FROMNAME");
-});
+builder.Services.Configure<EmailConfiguration>(
+    builder.Configuration.GetSection("EmailConfiguration"));
 
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<ExcuseService>();
