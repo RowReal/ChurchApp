@@ -7,6 +7,7 @@
 @inject RoleService RoleService  
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject EmailService EmailService
 
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
 {
@@ -501,6 +502,133 @@ else
             }
 
             var createdWorker = await WorkerService.CreateWorkerAsync(newWorker);
+            // Send Welcome Email
+            if (!string.IsNullOrWhiteSpace(createdWorker.Email))
+            {
+                var emailBody = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }}
+        .container {{
+            max-width: 600px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }}
+        .header {{
+            background-color: #0d6efd;
+            padding: 25px;
+            text-align: center;
+            color: #ffffff;
+        }}
+        .header img {{
+            max-height: 70px;
+            margin-bottom: 10px;
+        }}
+        .content {{
+            padding: 30px;
+            color: #212529;
+            line-height: 1.6;
+        }}
+        .content p {{
+            margin-bottom: 15px;
+        }}
+        .credentials {{
+            background-color: #e9ecef; /* slightly darker for contrast */
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }}
+        .credentials p {{
+            margin: 5px 0;
+            font-weight: 600;
+        }}
+        .button {{
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #0d6efd; /* brighter blue */
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-weight: bold;
+        }}
+        .button:hover {{
+            background-color: #0b5ed7;
+        }}
+        .footer {{
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #6c757d;
+        }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <img src='https://servicehub.rccgbcc.org/images/bcc-logo.png' alt='BCC Logo' />
+            <h2>Welcome to BCC Service Hub</h2>
+        </div>
+
+        <div class='content'>
+            <p>Dear {createdWorker.FirstName},</p>
+
+            <p>
+                Your profile has been successfully created on
+                <strong>BCC Service Hub</strong>.
+            </p>
+
+            <div class='credentials'>
+                <p><strong>User ID:</strong> {createdWorker.WorkerId}</p>
+                <p><strong>Default Password:</strong> default123</p>
+            </div>
+
+            <p>
+                For security, please log in immediately and change your password.
+                You are encouraged to complete and update your profile information.
+            </p>
+
+            <a href='https://servicehub.rccgbcc.org/' class='button'>
+                Login to Service Hub
+            </a>
+
+            <p style='margin-top:20px;'>
+                If you experience any issues, please contact your department administrator.
+            </p>
+
+            <p>
+                Blessings,<br/>
+                <strong>BCC Service Hub Team</strong>
+            </p>
+        </div>
+
+        <div class='footer'>
+            This is an automated message from BCC Service Hub. Please do not reply to this email.
+        </div>
+    </div>
+</body>
+</html>";
+
+                await EmailService.SendEmailAsync(new EmailMessage
+                {
+                    ToEmail = createdWorker.Email,
+                    ToName = $"{createdWorker.FirstName} {createdWorker.LastName}",
+                    Subject = "Welcome to BCC Service Hub",
+                    Body = emailBody,
+                    IsHtml = true
+                });
+            }
             await LoadData();
 
             successMessage = $"Worker {createdWorker.WorkerId} created successfully!";

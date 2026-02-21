@@ -66,13 +66,13 @@ builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.Configure<EmailConfiguration>(options =>
 {
-    options.SmtpServer = "smtp.gmail.com";
-    options.Port = 587;
-    options.Username = builder.Configuration["Email:Username"];
-    options.Password = builder.Configuration["Email:Password"];
-    options.EnableSsl = true;
-    options.FromEmail = "bccalert01@gmail.com";
-    options.FromName = "BCC ServiceHub";
+    options.Username = Environment.GetEnvironmentVariable("EMAIL_USERNAME");
+    options.Password = Environment.GetEnvironmentVariable("EMAIL_PASSWORD");
+    options.SmtpServer = Environment.GetEnvironmentVariable("EMAIL_SMTP");
+    options.Port = int.Parse(Environment.GetEnvironmentVariable("EMAIL_PORT") ?? "587");
+    options.EnableSsl = bool.Parse(Environment.GetEnvironmentVariable("EMAIL_ENABLESSL") ?? "true");
+    options.FromEmail = Environment.GetEnvironmentVariable("EMAIL_FROMEMAIL");
+    options.FromName = Environment.GetEnvironmentVariable("EMAIL_FROMNAME");
 });
 
 builder.Services.AddScoped<EmailService>();
@@ -115,18 +115,18 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 
-using (var scope = app.Services.CreateScope())
-{
-    var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
+//using (var scope = app.Services.CreateScope())
+//{
+//    var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
 
-    await emailService.SendEmailAsync(new EmailMessage
-    {
-        ToEmail = "row_real@yahoo.com",
-        ToName = "Test",
-        Subject = "ChurchApp Gmail Test",
-        Body = "<h3>Email is working successfully 🎉</h3>",
-        IsHtml = true
-    });
-}
+//    await emailService.SendEmailAsync(new EmailMessage
+//    {
+//        ToEmail = "row_real@yahoo.com",
+//        ToName = "Test",
+//        Subject = "ChurchApp Gmail Test",
+//        Body = "<h3>Email is working successfully 🎉</h3>",
+//        IsHtml = true
+//    });
+//}
 
 app.Run();

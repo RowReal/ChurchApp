@@ -20,26 +20,33 @@ namespace ChurchApp.Services
         {
             try
             {
-                using (var client = new SmtpClient(_emailConfig.SmtpServer, _emailConfig.Port))
+                // Use Gmail SMTP defaults since your JSON only has username/password
+                var smtpServer = "smtp.gmail.com";
+                var port = 587; // TLS port
+                var enableSsl = true;
+                var fromEmail = _emailConfig.Username; // use same Gmail address
+                var fromName = "BCC Service Hub"; // display name
+
+                using var client = new SmtpClient(smtpServer, port)
                 {
-                    client.Credentials = new NetworkCredential(_emailConfig.Username, _emailConfig.Password);
-                    client.EnableSsl = _emailConfig.EnableSsl;
+                    Credentials = new NetworkCredential(_emailConfig.Username, _emailConfig.Password),
+                    EnableSsl = enableSsl
+                };
 
-                    var mailMessage = new MailMessage
-                    {
-                        From = new MailAddress(_emailConfig.FromEmail, _emailConfig.FromName),
-                        Subject = message.Subject,
-                        Body = message.Body,
-                        IsBodyHtml = message.IsHtml
-                    };
+                var mailMessage = new MailMessage
+                {
+                    From = new MailAddress(fromEmail, fromName),
+                    Subject = message.Subject,
+                    Body = message.Body,
+                    IsBodyHtml = message.IsHtml
+                };
 
-                    mailMessage.To.Add(new MailAddress(message.ToEmail, message.ToName));
+                mailMessage.To.Add(new MailAddress(message.ToEmail, message.ToName));
 
-                    await client.SendMailAsync(mailMessage);
+                await client.SendMailAsync(mailMessage);
 
-                    _logger.LogInformation($"Email sent successfully to {message.ToEmail}");
-                    return true;
-                }
+                _logger.LogInformation($"Email sent successfully to {message.ToEmail}");
+                return true;
             }
             catch (Exception ex)
             {
