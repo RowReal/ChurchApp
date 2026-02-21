@@ -1,7 +1,8 @@
 ﻿using ChurchApp.Models;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;
-using Microsoft.Extensions.Options;
+using System.Text.RegularExpressions;
 
 namespace ChurchApp.Services
 {
@@ -42,6 +43,7 @@ namespace ChurchApp.Services
                 };
 
                 mailMessage.To.Add(new MailAddress(message.ToEmail, message.ToName));
+               
 
                 await client.SendMailAsync(mailMessage);
 
