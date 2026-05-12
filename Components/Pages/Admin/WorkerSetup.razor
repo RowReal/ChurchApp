@@ -608,7 +608,7 @@ else
             </p>
 
             <p>
-                Blessings,<br/>
+                Thank you,<br/>
                 <strong>BCC Service Hub Team</strong>
             </p>
         </div>
@@ -619,7 +619,8 @@ else
     </div>
 </body>
 </html>";
-
+try
+{
                 await EmailService.SendEmailAsync(new EmailMessage
                 {
                     ToEmail = createdWorker.Email,
@@ -628,6 +629,12 @@ else
                     Body = emailBody,
                     IsHtml = true
                 });
+}
+                catch (Exception ex)
+                {
+                    // Log the email error but do not stop worker creation
+                    Console.WriteLine($"Email sending failed: {ex.Message}");
+                }
             }
             await LoadData();
 
