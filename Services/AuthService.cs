@@ -172,5 +172,11 @@ namespace ChurchApp.Services
         {
             return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(password));
         }
+
+        public async Task<bool> IsWorkerDeactivatedAsync(string workerId)
+        {
+            return await _context.Workers
+                .AnyAsync(w => w.WorkerId == workerId && !w.IsActive);
+        }
     }
 }

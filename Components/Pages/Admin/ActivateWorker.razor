@@ -1,0 +1,213 @@
+﻿@page "/admin/activate-worker/{WorkerId:int}"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Services
+@using ChurchApp.Models
+
+@inject WorkerService WorkerService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Activate Worker</PageTitle>
+
+<div class="container py-5">
+
+    @if (!AuthService.IsAuthenticated || !AuthService.CanAccessAdminPanel())
+    {
+        <div class="alert alert-danger text-center">
+            Access Denied
+        </div>
+    }
+    else if (isLoading)
+    {
+        <div class="text-center">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2">Loading worker...</p>
+        </div>
+    }
+    else if (worker == null)
+    {
+        <div class="alert alert-warning text-center">
+            Worker not found
+        </div>
+
+        <div class="text-center mt-3">
+            <button class="btn btn-secondary" @onclick="GoBack">
+                Go Back
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+
+                <div class="card shadow-sm border-0">
+                    <div class="card-body text-center">
+
+                        <i class="fas fa-user-check fa-4x text-success mb-4"></i>
+
+                        <h3>Activate Worker</h3>
+
+                        <p class="text-muted">
+                            Activate <strong>@worker.FirstName @worker.LastName</strong>
+                        </p>
+
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success">
+                                @successMessage
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">
+                                @errorMessage
+                            </div>
+                        }
+
+                        <!-- Reason -->
+                        <div class="text-start mt-3">
+
+                            <label class="form-label fw-bold">
+                                Reason for Activation <span class="text-danger">*</span>
+                            </label>
+
+                            <textarea class="form-control"
+                                      rows="4"
+                                      @bind="reason"
+                                      placeholder="Enter reason for activation...">
+                            </textarea>
+
+                            @if (showReasonError)
+                            {
+                                <div class="text-danger mt-1">
+                                    Reason is required.
+                                </div>
+                            }
+
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex justify-content-center gap-2 mt-4">
+
+                            <button class="btn btn-success"
+                                    @onclick="ActivateWorkerAccount"
+                                    disabled="@isProcessing">
+
+                                @if (isProcessing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Processing...</span>
+                                }
+                                else
+                                {
+                                    <span>
+                                        <i class="fas fa-check me-1"></i>
+                                        Activate
+                                    </span>
+                                }
+
+                            </button>
+
+                            <button class="btn btn-secondary"
+                                    @onclick="GoBack"
+                                    disabled="@isProcessing">
+                                Cancel
+                            </button>
+
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+
+    [Parameter]
+    public int WorkerId { get; set; }
+
+    private Worker? worker;
+
+    private string reason = string.Empty;
+
+    private bool isLoading = true;
+    private bool isProcessing = false;
+    private bool showReasonError = false;
+
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWorker();
+    }
+
+    private async Task LoadWorker()
+    {
+        try
+        {
+            isLoading = true;
+
+            worker = await WorkerService.GetWorkerByIdAsync(WorkerId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading worker: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ActivateWorkerAccount()
+    {
+        if (worker == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            showReasonError = true;
+            return;
+        }
+
+        showReasonError = false;
+        isProcessing = true;
+
+        try
+        {
+            worker.IsActive = true;
+            worker.LastUpdated = DateTime.UtcNow;
+
+            string auditNote = $"Worker activated. Reason: {reason}";
+
+            await WorkerService.UpdateWorkerAsync(worker, auditNote);
+
+            successMessage = "Worker activated successfully.";
+
+            await Task.Delay(1000);
+
+            Navigation.NavigateTo("/admin/worker-update");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error activating worker: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin/worker-update");
+    }
+}

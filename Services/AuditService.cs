@@ -34,7 +34,7 @@ namespace ChurchApp.Services
 
         // ENHANCED METHOD: For detailed change tracking (your existing functionality)
         public async Task LogDetailedAsync<T>(string tableName, int recordId, string action, int performedByWorkerId,
-                                            List<PropertyChange> changes, string description = "")
+                                            List<PropertyChange> changes, string description = "", string notes = "")
         {
             var auditTrail = new AuditTrail
             {
@@ -43,7 +43,7 @@ namespace ChurchApp.Services
                 Action = action,
                 ChangedByWorkerId = performedByWorkerId,
                 Description = description,
-                Notes = description, // Keep in both fields for compatibility
+                Notes = notes, // Keep in both fields for compatibility
                 ChangedAt = DateTime.UtcNow
             };
 
@@ -70,15 +70,30 @@ namespace ChurchApp.Services
             await LogGenericAsync("Workers", worker.Id, "CREATE", performedByWorkerId, description);
         }
 
-        public async Task LogWorkerUpdateAsync(Worker originalWorker, Worker updatedWorker, int performedByWorkerId, List<PropertyChange> changes, string description)
+        public async Task LogWorkerUpdateAsync(
+     Worker originalWorker,
+     Worker updatedWorker,
+     int performedByWorkerId,
+     List<PropertyChange> changes,
+     string description,
+     string notes = "")
         {
             var changeDetails = changes.Any()
-                ? string.Join("; ", changes.Select(c => $"{c.PropertyName}: '{c.OldValue}' → '{c.NewValue}'"))
+                ? string.Join("; ", changes.Select(c =>
+                    $"{c.PropertyName}: '{c.OldValue}' → '{c.NewValue}'"))
                 : "No specific property changes detected";
 
             var fullDescription = $"{description}. Changes: {changeDetails}";
 
-            await LogDetailedAsync<Worker>("Workers", updatedWorker.Id, "UPDATE", performedByWorkerId, changes, fullDescription);
+            await LogDetailedAsync<Worker>(
+                "Workers",
+                updatedWorker.Id,
+                "UPDATE",
+                performedByWorkerId,
+                changes,
+                fullDescription,
+                notes
+            );
         }
 
         // YOUR EXISTING METHOD - NO CHANGES

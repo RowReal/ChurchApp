@@ -92,7 +92,16 @@
             }
             else
             {
-                errorMessage = "Invalid Worker ID or Password";
+                var isDeactivated = await AuthService.IsWorkerDeactivatedAsync(loginModel.WorkerId);
+
+                if (isDeactivated)
+                {
+                    errorMessage = "Your account has been deactivated. Please contact administrator.";
+                }
+                else
+                {
+                    errorMessage = "Invalid Worker ID or Password";
+                }
             }
         }
         catch (Exception ex)

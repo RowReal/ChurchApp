@@ -1,0 +1,282 @@
+﻿@page "/admin/deactivate-worker/{WorkerId:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+
+@inject WorkerService WorkerService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Deactivate Worker</PageTitle>
+
+@if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+{
+    @if (worker != null)
+    {
+        <div class="container py-4">
+            <div class="row justify-content-center">
+                <div class="col-lg-6">
+
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-slash me-2"></i>
+                                Deactivate Worker
+                            </h5>
+                        </div>
+
+                        <div class="card-body">
+
+                            @if (!string.IsNullOrEmpty(successMessage))
+                            {
+                                <div class="alert alert-success">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    @successMessage
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                <div class="alert alert-danger">
+                                    <i class="fas fa-exclamation-circle me-2"></i>
+                                    @errorMessage
+                                </div>
+                            }
+
+                            <div class="text-center mb-4">
+
+                                @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
+                                {
+                                    <img src="/uploads/@worker.PassportPhotoPath"
+                                         class="rounded-circle mb-3"
+                                         style="width:100px; height:100px; object-fit:cover;" />
+                                }
+                                else
+                                {
+                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto mb-3"
+                                         style="width:100px; height:100px;">
+                                        <i class="fas fa-user text-muted fa-2x"></i>
+                                    </div>
+                                }
+
+                                <h4>@worker.FirstName @worker.LastName</h4>
+                                <p class="text-muted mb-1">@worker.WorkerId</p>
+                                <span class="badge bg-primary">@worker.Role</span>
+
+                            </div>
+
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                This action will deactivate the worker account.
+                                The worker will no longer be able to login to BCC Service Hub.
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">
+                                    Reason for @(worker.IsActive ? "Deactivation" : "Activation")
+                                </label>
+
+                                <textarea class="form-control"
+                                          rows="4"
+                                          @bind="reason"
+                                          placeholder="Enter reason..."
+                                          maxlength="500">
+            </textarea>
+
+                                @if (showReasonError)
+                                {
+                                    <div class="text-danger mt-1">
+                                        Reason is required.
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-4">
+
+                                <button class="btn btn-outline-secondary"
+                                        @onclick="GoBack">
+                                    <i class="fas fa-arrow-left me-1"></i>
+                                    Cancel
+                                </button>
+
+                                @if (worker.IsActive)
+                                {
+                                    <button class="btn btn-danger"
+                                            @onclick="DeactivateWorkerAccount"
+                                            disabled="@isProcessing">
+
+                                        @if (isProcessing)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                            <span>Processing...</span>
+                                        }
+                                        else
+                                        {
+                                            <span>
+                                                <i class="fas fa-user-slash me-1"></i>
+                                                Deactivate Worker
+                                            </span>
+                                        }
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-success"
+                                            @onclick="ActivateWorkerAccount"
+                                            disabled="@isProcessing">
+
+                                        @if (isProcessing)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                            <span>Processing...</span>
+                                        }
+                                        else
+                                        {
+                                            <span>
+                                                <i class="fas fa-user-check me-1"></i>
+                                                Reactivate Worker
+                                            </span>
+                                        }
+                                    </button>
+                                }
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="container py-5 text-center">
+            <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">Worker Not Found</h5>
+
+            <button class="btn btn-primary mt-3"
+                    @onclick="GoBack">
+                Back
+            </button>
+        </div>
+    }
+}
+else
+{
+    <div class="container py-5 text-center">
+        <i class="fas fa-lock fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">Access Denied</h5>
+
+        <a href="/login" class="btn btn-primary mt-3">
+            Login
+        </a>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public int WorkerId { get; set; }
+
+    private Worker? worker;
+    private bool showReasonError = false;
+    private string reason = string.Empty;
+
+    private bool isProcessing = false;
+
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+        {
+            await LoadWorker();
+        }
+    }
+
+    private async Task LoadWorker()
+    {
+        try
+        {
+            worker = await WorkerService.GetWorkerByIdAsync(WorkerId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private async Task DeactivateWorkerAccount()
+    {
+        if (worker == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            showReasonError = true;
+            return;
+        }
+
+        showReasonError = false;
+
+        isProcessing = true;
+
+        try
+        {
+            worker.IsActive = false;
+            worker.LastUpdated = DateTime.UtcNow;
+            reason = "Worker deactivated due to " + reason;
+            await WorkerService.UpdateWorkerAsync(worker, reason);
+
+            successMessage = "Worker deactivated successfully.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deactivating worker: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task ActivateWorkerAccount()
+    {
+        if (worker == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            showReasonError = true;
+            return;
+        }
+
+        showReasonError = false;
+
+        isProcessing = true;
+
+        try
+        {
+            worker.IsActive = false;
+            worker.LastUpdated = DateTime.UtcNow;
+            reason = "Worker Re-activated due to " + reason;
+            await WorkerService.UpdateWorkerAsync(worker, reason);
+
+            successMessage = "Worker deactivated successfully.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deactivating worker: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin/worker-update");
+    }
+}

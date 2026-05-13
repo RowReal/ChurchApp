@@ -612,8 +612,8 @@ else
 }
 
 @code {
-    [Parameter]
-    public int WorkerId { get; set; }
+        [Parameter]
+        public int WorkerId { get; set; }
 
     private Worker? worker = null;
     private WorkerUpdateModel workerModel = new();
@@ -815,8 +815,9 @@ else
             worker.IsActive = workerModel.IsActive;
             worker.CompliancePercentage = workerModel.CompliancePercentage;
             worker.LastUpdated = DateTime.UtcNow;
+            string notes = "Update of worker record";
 
-            await WorkerService.UpdateWorkerAsync(worker);
+            await WorkerService.UpdateWorkerAsync(worker, notes);
             successMessage = "Worker updated successfully";
 
             // Refresh worker data

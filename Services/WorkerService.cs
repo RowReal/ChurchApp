@@ -23,7 +23,7 @@ namespace ChurchApp.Services
                 .Include(w => w.Directorate)
                 .Include(w => w.Department)
                 .Include(w => w.Unit)
-                .Where(w => w.IsActive)
+                //.Where(w => w.IsActive)
                 .ToListAsync();
         }
 
@@ -33,7 +33,8 @@ namespace ChurchApp.Services
                 .Include(w => w.Directorate)
                 .Include(w => w.Department)
                 .Include(w => w.Unit)
-                .FirstOrDefaultAsync(w => w.Id == id && w.IsActive);
+                //.FirstOrDefaultAsync(w => w.Id == id && w.IsActive);
+            .FirstOrDefaultAsync(w => w.Id == id);
         }
 
         public async Task<Worker?> GetWorkerByWorkerIdAsync(string workerId)
@@ -327,7 +328,7 @@ namespace ChurchApp.Services
         // Add these methods to your existing WorkerService class
 
         // Worker Update Methods
-        public async Task<Worker> UpdateWorkerAsync(Worker worker)
+        public async Task<Worker> UpdateWorkerAsync( Worker worker,string notes = "")
         {
             // Get the original worker from database FIRST (before any changes)
             var originalWorker = await _context.Workers
@@ -372,12 +373,13 @@ namespace ChurchApp.Services
                 try
                 {
                     await _auditService.LogWorkerUpdateAsync(
-                        originalWorker,
-                        worker,
-                        _authService.CurrentWorker.Id,
-                        changes,
-                        $"Worker profile updated: {worker.FirstName} {worker.LastName} (ID: {worker.WorkerId})"
-                    );
+    originalWorker,
+    worker,
+    _authService.CurrentWorker.Id,
+    changes,
+    $"Worker profile updated: {worker.FirstName} {worker.LastName} (ID: {worker.WorkerId})",
+    notes
+);
                 }
                 catch (Exception auditEx)
                 {
