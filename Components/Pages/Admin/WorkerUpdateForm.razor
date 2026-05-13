@@ -815,9 +815,9 @@ else
             worker.IsActive = workerModel.IsActive;
             worker.CompliancePercentage = workerModel.CompliancePercentage;
             worker.LastUpdated = DateTime.UtcNow;
-            string notes = "Update of worker record";
+            // string notes = "Update of worker record";
 
-            await WorkerService.UpdateWorkerAsync(worker, notes);
+            await WorkerService.UpdateWorkerAsync(worker);
             successMessage = "Worker updated successfully";
 
             // Refresh worker data
