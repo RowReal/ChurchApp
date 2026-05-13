@@ -1,204 +1,200 @@
 ﻿@page "/admin/worker-setup"
 @layout Components.Layout.MainLayout
+
 @using ChurchApp.Services
 @using ChurchApp.Models
 @using System.ComponentModel.DataAnnotations
+
 @inject WorkerService WorkerService
-@inject RoleService RoleService  
+@inject RoleService RoleService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject EmailService EmailService
+@inject IWebHostEnvironment Environment
 
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
 {
-    <PageTitle>Worker Setup - Admin Panel</PageTitle>
+    <PageTitle>Worker Setup</PageTitle>
 
     <div class="container-fluid py-4">
-        <!-- Header -->
-        <div class="row mb-4">
-            <div class="col">
-                <h2 class="text-primary mb-1">Worker Setup</h2>
-                <p class="text-muted mb-0">Create and manage worker profiles</p>
-            </div>
-            <div class="col-auto">
-                <button class="btn btn-primary" @onclick="ShowCreateForm">
-                    <i class="fas fa-plus me-2"></i>+Add New Worker
-                </button>
-            </div>
-        </div>
 
-        <!-- Create Worker Form -->
+        <!-- HEADER -->
+        <div class="d-flex justify-content-between mb-3">
+            <h3 class="text-primary">Worker Setup</h3>
+
+            <button class="btn btn-primary" @onclick="ShowCreateForm">
+                + Add New Worker
+            </button>
+        </div>
+      
+        <!-- CREATE FORM -->
         @if (showCreateForm)
         {
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-primary text-white py-3">
-                    <h5 class="mb-0">
-                        <i class="fas fa-user-plus me-2"></i>Create New Worker
-                    </h5>
-                </div>
-                <div class="card-body p-4">
-                    <EditForm Model="@newWorker" OnValidSubmit="@CreateWorker">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+
+                    <EditForm Model="@newWorker" OnValidSubmit="CreateWorker">
                         <DataAnnotationsValidator />
+                        <ValidationSummary />
 
-                        <div class="row g-3">
-                            <!-- Basic Information -->
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Worker ID *</label>
-                                <InputText @bind-Value="newWorker.WorkerId" class="form-control" placeholder="e.g., BCC001" />
-                                <ValidationMessage For="@(() => newWorker.WorkerId)" />
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">First Name *</label>
-                                <InputText @bind-Value="newWorker.FirstName" class="form-control" placeholder="First name" />
-                                <ValidationMessage For="@(() => newWorker.FirstName)" />
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Middle Name</label>
-                                <InputText @bind-Value="newWorker.MiddleName" class="form-control" placeholder="Middle name (optional)" />
-                            </div>
-                        </div>
+                        <div class="row">
 
-                        <div class="row g-3 mt-2">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Last Name *</label>
-                                <InputText @bind-Value="newWorker.LastName" class="form-control" placeholder="Last name" />
-                                <ValidationMessage For="@(() => newWorker.LastName)" />
+                            <!-- Worker ID -->
+                            <div class="col-md-4 mb-2">
+                                <label>Worker ID</label>
+                                <InputText class="form-control" @bind-Value="newWorker.WorkerId" />
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Email Address</label>
-                                <InputText @bind-Value="newWorker.Email" class="form-control"
-                                           placeholder="email@example.com" @onblur="CheckEmailAvailability" />
-                                <ValidationMessage For="@(() => newWorker.Email)" />
-                                @if (isCheckingEmail)
-                                {
-                                    <small class="text-muted">
-                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                                        Checking availability...
-                                    </small>
-                                }
-                                @if (!string.IsNullOrEmpty(emailAvailabilityMessage))
-                                {
-                                    <small class="@(isEmailAvailable ? "text-success" : "text-danger")">
-                                        <i class="fas @(isEmailAvailable ? "fa-check" : "fa-exclamation-triangle") me-1"></i>
-                                        @emailAvailabilityMessage
-                                    </small>
-                                }
-                            </div>
-                        </div>
 
-                        <div class="row g-3 mt-2">
-                            <!-- Directorate & Department -->
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Directorate *</label>
-                                <select @onchange="OnDirectorateChanged" class="form-select" value="@selectedDirectorateId">
-                                    <option value="0">Select Directorate</option>
-                                    @foreach (var directorate in directorates)
+                            <!-- First Name -->
+                            <div class="col-md-4 mb-2">
+                                <label>First Name</label>
+                                <InputText class="form-control" @bind-Value="newWorker.FirstName" />
+                            </div>
+
+                            <!-- Last Name -->
+                            <div class="col-md-4 mb-2">
+                                <label>Last Name</label>
+                                <InputText class="form-control" @bind-Value="newWorker.LastName" />
+                            </div>
+
+                            <!-- Email -->
+                            <div class="col-md-4 mb-2">
+                                <label>Email</label>
+                                <InputText class="form-control" @bind-Value="newWorker.Email"
+                                           @onblur="CheckEmailAvailability" />
+                            </div>
+
+                            <!-- Phone -->
+                            <div class="col-md-4 mb-2">
+                                <label>Phone</label>
+                                <InputText class="form-control" @bind-Value="newWorker.Phone" />
+                            </div>
+
+                            <!-- SEX -->
+                            <div class="col-md-4 mb-2">
+                                <label>Sex</label>
+                                <select class="form-control" @bind="newWorker.Sex">
+                                    <option value="">Select</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+
+                            <!-- DIRECTORATE -->
+                            <div class="col-md-4 mb-2">
+                                <label>Directorate *</label>
+                                <select class="form-control"
+                                        value="@selectedDirectorateId"
+                                        @onchange="OnDirectorateChanged">
+
+                                    <option value="0">Select</option>
+
+                                    @foreach (var d in directorates)
                                     {
-                                        <option value="@directorate.Id">@directorate.Name</option>
+                                        <option value="@d.Id">@d.Name</option>
                                     }
                                 </select>
-                                <ValidationMessage For="@(() => newWorker.DirectorateId)" />
                             </div>
 
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Department *</label>
-                                <select @bind="newWorker.DepartmentId" class="form-select" disabled="@(filteredDepartments.Count == 0)">
-                                    <option value="0">Select Department</option>
-                                    @foreach (var department in filteredDepartments)
+                            <!-- DEPARTMENT -->
+                            <div class="col-md-4 mb-2">
+                                <label>Department *</label>
+                                <select class="form-control" @bind="newWorker.DepartmentId">
+                                    <option value="0">Select</option>
+                                    @foreach (var d in filteredDepartments)
                                     {
-                                        <option value="@department.Id">@department.Name</option>
+                                        <option value="@d.Id">@d.Name</option>
                                     }
                                 </select>
-                                <ValidationMessage For="@(() => newWorker.DepartmentId)" />
-                                @if (filteredDepartments.Count == 0 && selectedDirectorateId > 0)
-                                {
-                                    <small class="text-warning">No departments available</small>
-                                }
                             </div>
-                        </div>
 
-                        <div class="row g-3 mt-2">
-                            <!-- Role (UPDATED: Now from database) -->
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Role *</label>
-                                <select @bind="newWorker.Role" class="form-select">
-                                    <option value="">-- Select Role --</option>
-                                    @foreach (var role in rolesFromDb)
+                            <!-- ROLE -->
+                            <div class="col-md-4 mb-2">
+                                <label>Role</label>
+                                <select class="form-control" @bind="newWorker.Role">
+                                    <option value="">Select</option>
+                                    @foreach (var r in rolesFromDb)
                                     {
-                                        <option value="@role.Name">@role.Name</option>
+                                        <option value="@r.Name">@r.Name</option>
                                     }
                                 </select>
-                                <ValidationMessage For="@(() => newWorker.Role)" />
-                                @if (rolesFromDb.Count == 0)
+                            </div>
+
+                            <!-- PASSPORT -->
+                            <div class="col-md-4 mb-2">
+
+                                <label>Passport (Optional)</label>
+
+                                <InputFile OnChange="OnPassportPhotoChanged"
+                                           class="form-control" />
+
+                                @if (!string.IsNullOrEmpty(uploadedPassportName))
                                 {
-                                    <small class="text-warning">
-                                        <i class="fas fa-exclamation-triangle me-1"></i>
-                                        No roles found. Please add roles first in 
-                                        <a href="/admin/role-setup" class="text-decoration-none">Role Setup</a>
+                                    <small class="text-success d-block mt-2">
+                                        Uploaded: @uploadedPassportName
                                     </small>
                                 }
-                            </div>
-                        </div>
 
-                        <!-- Info Alert -->
-                        <div class="alert alert-info mt-3 py-2">
-                            <i class="fas fa-info-circle me-2"></i>
-                            Default password will be generated. Worker must change it on first login.
-                        </div>
+                                @if (!string.IsNullOrEmpty(uploadedPassportPreview))
+                                {
+                                    <div class="mt-2">
 
-                        <!-- Messages -->
-                        @if (!string.IsNullOrEmpty(successMessage))
-                        {
-                            <div class="alert alert-success py-2">
-                                <i class="fas fa-check-circle me-2"></i>@successMessage
+                                        <img src="@uploadedPassportPreview"
+                                             style="width:120px;
+                                    height:120px;
+                                    object-fit:cover;
+                                    border-radius:8px;
+                                    border:1px solid #ddd;" />
+
+                                    </div>
+                                }
+
                             </div>
-                        }
+
+                        </div>
 
                         @if (!string.IsNullOrEmpty(errorMessage))
                         {
-                            <div class="alert alert-danger py-2">
-                                <i class="fas fa-exclamation-triangle me-2"></i>@errorMessage
-                            </div>
+                            <div class="alert alert-danger">@errorMessage</div>
                         }
 
-                        <!-- Buttons -->
-                        <div class="d-flex gap-2 mt-3 pt-3 border-top">
-                            @if (isCreating)
-                            {
-                                <button type="button" class="btn btn-success" disabled>
-                                    <span class="spinner-border spinner-border-sm me-2"></span>
-                                    Creating...
-                                </button>
-                            }
-                            else
-                            {
-                                <button type="submit" class="btn btn-success" disabled="@(!string.IsNullOrEmpty(newWorker.Email) && !isEmailAvailable)">
-                                    <i class="fas fa-save me-2"></i>
-                                    Create Worker
-                                </button>
-                            }
-                            <button type="button" class="btn btn-outline-secondary" @onclick="CancelCreate">
-                                <i class="fas fa-times me-2"></i>Cancel
-                            </button>
-                        </div>
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success">@successMessage</div>
+                        }
+
+                        <button class="btn btn-success" type="submit" disabled="@isCreating">
+                            @(isCreating ? "Creating..." : "Create Worker")
+                        </button>
+
+                        <button type="button" class="btn btn-secondary ms-2" @onclick="CancelCreate">
+                            Cancel
+                        </button>
 
                     </EditForm>
+                    
                 </div>
             </div>
         }
 
+        <!-- LIST -->
         <!-- Workers List -->
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-light py-3">
                 <h5 class="mb-0 text-primary">
-                    <i class="fas fa-users me-2"></i>All Workers (@workers.Count)
+                    <i class="fas fa-users me-2"></i>
+                    All Workers (@workers.Count)
                 </h5>
             </div>
+
             <div class="card-body p-0">
+
                 @if (workers.Any())
                 {
                     <div class="table-responsive">
+
                         <table class="table table-hover mb-0">
+
                             <thead class="table-light">
                                 <tr>
                                     <th class="ps-4">Worker</th>
@@ -208,161 +204,320 @@
                                     <th>Profile</th>
                                 </tr>
                             </thead>
+
                             <tbody>
+
                                 @foreach (var worker in workers)
                                 {
-                                    <tr style="cursor: pointer;" @onclick="() => ViewWorkerProfile(worker.Id)">
+                                    var completeness = CalculateCompleteness(worker);
+                                    var displayStatus = GetDisplayStatus(completeness);
+
+                                    <tr style="cursor:pointer"
+                                        @onclick="() => ViewWorkerProfile(worker.Id)">
+
+                                        <!-- Worker -->
                                         <td class="ps-4">
                                             <div class="d-flex align-items-center">
-                                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px; font-size: 0.9rem; font-weight: 600;">
+
+                                                <!-- BLUE ROUND CIRCLE -->
+                                                <div class="bg-primary text-white rounded-circle
+                                                                                d-flex align-items-center justify-content-center me-3"
+                                                     style="width:40px;height:40px;
+                                                                                font-size:0.9rem;
+                                                                                font-weight:600;">
+
                                                     @GetInitials(worker.FirstName, worker.LastName)
+
                                                 </div>
+
                                                 <div>
-                                                    <div class="fw-semibold text-dark">@worker.FirstName @worker.LastName</div>
-                                                    <small class="text-muted">@worker.WorkerId</small>
+                                                    <div class="fw-semibold text-dark">
+                                                        @worker.FirstName @worker.LastName
+                                                    </div>
+
+                                                    <small class="text-muted">
+                                                        @worker.WorkerId
+                                                    </small>
                                                 </div>
+
                                             </div>
                                         </td>
+
+                                        <!-- Contact -->
                                         <td>
-                                            @if (!string.IsNullOrEmpty(worker.Email))
+                                            @if (!string.IsNullOrWhiteSpace(worker.Email))
                                             {
-                                                <div class="text-dark">@worker.Email</div>
+                                                <div>@worker.Email</div>
                                             }
                                             else
                                             {
-                                                <span class="text-muted">No email</span>
+                                                <span class="text-muted">
+                                                    No email
+                                                </span>
                                             }
                                         </td>
+
+                                        <!-- Organization -->
                                         <td>
-                                            <div class="text-dark">@(worker.Directorate?.Name ?? "N/A")</div>
-                                            <small class="text-muted">@(worker.Department?.Name ?? "No dept")</small>
+                                            <div>
+                                                @(worker.Directorate?.Name ?? "N/A")
+                                            </div>
+
+                                            <small class="text-muted">
+                                                @(worker.Department?.Name ?? "No dept")
+                                            </small>
                                         </td>
+
+                                        <!-- ROLE & STATUS -->
                                         <td>
+
+                                            <!-- GRAY ROLE BADGE -->
                                             <div class="mb-1">
-                                                <span class="badge bg-secondary">@worker.Role</span>
+                                                <span class="badge bg-secondary">
+                                                    @worker.Role
+                                                </span>
                                             </div>
-                                            @{
-                                                var completeness = CalculateCompleteness(worker);
-                                                var displayStatus = GetDisplayStatus(worker, completeness);
-                                            }
-                                            <span class="badge @GetStatusBadgeClass(displayStatus)" style="font-size: 0.7rem;">
+
+                                            <!-- YELLOW STATUS BADGE -->
+                                            <span class="badge @GetStatusBadgeClass(displayStatus)"
+                                                  style="font-size:0.75rem;">
+
                                                 @displayStatus
+
                                             </span>
+
                                         </td>
+
+                                        <!-- PROFILE % -->
                                         <td>
+
                                             <div class="d-flex align-items-center">
+
                                                 <div class="flex-grow-1 me-2">
-                                                    <div class="progress" style="height: 6px; width: 80px;">
+
+                                                    <div class="progress"
+                                                         style="height:6px;width:80px;">
+
                                                         <div class="progress-bar @GetCompletenessClass(completeness)"
-                                                             style="width: @completeness%;"
-                                                             title="@completeness% Complete">
+                                                             style="width:@completeness%">
                                                         </div>
+
                                                     </div>
+
                                                 </div>
-                                                <small class="text-muted">@completeness%</small>
+
+                                                <small class="text-muted">
+                                                    @completeness%
+                                                </small>
+
                                             </div>
+
                                         </td>
+
                                     </tr>
                                 }
+
                             </tbody>
+
                         </table>
+
                     </div>
                 }
                 else
                 {
                     <div class="text-center py-5">
+
                         <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                        <p class="text-muted mb-0">No workers found</p>
-                        <small class="text-muted">Create your first worker to get started</small>
+
+                        <p class="text-muted mb-0">
+                            No workers found
+                        </p>
+
                     </div>
                 }
+
             </div>
         </div>
-    </div>
-}
-else if (AuthService.IsAuthenticated && !AuthService.CanAccessAdminPanel())
-{
-    <!-- Access denied content -->
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-danger text-white py-3">
-                        <h5 class="mb-0">
-                            <i class="fas fa-ban me-2"></i>Access Denied
-                        </h5>
-                    </div>
-                    <div class="card-body text-center py-4">
-                        <i class="fas fa-ban fa-3x text-danger mb-3"></i>
-                        <h4 class="text-danger mb-2">Access Denied</h4>
-                        <p class="text-muted mb-3">You don't have permission to access this page.</p>
-                        <a href="/" class="btn btn-primary">
-                            <i class="fas fa-tachometer-alt me-2"></i>Return to Dashboard
-                        </a>
-                    </div>
-                </div>
+        <div class="card">
+            <div class="card-body">
+                <h5>Workers (@workers.Count)</h5>
             </div>
         </div>
-    </div>
-}
-else
-{
-    <!-- Not authenticated -->
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-warning text-dark py-3">
-                        <h5 class="mb-0">
-                            <i class="fas fa-exclamation-triangle me-2"></i>Authentication Required
-                        </h5>
-                    </div>
-                    <div class="card-body text-center py-4">
-                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                        <h4 class="text-warning mb-2">Please Log In</h4>
-                        <p class="text-muted mb-3">You need to be logged in to access this page.</p>
-                        <a href="/login" class="btn btn-primary">
-                            <i class="fas fa-sign-in-alt me-2"></i>Go to Login
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+
     </div>
 }
 
+else
+{
+    <div class="alert alert-danger">Access Denied</div>
+}
+
 @code {
+
+    // DATA
     private List<Worker> workers = new();
     private List<Directorate> directorates = new();
     private List<Department> departments = new();
     private List<Department> filteredDepartments = new();
-    private List<Role> rolesFromDb = new(); // NEW: List for roles from database
+    private List<Role> rolesFromDb = new();
+
+    // MODEL
     private CreateWorkerModel newWorker = new();
-    private int selectedDirectorateId = 0;
+
+    // UI STATES
     private bool showCreateForm = false;
     private bool isCreating = false;
-    private bool isCheckingEmail = false;
-    private bool isEmailAvailable = true;
-    private string emailAvailabilityMessage = string.Empty;
-    private string successMessage = string.Empty;
-    private string errorMessage = string.Empty;
+    private int selectedDirectorateId = 0;
 
+    private string errorMessage = "";
+    private string successMessage = "";
+    private string? uploadedPassportPreview;
+    private string? uploadedPassportName;
+
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+    //     {
+    //         workers = await WorkerService.GetAllWorkersAsync();
+    //         directorates = await WorkerService.GetDirectoratesAsync();
+    //         departments = await WorkerService.GetDepartmentsAsync();
+    //         rolesFromDb = await RoleService.GetRolesAsync();
+    //     }
+    // }
     protected override async Task OnInitializedAsync()
     {
         if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
         {
             await LoadData();
-        }
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
-        {
             await FilterDepartments();
         }
     }
 
+    // ---------------- CREATE WORKER ----------------
+    private async Task CreateWorker()
+    {
+        isCreating = true;
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            // VALIDATION FIXED
+            if (newWorker.DepartmentId == 0)
+            {
+                errorMessage = "Please select a department";
+                return;
+            }
+
+            var result = await WorkerService.CreateWorkerAsync(newWorker);
+
+            successMessage = "Worker created successfully!";
+
+            workers = await WorkerService.GetAllWorkersAsync();
+
+            CancelCreate();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"{ex.Message} | INNER: {ex.InnerException?.Message}";
+        }
+        finally
+        {
+            isCreating = false;
+        }
+        await LoadData();
+    }
+
+    // ---------------- DIRECTORATE CHANGE ----------------
+    private Task OnDirectorateChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int id))
+        {
+            selectedDirectorateId = id;
+            newWorker.DirectorateId = id;
+
+            filteredDepartments = departments
+                .Where(x => x.DirectorateId == id)
+                .ToList();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    // ---------------- EMAIL CHECK ----------------
+    private async Task CheckEmailAvailability()
+    {
+        if (string.IsNullOrWhiteSpace(newWorker.Email))
+            return;
+
+        var exists = await WorkerService.CheckEmailExistsAsync(newWorker.Email);
+
+        if (exists)
+        {
+            errorMessage = "Email already exists";
+        }
+    }
+
+    // ---------------- PASSPORT UPLOAD ----------------
+    private async Task OnPassportPhotoChanged(InputFileChangeEventArgs e)
+    {
+        errorMessage = "";
+
+        var file = e.File;
+
+        if (file == null)
+            return;
+
+        var ext = Path.GetExtension(file.Name).ToLower();
+
+        var allowed = new[] { ".jpg", ".jpeg", ".png" };
+
+        if (!allowed.Contains(ext))
+        {
+            errorMessage = "Only JPG and PNG files are allowed";
+            return;
+        }
+
+        var folder = Path.Combine(Environment.WebRootPath, "uploads");
+
+        if (!Directory.Exists(folder))
+            Directory.CreateDirectory(folder);
+
+        var fileName = $"{Guid.NewGuid()}{ext}";
+
+        var path = Path.Combine(folder, fileName);
+
+        using var stream = new FileStream(path, FileMode.Create);
+
+        await file.OpenReadStream(2 * 1024 * 1024)
+            .CopyToAsync(stream);
+
+        // Save to database
+        newWorker.PassportPhotoPath = fileName;
+
+        // Preview image
+        uploadedPassportPreview = $"/uploads/{fileName}";
+
+        // Show file name
+        uploadedPassportName = file.Name;
+    }
+
+    // ---------------- UI HELPERS ----------------
+    private void ShowCreateForm()
+    {
+        newWorker = new CreateWorkerModel();
+        showCreateForm = true;
+        errorMessage = "";
+        successMessage = "";
+    }
+
+    private void CancelCreate()
+    {
+        showCreateForm = false;
+        newWorker = new CreateWorkerModel();
+        selectedDirectorateId = 0;
+        filteredDepartments = new();
+    }
     private async Task LoadData()
     {
         try
@@ -370,28 +525,17 @@ else
             workers = await WorkerService.GetAllWorkersAsync();
             directorates = await WorkerService.GetDirectoratesAsync();
             departments = await WorkerService.GetDepartmentsAsync();
-            rolesFromDb = await RoleService.GetRolesAsync(); // NEW: Load roles from DB
-            await FilterDepartments();
+            rolesFromDb = await RoleService.GetRolesAsync();
         }
         catch (Exception ex)
         {
-            errorMessage = "Error loading data: " + ex.Message;
+            errorMessage = $"Failed to load data: {ex.Message}";
         }
     }
-
-    private async void OnDirectorateChanged(ChangeEventArgs e)
+    private void ViewWorkerProfile(int workerId)
     {
-        if (int.TryParse(e.Value?.ToString(), out int directorateId))
-        {
-            selectedDirectorateId = directorateId;
-            newWorker.DirectorateId = directorateId;
-            newWorker.DepartmentId = 0;
-
-            await FilterDepartments();
-            StateHasChanged();
-        }
+        Navigation.NavigateTo($"/admin/worker-details/{workerId}");
     }
-
     private Task FilterDepartments()
     {
         if (selectedDirectorateId > 0)
@@ -407,346 +551,68 @@ else
 
         return Task.CompletedTask;
     }
-
-    private async Task CheckEmailAvailability()
-    {
-        if (string.IsNullOrWhiteSpace(newWorker.Email))
-        {
-            emailAvailabilityMessage = string.Empty;
-            isEmailAvailable = true;
-            return;
-        }
-
-        isCheckingEmail = true;
-        emailAvailabilityMessage = string.Empty;
-        StateHasChanged();
-
-        try
-        {
-            await Task.Delay(500);
-            var emailExists = await WorkerService.CheckEmailExistsAsync(newWorker.Email);
-
-            if (emailExists)
-            {
-                isEmailAvailable = false;
-                emailAvailabilityMessage = "Email already exists";
-            }
-            else
-            {
-                isEmailAvailable = true;
-                emailAvailabilityMessage = "Email available";
-            }
-        }
-        catch (Exception ex)
-        {
-            isEmailAvailable = false;
-            emailAvailabilityMessage = "Error checking email";
-            Console.WriteLine($"Email check error: {ex.Message}");
-        }
-        finally
-        {
-            isCheckingEmail = false;
-            StateHasChanged();
-        }
-    }
-
-    private void ShowCreateForm()
-    {
-        newWorker = new CreateWorkerModel();
-        selectedDirectorateId = 0;
-        filteredDepartments = new List<Department>();
-        emailAvailabilityMessage = string.Empty;
-        isEmailAvailable = true;
-        isCheckingEmail = false;
-        showCreateForm = true;
-        successMessage = string.Empty;
-        errorMessage = string.Empty;
-    }
-
-    private void CancelCreate()
-    {
-        showCreateForm = false;
-        newWorker = new CreateWorkerModel();
-        selectedDirectorateId = 0;
-        filteredDepartments = new List<Department>();
-        emailAvailabilityMessage = string.Empty;
-        isEmailAvailable = true;
-        isCheckingEmail = false;
-        successMessage = string.Empty;
-        errorMessage = string.Empty;
-    }
-
-    private async Task CreateWorker()
-    {
-        isCreating = true;
-        successMessage = string.Empty;
-        errorMessage = string.Empty;
-        StateHasChanged();
-
-        try
-        {
-            if (newWorker.DepartmentId == 0)
-            {
-                errorMessage = "Please select a department";
-                isCreating = false;
-                StateHasChanged();
-                return;
-            }
-
-            if (!string.IsNullOrWhiteSpace(newWorker.Email) && !isEmailAvailable)
-            {
-                errorMessage = "Cannot create worker with an email that is already in use.";
-                isCreating = false;
-                StateHasChanged();
-                return;
-            }
-
-            var createdWorker = await WorkerService.CreateWorkerAsync(newWorker);
-            // Send Welcome Email
-            if (!string.IsNullOrWhiteSpace(createdWorker.Email))
-            {
-                var emailBody = $@"
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body {{
-            font-family: Arial, Helvetica, sans-serif;
-            background-color: #f4f6f9;
-            margin: 0;
-            padding: 0;
-            color: #333;
-        }}
-        .container {{
-            max-width: 600px;
-            margin: 30px auto;
-            background-color: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        }}
-        .header {{
-            background-color: #0d6efd;
-            padding: 25px;
-            text-align: center;
-            color: #ffffff;
-        }}
-        .header img {{
-            max-height: 70px;
-            margin-bottom: 10px;
-        }}
-        .content {{
-            padding: 30px;
-            color: #212529;
-            line-height: 1.6;
-        }}
-        .content p {{
-            margin-bottom: 15px;
-        }}
-        .credentials {{
-            background-color: #e9ecef; /* slightly darker for contrast */
-            padding: 15px;
-            border-radius: 6px;
-            margin: 20px 0;
-        }}
-        .credentials p {{
-            margin: 5px 0;
-            font-weight: 600;
-        }}
-        .button {{
-            display: inline-block;
-            padding: 12px 25px;
-            background-color: #0d6efd; /* brighter blue */
-            color: #ffffff !important;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-top: 15px;
-            font-weight: bold;
-        }}
-        .button:hover {{
-            background-color: #0b5ed7;
-        }}
-        .footer {{
-            text-align: center;
-            padding: 20px;
-            font-size: 12px;
-            color: #6c757d;
-        }}
-    </style>
-</head>
-<body>
-    <div class='container'>
-        <div class='header'>
-            <img src='https://servicehub.rccgbcc.org/images/bcc-logo.png' alt='BCC Logo' />
-            <h2>Welcome to BCC Service Hub</h2>
-        </div>
-
-        <div class='content'>
-            <p>Dear {createdWorker.FirstName},</p>
-
-            <p>
-                Your profile has been successfully created on
-                <strong>BCC Service Hub</strong>.
-            </p>
-
-            <div class='credentials'>
-                <p><strong>User ID:</strong> {createdWorker.WorkerId}</p>
-                <p><strong>Default Password:</strong> default123</p>
-            </div>
-
-            <p>
-                For security, please log in immediately and change your password.
-                You are encouraged to complete and update your profile information.
-            </p>
-
-            <a href='https://servicehub.rccgbcc.org/' class='button'>
-                Login to Service Hub
-            </a>
-
-            <p style='margin-top:20px;'>
-                If you experience any issues, please contact your department administrator.
-            </p>
-
-            <p>
-                Thank you,<br/>
-                <strong>BCC Service Hub Team</strong>
-            </p>
-        </div>
-
-        <div class='footer'>
-            This is an automated message from BCC Service Hub. Please do not reply to this email.
-        </div>
-    </div>
-</body>
-</html>";
-try
-{
-                await EmailService.SendEmailAsync(new EmailMessage
-                {
-                    ToEmail = createdWorker.Email,
-                    ToName = $"{createdWorker.FirstName} {createdWorker.LastName}",
-                    Subject = "Welcome to BCC Service Hub",
-                    Body = emailBody,
-                    IsHtml = true
-                });
-}
-                catch (Exception ex)
-                {
-                    // Log the email error but do not stop worker creation
-                    Console.WriteLine($"Email sending failed: {ex.Message}");
-                }
-            }
-            await LoadData();
-
-            successMessage = $"Worker {createdWorker.WorkerId} created successfully!";
-            showCreateForm = false;
-            newWorker = new CreateWorkerModel();
-            selectedDirectorateId = 0;
-            filteredDepartments = new List<Department>();
-            emailAvailabilityMessage = string.Empty;
-            isEmailAvailable = true;
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-        finally
-        {
-            isCreating = false;
-            StateHasChanged();
-        }
-    }
-
-    private void ViewWorkerProfile(int workerId)
-    {
-        Navigation.NavigateTo($"/admin/worker-details/{workerId}");
-    }
-
-    private void EditWorker(int workerId)
-    {
-        Navigation.NavigateTo($"/admin/worker-update-form/{workerId}");
-    }
+   
 
     private string GetInitials(string firstName, string lastName)
     {
         if (string.IsNullOrEmpty(firstName) && string.IsNullOrEmpty(lastName))
             return "??";
 
-        var firstInitial = string.IsNullOrEmpty(firstName) ? '?' : firstName[0];
-        var lastInitial = string.IsNullOrEmpty(lastName) ? '?' : lastName[0];
+        var firstInitial = string.IsNullOrEmpty(firstName)
+            ? '?'
+            : firstName[0];
+
+        var lastInitial = string.IsNullOrEmpty(lastName)
+            ? '?'
+            : lastName[0];
 
         return $"{firstInitial}{lastInitial}".ToUpper();
     }
 
     private int CalculateCompleteness(Worker worker)
     {
-        var filledFields = 0;
-        var totalFields = 15;
+        int filledFields = 0;
+        int totalFields = 10;
 
-        if (!string.IsNullOrEmpty(worker.FirstName)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.LastName)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Email)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Phone)) filledFields++;
-        if (worker.DateOfBirth.HasValue) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Profession)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Organization)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Address)) filledFields++;
-        if (worker.DirectorateId.HasValue) filledFields++;
-        if (worker.DepartmentId.HasValue) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Role)) filledFields++;
-        if (worker.DateJoinedChurch.HasValue) filledFields++;
-        if (!string.IsNullOrEmpty(worker.OrdinationLevel)) filledFields++;
-        if (worker.HasBelieverBaptism || worker.HasWorkerInTraining ||
-            worker.HasSOD || worker.HasBibleCollege) filledFields++;
-        if (!string.IsNullOrEmpty(worker.PassportPhotoPath)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.FirstName)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.LastName)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Email)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Phone)) filledFields++;
+        if (worker.DirectorateId != null) filledFields++;
+        if (worker.DepartmentId != null) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Role)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Address)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Profession)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath)) filledFields++;
 
-        return totalFields > 0 ? (int)Math.Round((double)filledFields / totalFields * 100) : 0;
+        return (int)Math.Round((double)filledFields / totalFields * 100);
     }
 
     private string GetCompletenessClass(int percentage)
     {
         if (percentage < 50)
             return "bg-danger";
-        else if (percentage >= 50 && percentage < 61)
-            return "bg-purple";
-        else if (percentage >= 61 && percentage < 86)
-            return "bg-primary";
-        else if (percentage >= 86)
-            return "bg-success";
-        else
-            return "bg-secondary";
+
+        if (percentage < 90)
+            return "bg-warning";
+
+        return "bg-success";
     }
 
-    private string GetDisplayStatus(Worker worker, int completeness)
+    private string GetDisplayStatus(int completeness)
     {
-        if (completeness == 100 && worker.CurrentStatus == "Pending Profile Completion")
-        {
-            return "Profile Complete";
-        }
-
-        if (completeness == 100 && worker.CurrentStatus.Contains("Pending"))
-        {
-            return worker.CurrentStatus;
-        }
-
-        if (completeness < 100)
-        {
+        if (completeness < 90)
             return "Pending Profile Completion";
-        }
 
-        return worker.CurrentStatus;
+        return "Profile Complete";
     }
 
     private string GetStatusBadgeClass(string status)
     {
         return status switch
         {
-            "Fully Approved" => "bg-success",
             "Profile Complete" => "bg-success",
-            "Ready for Approval" => "bg-info",
-            "Pending Profile Completion" => "bg-warning",
-            "Pending Stage 1 Approval" => "bg-info",
-            "Pending Stage 2 Approval" => "bg-primary",
+            "Pending Profile Completion" => "bg-warning text-dark",
             _ => "bg-secondary"
         };
     }

@@ -86,6 +86,9 @@ namespace ChurchApp.Services
                 FirstName = model.FirstName,
                 LastName = model.LastName,
                 MiddleName = model.MiddleName,
+                Phone = model.Phone,
+                Sex = model.Sex,
+                PassportPhotoPath = model.PassportPhotoPath,
                 Email = model.Email?.Trim() ?? string.Empty, // Ensure empty string if null
                 DirectorateId = model.DirectorateId,
                 DepartmentId = model.DepartmentId,

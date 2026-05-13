@@ -72,6 +72,17 @@ builder.Services.AddScoped<ExcuseService>();
 builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
+// APPLY EF CORE MIGRATIONS AUTOMATICALLY
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    Console.WriteLine("Applying database migrations...");
+
+    db.Database.Migrate();
+
+    Console.WriteLine("Database migrations completed.");
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

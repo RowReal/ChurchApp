@@ -23,6 +23,7 @@ namespace ChurchApp.Models
         public string MiddleName { get; set; } = string.Empty;
 
         [MaxLength(10)]
+        [Required(ErrorMessage = "Sex is required")]
         public string Sex { get; set; } = string.Empty;
         [MaxLength(20)]
         public string? Title { get; set; }
@@ -37,7 +38,7 @@ namespace ChurchApp.Models
         public string Email { get; set; } = string.Empty;
 
         [MaxLength(20)]
-        public string Phone { get; set; } = string.Empty;
+        public string? Phone { get; set; } = string.Empty;
 
         // Church Structure (Foreign Keys)
         public int? DirectorateId { get; set; }
@@ -64,7 +65,7 @@ namespace ChurchApp.Models
 
         // Personal Details
         [MaxLength(100)]
-        public string PassportPhotoPath { get; set; } = string.Empty;
+        public string? PassportPhotoPath { get; set; } = string.Empty;
 
         [MaxLength(20)]
         public string OrdinationStatus { get; set; } = "Not Ordained";

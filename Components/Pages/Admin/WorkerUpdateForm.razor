@@ -13,6 +13,13 @@
 
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
 {
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+            <div class="mt-2 text-muted">Loading worker data...</div>
+        </div>
+    }
     @if (worker != null)
     {
         <EditForm Model="@workerModel" OnValidSubmit="@UpdateWorker" id="updateForm">
@@ -157,7 +164,9 @@
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label small fw-semibold">Wedding Anniversary</label>
-                                        <InputDate @bind-Value="workerModel.WeddingAnniversary" class="form-control form-control-sm" />
+                                        <InputDate @bind-Value="workerModel.WeddingAnniversary"
+                                                   class="form-control form-control-sm"
+                                                   disabled="@(workerModel.MaritalStatus == "Single")" />
                                     </div>
                                 </div>
 
@@ -175,7 +184,9 @@
 
                                 <div class="mb-3">
                                     <label class="form-label small fw-semibold">Address</label>
-                                    <textarea @bind="workerModel.Address" class="form-control form-control-sm" rows="2"></textarea>
+                                    <InputTextArea @bind-Value="workerModel.Address"
+                                                   class="form-control form-control-sm"
+                                                   rows="2" />
                                 </div>
 
                                 <!-- Church Info -->
@@ -628,7 +639,7 @@ else
     private bool isUploading = false;
     private string successMessage = string.Empty;
     private string errorMessage = string.Empty;
-
+    private bool isLoading = true;
     // Certificate paths
     private string believerBaptismPath = string.Empty;
     private string workerInTrainingPath = string.Empty;
@@ -637,13 +648,22 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+        try
         {
-            await LoadData();
-            if (WorkerId > 0)
+            if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
             {
-                await LoadWorkerData(WorkerId);
+                await LoadData();
+
+                if (WorkerId > 0)
+                {
+                    await LoadWorkerData(WorkerId);
+                }
             }
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -776,7 +796,10 @@ else
         isUpdating = true;
         successMessage = string.Empty;
         errorMessage = string.Empty;
-
+        if (workerModel.MaritalStatus == "Single")
+        {
+            workerModel.WeddingAnniversary = null;
+        }
         try
         {
             worker.FirstName = workerModel.FirstName;
@@ -813,7 +836,7 @@ else
             worker.SODCertificatePath = sodPath;
             worker.BibleCollegeCertificatePath = bibleCollegePath;
             worker.IsActive = workerModel.IsActive;
-            worker.CompliancePercentage = workerModel.CompliancePercentage;
+            worker.CompliancePercentage = CalculateCompliance(workerModel);
             worker.LastUpdated = DateTime.UtcNow;
             // string notes = "Update of worker record";
 
@@ -833,44 +856,125 @@ else
             StateHasChanged();
         }
     }
+    
+      
+        private int CalculateCompliance(WorkerUpdateModel workerModel)
+    {
+        int total = 0;
+        int completed = 0;
 
+        // 1. Simple string fields
+        total++; if (!string.IsNullOrWhiteSpace(workerModel.MaritalStatus)) completed++;
+        total++; if (workerModel.WeddingAnniversary.HasValue) completed++;
+        total++; if (!string.IsNullOrWhiteSpace(workerModel.Address)) completed++;
+        total++; if (!string.IsNullOrWhiteSpace(workerModel.Profession)) completed++;
+        total++; if (!string.IsNullOrWhiteSpace(workerModel.Organization)) completed++;
+        total++; if (workerModel.DateOfBirth.HasValue) completed++;
+        total++; if (!string.IsNullOrWhiteSpace(workerModel.PreviousChurch)) completed++;
+        total++; if (!string.IsNullOrWhiteSpace(workerModel.PreviousChurchRole)) completed++;
+        total++; if (!string.IsNullOrWhiteSpace(workerModel.PreviousChurchUnit)) completed++;
+
+        // 2. Nullable IDs (int?)
+        total++; if (workerModel.DirectorateId.HasValue) completed++;
+        total++; if (workerModel.DepartmentId.HasValue) completed++;
+        total++; if (workerModel.UnitId.HasValue) completed++;
+
+        // Role (required string)
+        total++; if (!string.IsNullOrWhiteSpace(workerModel.Role)) completed++;
+
+        total++; if (workerModel.SupervisorId.HasValue) completed++;
+        total++; if (workerModel.DateJoinedChurch.HasValue) completed++;
+
+        total++; if (!string.IsNullOrWhiteSpace(workerModel.WorkerStatus)) completed++;
+        total++; if (!string.IsNullOrWhiteSpace(workerModel.OrdinationLevel)) completed++;
+        total++; if (workerModel.LastOrdinationDate.HasValue) completed++;
+
+        // 3. Booleans (these are already true/false so just count true)
+        total++; if (workerModel.HasBelieverBaptism) completed++;
+        total++; if (workerModel.HasWorkerInTraining) completed++;
+        total++; if (workerModel.HasSOD) completed++;
+        total++; if (workerModel.HasBibleCollege) completed++;
+        return total == 0 ? 0 : (completed * 100 / total);
+    }
+        
     private async Task OnPassportPhotoChanged(InputFileChangeEventArgs e)
     {
         isUploading = true;
-        StateHasChanged();
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
 
         try
         {
-            var file = e.File;
-            if (file != null && file.Size <= 2 * 1024 * 1024)
+            if (worker == null)
             {
-                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
-                var fileExtension = Path.GetExtension(file.Name).ToLower();
-
-                if (allowedExtensions.Contains(fileExtension))
-                {
-                    var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
-                    if (!Directory.Exists(uploadsDir))
-                        Directory.CreateDirectory(uploadsDir);
-
-                    var fileName = $"{worker.WorkerId}_passport_{Guid.NewGuid()}{fileExtension}";
-                    var filePath = Path.Combine(uploadsDir, fileName);
-
-                    using var stream = new FileStream(filePath, FileMode.Create);
-                    await file.OpenReadStream().CopyToAsync(stream);
-
-                    workerModel.PassportPhotoPath = fileName;
-                    successMessage = "Photo uploaded successfully";
-                }
-                else
-                {
-                    errorMessage = "Only JPG, PNG, and GIF files are allowed";
-                }
+                errorMessage = "Worker not loaded";
+                return;
             }
-            else
+
+            var file = e.File;
+            if (file == null)
+            {
+                errorMessage = "No file selected";
+                return;
+            }
+
+            // 2MB limit
+            if (file.Size > 2 * 1024 * 1024)
             {
                 errorMessage = "File size must be less than 2MB";
+                return;
             }
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            var fileExtension = Path.GetExtension(file.Name).ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(fileExtension))
+            {
+                errorMessage = "Only JPG, JPEG, PNG, and GIF files are allowed";
+                return;
+            }
+
+            var allowedContentTypes = new[]
+            {
+            "image/jpeg",
+            "image/png",
+            "image/gif"
+        };
+
+            if (!allowedContentTypes.Contains(file.ContentType))
+            {
+                errorMessage = "Invalid image type";
+                return;
+            }
+
+            // Create uploads directory
+            var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
+
+            if (!Directory.Exists(uploadsDir))
+                Directory.CreateDirectory(uploadsDir);
+
+            // Delete old file if exists
+            if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath))
+            {
+                var oldPath = Path.Combine(uploadsDir, worker.PassportPhotoPath);
+
+                if (File.Exists(oldPath))
+                    File.Delete(oldPath);
+            }
+
+            // Create new file
+            var fileName = $"{worker.WorkerId}_passport_{Guid.NewGuid()}{fileExtension}";
+            var filePath = Path.Combine(uploadsDir, fileName);
+
+            await using var stream = new FileStream(filePath, FileMode.Create);
+
+            await file.OpenReadStream(2 * 1024 * 1024)
+                      .CopyToAsync(stream);
+
+            // Update model
+            workerModel.PassportPhotoPath = fileName;
+
+            successMessage = "Photo uploaded successfully";
         }
         catch (Exception ex)
         {

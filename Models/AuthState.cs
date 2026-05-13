@@ -60,7 +60,11 @@ namespace ChurchApp.Models
 
         [Required(ErrorMessage = "Department is required")]
         public int DepartmentId { get; set; }
-
+       
+        public string? Phone { get; set; }
+        [Required(ErrorMessage = "Sex is required")]
+        public string Sex { get; set; }
+        public string? PassportPhotoPath { get; set; }
         public int? UnitId { get; set; }
 
         [EmailAddress(ErrorMessage = "Invalid email address")]
