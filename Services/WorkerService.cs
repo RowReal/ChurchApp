@@ -672,5 +672,16 @@ namespace ChurchApp.Services
                 .ThenBy(w => w.LastName)
                 .ToListAsync();
         }
+        public async Task DeleteWorkerAsync(int workerId)
+        {
+            var worker = await _context.Workers.FindAsync(workerId);
+
+            if (worker == null)
+                throw new Exception("Worker not found");
+
+            _context.Workers.Remove(worker);
+
+            await _context.SaveChangesAsync();
+        }
     }
 }

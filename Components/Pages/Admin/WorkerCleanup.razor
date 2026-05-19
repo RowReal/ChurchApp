@@ -1,0 +1,282 @@
+﻿@page "/admin/worker-cleanup"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+
+@inject WorkerService WorkerService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+@if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+{
+    <PageTitle>Worker Cleanup</PageTitle>
+
+    <div class="container py-4">
+
+        <div class="row justify-content-center">
+
+            <div class="col-lg-7">
+
+                <!-- HEADER -->
+                <div class="card shadow-sm border-0 mb-4">
+
+                    <div class="card-body">
+
+                        <h3 class="text-danger mb-1">
+                            Worker Cleanup
+                        </h3>
+
+                        <p class="text-muted mb-0">
+                            Search and permanently delete workers from the database.
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <!-- SEARCH -->
+                <div class="card shadow-sm border-0">
+
+                    <div class="card-body">
+
+                        <label class="form-label fw-semibold">
+                            Enter Worker ID
+                        </label>
+
+                        <div class="input-group mb-3">
+
+                            <input class="form-control"
+                                   placeholder="Example: P001"
+                                   @bind="workerIdSearch" />
+
+                            <button class="btn btn-primary"
+                                    @onclick="SearchWorker">
+
+                                Search
+
+                            </button>
+
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(errorMessage))
+                        {
+                            <div class="alert alert-danger">
+                                @errorMessage
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(successMessage))
+                        {
+                            <div class="alert alert-success">
+                                @successMessage
+                            </div>
+                        }
+
+                    </div>
+
+                </div>
+
+                <!-- WORKER RESULT -->
+                @if (worker != null)
+                {
+                    <div class="card shadow-sm border-0 mt-4">
+
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                Worker Details
+                            </h5>
+                        </div>
+
+                        <div class="card-body">
+
+                            <div class="row">
+
+                                <div class="col-md-6 mb-3">
+
+                                    <label class="text-muted small">
+                                        Full Name
+                                    </label>
+
+                                    <div class="fw-semibold">
+                                        @worker.FirstName
+                                        @worker.MiddleName
+                                        @worker.LastName
+                                    </div>
+
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+
+                                    <label class="text-muted small">
+                                        Worker ID
+                                    </label>
+
+                                    <div class="fw-semibold">
+                                        @worker.WorkerId
+                                    </div>
+
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+
+                                    <label class="text-muted small">
+                                        Directorate
+                                    </label>
+
+                                    <div class="fw-semibold">
+                                        @(worker.Directorate?.Name ?? "Not Assigned")
+                                    </div>
+
+                                </div>
+
+                                <div class="col-md-6 mb-3">
+
+                                    <label class="text-muted small">
+                                        Department
+                                    </label>
+
+                                    <div class="fw-semibold">
+                                        @(worker.Department?.Name ?? "Not Assigned")
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            <!-- WARNING -->
+                            <div class="alert alert-warning mt-3">
+
+                                <strong>Warning:</strong>
+                                This action will permanently delete this worker
+                                from the database and cannot be undone.
+
+                            </div>
+
+                            <!-- DELETE BUTTON -->
+                            @if (!showDeleteConfirmation)
+                            {
+                                <button class="btn btn-danger"
+                                        @onclick="ShowDeleteConfirmation">
+
+                                    Delete Worker
+
+                                </button>
+                            }
+                            else
+                            {
+                                <div class="border rounded p-3 bg-light">
+
+                                    <p class="text-danger fw-semibold mb-3">
+                                        Are you sure you want to permanently delete this worker?
+                                    </p>
+
+                                    <button class="btn btn-danger me-2"
+                                            @onclick="DeleteWorker">
+
+                                        Yes, Delete
+
+                                    </button>
+
+                                    <button class="btn btn-secondary"
+                                            @onclick="CancelDelete">
+
+                                        Cancel
+
+                                    </button>
+
+                                </div>
+                            }
+
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+
+        </div>
+
+    </div>
+}
+else
+{
+    <div class="container py-5">
+
+        <div class="alert alert-danger">
+            Access Denied
+        </div>
+
+    </div>
+}
+
+@code {
+
+    private string workerIdSearch = "";
+
+    private Worker? worker;
+
+    private string errorMessage = "";
+
+    private string successMessage = "";
+
+    private bool showDeleteConfirmation = false;
+
+    private async Task SearchWorker()
+    {
+        errorMessage = "";
+        successMessage = "";
+        worker = null;
+        showDeleteConfirmation = false;
+
+        if (string.IsNullOrWhiteSpace(workerIdSearch))
+        {
+            errorMessage = "Please enter Worker ID";
+            return;
+        }
+
+        var workers = await WorkerService.GetAllWorkersAsync();
+
+        worker = workers.FirstOrDefault(w =>
+            w.WorkerId != null &&
+            w.WorkerId.ToLower() == workerIdSearch.ToLower());
+
+        if (worker == null)
+        {
+            errorMessage = "Worker not found";
+        }
+    }
+
+    private void ShowDeleteConfirmation()
+    {
+        showDeleteConfirmation = true;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirmation = false;
+    }
+
+    private async Task DeleteWorker()
+    {
+        try
+        {
+            if (worker == null)
+                return;
+
+            await WorkerService.DeleteWorkerAsync(worker.Id);
+
+            successMessage = "Worker deleted successfully.";
+
+            worker = null;
+
+            workerIdSearch = "";
+
+            showDeleteConfirmation = false;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+}

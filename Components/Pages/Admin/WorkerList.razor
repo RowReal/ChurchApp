@@ -17,12 +17,65 @@
                 <p class="text-muted">Select a worker to view and update their profile</p>
             </div>
         </div>
+        <div class="row mb-3 g-2">
+            <div class="row mb-3 align-items-end g-2">
+
+                <!-- SEARCH -->
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold">
+                        Search Worker
+                    </label>
+
+                    <input class="form-control"
+                           placeholder="Search by name or Worker ID..."
+                           @bind="SearchText"
+                           @bind:event="oninput" />
+                </div>
+
+                <!-- DIRECTORATE FILTER -->
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">
+                        Directorate
+                    </label>
+
+                    <select class="form-control"
+                            @bind="SelectedDirectorateId">
+
+                        <option value="0">All Directorates</option>
+
+                        @foreach (var d in directorates)
+                        {
+                            <option value="@d.Id">@d.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <!-- SHOW INACTIVE -->
+                <div class="col-md-3">
+                    <div class="form-check form-switch mt-4">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               checked="@showInactiveWorkers"
+                               @onchange="ToggleInactiveWorkers"
+                               id="showInactive" />
+
+                        <label class="form-check-label ms-2"
+                               for="showInactive">
+                            Show Inactive Workers
+                        </label>
+                    </div>
+                </div>
+
+            </div>
+   
+
+</div>
 
         <!-- Workers List -->
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">All Workers</h5>
-                <div class="form-check form-switch">
+                @* <div class="form-check form-switch">
                     <input class="form-check-input"
                            type="checkbox"
                            checked="@showInactiveWorkers"
@@ -31,7 +84,7 @@
                     <label class="form-check-label" for="showInactive">
                         Show Inactive Workers
                     </label>
-                </div>
+                </div> *@
             </div>
             <div class="card-body">
                 @if (filteredWorkers.Any())
@@ -189,7 +242,31 @@ else
     private List<Worker> workers = new();
     private List<Worker> filteredWorkers = new();
     private bool showInactiveWorkers = false;
+    
+    private List<Directorate> directorates = new();
+    private int selectedDirectorateId = 0;
 
+    private int SelectedDirectorateId
+    {
+        get => selectedDirectorateId;
+        set
+        {
+            selectedDirectorateId = value;
+            ApplyFilter();
+        }
+    }
+
+    private string searchText = "";
+
+    private string SearchText
+    {
+        get => searchText;
+        set
+        {
+            searchText = value;
+            ApplyFilter();
+        }
+    }
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -200,7 +277,9 @@ else
         try
         {
             workers = await WorkerService.GetAllWorkersAsync();
+            directorates = await WorkerService.GetDirectoratesAsync();
             ApplyFilter();
+           
         }
         catch (Exception ex)
         {
@@ -210,28 +289,57 @@ else
 
     private void ApplyFilter()
     {
-        if (showInactiveWorkers)
+        IEnumerable<Worker> query = workers;
+
+        // =========================
+        // 1. SEARCH (NAME + WORKER ID)
+        // =========================
+        if (!string.IsNullOrWhiteSpace(searchText))
         {
-            filteredWorkers = workers
-                .OrderBy(w => w.Directorate != null ? w.Directorate.Name : "ZZZ")
-                .ThenBy(w => w.Department != null ? w.Department.Name : "ZZZ")
-                .ThenBy(w => w.LastName)
-                .ThenBy(w => w.FirstName)
-                .ToList();
+            var text = searchText.ToLower();
+
+            query = query.Where(w =>
+                (w.FirstName + " " + w.MiddleName + " " + w.LastName).ToLower().Contains(text)
+                || (w.WorkerId ?? "").ToLower().Contains(text)
+            );
         }
-        else
+
+        // =========================
+        // 2. DIRECTORATE FILTER
+        // =========================
+        if (selectedDirectorateId > 0)
         {
-            filteredWorkers = workers
-                .Where(w => w.IsActive)
-                .OrderBy(w => w.Directorate != null ? w.Directorate.Name : "ZZZ")
-                .ThenBy(w => w.Department != null ? w.Department.Name : "ZZZ")
-                .ThenBy(w => w.LastName)
-                .ThenBy(w => w.FirstName)
-                .ToList();
+            query = query.Where(w => w.DirectorateId == selectedDirectorateId);
         }
+
+        // =========================
+        // 3. ACTIVE / INACTIVE FILTER
+        // =========================
+        if (!showInactiveWorkers)
+        {
+            query = query.Where(w => w.IsActive);
+        }
+
+        // =========================
+        // 4. CUSTOM WORKER ID SORT (P → D → W)
+        // =========================
+        query = query.OrderBy(w =>
+            w.WorkerId.StartsWith("P") ? 0 :
+            w.WorkerId.StartsWith("D") ? 1 :
+            w.WorkerId.StartsWith("W") ? 2 : 3
+        )
+        .ThenBy(w => w.WorkerId)
+        .ThenBy(w => w.Directorate != null ? w.Directorate.Name : "ZZZ")
+        .ThenBy(w => w.Department != null ? w.Department.Name : "ZZZ")
+        .ThenBy(w => w.LastName)
+        .ThenBy(w => w.FirstName);
+
+        filteredWorkers = query.ToList();
+
         StateHasChanged();
     }
-
+   
+   
     private int CalculateCompleteness(Worker worker)
     {
         var filledFields = 0;
@@ -296,6 +404,8 @@ else
         showInactiveWorkers = (bool)e.Value!;
         ApplyFilter();
     }
+
+
 }
 
 <style>
