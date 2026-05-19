@@ -522,7 +522,9 @@ else
     {
         try
         {
-            workers = await WorkerService.GetAllWorkersAsync();
+            workers = (await WorkerService.GetAllWorkersAsync())
+           .OrderByDescending(w => w.CreatedDate)
+           .ToList();
             directorates = await WorkerService.GetDirectoratesAsync();
             departments = await WorkerService.GetDepartmentsAsync();
             rolesFromDb = await RoleService.GetRolesAsync();
