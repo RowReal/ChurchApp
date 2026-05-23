@@ -245,10 +245,22 @@
                                     <div class="col-md-6">
                                         <label class="form-label small fw-semibold">Supervisor</label>
                                         <select @bind="workerModel.SupervisorId" class="form-select form-select-sm">
-                                            <option value="">Select</option>
-                                            @foreach (var w in workers.Where(w => w.Id != WorkerId))
+                                            <option value="">Select Supervisor</option>
+
+                                            @foreach (var w in workers.Where(w =>
+                                                                                w.Id != WorkerId &&
+                                                                                w.DirectorateId == workerModel.DirectorateId &&
+                                                                                (
+                                                                                w.Role == "Head of Directorate" ||
+                                                                                w.Role == "Asst Head of Directorate" ||
+                                                                                w.Role == "Head of Department"
+                                                                                ) &&
+                                                                                w.IsActive
+                                                                                ))
                                             {
-                                                <option value="@w.Id">@w.FirstName @w.LastName</option>
+                                                <option value="@w.Id">
+                                                    @w.FirstName @w.LastName - @w.Role
+                                                </option>
                                             }
                                         </select>
                                     </div>

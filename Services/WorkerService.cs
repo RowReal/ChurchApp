@@ -608,7 +608,7 @@ namespace ChurchApp.Services
                 var worker = await _context.Workers
                     .FirstOrDefaultAsync(w => w.WorkerId == workerId && w.IsActive);
 
-                if (worker != null && (string.IsNullOrEmpty(email) || worker.Email == email))
+                if (worker != null && (string.IsNullOrEmpty(email) || worker.Email.ToLower() == email.ToLower()))
                 {
                     var tempPassword = GenerateTemporaryPassword();
                     worker.PasswordHash = HashPassword(tempPassword);
@@ -647,7 +647,7 @@ namespace ChurchApp.Services
                 return new PasswordResetResult
                 {
                     Success = false,
-                    ErrorMessage = "Worker ID and email combination not found. Please check your details."
+                    ErrorMessage = "If your details are correct, a password reset email has been sent."
                 };
             }
             catch (Exception ex)

@@ -504,16 +504,23 @@
         if (worker == null) return false;
 
         var role = worker.Role?.ToLowerInvariant() ?? "";
-        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
 
-        // Only Head or Assistant Head of MEAT Directorate can access
-        var isHeadOfMEATDirectorate = role.Contains("head of directorate") &&
-                                     directorateName.Contains("meat");
+        // Any Head of Directorate
+        var isHeadOfDirectorate =
+            role.Contains("head of directorate");
 
-        var isAssistantHeadOfMEATDirectorate = role.Contains("asst head of directorate") &&
-                                              directorateName.Contains("meat");
+        // Any Assistant Head of Directorate
+        var isAssistantHeadOfDirectorate =
+            role.Contains("asst head of directorate") ||
+            role.Contains("assistant head of directorate");
 
-        return isHeadOfMEATDirectorate || isAssistantHeadOfMEATDirectorate;
+        // Pastor in Charge
+        var isPastorInCharge =
+            role.Contains("pastor in charge");
+
+        return isHeadOfDirectorate ||
+               isAssistantHeadOfDirectorate ||
+               isPastorInCharge;
     }
 
     // Update CanAccessServiceRecords to include MEAT heads
@@ -588,6 +595,7 @@
         return deptName.Contains("ushering") ||
                deptName.Contains("ushers") ||
                deptName.Contains("greeters") ||
+               deptName.Contains("MAT") ||
                deptName.Contains("hospitality");
     }
 

@@ -203,17 +203,27 @@ else
                     </div>
 
                     <!-- Additional Notes in RED -->
-                    <div class="mt-4 pt-3 border-top">
-                        <label class="form-label text-muted small mb-1">Additional Notes</label>
-                        @if (!string.IsNullOrEmpty(serviceNote.AdditionalNotes))
-                        {
-                            <p class="mb-0 small text-danger">@serviceNote.AdditionalNotes</p>
-                        }
-                        else
-                        {
-                            <p class="mb-0 small text-muted">No additional notes</p>
-                        }
-                    </div>
+                    @if (CanViewPastorInformation())
+                    {
+                        <div class="mt-4 pt-3 border-top">
+                            <label class="form-label text-muted small mb-1">
+                                Pastor Information Only
+                            </label>
+
+                            @if (!string.IsNullOrEmpty(serviceNote.AdditionalNotes))
+                            {
+                                <p class="mb-0 small text-danger">
+                                    @serviceNote.AdditionalNotes
+                                </p>
+                            }
+                            else
+                            {
+                                <p class="mb-0 small text-muted">
+                                    No pastor information available
+                                </p>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -247,7 +257,33 @@ else
             return false;
         return serviceNote.RecordedByWorkerId == AuthService.CurrentWorker.Id;
     }
+    private bool CanViewPastorInformation()
+    {
+        var worker = AuthService.CurrentWorker;
 
+        if (worker == null)
+            return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+        var directorate = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+
+        // Head of MEAT Directorate
+        bool isHead =
+            role.Contains("head of directorate") &&
+            directorate.Contains("meat");
+
+        // Assistant Head of MEAT Directorate
+        bool isAssistant =
+            (role.Contains("asst head of directorate") ||
+             role.Contains("assistant head of directorate"))
+            && directorate.Contains("meat");
+
+        // Pastor in Charge
+        bool isPastor =
+            role.Contains("pastor in charge");
+
+        return isHead || isAssistant || isPastor;
+    }
     private void EditNote()
     {
         Navigation.NavigateTo($"/Offering/editnote/{Id}");

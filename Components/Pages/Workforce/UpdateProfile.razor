@@ -4,6 +4,7 @@
 @using ChurchApp.Models
 @using System.ComponentModel.DataAnnotations
 @inject WorkforceService WorkforceService
+@inject WorkerService WorkerService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject IWebHostEnvironment Environment
@@ -695,31 +696,60 @@ else
         }
     }
 
-    private async Task DetermineApproverInfo()
-    {
-        if (worker != null)
-        {
-            var highLevelRoles = new[] { 
-                "Head of Directorate", 
-                "Head of Service", 
-                "Assistant Head of Service", 
-                "Pastor in Charge" 
-            };
+   private async Task DetermineApproverInfo()
+{
+    if (worker == null)
+        return;
 
-            if (highLevelRoles.Contains(worker.Role))
+    try
+    {
+        // High level roles approve directly through MEAT
+        var highLevelRoles = new[]
+        {
+            "Head of Directorate",
+            "Head of Service",
+            "Assistant Head of Service",
+            "Pastor in Charge"
+        };
+
+        // If current worker is already leadership
+        if (highLevelRoles.Contains(worker.Role))
+        {
+            approverInfo = "Head of Directorate of MEAT";
+            return;
+        }
+
+        // If worker has a directorate
+        if (worker.DirectorateId.HasValue)
+        {
+            // Get all workers
+            var allWorkers = await WorkerService.GetAllWorkersAsync();
+
+            // Find ONLY Head of Directorate in same directorate
+            var hod = allWorkers.FirstOrDefault(w =>
+                w.DirectorateId == worker.DirectorateId &&
+                w.Role == "Head of Directorate");
+
+            if (hod != null)
             {
-                approverInfo = "Head of Directorate of MEAT";
-            }
-            else if (worker.Directorate != null)
-            {
-                approverInfo = $"Head of {worker.Directorate.Name} Directorate";
+                approverInfo = $"{hod.FirstName} {hod.LastName} (Head of {worker.Directorate?.Name} Directorate)";
             }
             else
             {
-                approverInfo = "System Administrator";
+                approverInfo = $"No Head of Directorate assigned for {worker.Directorate?.Name}";
             }
         }
+        else
+        {
+            approverInfo = "System Administrator";
+        }
     }
+    catch (Exception ex)
+    {
+        approverInfo = "Unable to determine approver";
+        Console.WriteLine(ex.Message);
+    }
+}
 
     private async Task SubmitForApproval()
     {
