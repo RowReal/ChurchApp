@@ -46,7 +46,7 @@
         <!-- Sidebar - Only show when authenticated -->
         @if (AuthService.IsAuthenticated)
         {
-            <Sidebar />
+            <Sidebar IsVisible="@isSidebarVisible" />
         }
 
         <!-- Main Content Area -->

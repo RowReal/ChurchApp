@@ -6,9 +6,10 @@
 @inject OfferingService OfferingService
 @inject AttendanceService AttendanceService
 
+
 @if (AuthService.IsAuthenticated)
 {
-    <div class="bcc-sidebar">
+    <div class="bcc-sidebar @(IsVisible ? "show" : "")">
         <div class="bcc-sidebar-content">
             <nav class="bcc-nav-menu">
                 <!-- Dashboard -->
@@ -433,6 +434,8 @@
 }
 
 @code {
+    [Parameter]
+    public bool IsVisible { get; set; }
     private bool showSetupMenu = false;
     private bool showWorkforceMenu = false;
     private bool showExcuseMenu = false;
