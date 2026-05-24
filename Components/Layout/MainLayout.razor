@@ -36,9 +36,12 @@
             }
         </div>
 
-        <button class="bcc-navbar-toggler" @onclick="ToggleSidebar">
-            <i class="fas fa-bars"></i>
-        </button>
+        @if (AuthService.IsAuthenticated)
+        {
+            <button type="button" class="bcc-navbar-toggler" @onclick="ToggleSidebar">
+                ☰
+            </button>
+        }
     </div>
 
     <!-- Main Layout Container -->
@@ -65,9 +68,10 @@
 @code {
     private bool isSidebarVisible = false;
 
-    private void ToggleSidebar()
+    private async Task ToggleSidebar()
     {
         isSidebarVisible = !isSidebarVisible;
+        await InvokeAsync(StateHasChanged);
     }
 
     private void SignOut()
