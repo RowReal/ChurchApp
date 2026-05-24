@@ -22,28 +22,43 @@ html, body {
 }
 
 /* ===== FIXED LAYOUT STRUCTURE ===== */
-.bcc-layout-container {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
+/* =========================
+   BASE LAYOUT
+========================= */
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow-x: hidden;
 }
 
-/* Fixed Top Navbar - UPDATED WITH PURPLE ACCENTS */
+:root {
+    --primary: #f8f9fa;
+    --text: #212529;
+    --purple: #6f42c1;
+    --purple-dark: #59359a;
+    --border: #dee2e6;
+}
+
+/* =========================
+   TOP NAVBAR
+========================= */
+
 .bcc-top-navbar {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     height: 70px;
-    background: var(--bcc-primary); /* Off-white */
-    color: var(--bcc-dark); /* Dark text */
+    background: var(--primary);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 1.5rem;
     z-index: 1000;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border-bottom: 1px solid #dee2e6; /* Light border */
+    border-bottom: 1px solid var(--border);
 }
 
 .bcc-navbar-brand {
@@ -52,252 +67,201 @@ html, body {
     gap: 1rem;
 }
 
-/* UPDATED: Logo with dark purple background */
 .bcc-church-logo {
-    background-color: var(--bcc-dark-purple); /* CHANGED: Dark purple */
+    background: var(--purple-dark);
     padding: 8px 12px;
     border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .bcc-logo-img {
     height: 35px;
-    width: auto;
-    /*filter: brightness(0) invert(1);*/ /* Makes logo white on purple */
 }
 
-/* UPDATED: Purple brand text */
 .bcc-brand-text {
+    color: var(--purple);
     font-weight: 600;
-    font-size: 1.2rem;
-    color: var(--bcc-purple); /* CHANGED: Purple color */
 }
 
-.bcc-navbar-user {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
+/* =========================
+   MAIN LAYOUT
+========================= */
 
-.bcc-user-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-}
-
-/* UPDATED: Purple user name */
-.bcc-user-name {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--bcc-purple); /* CHANGED: Purple color */
-}
-
-.bcc-user-role {
-    font-size: 0.8rem;
-    color: #6c757d; /* Grey text for role */
-}
-
-.bcc-btn-signout {
-    background: none;
-    border: 1px solid #dee2e6; /* Light grey border */
-    color: var(--bcc-dark); /* Dark text */
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-}
-
-    .bcc-btn-signout:hover {
-        background: #e9ecef; /* Light grey on hover */
-        color: var(--bcc-dark);
-    }
-
-.bcc-navbar-toggler {
-    background: none;
-    border: none;
-    color: var(--bcc-dark); /* Dark icon */
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 0.5rem;
-    display: none;
-}
-
-/* Main Container */
 .bcc-main-container {
     display: flex;
     margin-top: 70px;
     min-height: calc(100vh - 70px);
-    width: 100%;
 }
 
-/* Sidebar - UPDATED WITH PURPLE ICONS */
+/* =========================
+   SIDEBAR (DESKTOP DEFAULT)
+========================= */
+
 .bcc-sidebar {
     width: 280px;
-    background: var(--bcc-primary); /* Off-white */
-    color: var(--bcc-dark); /* Dark text */
-    transition: transform 0.3s ease;
-    overflow-y: auto;
+    background: var(--primary);
+    border-right: 1px solid var(--border);
     position: fixed;
-    left: 0;
     top: 70px;
+    left: 0;
     bottom: 0;
-    z-index: 999;
-    transform: translateX(0);
-    border-right: 1px solid #dee2e6; /* Light border */
-}
-
-.bcc-sidebar-hidden {
-    transform: translateX(-100%);
-}
-
-.bcc-sidebar-visible {
+    overflow-y: auto;
+    transition: transform 0.3s ease;
     transform: translateX(0);
 }
 
-.bcc-sidebar-content {
-    padding: 1rem 0;
-    height: 100%;
-}
-
-.bcc-nav-menu {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0 1rem;
-}
-
-.bcc-nav-item, .bcc-nav-section-header {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    color: var(--bcc-dark); /* Dark text */
-    text-decoration: none;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-    .bcc-nav-item:hover, .bcc-nav-section-header:hover {
-        background: #e9ecef; /* Light grey on hover */
-        color: var(--bcc-dark);
+    .bcc-sidebar.show {
+        transform: translateX(0);
     }
 
-/* UPDATED: Purple icons like in the reference site */
-.bcc-nav-icon {
-    width: 24px; /* Slightly larger */
-    margin-right: 0.75rem;
-    text-align: center;
-    color: var(--bcc-purple); /* CHANGED: Purple icons */
-    font-size: 1.1rem;
-}
+/* =========================
+   MAIN CONTENT
+========================= */
 
-    /* ADDED: Specific icon colors like reference site */
-    .bcc-nav-icon.fa-tachometer-alt {
-        color: var(--bcc-purple);
-    }
-
-    .bcc-nav-icon.fa-users {
-        color: #17a2b8;
-    }
-    /* Teal for Workforce */
-    .bcc-nav-icon.fa-calendar-times {
-        color: #ffc107;
-    }
-    /* Yellow for Permission */
-    .bcc-nav-icon.fa-hands-helping {
-        color: #dc3545;
-    }
-    /* Red for Ushering */
-    .bcc-nav-icon.fa-chart-bar {
-        color: #28a745;
-    }
-    /* Green for Reports */
-    .bcc-nav-icon.fa-chart-pie {
-        color: #6f42c1;
-    }
-    /* Purple for Budget */
-    .bcc-nav-icon.fa-money-check {
-        color: #20c997;
-    }
-    /* Teal for Remittance */
-    .bcc-nav-icon.fa-cogs {
-        color: #6c757d;
-    }
-/* Grey for Setup */
-
-.bcc-nav-text {
-    flex: 1;
-    font-weight: 500;
-    color: var(--bcc-dark); /* Dark text */
-    font-size: 0.95rem;
-}
-
-.bcc-nav-chevron {
-    font-size: 0.8rem;
-    color: #6c757d; /* Grey chevron */
-}
-
-.bcc-nav-submenu {
-    margin-left: 1rem;
-    padding-left: 1rem;
-    border-left: 2px solid #dee2e6; /* Light grey border */
-}
-
-.bcc-nav-subitem {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    color: #495057; /* Dark grey text */
-    text-decoration: none;
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-}
-
-    .bcc-nav-subitem:hover {
-        background: #e9ecef; /* Light grey on hover */
-        color: var(--bcc-dark);
-    }
-
-/* UPDATED: Purple badge */
-.bcc-nav-badge {
-    background: var(--bcc-purple); /* CHANGED: Purple badge */
-    color: white;
-    border-radius: 10px;
-    padding: 2px 6px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    min-width: 18px;
-    text-align: center;
-    margin-left: auto;
-}
-
-/* Main Content Area - FIXED: No more hidden content */
 .bcc-main-content {
     flex: 1;
     margin-left: 280px;
     padding: 1.5rem;
     background: #f8f9fa;
     min-height: calc(100vh - 70px);
-    overflow-y: auto;
     transition: margin-left 0.3s ease;
 }
 
-/* Mobile Backdrop */
-.bcc-sidebar-backdrop {
-    position: fixed;
-    top: 70px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 998;
-    display: none;
+.bcc-full-width {
+    margin-left: 0 !important;
 }
 
+/* =========================
+   SIDEBAR ITEMS
+========================= */
+
+.bcc-nav-menu {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.bcc-nav-item,
+.bcc-nav-section-header,
+.bcc-nav-subitem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text);
+    cursor: pointer;
+}
+
+    .bcc-nav-item:hover,
+    .bcc-nav-section-header:hover,
+    .bcc-nav-subitem:hover {
+        background: #e9ecef;
+    }
+
+.bcc-nav-text {
+    font-weight: 500;
+}
+
+/* =========================
+   ICONS
+========================= */
+
+.bcc-nav-icon-container {
+    width: 28px;
+    display: flex;
+    justify-content: center;
+}
+
+.bcc-nav-emoji {
+    font-size: 1.2rem;
+}
+
+/* =========================
+   BADGES
+========================= */
+
+.bcc-nav-badge {
+    background: var(--purple);
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: auto;
+}
+
+/* =========================
+   BACKDROP
+========================= */
+
+.bcc-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1040;
+}
+
+/* =========================
+   MOBILE BEHAVIOR (CRITICAL FIX)
+========================= */
+
+@media (max-width: 768px) {
+
+    /* Sidebar starts hidden */
+    .bcc-sidebar {
+        transform: translateX(-100%);
+        position: fixed;
+        top: 70px;
+        left: 0;
+        width: 280px;
+        height: calc(100vh - 70px);
+        z-index: 1050;
+    }
+
+        /* ONLY this class opens it */
+        .bcc-sidebar.show {
+            transform: translateX(0) !important;
+        }
+
+    /* Content takes full width */
+    .bcc-main-content {
+        margin-left: 0 !important;
+        padding: 1rem;
+    }
+
+    /* Backdrop appears */
+    .bcc-sidebar-backdrop {
+        display: block;
+    }
+
+    /* Hide user info on mobile */
+    .bcc-user-info {
+        display: none;
+    }
+
+    .bcc-navbar-toggler {
+        display: block;
+        background: none;
+        border: none;
+        font-size: 24px;
+    }
+}
+
+/* =========================
+   DESKTOP RULES
+========================= */
+
+@media (min-width: 769px) {
+    .bcc-navbar-toggler {
+        display: none;
+    }
+
+    .bcc-sidebar-backdrop {
+        display: none !important;
+    }
+}
 /* ===== DASHBOARD STYLES ===== */
 .bcc-welcome-card {
     background: white;
@@ -526,48 +490,7 @@ html, body {
     }
 
 /* ===== RESPONSIVE DESIGN ===== */
-@media (max-width: 768px) {
-    .bcc-navbar-toggler {
-        display: block;
-    }
 
-    .bcc-user-info {
-        display: none;
-    }
-
-    .bcc-sidebar {
-        transform: translateX(-100%);
-        width: 280px;
-    }
-
-    .bcc-sidebar-visible {
-        transform: translateX(0);
-    }
-
-    .bcc-main-content {
-        margin-left: 0 !important;
-        width: 100%;
-        padding: 1rem;
-    }
-
-    .bcc-sidebar-backdrop {
-        display: block;
-    }
-
-    /* Dashboard mobile optimizations */
-    .bcc-action-text {
-        font-size: 0.7rem;
-    }
-
-    .bcc-stat-card .card-body {
-        padding: 1rem 0.5rem;
-    }
-
-    .container-fluid {
-        padding-left: 10px;
-        padding-right: 10px;
-    }
-}
 
 @media (min-width: 769px) {
     .bcc-navbar-toggler {
@@ -890,44 +813,6 @@ html, body {
     border-left: 4px solid #6c757d;
 }
 
-/* Responsive design */
-@@media (max-width: 768px) {
-    .view-detail-btn::after,
-    .respond-btn::after {
-        display: none; /* Hide tooltips on mobile */
-    }
-}
-
-@media (max-width: 768px) {
-
-    .bcc-sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 280px;
-        height: 100vh;
-        background: white;
-        z-index: 1050;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-        overflow-y: auto;
-    }
-
-        .bcc-sidebar.show {
-            transform: translateX(0);
-        }
-}
-.bcc-sidebar-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 1040;
-}
-.bcc-top-navbar {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-}
 .bcc-navbar-toggler {
     background: none;
     border: none;
