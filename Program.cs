@@ -3,13 +3,13 @@ using ChurchApp.Data;
 using ChurchApp.Models;
 using ChurchApp.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-
 
 
 // 1?? Determine dbPath and optional seed (your existing code)
@@ -47,7 +47,6 @@ builder.Services.AddScoped<WorkerService>(provider =>
     return new WorkerService(context, auditService, authService);
 });
 
-
 builder.Services.AddScoped<DataSeederService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AuditService>();
@@ -72,6 +71,8 @@ builder.Services.AddScoped<ExcuseService>();
 builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
+
+
 // APPLY EF CORE MIGRATIONS AUTOMATICALLY
 using (var scope = app.Services.CreateScope())
 {
@@ -95,15 +96,36 @@ else
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
-app.UseStaticFiles();
 
-// Create uploads directory
-var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads");
+// ==============================
+// ✅ FIXED UPLOAD PATH (IMPORTANT)
+// ==============================
+string uploadsPath;
+
+if (app.Environment.IsDevelopment())
+{
+    uploadsPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads");
+}
+else
+{
+    uploadsPath = "/var/data/uploads";
+}
+
 if (!Directory.Exists(uploadsPath))
 {
     Directory.CreateDirectory(uploadsPath);
 }
+
+app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+
+// Serve uploads from SAME folder we write to
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
+});
 
 app.UseAntiforgery();
 
@@ -116,20 +138,5 @@ using (var scope = app.Services.CreateScope())
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
-
-
-//using (var scope = app.Services.CreateScope())
-//{
-//    var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
-
-//    await emailService.SendEmailAsync(new EmailMessage
-//    {
-//        ToEmail = "row_real@yahoo.com",
-//        ToName = "Test",
-//        Subject = "ChurchApp Gmail Test",
-//        Body = "<h3>Email is working successfully 🎉</h3>",
-//        IsHtml = true
-//    });
-//}
 
 app.Run();

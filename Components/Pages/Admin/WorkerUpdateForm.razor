@@ -657,6 +657,13 @@ else
     private string workerInTrainingPath = string.Empty;
     private string sodPath = string.Empty;
     private string bibleCollegePath = string.Empty;
+    private string GetUploadsFolder()
+    {
+        if (Environment.IsDevelopment())
+            return Path.Combine(Environment.WebRootPath, "uploads");
+
+        return "/var/data/uploads";
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -960,7 +967,9 @@ else
             }
 
             // Create uploads directory
-            var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
+            // var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
+            var uploadsDir = GetUploadsFolder();
+            Console.WriteLine($"UPLOADING TO: {uploadsDir}");
 
             if (!Directory.Exists(uploadsDir))
                 Directory.CreateDirectory(uploadsDir);
@@ -1013,7 +1022,9 @@ else
 
                 if (allowedExtensions.Contains(fileExtension))
                 {
-                    var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
+                    // var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
+                    var uploadsDir = GetUploadsFolder();
+                    Console.WriteLine($"UPLOADING TO: {uploadsDir}");
                     if (!Directory.Exists(uploadsDir))
                         Directory.CreateDirectory(uploadsDir);
 

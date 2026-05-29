@@ -127,6 +127,21 @@
 
                                 <InputFile OnChange="OnPassportPhotoChanged"
                                            class="form-control" />
+                                @if (isUploading)
+                                {
+                                    <div class="mt-2">
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                                 role="progressbar"
+                                                 style="width:@uploadProgress%">
+                                            </div>
+                                        </div>
+
+                                        <small class="text-muted">
+                                            Uploading... @uploadProgress%
+                                        </small>
+                                    </div>
+                                }
 
                                 @if (!string.IsNullOrEmpty(uploadedPassportName))
                                 {
@@ -220,15 +235,27 @@
                                             <div class="d-flex align-items-center">
 
                                                 <!-- BLUE ROUND CIRCLE -->
-                                                <div class="bg-primary text-white rounded-circle
-                                                                                d-flex align-items-center justify-content-center me-3"
-                                                     style="width:40px;height:40px;
-                                                                                font-size:0.9rem;
-                                                                                font-weight:600;">
+                                                @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
+                                                {
+                                                    <img src="@($"/uploads/{worker.PassportPhotoPath}")"
+                                                         style="width:40px;height:40px;
+                                object-fit:cover;
+                                border-radius:50%;
+                                border:1px solid #ddd;"
+                                                         class="me-3" />
+                                                }
+                                                else
+                                                {
+                                                    <div class="bg-primary text-white rounded-circle
+                                d-flex align-items-center justify-content-center me-3"
+                                                         style="width:40px;height:40px;
+                                font-size:0.9rem;
+                                font-weight:600;">
 
-                                                    @GetInitials(worker.FirstName, worker.LastName)
+                                                        @GetInitials(worker.FirstName, worker.LastName)
 
-                                                </div>
+                                                    </div>
+                                                }
 
                                                 <div>
                                                     <div class="fw-semibold text-dark">
@@ -373,6 +400,8 @@ else
     private string successMessage = "";
     private string? uploadedPassportPreview;
     private string? uploadedPassportName;
+    private int uploadProgress = 0;
+    private bool isUploading = false;
 
     // protected override async Task OnInitializedAsync()
     // {
@@ -469,7 +498,6 @@ else
             return;
 
         var ext = Path.GetExtension(file.Name).ToLower();
-
         var allowed = new[] { ".jpg", ".jpeg", ".png" };
 
         if (!allowed.Contains(ext))
@@ -478,28 +506,59 @@ else
             return;
         }
 
-        var folder = Path.Combine(Environment.WebRootPath, "uploads");
+        var folder = Path.Combine(
+            Environment.IsDevelopment()
+                ? Path.Combine(Environment.ContentRootPath, "wwwroot", "uploads")
+                : "/var/data/uploads"
+        );
 
         if (!Directory.Exists(folder))
             Directory.CreateDirectory(folder);
 
         var fileName = $"{Guid.NewGuid()}{ext}";
-
         var path = Path.Combine(folder, fileName);
 
-        using var stream = new FileStream(path, FileMode.Create);
+        try
+        {
+            isUploading = true;
+            uploadProgress = 10;
+            StateHasChanged();
 
-        await file.OpenReadStream(2 * 1024 * 1024)
-            .CopyToAsync(stream);
+            using var stream = new FileStream(path, FileMode.Create);
 
-        // Save to database
-        newWorker.PassportPhotoPath = fileName;
+            var buffer = new byte[1024 * 32];
+            var readStream = file.OpenReadStream(5 * 1024 * 1024);
 
-        // Preview image
-        uploadedPassportPreview = $"/uploads/{fileName}";
+            int bytesRead;
+            long totalRead = 0;
+            long totalSize = file.Size;
 
-        // Show file name
-        uploadedPassportName = file.Name;
+            while ((bytesRead = await readStream.ReadAsync(buffer)) > 0)
+            {
+                await stream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                totalRead += bytesRead;
+
+                uploadProgress = (int)((totalRead * 100) / totalSize);
+                StateHasChanged();
+            }
+
+            newWorker.PassportPhotoPath = fileName;
+            uploadedPassportPreview = $"/uploads/{fileName}";
+            uploadedPassportName = file.Name;
+
+            uploadProgress = 100;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Upload failed: {ex.Message}";
+        }
+        finally
+        {
+            isUploading = false;
+            await Task.Delay(500); // small pause so user sees 100%
+            uploadProgress = 0;
+            StateHasChanged();
+        }
     }
 
     // ---------------- UI HELPERS ----------------
@@ -509,6 +568,8 @@ else
         showCreateForm = true;
         errorMessage = "";
         successMessage = "";
+        uploadedPassportPreview = null;
+        uploadedPassportName = null;
     }
 
     private void CancelCreate()
@@ -517,6 +578,8 @@ else
         newWorker = new CreateWorkerModel();
         selectedDirectorateId = 0;
         filteredDepartments = new();
+        uploadedPassportPreview = null;
+        uploadedPassportName = null;
     }
     private async Task LoadData()
     {
