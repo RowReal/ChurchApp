@@ -824,4 +824,76 @@ html, body {
     .bcc-navbar-toggler {
         display: none;
     }
-}
+
+
+    .bcc-user-header {
+        display: flex;
+        flex-direction: column; /* stacks items vertically */
+        align-items: flex-end; /* pushes everything to the right */
+    }
+
+    /* User info block */
+    .bcc-user-info {
+        text-align: right;
+        margin-bottom: 4px;
+    }
+
+    /* Sign out button */
+    .bcc-btn-signout {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #fff;
+        color: #dc3545;
+        border: 1px solid #dc3545;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all .2s ease;
+    }
+
+        .bcc-btn-signout:hover {
+            background: #dc3545;
+            color: #fff;
+        }
+
+        .bcc-btn-signout i {
+            font-size: 0.8rem;
+        }
+
+    .worker-card {
+        background: #fff;
+        border: 1px solid #eee;
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .worker-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .worker-avatar-fallback {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: #0d6efd;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+    }
+
+    .worker-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 1px dashed #eee;
+        font-size: 0.85rem;
+    }

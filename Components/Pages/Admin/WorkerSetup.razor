@@ -209,7 +209,7 @@
 
                 @if (workers.Any())
                 {
-                    <div class="table-responsive">
+                    <div class="table-responsive desktop-table">
 
                         <table class="table table-hover mb-0">
 
@@ -354,6 +354,90 @@
                         </table>
 
                     </div>
+                    <!-- ================= MOBILE CARDS ================= -->
+                    <div class="mobile-cards">
+
+    @foreach (var worker in workers)
+    {
+        var completeness = CalculateCompleteness(worker);
+        var displayStatus = GetDisplayStatus(completeness);
+
+        <div class="worker-card">
+
+            <!-- TOP: IMAGE + NAME -->
+            <div class="d-flex align-items-center mb-2">
+
+                @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
+                {
+                    <img src="/uploads/@(worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath)"
+                         class="worker-avatar me-2"
+                         loading="lazy" />
+                }
+                else
+                {
+                    <div class="worker-avatar-fallback me-2">
+                        @GetInitials(worker.FirstName, worker.LastName)
+                    </div>
+                }
+
+                <div>
+                    <div class="fw-semibold">
+                        @worker.FirstName @worker.LastName
+                    </div>
+                    <small class="text-muted">
+                        @worker.WorkerId
+                    </small>
+                </div>
+
+            </div>
+
+            <!-- INFO -->
+            <div class="worker-info">
+
+                <div class="worker-row">
+                    <span>Email</span>
+                    <span>@(worker.Email ?? "N/A")</span>
+                </div>
+
+                <div class="worker-row">
+                    <span>Phone</span>
+                    <span>@(worker.Phone ?? "N/A")</span>
+                </div>
+
+                <div class="worker-row">
+                    <span>Dept</span>
+                    <span>@(worker.Department?.Name ?? "N/A")</span>
+                </div>
+
+                <div class="worker-row">
+                    <span>Role</span>
+                    <span class="badge bg-secondary">@worker.Role</span>
+                </div>
+
+                <div class="worker-row">
+                    <span>Status</span>
+                    <span class="badge @GetStatusBadgeClass(displayStatus)">
+                        @displayStatus
+                    </span>
+                </div>
+
+                <div class="worker-row">
+                    <span>Profile</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="progress flex-grow-1" style="height:6px;">
+                            <div class="progress-bar @GetCompletenessClass(completeness)"
+                                 style="width:@completeness%"></div>
+                        </div>
+                        <small>@completeness%</small>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    }
+
+</div>
                 }
                 else
                 {

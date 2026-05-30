@@ -18,14 +18,23 @@
         <div class="bcc-navbar-user">
             @if (AuthService.IsAuthenticated)
             {
-                <div class="bcc-user-info">
-                    <span class="bcc-user-name">@AuthService.CurrentWorker?.FirstName @AuthService.CurrentWorker?.LastName</span>
-                    <span class="bcc-user-role">@AuthService.CurrentWorker?.Role</span>
+                <div class="bcc-user-header">
+
+                    <div class="bcc-user-info">
+                        <span class="bcc-user-name">
+                            @AuthService.CurrentWorker?.FirstName @AuthService.CurrentWorker?.LastName
+                        </span>
+                        <span class="bcc-user-role">
+                            @AuthService.CurrentWorker?.Role
+                        </span>
+                    </div>
+
+                    <button class="bcc-btn-signout" @onclick="SignOut">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Sign Out</span>
+                    </button>
+
                 </div>
-                <button class="bcc-btn-signout" @onclick="SignOut">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Sign Out
-                </button>
             }
             else
             {
