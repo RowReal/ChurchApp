@@ -340,26 +340,45 @@
         ApplyFilter();
     }
 
-    private void ApplyFilter()
+   private void ApplyFilter()
+{
+    IEnumerable<Worker> query = workers;
+
+    // SEARCH FILTER
+    if (!string.IsNullOrWhiteSpace(searchText))
     {
-        IEnumerable<Worker> query = workers;
+        var text = searchText.ToLower();
 
-        if (!string.IsNullOrWhiteSpace(searchText))
-        {
-            var text = searchText.ToLower();
-            query = query.Where(w =>
-                ($"{w.FirstName} {w.MiddleName} {w.LastName}").ToLower().Contains(text)
-                || (w.WorkerId ?? "").ToLower().Contains(text));
-        }
-
-        if (selectedDirectorateId > 0)
-            query = query.Where(w => w.DirectorateId == selectedDirectorateId);
-
-        if (!showInactiveWorkers)
-            query = query.Where(w => w.IsActive);
-
-        filteredWorkers = query.ToList();
+        query = query.Where(w =>
+            ($"{w.FirstName} {w.MiddleName} {w.LastName}")
+                .ToLower()
+                .Contains(text)
+            || (w.WorkerId ?? "").ToLower().Contains(text));
     }
+
+    // DIRECTORATE FILTER
+    if (selectedDirectorateId > 0)
+        query = query.Where(w => w.DirectorateId == selectedDirectorateId);
+
+    // ACTIVE FILTER
+    if (!showInactiveWorkers)
+        query = query.Where(w => w.IsActive);
+
+    // ✅ SORTING (P → C → D → W → others, then numeric order)
+    query = query
+        .OrderBy(w => GetWorkerPriority(w.WorkerId))
+        .ThenBy(w =>
+        {
+            var id = w.WorkerId ?? "";
+            var digits = new string(id.Where(char.IsDigit).ToArray());
+
+            return int.TryParse(digits, out var num)
+                ? num
+                : int.MaxValue;
+        });
+
+    filteredWorkers = query.ToList();
+}
 
     private void ToggleInactiveWorkers(ChangeEventArgs e)
     {
@@ -480,5 +499,19 @@ private string GetBccAge(Worker worker)
 
     var years = totalDays / 365;
     return $"{Math.Floor(years)} years in BCC";
+}
+private int GetWorkerPriority(string? workerId)
+{
+    if (string.IsNullOrWhiteSpace(workerId))
+        return 99;
+
+    workerId = workerId.Trim().ToUpper();
+
+    if (workerId.StartsWith("P")) return 1;
+    if (workerId.StartsWith("C")) return 2;
+    if (workerId.StartsWith("D")) return 3;
+    if (workerId.StartsWith("W")) return 4;
+
+    return 99;
 }
 }
