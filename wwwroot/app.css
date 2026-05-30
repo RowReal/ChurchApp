@@ -1,4 +1,4 @@
-html, body {
+﻿html, body {
     height: 100%;
     margin: 0;
     padding: 0;
@@ -896,4 +896,48 @@ html, body {
         padding: 6px 0;
         border-bottom: 1px dashed #eee;
         font-size: 0.85rem;
+    }
+
+
+    .modal-backdrop-custom {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+    }
+
+    .modal-content-custom {
+        position: relative;
+        background: white;
+        padding: 10px;
+        border-radius: 10px;
+        max-width: 600px;
+        width: 90%;
+    }
+
+    .modal-backdrop-custom {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999; /* 👈 IMPORTANT */
+    }
+
+    .modal-content-custom {
+        position: relative;
+        background: white;
+        padding: 10px;
+        border-radius: 10px;
+        max-width: 90%;
     }

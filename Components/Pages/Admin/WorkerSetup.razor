@@ -4,15 +4,13 @@
 @using ChurchApp.Services
 @using ChurchApp.Models
 @using System.ComponentModel.DataAnnotations
-@using SixLabors.ImageSharp;
-@using SixLabors.ImageSharp.Processing;
-@using SixLabors.ImageSharp.Formats.Jpeg;
+@using SixLabors.ImageSharp
+@using SixLabors.ImageSharp.Processing
+@using SixLabors.ImageSharp.Formats.Jpeg
+
 @inject WorkerService WorkerService
 @inject RoleService RoleService
 @inject AuthService AuthService
-@inject NavigationManager Navigation
-@inject EmailService EmailService
-@inject ImageOptimizationService imageOptimizationService
 @inject IWebHostEnvironment Environment
 
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
@@ -22,447 +20,151 @@
     <div class="container-fluid py-4">
 
         <!-- HEADER -->
-        <div class="d-flex justify-content-between mb-3">
-            <h3 class="text-primary">Worker Setup</h3>
-
-            <button class="btn btn-primary" @onclick="ShowCreateForm">
-                + Add New Worker
-            </button>
+        <div class="mb-3">
+            <h3 class="text-primary">Create Worker</h3>
+            <p class="text-muted">Add a new worker to the system</p>
         </div>
-      
-        <!-- CREATE FORM -->
-        @if (showCreateForm)
-        {
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
 
-                    <EditForm Model="@newWorker" OnValidSubmit="CreateWorker">
-                        <DataAnnotationsValidator />
-                        <ValidationSummary />
+        <!-- CREATE FORM (ALWAYS VISIBLE) -->
+        <div class="card shadow-sm">
+            <div class="card-body">
 
-                        <div class="row">
+                <EditForm Model="@newWorker" OnValidSubmit="CreateWorker">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
 
-                            <!-- Worker ID -->
-                            <div class="col-md-4 mb-2">
-                                <label>Worker ID</label>
-                                <InputText class="form-control" @bind-Value="newWorker.WorkerId" />
-                            </div>
+                    <div class="row">
 
-                            <!-- First Name -->
-                            <div class="col-md-4 mb-2">
-                                <label>First Name</label>
-                                <InputText class="form-control" @bind-Value="newWorker.FirstName" />
-                            </div>
-
-                            <!-- Last Name -->
-                            <div class="col-md-4 mb-2">
-                                <label>Last Name</label>
-                                <InputText class="form-control" @bind-Value="newWorker.LastName" />
-                            </div>
-
-                            <!-- Email -->
-                            <div class="col-md-4 mb-2">
-                                <label>Email</label>
-                                <InputText class="form-control" @bind-Value="newWorker.Email"
-                                           @onblur="CheckEmailAvailability" />
-                            </div>
-
-                            <!-- Phone -->
-                            <div class="col-md-4 mb-2">
-                                <label>Phone</label>
-                                <InputText class="form-control" @bind-Value="newWorker.Phone" />
-                            </div>
-
-                            <!-- SEX -->
-                            <div class="col-md-4 mb-2">
-                                <label>Sex</label>
-                                <select class="form-control" @bind="newWorker.Sex">
-                                    <option value="">Select</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                </select>
-                            </div>
-
-                            <!-- DIRECTORATE -->
-                            <div class="col-md-4 mb-2">
-                                <label>Directorate *</label>
-                                <select class="form-control"
-                                        value="@selectedDirectorateId"
-                                        @onchange="OnDirectorateChanged">
-
-                                    <option value="0">Select</option>
-
-                                    @foreach (var d in directorates)
-                                    {
-                                        <option value="@d.Id">@d.Name</option>
-                                    }
-                                </select>
-                            </div>
-
-                            <!-- DEPARTMENT -->
-                            <div class="col-md-4 mb-2">
-                                <label>Department *</label>
-                                <select class="form-control" @bind="newWorker.DepartmentId">
-                                    <option value="0">Select</option>
-                                    @foreach (var d in filteredDepartments)
-                                    {
-                                        <option value="@d.Id">@d.Name</option>
-                                    }
-                                </select>
-                            </div>
-
-                            <!-- ROLE -->
-                            <div class="col-md-4 mb-2">
-                                <label>Role</label>
-                                <select class="form-control" @bind="newWorker.Role">
-                                    <option value="">Select</option>
-                                    @foreach (var r in rolesFromDb)
-                                    {
-                                        <option value="@r.Name">@r.Name</option>
-                                    }
-                                </select>
-                            </div>
-
-                            <!-- PASSPORT -->
-                            <div class="col-md-4 mb-2">
-
-                                <label>Passport (Optional)</label>
-
-                                <InputFile OnChange="OnPassportPhotoChanged"
-                                           class="form-control" />
-                                @if (isUploading)
-                                {
-                                    <div class="mt-2">
-                                        <div class="progress" style="height: 6px;">
-                                            <div class="progress-bar progress-bar-striped progress-bar-animated"
-                                                 role="progressbar"
-                                                 style="width:@uploadProgress%">
-                                            </div>
-                                        </div>
-
-                                        <small class="text-muted">
-                                            Uploading... @uploadProgress%
-                                        </small>
-                                    </div>
-                                }
-
-                                @if (!string.IsNullOrEmpty(uploadedPassportName))
-                                {
-                                    <small class="text-success d-block mt-2">
-                                        Uploaded: @uploadedPassportName
-                                    </small>
-                                }
-
-                                @if (!string.IsNullOrEmpty(uploadedPassportPreview))
-                                {
-                                    <div class="mt-2">
-
-                                        <img src="@uploadedPassportPreview"
-                                             style="width:120px;
-                                    height:120px;
-                                    object-fit:cover;
-                                    border-radius:8px;
-                                    border:1px solid #ddd;" />
-
-                                    </div>
-                                }
-
-                            </div>
-
+                        <!-- Worker ID -->
+                        <div class="col-md-4 mb-2">
+                            <label>Worker ID</label>
+                            <InputText class="form-control" @bind-Value="newWorker.WorkerId" />
                         </div>
 
-                        @if (!string.IsNullOrEmpty(errorMessage))
-                        {
-                            <div class="alert alert-danger">@errorMessage</div>
-                        }
+                        <!-- First Name -->
+                        <div class="col-md-4 mb-2">
+                            <label>First Name</label>
+                            <InputText class="form-control" @bind-Value="newWorker.FirstName" />
+                        </div>
 
-                        @if (!string.IsNullOrEmpty(successMessage))
-                        {
-                            <div class="alert alert-success">@successMessage</div>
-                        }
+                        <!-- Last Name -->
+                        <div class="col-md-4 mb-2">
+                            <label>Last Name</label>
+                            <InputText class="form-control" @bind-Value="newWorker.LastName" />
+                        </div>
 
+                        <!-- Email -->
+                        <div class="col-md-4 mb-2">
+                            <label>Email</label>
+                            <InputText class="form-control"
+                                       @bind-Value="newWorker.Email"
+                                       @onblur="CheckEmailAvailability" />
+                        </div>
+
+                        <!-- Phone -->
+                        <div class="col-md-4 mb-2">
+                            <label>Phone</label>
+                            <InputText class="form-control" @bind-Value="newWorker.Phone" />
+                        </div>
+
+                        <!-- Sex -->
+                        <div class="col-md-4 mb-2">
+                            <label>Sex</label>
+                            <select class="form-control" @bind="newWorker.Sex">
+                                <option value="">Select</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </div>
+
+                        <!-- Directorate -->
+                        <div class="col-md-4 mb-2">
+                            <label>Directorate</label>
+                            <select class="form-control"
+                                    value="@selectedDirectorateId"
+                                    @onchange="OnDirectorateChanged">
+
+                                <option value="0">Select</option>
+                                @foreach (var d in directorates)
+                                {
+                                    <option value="@d.Id">@d.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Department -->
+                        <div class="col-md-4 mb-2">
+                            <label>Department</label>
+                            <select class="form-control" @bind="newWorker.DepartmentId">
+                                <option value="0">Select</option>
+                                @foreach (var d in filteredDepartments)
+                                {
+                                    <option value="@d.Id">@d.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Role -->
+                        <div class="col-md-4 mb-2">
+                            <label>Role</label>
+                            <select class="form-control" @bind="newWorker.Role">
+                                <option value="">Select</option>
+                                @foreach (var r in rolesFromDb)
+                                {
+                                    <option value="@r.Name">@r.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Passport -->
+                        <div class="col-md-4 mb-2">
+                            <label>Passport</label>
+
+                            <InputFile OnChange="OnPassportPhotoChanged" class="form-control" />
+
+                            @if (isUploading)
+                            {
+                                <div class="progress mt-2" style="height:6px;">
+                                    <div class="progress-bar"
+                                         style="width:@uploadProgress%"></div>
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(uploadedPassportPreview))
+                            {
+                                <img src="@uploadedPassportPreview"
+                                     class="mt-2"
+                                     style="width:120px;height:120px;object-fit:cover;border-radius:8px;" />
+                            }
+                        </div>
+
+                    </div>
+
+                    <!-- MESSAGES -->
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger mt-3">@errorMessage</div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success mt-3">@successMessage</div>
+                    }
+
+                    <!-- BUTTONS -->
+                    <div class="mt-3">
                         <button class="btn btn-success" type="submit" disabled="@isCreating">
                             @(isCreating ? "Creating..." : "Create Worker")
                         </button>
-
-                        <button type="button" class="btn btn-secondary ms-2" @onclick="CancelCreate">
-                            Cancel
-                        </button>
-
-                    </EditForm>
-                    
-                </div>
-            </div>
-        }
-
-        <!-- LIST -->
-        <!-- Workers List -->
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-light py-3">
-                <h5 class="mb-0 text-primary">
-                    <i class="fas fa-users me-2"></i>
-                    All Workers (@workers.Count)
-                </h5>
-            </div>
-
-            <div class="card-body p-0">
-
-                @if (workers.Any())
-                {
-                    <div class="table-responsive desktop-table">
-
-                        <table class="table table-hover mb-0">
-
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="ps-4">Worker</th>
-                                    <th>Contact</th>
-                                    <th>Organization</th>
-                                    <th>Role & Status</th>
-                                    <th>Profile</th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-
-                                @foreach (var worker in workers)
-                                {
-                                    var completeness = CalculateCompleteness(worker);
-                                    var displayStatus = GetDisplayStatus(completeness);
-
-                                    <tr style="cursor:pointer"
-                                        @onclick="() => ViewWorkerProfile(worker.Id)">
-
-                                        <!-- Worker -->
-                                        <td class="ps-4">
-                                            <div class="d-flex align-items-center">
-
-                                                <!-- BLUE ROUND CIRCLE -->
-                                                @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
-                                                {
-                                                    <img src="@($"/uploads/{worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath}")"
-                                                         style="width:40px;height:40px;
-                object-fit:cover;
-                border-radius:50%;
-                border:1px solid #ddd;"
-                                                         class="me-3"
-                                                         loading="lazy" />
-                                                
-                                                }
-                                                else
-                                                {
-                                                    <div class="bg-primary text-white rounded-circle
-                                d-flex align-items-center justify-content-center me-3"
-                                                         style="width:40px;height:40px;
-                                font-size:0.9rem;
-                                font-weight:600;">
-
-                                                        @GetInitials(worker.FirstName, worker.LastName)
-
-                                                    </div>
-                                                }
-
-                                                <div>
-                                                    <div class="fw-semibold text-dark">
-                                                        @worker.FirstName @worker.LastName
-                                                    </div>
-
-                                                    <small class="text-muted">
-                                                        @worker.WorkerId
-                                                    </small>
-                                                </div>
-
-                                            </div>
-                                        </td>
-
-                                        <!-- Contact -->
-                                        <td>
-                                            @if (!string.IsNullOrWhiteSpace(worker.Email))
-                                            {
-                                                <div>@worker.Email</div>
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">
-                                                    No email
-                                                </span>
-                                            }
-                                        </td>
-
-                                        <!-- Organization -->
-                                        <td>
-                                            <div>
-                                                @(worker.Directorate?.Name ?? "N/A")
-                                            </div>
-
-                                            <small class="text-muted">
-                                                @(worker.Department?.Name ?? "No dept")
-                                            </small>
-                                        </td>
-
-                                        <!-- ROLE & STATUS -->
-                                        <td>
-
-                                            <!-- GRAY ROLE BADGE -->
-                                            <div class="mb-1">
-                                                <span class="badge bg-secondary">
-                                                    @worker.Role
-                                                </span>
-                                            </div>
-
-                                            <!-- YELLOW STATUS BADGE -->
-                                            <span class="badge @GetStatusBadgeClass(displayStatus)"
-                                                  style="font-size:0.75rem;">
-
-                                                @displayStatus
-
-                                            </span>
-
-                                        </td>
-
-                                        <!-- PROFILE % -->
-                                        <td>
-
-                                            <div class="d-flex align-items-center">
-
-                                                <div class="flex-grow-1 me-2">
-
-                                                    <div class="progress"
-                                                         style="height:6px;width:80px;">
-
-                                                        <div class="progress-bar @GetCompletenessClass(completeness)"
-                                                             style="width:@completeness%">
-                                                        </div>
-
-                                                    </div>
-
-                                                </div>
-
-                                                <small class="text-muted">
-                                                    @completeness%
-                                                </small>
-
-                                            </div>
-
-                                        </td>
-
-                                    </tr>
-                                }
-
-                            </tbody>
-
-                        </table>
-
                     </div>
-                    <!-- ================= MOBILE CARDS ================= -->
-                    <div class="mobile-cards">
 
-    @foreach (var worker in workers)
-    {
-        var completeness = CalculateCompleteness(worker);
-        var displayStatus = GetDisplayStatus(completeness);
+                </EditForm>
 
-        <div class="worker-card">
-
-            <!-- TOP: IMAGE + NAME -->
-            <div class="d-flex align-items-center mb-2">
-
-                @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
-                {
-                    <img src="/uploads/@(worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath)"
-                         class="worker-avatar me-2"
-                         loading="lazy" />
-                }
-                else
-                {
-                    <div class="worker-avatar-fallback me-2">
-                        @GetInitials(worker.FirstName, worker.LastName)
-                    </div>
-                }
-
-                <div>
-                    <div class="fw-semibold">
-                        @worker.FirstName @worker.LastName
-                    </div>
-                    <small class="text-muted">
-                        @worker.WorkerId
-                    </small>
-                </div>
-
-            </div>
-
-            <!-- INFO -->
-            <div class="worker-info">
-
-                <div class="worker-row">
-                    <span>Email</span>
-                    <span>@(worker.Email ?? "N/A")</span>
-                </div>
-
-                <div class="worker-row">
-                    <span>Phone</span>
-                    <span>@(worker.Phone ?? "N/A")</span>
-                </div>
-
-                <div class="worker-row">
-                    <span>Dept</span>
-                    <span>@(worker.Department?.Name ?? "N/A")</span>
-                </div>
-
-                <div class="worker-row">
-                    <span>Role</span>
-                    <span class="badge bg-secondary">@worker.Role</span>
-                </div>
-
-                <div class="worker-row">
-                    <span>Status</span>
-                    <span class="badge @GetStatusBadgeClass(displayStatus)">
-                        @displayStatus
-                    </span>
-                </div>
-
-                <div class="worker-row">
-                    <span>Profile</span>
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="progress flex-grow-1" style="height:6px;">
-                            <div class="progress-bar @GetCompletenessClass(completeness)"
-                                 style="width:@completeness%"></div>
-                        </div>
-                        <small>@completeness%</small>
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
-    }
-
-</div>
-                }
-                else
-                {
-                    <div class="text-center py-5">
-
-                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
-
-                        <p class="text-muted mb-0">
-                            No workers found
-                        </p>
-
-                    </div>
-                }
-
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-body">
-                <h5>Workers (@workers.Count)</h5>
             </div>
         </div>
 
     </div>
 }
-
 else
 {
     <div class="alert alert-danger">Access Denied</div>
@@ -470,48 +172,35 @@ else
 
 @code {
 
-    // DATA
-    private List<Worker> workers = new();
+    private CreateWorkerModel newWorker = new();
+
+    private bool isCreating = false;
+
+    private int selectedDirectorateId = 0;
+
     private List<Directorate> directorates = new();
     private List<Department> departments = new();
     private List<Department> filteredDepartments = new();
     private List<Role> rolesFromDb = new();
 
-    // MODEL
-    private CreateWorkerModel newWorker = new();
-
-    // UI STATES
-    private bool showCreateForm = false;
-    private bool isCreating = false;
-    private int selectedDirectorateId = 0;
-
     private string errorMessage = "";
     private string successMessage = "";
+
     private string? uploadedPassportPreview;
-    private string? uploadedPassportName;
     private int uploadProgress = 0;
     private bool isUploading = false;
 
-    // protected override async Task OnInitializedAsync()
-    // {
-    //     if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
-    //     {
-    //         workers = await WorkerService.GetAllWorkersAsync();
-    //         directorates = await WorkerService.GetDirectoratesAsync();
-    //         departments = await WorkerService.GetDepartmentsAsync();
-    //         rolesFromDb = await RoleService.GetRolesAsync();
-    //     }
-    // }
     protected override async Task OnInitializedAsync()
     {
         if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
         {
-            await LoadData();
-            await FilterDepartments();
+            directorates = await WorkerService.GetDirectoratesAsync();
+            departments = await WorkerService.GetDepartmentsAsync();
+            rolesFromDb = await RoleService.GetRolesAsync();
         }
     }
 
-    // ---------------- CREATE WORKER ----------------
+    // CREATE WORKER
     private async Task CreateWorker()
     {
         isCreating = true;
@@ -520,33 +209,33 @@ else
 
         try
         {
-            // VALIDATION FIXED
             if (newWorker.DepartmentId == 0)
             {
                 errorMessage = "Please select a department";
                 return;
             }
 
-            var result = await WorkerService.CreateWorkerAsync(newWorker);
+            await WorkerService.CreateWorkerAsync(newWorker);
 
             successMessage = "Worker created successfully!";
 
-            workers = await WorkerService.GetAllWorkersAsync();
-
-            CancelCreate();
+            // reset form
+            newWorker = new CreateWorkerModel();
+            uploadedPassportPreview = null;
+            selectedDirectorateId = 0;
+            filteredDepartments = new();
         }
         catch (Exception ex)
         {
-            errorMessage = $"{ex.Message} | INNER: {ex.InnerException?.Message}";
+            errorMessage = ex.Message;
         }
         finally
         {
             isCreating = false;
         }
-        await LoadData();
     }
 
-    // ---------------- DIRECTORATE CHANGE ----------------
+    // DIRECTORATE CHANGE
     private Task OnDirectorateChanged(ChangeEventArgs e)
     {
         if (int.TryParse(e.Value?.ToString(), out int id))
@@ -562,266 +251,39 @@ else
         return Task.CompletedTask;
     }
 
-    // ---------------- EMAIL CHECK ----------------
+    // EMAIL CHECK
     private async Task CheckEmailAvailability()
     {
         if (string.IsNullOrWhiteSpace(newWorker.Email))
             return;
 
-        var exists = await WorkerService.CheckEmailExistsAsync(newWorker.Email);
-
-        if (exists)
+        if (await WorkerService.CheckEmailExistsAsync(newWorker.Email))
         {
             errorMessage = "Email already exists";
         }
     }
 
-    // ---------------- PASSPORT UPLOAD ----------------
+    // UPLOAD
     private async Task OnPassportPhotoChanged(InputFileChangeEventArgs e)
     {
-        errorMessage = "";
-
         var file = e.File;
+        if (file == null) return;
 
-        if (file == null)
-            return;
-
-        var ext = Path.GetExtension(file.Name).ToLower();
-        var allowed = new[] { ".jpg", ".jpeg", ".png" };
-
-        if (!allowed.Contains(ext))
-        {
-            errorMessage = "Only JPG and PNG files are allowed";
-            return;
-        }
-
-        var folder = Path.Combine(
-            Environment.IsDevelopment()
-                ? Path.Combine(Environment.ContentRootPath, "wwwroot", "uploads")
-                : "/var/data/uploads"
-        );
-
+        var folder = Path.Combine(Environment.WebRootPath, "uploads");
         if (!Directory.Exists(folder))
             Directory.CreateDirectory(folder);
 
-        var fileName = $"{Guid.NewGuid()}{ext}";
+        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.Name)}";
         var path = Path.Combine(folder, fileName);
 
-        try
-        {
-            isUploading = true;
-            uploadProgress = 10;
-            StateHasChanged();
+        isUploading = true;
 
-            using var stream = new FileStream(path, FileMode.Create);
+        using var stream = new FileStream(path, FileMode.Create);
+        await file.OpenReadStream(5 * 1024 * 1024).CopyToAsync(stream);
 
-            var buffer = new byte[1024 * 32];
-            var readStream = file.OpenReadStream(5 * 1024 * 1024);
+        newWorker.PassportPhotoPath = fileName;
+        uploadedPassportPreview = $"/uploads/{fileName}";
 
-            int bytesRead;
-            long totalRead = 0;
-            long totalSize = file.Size;
-
-            while ((bytesRead = await readStream.ReadAsync(buffer)) > 0)
-            {
-                await stream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                totalRead += bytesRead;
-
-                uploadProgress = (int)((totalRead * 100) / totalSize);
-                StateHasChanged();
-            }
-
-            newWorker.PassportPhotoPath = fileName;
-            uploadedPassportPreview = $"/uploads/{fileName}";
-            uploadedPassportName = file.Name;
-
-            uploadProgress = 100;
-            try
-            {
-                var originalBytes = await File.ReadAllBytesAsync(path);
-
-                // 1. Compress main image
-                var compressedBytes = await CompressImageAsync(originalBytes);
-                await File.WriteAllBytesAsync(path, compressedBytes);
-
-                // 2. CREATE MOBILE VERSION (WEBP thumbnail)
-                var mobileFileName =
-                    $"{Path.GetFileNameWithoutExtension(fileName)}_mobile.webp";
-
-                var mobilePath = Path.Combine(folder, mobileFileName);
-
-                using var image = Image.Load(compressedBytes);
-
-                image.Mutate(x => x.Resize(new ResizeOptions
-                {
-                    Size = new Size(300, 300),
-                    Mode = ResizeMode.Max
-                }));
-
-                await image.SaveAsWebpAsync(mobilePath);
-
-                // 3. STORE BOTH PATHS
-                newWorker.PassportPhotoPath = fileName;
-                newWorker.PassportPhotoThumbPath = mobileFileName;
-
-                uploadedPassportPreview = $"/uploads/{mobileFileName}";
-                uploadedPassportName = file.Name;
-            }
-            catch
-            {
-                // if compression fails, keep original file (safe fallback)
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Upload failed: {ex.Message}";
-        }
-        finally
-        {
-            isUploading = false;
-            await Task.Delay(500); // small pause so user sees 100%
-            uploadProgress = 0;
-            StateHasChanged();
-        }
-    }
-
-    // ---------------- UI HELPERS ----------------
-    private void ShowCreateForm()
-    {
-        newWorker = new CreateWorkerModel();
-        showCreateForm = true;
-        errorMessage = "";
-        successMessage = "";
-        uploadedPassportPreview = null;
-        uploadedPassportName = null;
-    }
-
-    private void CancelCreate()
-    {
-        showCreateForm = false;
-        newWorker = new CreateWorkerModel();
-        selectedDirectorateId = 0;
-        filteredDepartments = new();
-        uploadedPassportPreview = null;
-        uploadedPassportName = null;
-    }
-    private async Task LoadData()
-    {
-        try
-        {
-            workers = (await WorkerService.GetAllWorkersAsync())
-           .OrderByDescending(w => w.CreatedDate)
-           .ToList();
-            directorates = await WorkerService.GetDirectoratesAsync();
-            departments = await WorkerService.GetDepartmentsAsync();
-            rolesFromDb = await RoleService.GetRolesAsync();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Failed to load data: {ex.Message}";
-        }
-    }
-    private void ViewWorkerProfile(int workerId)
-    {
-        Navigation.NavigateTo($"/admin/worker-details/{workerId}");
-    }
-    private Task FilterDepartments()
-    {
-        if (selectedDirectorateId > 0)
-        {
-            filteredDepartments = departments
-                .Where(d => d.DirectorateId == selectedDirectorateId)
-                .ToList();
-        }
-        else
-        {
-            filteredDepartments = new List<Department>();
-        }
-
-        return Task.CompletedTask;
-    }
-   
-
-    private string GetInitials(string firstName, string lastName)
-    {
-        if (string.IsNullOrEmpty(firstName) && string.IsNullOrEmpty(lastName))
-            return "??";
-
-        var firstInitial = string.IsNullOrEmpty(firstName)
-            ? '?'
-            : firstName[0];
-
-        var lastInitial = string.IsNullOrEmpty(lastName)
-            ? '?'
-            : lastName[0];
-
-        return $"{firstInitial}{lastInitial}".ToUpper();
-    }
-
-    private int CalculateCompleteness(Worker worker)
-    {
-        int filledFields = 0;
-        int totalFields = 10;
-
-        if (!string.IsNullOrWhiteSpace(worker.FirstName)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.LastName)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Email)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Phone)) filledFields++;
-        if (worker.DirectorateId != null) filledFields++;
-        if (worker.DepartmentId != null) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Role)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Address)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Profession)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath)) filledFields++;
-
-        return (int)Math.Round((double)filledFields / totalFields * 100);
-    }
-
-    private string GetCompletenessClass(int percentage)
-    {
-        if (percentage < 50)
-            return "bg-danger";
-
-        if (percentage < 90)
-            return "bg-warning";
-
-        return "bg-success";
-    }
-
-    private string GetDisplayStatus(int completeness)
-    {
-        if (completeness < 90)
-            return "Pending Profile Completion";
-
-        return "Profile Complete";
-    }
-
-    private string GetStatusBadgeClass(string status)
-    {
-        return status switch
-        {
-            "Profile Complete" => "bg-success",
-            "Pending Profile Completion" => "bg-warning text-dark",
-            _ => "bg-secondary"
-        };
-    }
-    private async Task<byte[]> CompressImageAsync(byte[] inputBytes)
-    {
-        using var image = Image.Load(inputBytes);
-
-        image.Mutate(x => x.Resize(new ResizeOptions
-        {
-            Size = new Size(800, 800),
-            Mode = ResizeMode.Max
-        }));
-
-        using var ms = new MemoryStream();
-
-        await image.SaveAsJpegAsync(ms, new JpegEncoder
-        {
-            Quality = 75
-        });
-
-        return ms.ToArray();
+        isUploading = false;
     }
 }
