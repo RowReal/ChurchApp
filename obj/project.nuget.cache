@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "RxyqXKFGP8E=",
+  "dgSpecHash": "5ewwro+BLKE=",
   "success": true,
   "projectFilePath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
   "expectedPackageFiles": [
@@ -48,6 +48,7 @@
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\microsoft.jsinterop\\8.0.0\\microsoft.jsinterop.8.0.0.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\microsoft.jsinterop.webassembly\\8.0.0\\microsoft.jsinterop.webassembly.8.0.0.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
+    "C:\\Users\\rowland.adeoye\\.nuget\\packages\\sixlabors.imagesharp\\3.1.5\\sixlabors.imagesharp.3.1.5.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\sqlitepclraw.bundle_e_sqlite3\\2.1.6\\sqlitepclraw.bundle_e_sqlite3.2.1.6.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\sqlitepclraw.core\\2.1.6\\sqlitepclraw.core.2.1.6.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\sqlitepclraw.lib.e_sqlite3\\2.1.6\\sqlitepclraw.lib.e_sqlite3.2.1.6.nupkg.sha512",
@@ -69,5 +70,30 @@
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\system.text.json\\8.0.0\\system.text.json.8.0.0.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\system.threading.channels\\6.0.0\\system.threading.channels.6.0.0.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.5 has a known high severity vulnerability, https://github.com/advisories/GHSA-2cmq-823j-5qj8",
+      "projectPath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    },
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'SixLabors.ImageSharp' 3.1.5 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc",
+      "projectPath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
+      "warningLevel": 1,
+      "filePath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
 }

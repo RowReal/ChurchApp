@@ -4,12 +4,15 @@
 @using ChurchApp.Services
 @using ChurchApp.Models
 @using System.ComponentModel.DataAnnotations
-
+@using SixLabors.ImageSharp;
+@using SixLabors.ImageSharp.Processing;
+@using SixLabors.ImageSharp.Formats.Jpeg;
 @inject WorkerService WorkerService
 @inject RoleService RoleService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject EmailService EmailService
+@inject ImageOptimizationService imageOptimizationService
 @inject IWebHostEnvironment Environment
 
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
@@ -237,12 +240,14 @@
                                                 <!-- BLUE ROUND CIRCLE -->
                                                 @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
                                                 {
-                                                    <img src="@($"/uploads/{worker.PassportPhotoPath}")"
+                                                    <img src="@($"/uploads/{worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath}")"
                                                          style="width:40px;height:40px;
-                                object-fit:cover;
-                                border-radius:50%;
-                                border:1px solid #ddd;"
-                                                         class="me-3" />
+                object-fit:cover;
+                border-radius:50%;
+                border:1px solid #ddd;"
+                                                         class="me-3"
+                                                         loading="lazy" />
+                                                }
                                                 }
                                                 else
                                                 {
@@ -547,6 +552,41 @@ else
             uploadedPassportName = file.Name;
 
             uploadProgress = 100;
+            try
+            {
+                var originalBytes = await File.ReadAllBytesAsync(path);
+
+                // 1. Compress main image
+                var compressedBytes = await CompressImageAsync(originalBytes);
+                await File.WriteAllBytesAsync(path, compressedBytes);
+
+                // 2. CREATE MOBILE VERSION (WEBP thumbnail)
+                var mobileFileName =
+                    $"{Path.GetFileNameWithoutExtension(fileName)}_mobile.webp";
+
+                var mobilePath = Path.Combine(folder, mobileFileName);
+
+                using var image = Image.Load(compressedBytes);
+
+                image.Mutate(x => x.Resize(new ResizeOptions
+                {
+                    Size = new Size(300, 300),
+                    Mode = ResizeMode.Max
+                }));
+
+                await image.SaveAsWebpAsync(mobilePath);
+
+                // 3. STORE BOTH PATHS
+                newWorker.PassportPhotoPath = fileName;
+                newWorker.PassportPhotoThumbPath = mobileFileName;
+
+                uploadedPassportPreview = $"/uploads/{mobileFileName}";
+                uploadedPassportName = file.Name;
+            }
+            catch
+            {
+                // if compression fails, keep original file (safe fallback)
+            }
         }
         catch (Exception ex)
         {
@@ -680,5 +720,24 @@ else
             "Pending Profile Completion" => "bg-warning text-dark",
             _ => "bg-secondary"
         };
+    }
+    private async Task<byte[]> CompressImageAsync(byte[] inputBytes)
+    {
+        using var image = Image.Load(inputBytes);
+
+        image.Mutate(x => x.Resize(new ResizeOptions
+        {
+            Size = new Size(800, 800),
+            Mode = ResizeMode.Max
+        }));
+
+        using var ms = new MemoryStream();
+
+        await image.SaveAsJpegAsync(ms, new JpegEncoder
+        {
+            Quality = 75
+        });
+
+        return ms.ToArray();
     }
 }

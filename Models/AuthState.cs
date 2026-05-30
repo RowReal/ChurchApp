@@ -65,6 +65,8 @@ namespace ChurchApp.Models
         [Required(ErrorMessage = "Sex is required")]
         public string Sex { get; set; }
         public string? PassportPhotoPath { get; set; }
+        public string? PassportPhotoThumbPath { get; set; } = string.Empty;
+
         public int? UnitId { get; set; }
 
         [EmailAddress(ErrorMessage = "Invalid email address")]

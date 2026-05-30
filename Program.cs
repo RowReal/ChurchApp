@@ -60,6 +60,7 @@ builder.Services.AddScoped<ServiceService>();
 builder.Services.AddScoped<AttendanceService>();
 builder.Services.AddScoped<ServiceNoteService>();
 builder.Services.AddScoped<GuestService>();
+builder.Services.AddScoped<ImageOptimizationService>();
 
 builder.Services.AddCascadingAuthenticationState();
 

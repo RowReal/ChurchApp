@@ -3,11 +3,15 @@
 @using ChurchApp.Services
 @using ChurchApp.Models
 @using System.ComponentModel.DataAnnotations
+@using SixLabors.ImageSharp;
+@using SixLabors.ImageSharp.Processing;
+@using SixLabors.ImageSharp.Formats.Jpeg;
 @inject WorkerService WorkerService
 @inject RoleService RoleService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject IWebHostEnvironment Environment
+@inject ImageOptimizationService imageOptimizationService
 
 <PageTitle>Update Worker</PageTitle>
 
@@ -75,10 +79,13 @@
                             <div class="col-auto">
                                 @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
                                 {
-                                    <img src="/uploads/@worker.PassportPhotoPath"
-                                         alt="Photo"
-                                         class="rounded-circle"
-                                         style="width: 60px; height: 60px; object-fit: cover;" />
+                                    <img src="@($"/uploads/{worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath}")"
+                                         style="width:40px;height:40px;
+                            object-fit:cover;
+                            border-radius:50%;
+                            border:1px solid #ddd;"
+                                         class="me-3"
+                                         loading="lazy" />
                                 }
                                 else
                                 {
@@ -367,7 +374,9 @@
                                                                        disabled="@(!workerModel.HasBelieverBaptism)" />
                                                             @if (!string.IsNullOrEmpty(believerBaptismPath))
                                                             {
-                                                                <a href="/uploads/@believerBaptismPath" target="_blank" class="btn btn-sm btn-outline-success">
+                                                                <a href="@GetUploadUrl(believerBaptismPath)"
+                                                                   target="_blank"
+                                                                   class="btn btn-sm btn-outline-success">
                                                                     <i class="fas fa-download"></i>
                                                                 </a>
                                                             }
@@ -393,7 +402,9 @@
                                                                        disabled="@(!workerModel.HasWorkerInTraining)" />
                                                             @if (!string.IsNullOrEmpty(workerInTrainingPath))
                                                             {
-                                                                <a href="/uploads/@workerInTrainingPath" target="_blank" class="btn btn-sm btn-outline-success">
+                                                                <a href="@GetUploadUrl(workerInTrainingPath)"
+                                                                   target="_blank"
+                                                                   class="btn btn-sm btn-outline-success">
                                                                     <i class="fas fa-download"></i>
                                                                 </a>
                                                             }
@@ -419,7 +430,9 @@
                                                                        disabled="@(!workerModel.HasSOD)" />
                                                             @if (!string.IsNullOrEmpty(sodPath))
                                                             {
-                                                                <a href="/uploads/@sodPath" target="_blank" class="btn btn-sm btn-outline-success">
+                                                                <a href="@GetUploadUrl(sodPath)"
+                                                                   target="_blank"
+                                                                   class="btn btn-sm btn-outline-success">
                                                                     <i class="fas fa-download"></i>
                                                                 </a>
                                                             }
@@ -445,7 +458,9 @@
                                                                        disabled="@(!workerModel.HasBibleCollege)" />
                                                             @if (!string.IsNullOrEmpty(bibleCollegePath))
                                                             {
-                                                                <a href="/uploads/@bibleCollegePath" target="_blank" class="btn btn-sm btn-outline-success">
+                                                                <a href="@GetUploadUrl(bibleCollegePath)"
+                                                                   target="_blank"
+                                                                   class="btn btn-sm btn-outline-success">
                                                                     <i class="fas fa-download"></i>
                                                                 </a>
                                                             }
@@ -520,7 +535,7 @@
                                 <div class="text-center mb-3">
                                     @if (!string.IsNullOrEmpty(workerModel.PassportPhotoPath))
                                     {
-                                        <img src="/uploads/@workerModel.PassportPhotoPath"
+                                        <img src="/uploads/@(workerModel.PassportPhotoThumbPath ?? workerModel.PassportPhotoPath)"
                                              alt="Photo"
                                              class="img-thumbnail mb-2"
                                              style="max-width: 150px;" />
@@ -937,65 +952,81 @@ else
                 return;
             }
 
-            // 2MB limit
-            if (file.Size > 2 * 1024 * 1024)
-            {
-                errorMessage = "File size must be less than 2MB";
-                return;
-            }
-
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
             var fileExtension = Path.GetExtension(file.Name).ToLowerInvariant();
 
             if (!allowedExtensions.Contains(fileExtension))
             {
-                errorMessage = "Only JPG, JPEG, PNG, and GIF files are allowed";
+                errorMessage = "Only JPG and PNG files are allowed";
                 return;
             }
 
-            var allowedContentTypes = new[]
-            {
-            "image/jpeg",
-            "image/png",
-            "image/gif"
-        };
+            var folder = Path.Combine(
+                Environment.IsDevelopment()
+                    ? Path.Combine(Environment.ContentRootPath, "wwwroot", "uploads")
+                    : "/var/data/uploads"
+            );
 
-            if (!allowedContentTypes.Contains(file.ContentType))
-            {
-                errorMessage = "Invalid image type";
-                return;
-            }
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
 
-            // Create uploads directory
-            // var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
-            var uploadsDir = GetUploadsFolder();
-            Console.WriteLine($"UPLOADING TO: {uploadsDir}");
-
-            if (!Directory.Exists(uploadsDir))
-                Directory.CreateDirectory(uploadsDir);
-
-            // Delete old file if exists
+            // =========================
+            // DELETE OLD FILE (SAFE FIX)
+            // =========================
             if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath))
             {
-                var oldPath = Path.Combine(uploadsDir, worker.PassportPhotoPath);
+                var oldFile = Path.Combine(folder, worker.PassportPhotoPath);
 
-                if (File.Exists(oldPath))
-                    File.Delete(oldPath);
+                if (File.Exists(oldFile))
+                    File.Delete(oldFile);
             }
 
-            // Create new file
-            var fileName = $"{worker.WorkerId}_passport_{Guid.NewGuid()}{fileExtension}";
-            var filePath = Path.Combine(uploadsDir, fileName);
+            var fileName = $"{worker.WorkerId}_passport_{Guid.NewGuid()}.jpg";
+            var filePath = Path.Combine(folder, fileName);
 
-            await using var stream = new FileStream(filePath, FileMode.Create);
+            isUploading = true;
+            // uploadProgress = 10;
+            StateHasChanged();
 
-            await file.OpenReadStream(2 * 1024 * 1024)
-                      .CopyToAsync(stream);
+            // =========================
+            // COMPRESS IMAGE HERE
+            // =========================
+            using var image = await Image.LoadAsync(file.OpenReadStream(5 * 1024 * 1024));
 
-            // Update model
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Size = new Size(800, 800),
+                Mode = ResizeMode.Max
+            }));
+
+            var encoder = new JpegEncoder
+            {
+                Quality = 75
+            };
+
+            await image.SaveAsJpegAsync(filePath, encoder);
+            // CREATE MOBILE VERSION
+            // =========================
+            var optimizedFileName =
+                $"{Path.GetFileNameWithoutExtension(fileName)}_mobile.webp";
+
+            var optimizedPath = Path.Combine(folder, optimizedFileName);
+
+            await imageOptimizationService.CreateMobileVersion(filePath, optimizedPath);
+            worker.PassportPhotoThumbPath = optimizedFileName;
+            workerModel.PassportPhotoThumbPath = optimizedFileName;
+
+            // =========================
+            // UPDATE MODEL
+            // =========================
+            worker.PassportPhotoPath = fileName;
             workerModel.PassportPhotoPath = fileName;
 
-            successMessage = "Photo uploaded successfully";
+            // uploadedPassportPreview = $"/uploads/{fileName}";
+            // uploadedPassportName = file.Name;
+
+            // uploadProgress = 100;
+            successMessage = "Photo uploaded & compressed successfully";
         }
         catch (Exception ex)
         {
@@ -1004,6 +1035,8 @@ else
         finally
         {
             isUploading = false;
+            await Task.Delay(500);
+            // uploadProgress = 0;
             StateHasChanged();
         }
     }
@@ -1015,26 +1048,47 @@ else
         try
         {
             var file = e.File;
-            if (file != null && file.Size <= 5 * 1024 * 1024) // 5MB limit
+
+            if (file != null && file.Size <= 5 * 1024 * 1024)
             {
                 var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
                 var fileExtension = Path.GetExtension(file.Name).ToLower();
 
                 if (allowedExtensions.Contains(fileExtension))
                 {
-                    // var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
-                    var uploadsDir = GetUploadsFolder();
-                    Console.WriteLine($"UPLOADING TO: {uploadsDir}");
-                    if (!Directory.Exists(uploadsDir))
-                        Directory.CreateDirectory(uploadsDir);
+                    var folder = Environment.IsDevelopment()
+                        ? Path.Combine(Environment.ContentRootPath, "wwwroot", "uploads")
+                        : "/var/data/uploads";
+
+                    if (!Directory.Exists(folder))
+                        Directory.CreateDirectory(folder);
+
+                    Console.WriteLine($"UPLOADING TO: {folder}");
 
                     var fileName = $"{worker.WorkerId}_{certificateType}_{Guid.NewGuid()}{fileExtension}";
-                    var filePath = Path.Combine(uploadsDir, fileName);
+                    var filePath = Path.Combine(folder, fileName);
 
+                    // =========================
+                    // 🔥 STEP 1: FIND OLD FILE
+                    // =========================
+                    string? oldFile = certificateType switch
+                    {
+                        "believerBaptism" => believerBaptismPath,
+                        "workerInTraining" => workerInTrainingPath,
+                        "sod" => sodPath,
+                        "bibleCollege" => bibleCollegePath,
+                        _ => null
+                    };
+
+                    // =========================
+                    // 🔥 STEP 2: SAVE NEW FILE
+                    // =========================
                     using var stream = new FileStream(filePath, FileMode.Create);
-                    await file.OpenReadStream().CopyToAsync(stream);
+                    await file.OpenReadStream(5 * 1024 * 1024).CopyToAsync(stream);
 
-                    // Update the appropriate certificate path
+                    // =========================
+                    // 🔥 STEP 3: UPDATE MODEL
+                    // =========================
                     switch (certificateType)
                     {
                         case "believerBaptism":
@@ -1050,6 +1104,11 @@ else
                             bibleCollegePath = fileName;
                             break;
                     }
+
+                    // =========================
+                    // 🔥 STEP 4: DELETE OLD FILE
+                    // =========================
+                    DeleteOldCertificate(oldFile, folder);
 
                     var displayName = certificateType switch
                     {
@@ -1079,7 +1138,31 @@ else
 
         StateHasChanged();
     }
+    private void DeleteOldCertificate(string? oldFile, string folder)
+    {
+        if (string.IsNullOrWhiteSpace(oldFile))
+            return;
 
+        try
+        {
+            var oldPath = Path.Combine(folder, oldFile);
+
+            if (File.Exists(oldPath))
+                File.Delete(oldPath);
+        }
+        catch
+        {
+            // safe ignore (do not crash upload flow)
+        }
+    }
+    private string GetUploadUrl(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            return "";
+
+        // prevent double slashes or broken paths
+        return $"/uploads/{fileName.TrimStart('/')}";
+    }
     private void NavigateBack()
     {
         Navigation.NavigateTo($"/admin/worker-details/{WorkerId}");
@@ -1098,6 +1181,25 @@ else
     private void NavigateToDeactivate()
     {
         Navigation.NavigateTo($"/admin/deactivate-worker/{WorkerId}");
+    }
+    private async Task<byte[]> CompressImageAsync(byte[] inputBytes)
+    {
+        using var image = Image.Load(inputBytes);
+
+        image.Mutate(x => x.Resize(new ResizeOptions
+        {
+            Size = new Size(800, 800),
+            Mode = ResizeMode.Max
+        }));
+
+        using var ms = new MemoryStream();
+
+        await image.SaveAsJpegAsync(ms, new JpegEncoder
+        {
+            Quality = 75
+        });
+
+        return ms.ToArray();
     }
 
     public class WorkerUpdateModel
@@ -1174,6 +1276,7 @@ else
 
         [MaxLength(500, ErrorMessage = "Photo path cannot exceed 500 characters")]
         public string PassportPhotoPath { get; set; } = string.Empty;
+        public string? PassportPhotoThumbPath { get; set; } = string.Empty;
 
         [MaxLength(500, ErrorMessage = "Certificate path cannot exceed 500 characters")]
         public string BelieverBaptismCertificatePath { get; set; } = string.Empty;

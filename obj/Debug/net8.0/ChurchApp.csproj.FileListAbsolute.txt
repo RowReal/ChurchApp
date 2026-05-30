@@ -127,3 +127,4 @@ C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.pdb
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.genruntimeconfig.cache
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ref\ChurchApp.dll
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.sourcelink.json
+C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\SixLabors.ImageSharp.dll

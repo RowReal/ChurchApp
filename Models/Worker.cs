@@ -66,6 +66,7 @@ namespace ChurchApp.Models
         // Personal Details
         [MaxLength(100)]
         public string? PassportPhotoPath { get; set; } = string.Empty;
+        public string? PassportPhotoThumbPath { get; set; } = string.Empty;
 
         [MaxLength(20)]
         public string OrdinationStatus { get; set; } = "Not Ordained";

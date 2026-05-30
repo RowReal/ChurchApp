@@ -77,6 +77,8 @@ namespace ChurchApp.Models
 
         // Passport photo
         public string PassportPhotoPath { get; set; } = string.Empty;
+        public string? PassportPhotoThumbPath { get; set; } = string.Empty;
+
     }
     public class RejectionNotification
     {

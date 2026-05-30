@@ -6,7 +6,7 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject IWebHostEnvironment Environment
-
+@inject ImageOptimizationService imageOptimizationService
 @if (AuthService.IsAuthenticated)
 {
     <PageTitle>My Profile - Workforce</PageTitle>
@@ -694,10 +694,13 @@
                                     <span class="text-warning">Current Photo:</span>
                                     @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
                                     {
-                                        <img src="/uploads/@worker.PassportPhotoPath" 
-                                             alt="Current Passport Photo" 
-                                             class="img-fluid rounded"
-                                             style="max-height: 200px;" />
+                                       <img src="@($"/uploads/{worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath}")"
+                                                         style="width:40px;height:40px;
+                object-fit:cover;
+                border-radius:50%;
+                border:1px solid #ddd;"
+                                                         class="me-3"
+                                                         loading="lazy" />
                                     }
                                     else
                                     {

@@ -3,12 +3,15 @@
 @using ChurchApp.Services
 @using ChurchApp.Models
 @using System.ComponentModel.DataAnnotations
+@using SixLabors.ImageSharp;
+@using SixLabors.ImageSharp.Processing;
+@using SixLabors.ImageSharp.Formats.Jpeg;
 @inject WorkforceService WorkforceService
 @inject WorkerService WorkerService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject IWebHostEnvironment Environment
-
+@inject ImageOptimizationService imageOptimizationService
 @if (AuthService.IsAuthenticated)
 {
     <PageTitle>Update My Profile - Workforce</PageTitle>
@@ -45,10 +48,13 @@
                         <div class="col-md-4 text-end">
                             @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
                             {
-                                <img src="/uploads/@worker.PassportPhotoPath" 
-                                     alt="Passport Photo" 
-                                     class="img-thumbnail" 
-                                     style="max-width: 80px; max-height: 80px;" />
+                               <img src="@($"/uploads/{worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath}")"
+                                                         style="width:40px;height:40px;
+                object-fit:cover;
+                border-radius:50%;
+                border:1px solid #ddd;"
+                                                         class="me-3"
+                                                         loading="lazy" />
                             }
                             else
                             {
@@ -868,21 +874,63 @@ else
                     return;
                 }
 
-                var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
-                if (!Directory.Exists(uploadsDir))
-                {
-                    Directory.CreateDirectory(uploadsDir);
-                }
+               var folder = Path.Combine(
+                Environment.IsDevelopment()
+                    ? Path.Combine(Environment.ContentRootPath, "wwwroot", "uploads")
+                    : "/var/data/uploads"
+            );
+
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+
+            // =========================
+            // DELETE OLD FILE (SAFE FIX)
+            // =========================
+            if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath))
+            {
+                var oldFile = Path.Combine(folder, worker.PassportPhotoPath);
+
+                if (File.Exists(oldFile))
+                    File.Delete(oldFile);
+            }
 
                 var fileName = $"{worker.WorkerId}_passport_{Guid.NewGuid()}{fileExtension}";
-                var filePath = Path.Combine(uploadsDir, fileName);
+                var filePath = Path.Combine(folder, fileName);
 
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
                     await file.OpenReadStream().CopyToAsync(stream);
                 }
+                // =========================
+            // COMPRESS IMAGE HERE
+            // =========================
+            using var image = await Image.LoadAsync(file.OpenReadStream(5 * 1024 * 1024));
 
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Size = new Size(800, 800),
+                Mode = ResizeMode.Max
+            }));
+
+            var encoder = new JpegEncoder
+            {
+                Quality = 75
+            };
+
+            await image.SaveAsJpegAsync(filePath, encoder);
+            // CREATE MOBILE VERSION
+            // =========================
+            var optimizedFileName =
+                $"{Path.GetFileNameWithoutExtension(fileName)}_mobile.webp";
+
+            var optimizedPath = Path.Combine(folder, optimizedFileName);
+
+            await imageOptimizationService.CreateMobileVersion(filePath, optimizedPath);
+            worker.PassportPhotoThumbPath = optimizedFileName;
+            profileModel.PassportPhotoThumbPath = optimizedFileName;
                 profileModel.PassportPhotoPath = fileName;
+                 worker.PassportPhotoPath = fileName;
+            
                 successMessage = "Passport photo uploaded successfully!";
             }
         }
@@ -925,14 +973,17 @@ else
                     return;
                 }
 
-                var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
-                if (!Directory.Exists(uploadsDir))
+               // var uploadsDir = Path.Combine(Environment.WebRootPath, "uploads");
+                var folder = Environment.IsDevelopment()
+                        ? Path.Combine(Environment.ContentRootPath, "wwwroot", "uploads")
+                        : "/var/data/uploads";
+                if (!Directory.Exists(folder))
                 {
-                    Directory.CreateDirectory(uploadsDir);
+                    Directory.CreateDirectory(folder);
                 }
 
                 var fileName = $"{worker.WorkerId}_{certificateType.ToLower()}_{Guid.NewGuid()}{fileExtension}";
-                var filePath = Path.Combine(uploadsDir, fileName);
+                var filePath = Path.Combine(folder, fileName);
 
                 using (var stream = new FileStream(filePath, FileMode.Create))
                 {
@@ -1055,6 +1106,7 @@ else
         public string BibleCollegeCertificatePath { get; set; } = string.Empty;
 
         public string PassportPhotoPath { get; set; } = string.Empty;
+        public string? PassportPhotoThumbPath { get; set; } = string.Empty;
     }
 }
 
