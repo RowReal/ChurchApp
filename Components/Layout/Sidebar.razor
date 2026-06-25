@@ -756,6 +756,7 @@
 
         var role = worker.Role?.ToLowerInvariant() ?? "";
         var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        var departmentName = worker.Department?.Name?.ToLowerInvariant() ?? "";
 
         // Only Head or Assistant Head of FIG Directorate can access
         var isHeadOfFIGDirectorate = role.Contains("head of directorate") &&
@@ -764,7 +765,10 @@
         var isAssistantHeadOfFIGDirectorate = role.Contains("asst head of directorate") &&
                                               directorateName.Contains("fig");
 
-        return isHeadOfFIGDirectorate || isAssistantHeadOfFIGDirectorate;
+        return isHeadOfFIGDirectorate || isAssistantHeadOfFIGDirectorate || (
+                   role.Contains("head of department")
+                   && departmentName.Contains("membership assimilation")
+                  );
     }
 
     private bool CanAccessProfileApproval()

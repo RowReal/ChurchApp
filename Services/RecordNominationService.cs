@@ -72,7 +72,12 @@ namespace ChurchApp.Services
             var isAssistantHeadOfFIGDirectorate = worker.Role?.ToLowerInvariant() == "assistant head of directorate" &&
                                                  worker.Directorate?.Name?.ToLowerInvariant().Contains("fig") == true;
 
-            return isHeadOfFIGDirectorate || isAssistantHeadOfFIGDirectorate;
+            var isMembershipAssimilationHOD =
+    worker.Role?.ToLowerInvariant() == "head of department" &&
+    worker.Directorate?.Name?.ToLowerInvariant().Contains("fig") == true &&
+    worker.Department?.Name?.ToLowerInvariant().Contains("membership assimilation") == true;
+
+            return isHeadOfFIGDirectorate || isAssistantHeadOfFIGDirectorate || isMembershipAssimilationHOD;
         }
 
         public async Task<List<Service>> GetServicesForNomination()

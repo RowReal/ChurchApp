@@ -1664,23 +1664,43 @@ else
         return isHeadOfMEATDirectorate || isAssistantHeadOfMEATDirectorate;
     }
 
+    // private bool CanAccessRecordNomination()
+    // {
+    //     var worker = AuthService.CurrentWorker;
+    //     if (worker == null) return false;
+
+    //     var role = worker.Role?.ToLowerInvariant() ?? "";
+    //     var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+
+    //     // Only Head or Assistant Head of FIG Directorate can access
+    //     var isHeadOfFIGDirectorate = role.Contains("head of directorate") &&
+    //                                  directorateName.Contains("fig");
+
+    //     var isAssistantHeadOfFIGDirectorate = role.Contains("asst head of directorate") &&
+    //                                           directorateName.Contains("fig");
+
+    //     return isHeadOfFIGDirectorate || isAssistantHeadOfFIGDirectorate;
+    // }
     private bool CanAccessRecordNomination()
-    {
-        var worker = AuthService.CurrentWorker;
-        if (worker == null) return false;
+{
+    var worker = AuthService.CurrentWorker;
+    if (worker == null) return false;
 
-        var role = worker.Role?.ToLowerInvariant() ?? "";
-        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+    var role = worker.Role?.ToLowerInvariant() ?? "";
+    var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+    var departmentName = worker.Department?.Name?.ToLowerInvariant() ?? "";
 
-        // Only Head or Assistant Head of FIG Directorate can access
-        var isHeadOfFIGDirectorate = role.Contains("head of directorate") &&
-                                     directorateName.Contains("fig");
-
-        var isAssistantHeadOfFIGDirectorate = role.Contains("asst head of directorate") &&
-                                              directorateName.Contains("fig");
-
-        return isHeadOfFIGDirectorate || isAssistantHeadOfFIGDirectorate;
-    }
+    return directorateName.Contains("fig")
+           &&
+           (
+               role.Contains("head of directorate")
+               || role.Contains("asst head of directorate")
+               || (
+                   role.Contains("head of department")
+                   && departmentName.Contains("membership assimilation")
+                  )
+           );
+}
 
     private bool CanApproveOfferings()
     {

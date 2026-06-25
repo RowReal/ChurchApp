@@ -745,12 +745,15 @@ else
         if (worker == null) return false;
 
         var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+         var departmentName = worker.Department?.Name?.ToLowerInvariant() ?? "";
         var role = worker.Role?.ToLowerInvariant() ?? "";
 
         var isInFIG = directorateName.Contains("fig");
         var hasValidRole = role.Contains("head of directorate") ||
                           role.Contains("asst head of directorate") ||
                           role.Contains("directorate member") ||
+                          (role.Contains("head of department")
+                   && departmentName.Contains("membership assimilation")) ||
                           AuthService.IsInRole("Church Admin") ||
                           AuthService.IsInRole("Pastor in Charge");
 

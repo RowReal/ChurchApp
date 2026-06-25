@@ -499,6 +499,7 @@ else
         if (worker == null) return false;
 
         var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+         var departmentName = worker.Department?.Name?.ToLowerInvariant() ?? "";
         var role = worker.Role?.ToLowerInvariant() ?? "";
 
         var isInFIG = directorateName.Contains("fig");
@@ -506,6 +507,8 @@ else
                           role.Contains("asst head of directorate") ||
                           role.Contains("directorate member") ||
                           AuthService.IsInRole("Church Admin") ||
+                          (role.Contains("head of department")
+                   && departmentName.Contains("membership assimilation"))||
                           AuthService.IsInRole("Pastor in Charge");
 
         return isInFIG && hasValidRole;

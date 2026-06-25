@@ -216,7 +216,8 @@
                                     <div class="col-md-4">
                                         <label class="form-label small fw-semibold">Department</label>
                                         <select @bind="workerModel.DepartmentId" @bind:after="OnDepartmentChanged"
-                                                class="form-select form-select-sm" disabled="@(filteredDepartments.Count == 0)">
+                                                class="form-select form-select-sm"
+                                                disabled="@(filteredDepartments.Count == 0 || IsDirectorateLeadershipRole())">
                                             <option value="">Select</option>
                                             @foreach (var department in filteredDepartments)
                                             {
@@ -240,7 +241,9 @@
                                 <div class="row g-2 mb-3">
                                     <div class="col-md-6">
                                         <label class="form-label small fw-semibold">Role *</label>
-                                        <select @bind="workerModel.Role" class="form-select form-select-sm">
+                                        <select @bind="workerModel.Role"
+                                                @bind:after="OnRoleChanged"
+                                                class="form-select form-select-sm">
                                             <option value="">Select Role</option>
                                             @foreach (var role in rolesFromDb)
                                             {
@@ -830,6 +833,11 @@ else
         isUpdating = true;
         successMessage = string.Empty;
         errorMessage = string.Empty;
+        if (workerModel.Role == "Head of Directorate" ||
+    workerModel.Role == "Asst Head of Directorate")
+        {
+            workerModel.DepartmentId = null;
+        }
         if (workerModel.MaritalStatus == "Single")
         {
             workerModel.WeddingAnniversary = null;
@@ -1201,7 +1209,18 @@ else
 
         return ms.ToArray();
     }
-
+    private bool IsDirectorateLeadershipRole()
+    {
+        return workerModel.Role == "Head of Directorate"
+            || workerModel.Role == "Asst Head of Directorate";
+    }
+    private void OnRoleChanged()
+    {
+        if (IsDirectorateLeadershipRole())
+        {
+            workerModel.DepartmentId = null; // optional
+        }
+    }
     public class WorkerUpdateModel
     {
         [Required(ErrorMessage = "First name is required")]
