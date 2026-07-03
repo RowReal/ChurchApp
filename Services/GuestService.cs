@@ -15,6 +15,73 @@ namespace ChurchApp.Services
             _logger = logger;
         }
 
+        public async Task<GuestPhoneFollowUp> AddPhoneFollowUpAsync(GuestPhoneFollowUp followUp)
+        {
+            followUp.CreatedAt = DateTime.UtcNow;
+            followUp.LastUpdated = DateTime.UtcNow;
+
+            _context.GuestPhoneFollowUps.Add(followUp);
+            await _context.SaveChangesAsync();
+
+            return followUp;
+        }
+
+        public async Task<List<GuestPhoneFollowUp>> GetGuestPhoneFollowUpsAsync(int guestId)
+        {
+            return await _context.GuestPhoneFollowUps
+                .Where(f => f.GuestId == guestId)
+                .OrderByDescending(f => f.CallDate)
+                .ToListAsync();
+        }
+
+        public async Task<GuestPhoneFollowUp?> GetPhoneFollowUpByIdAsync(int id)
+        {
+            return await _context.GuestPhoneFollowUps
+                .Include(f => f.Guest)
+                .FirstOrDefaultAsync(f => f.Id == id);
+        }
+
+        public async Task<GuestPhoneFollowUp> UpdatePhoneFollowUpAsync(GuestPhoneFollowUp followUp)
+        {
+            var existing = await _context.GuestPhoneFollowUps
+                .FirstOrDefaultAsync(f => f.Id == followUp.Id);
+
+            if (existing == null)
+                throw new InvalidOperationException("Phone follow-up record not found.");
+
+            existing.CallDate = followUp.CallDate;
+            existing.WasCallAnswered = followUp.WasCallAnswered;
+            existing.CallDurationMinutes = followUp.CallDurationMinutes;
+            existing.Outcome = followUp.Outcome;
+            existing.PrayerRequest = followUp.PrayerRequest;
+            existing.WillGuestReturn = followUp.WillGuestReturn;
+            existing.NeedsVisitation = followUp.NeedsVisitation;
+            existing.WantsToJoinDepartment = followUp.WantsToJoinDepartment;
+            existing.DepartmentInterest = followUp.DepartmentInterest;
+            existing.WantsToMeetPastor = followUp.WantsToMeetPastor;
+            existing.NextFollowUpDate = followUp.NextFollowUpDate;
+            existing.GuestFeedback = followUp.GuestFeedback;
+            existing.Remarks = followUp.Remarks;
+            existing.LastUpdated = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return existing;
+        }
+
+        public async Task<bool> DeletePhoneFollowUpAsync(int id)
+        {
+            var followUp = await _context.GuestPhoneFollowUps
+                .FirstOrDefaultAsync(f => f.Id == id);
+
+            if (followUp == null)
+                return false;
+
+            _context.GuestPhoneFollowUps.Remove(followUp);
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
         // Create First Timer
         public async Task<Guest> CreateFirstTimerAsync(CreateGuestModel model, Worker currentWorker)
         {
@@ -158,8 +225,8 @@ namespace ChurchApp.Services
             {
                 return await _context.Guests
                     .Include(g => g.Service)
-                    .Where(g => g.RecordingDate.Date == date.Date && g.IsActive)
-                    .OrderByDescending(g => g.CreatedDate)
+                    .Where(g => g.VisitingDate.Date == date.Date)
+                    .OrderByDescending(g => g.VisitingDate)
                     .ToListAsync();
             }
             catch (Exception ex)

@@ -122,7 +122,7 @@
                                             <th>Visit Date</th>
                                             <th>Service</th>
                                             <th>Status</th>
-                                            <th>Actions</th>
+                                            <th style="width:340px;">Guest Follow-up Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -168,17 +168,32 @@
                                                         </span>
                                                     }
                                                 </td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewGuestDetails(guest.Id)">
-                                                        <i class="fas fa-eye"></i>
-                                                    </button>
-                                                    @if (!guest.IsSecondTimer)
-                                                    {
-                                                        <button class="btn btn-sm btn-outline-success ms-1" @onclick="() => MarkAsSecondTimer(guest.Id)">
-                                                            <i class="fas fa-user-check"></i>
-                                                        </button>
-                                                    }
-                                                </td>
+                                               <td class="text-nowrap">
+
+    <!-- View Guest Details -->
+    <button class="btn btn-sm btn-outline-primary me-1"
+            @onclick="() => ViewGuestDetails(guest.Id)">
+        <i class="fas fa-eye me-1"></i>
+        View Details
+    </button>
+
+    <!-- Phone Follow-up -->
+    <button class="btn btn-sm btn-outline-info me-1"
+            @onclick="() => RecordPhoneFollowUp(guest.Id)">
+        <i class="fas fa-phone-alt me-1"></i>
+        Phone Follow-up
+    </button>
+
+    @if (!guest.IsSecondTimer)
+    {
+        <button class="btn btn-sm btn-outline-success"
+                @onclick="() => MarkAsSecondTimer(guest.Id)">
+            <i class="fas fa-user-check me-1"></i>
+            Mark Second Timer
+        </button>
+    }
+
+</td>
                                             </tr>
                                         }
                                     </tbody>
@@ -242,12 +257,282 @@ else
     </div>
 }
 
-<!-- Guest Details Modal -->
-@if (selectedGuest != null)
+<!-- Guest Details Modal - Blazor Controlled Compact Accordion -->
+@if (selectedGuest != null && showDetailsModal)
 {
-    <!-- Use the same modal code from DailyList.razor -->
-}
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.55);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable guest-compact-modal">
+            <div class="modal-content">
 
+                <div class="modal-header bg-dark-blue text-white py-2">
+                    <div>
+                        <h5 class="modal-title mb-0">
+                            <i class="fas fa-user-circle me-2"></i>Guest Details
+                        </h5>
+                        <small>Guest No: <strong>@selectedGuest.GuestNumber</strong></small>
+                    </div>
+
+                    <button type="button"
+                            class="btn-close btn-close-white"
+                            @onclick="CloseDetailsModal">
+                    </button>
+                </div>
+
+                <div class="modal-body p-3">
+
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                        <div>
+                            <h6 class="mb-1">
+                                @selectedGuest.Title @selectedGuest.FirstName @selectedGuest.MiddleName @selectedGuest.Surname
+                            </h6>
+                            <div class="small text-muted">
+                                @selectedGuest.Sex | @selectedGuest.AgeGroup
+                            </div>
+                        </div>
+
+                        @if (selectedGuest.IsSecondTimer)
+                        {
+                            <span class="badge bg-success px-3 py-2">
+                                <i class="fas fa-user-check me-1"></i>Second Timer
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-primary px-3 py-2">
+                                <i class="fas fa-user-plus me-1"></i>First Timer
+                            </span>
+                        }
+                    </div>
+
+                    <div class="accordion guest-details-accordion">
+
+                        <!-- Personal Information -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button @(openSection == "personal" ? "" : "collapsed") py-2"
+                                        type="button"
+                                        @onclick='() => ToggleSection("personal")'>
+                                    <i class="fas fa-user me-2 text-primary"></i>
+                                    Personal Information
+                                </button>
+                            </h2>
+
+                            <div class="accordion-collapse collapse @(openSection == "personal" ? "show" : "")">
+                                <div class="accordion-body py-2">
+                                    <div class="detail-row">
+                                        <span>Full Name</span>
+                                        <strong>@selectedGuest.Title @selectedGuest.FirstName @selectedGuest.MiddleName @selectedGuest.Surname</strong>
+                                    </div>
+
+                                    <div class="detail-row">
+                                        <span>Sex</span>
+                                        <strong>@selectedGuest.Sex</strong>
+                                    </div>
+
+                                    <div class="detail-row">
+                                        <span>Age Group</span>
+                                        <strong>@selectedGuest.AgeGroup</strong>
+                                    </div>
+
+                                    <div class="detail-row">
+                                        <span>First Visit</span>
+                                        <strong>@selectedGuest.VisitingDate.ToString("dd-MMM-yyyy")</strong>
+                                    </div>
+
+                                    <div class="detail-row">
+                                        <span>Recorded By</span>
+                                        <strong>@selectedGuest.RecordedByName</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contact Information -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button @(openSection == "contact" ? "" : "collapsed") py-2"
+                                        type="button"
+                                        @onclick='() => ToggleSection("contact")'>
+                                    <i class="fas fa-phone me-2 text-primary"></i>
+                                    Contact Information
+                                </button>
+                            </h2>
+
+                            <div class="accordion-collapse collapse @(openSection == "contact" ? "show" : "")">
+                                <div class="accordion-body py-2">
+                                    <div class="detail-row">
+                                        <span>Phone</span>
+                                        <strong>@selectedGuest.PhoneNumber</strong>
+                                    </div>
+
+                                    @if (!string.IsNullOrEmpty(selectedGuest.WhatsAppNumber))
+                                    {
+                                        <div class="detail-row">
+                                            <span>WhatsApp</span>
+                                            <strong>@selectedGuest.WhatsAppNumber</strong>
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(selectedGuest.Email))
+                                    {
+                                        <div class="detail-row">
+                                            <span>Email</span>
+                                            <strong>@selectedGuest.Email</strong>
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(selectedGuest.Address))
+                                    {
+                                        <div class="detail-row">
+                                            <span>Address</span>
+                                            <strong>@selectedGuest.Address</strong>
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(selectedGuest.Landmark))
+                                    {
+                                        <div class="detail-row">
+                                            <span>Landmark</span>
+                                            <strong>@selectedGuest.Landmark</strong>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Church Information -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button @(openSection == "church" ? "" : "collapsed") py-2"
+                                        type="button"
+                                        @onclick='() => ToggleSection("church")'>
+                                    <i class="fas fa-church me-2 text-primary"></i>
+                                    Church Information
+                                </button>
+                            </h2>
+
+                            <div class="accordion-collapse collapse @(openSection == "church" ? "show" : "")">
+                                <div class="accordion-body py-2">
+                                    <div class="detail-row">
+                                        <span>Service Attended</span>
+                                        <strong>@selectedGuest.Service?.Name</strong>
+                                    </div>
+
+                                    <div class="detail-row">
+                                        <span>RCCG Member</span>
+                                        <strong>@(selectedGuest.IsRCCGMember ? "Yes" : "No")</strong>
+                                    </div>
+
+                                    @if (!selectedGuest.IsRCCGMember && !string.IsNullOrEmpty(selectedGuest.OtherChurch))
+                                    {
+                                        <div class="detail-row">
+                                            <span>Other Church</span>
+                                            <strong>@selectedGuest.OtherChurch</strong>
+                                        </div>
+                                    }
+
+                                    <div class="detail-row">
+                                        <span>How Found Us</span>
+                                        <strong>@selectedGuest.HowFoundUs</strong>
+                                    </div>
+
+                                    @if (!string.IsNullOrEmpty(selectedGuest.InvitedByName))
+                                    {
+                                        <div class="detail-row">
+                                            <span>Invited By</span>
+                                            <strong>@selectedGuest.InvitedByName</strong>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Second Visit Information -->
+                        @if (selectedGuest.IsSecondTimer)
+                        {
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button @(openSection == "secondVisit" ? "" : "collapsed") py-2"
+                                            type="button"
+                                            @onclick='() => ToggleSection("secondVisit")'>
+                                        <i class="fas fa-user-check me-2 text-success"></i>
+                                        Second Visit Information
+                                    </button>
+                                </h2>
+
+                                <div class="accordion-collapse collapse @(openSection == "secondVisit" ? "show" : "")">
+                                    <div class="accordion-body py-2">
+
+                                        @if (selectedGuest.SecondVisitDate.HasValue)
+                                        {
+                                            <div class="detail-row">
+                                                <span>Second Visit Date</span>
+                                                <strong>@selectedGuest.SecondVisitDate.Value.ToString("dd-MMM-yyyy")</strong>
+                                            </div>
+                                        }
+
+                                        <div class="detail-row">
+                                            <span>Wants Membership</span>
+                                            <strong>@(selectedGuest.WantsToBecomeMember == true ? "Yes" : "No")</strong>
+                                        </div>
+
+                                        <div class="detail-row">
+                                            <span>Birth Month</span>
+                                            <strong>@selectedGuest.BirthMonth</strong>
+                                        </div>
+
+                                        <div class="detail-row">
+                                            <span>Baptised by Water</span>
+                                            <strong>@(selectedGuest.IsBaptisedByWater == true ? "Yes" : "No")</strong>
+                                        </div>
+
+                                        <div class="detail-row">
+                                            <span>Join Workforce</span>
+                                            <strong>@(selectedGuest.WantsToJoinWorkforce == true ? "Yes" : "No")</strong>
+                                        </div>
+
+                                        <div class="detail-row">
+                                            <span>Recorded By</span>
+                                            <strong>@selectedGuest.SecondVisitRecordedByName</strong>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                    </div>
+                </div>
+
+                <div class="modal-footer py-2 d-flex flex-wrap gap-2">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-info"
+                            @onclick="() => RecordPhoneFollowUp(selectedGuest.Id)">
+                        <i class="fas fa-phone-alt me-1"></i>
+                        Phone Follow-up
+                    </button>
+
+                    @if (!selectedGuest.IsSecondTimer)
+                    {
+                        <button type="button"
+                                class="btn btn-sm btn-success"
+                                @onclick="() => MarkAsSecondTimer(selectedGuest.Id)">
+                            <i class="fas fa-user-check me-1"></i>
+                            Record Second Visit
+                        </button>
+                    }
+
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            @onclick="CloseDetailsModal">
+                        Close
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
 @code {
     private List<Guest> searchResults = new();
     private Guest selectedGuest = null;
@@ -260,6 +545,7 @@ else
     private string sortBy = "date";
     private bool isSearching = false;
     private bool hasSearched = false;
+     private bool showDetailsModal = false;
 
     private bool IsFIGDirectorateMember()
     {
@@ -267,16 +553,19 @@ else
         if (worker == null) return false;
 
         var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        var departmentName = worker.Department?.Name?.ToLowerInvariant() ?? "";
         var role = worker.Role?.ToLowerInvariant() ?? "";
 
-        var isInFIG = directorateName.Contains("fig");
+        var isInFIG = directorateName.Contains("fig") && (role.Contains("head of directorate") ||
+               role.Contains("asst head of directorate"));
+        var isInMat = directorateName.Contains("fig") && departmentName.Contains("membership assimilation");
         var hasValidRole = role.Contains("head of directorate") ||
                           role.Contains("asst head of directorate") ||
                           role.Contains("directorate member") ||
                           AuthService.IsInRole("Church Admin") ||
                           AuthService.IsInRole("Pastor in Charge");
 
-        return isInFIG && hasValidRole;
+        return isInFIG || hasValidRole || isInMat;
     }
 
     private async Task SearchGuests()
@@ -370,6 +659,10 @@ else
         try
         {
             selectedGuest = await GuestService.GetGuestByIdAsync(guestId);
+            if (selectedGuest != null)
+            {
+                showDetailsModal = true;
+            }
             // Open modal - you can reuse the modal logic from DailyList.razor
         }
         catch (Exception ex)
@@ -382,10 +675,82 @@ else
     {
         Navigation.NavigateTo($"/guest/second-timer?guestId={guestId}");
     }
-
+     private void CloseDetailsModal()
+    {
+        showDetailsModal = false;
+        selectedGuest = null;
+        StateHasChanged();
+    }
     private void ExportToExcel()
     {
         // Implement export logic here
         Console.WriteLine("Export to Excel functionality");
     }
+    private void RecordPhoneFollowUp(int guestId)
+{
+    Navigation.NavigateTo($"/guest/phone-followup?guestId={guestId}");
 }
+private string openSection = "personal";
+
+private void ToggleSection(string section)
+{
+    openSection = openSection == section ? "" : section;
+}
+
+}
+
+<style>
+    .guest-compact-modal {
+        max-width: 650px;
+    }
+
+    .guest-details-accordion .accordion-button {
+        font-size: 0.92rem;
+        font-weight: 600;
+    }
+
+    .guest-details-accordion .accordion-body {
+        font-size: 0.9rem;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 6px 0;
+        border-bottom: 1px solid #f1f1f1;
+        font-size: 0.92rem;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-row span {
+        color: #6c757d;
+        min-width: 42%;
+    }
+
+    .detail-row strong {
+        text-align: right;
+        font-weight: 600;
+        color: #212529;
+        word-break: break-word;
+    }
+
+    @@media (max-width: 576px) {
+        .guest-compact-modal {
+            max-width: 95%;
+            margin: 0.75rem auto;
+        }
+
+        .detail-row {
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .detail-row strong {
+            text-align: left;
+        }
+    }
+</style>

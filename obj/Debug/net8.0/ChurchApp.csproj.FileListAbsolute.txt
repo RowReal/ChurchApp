@@ -1,3 +1,10 @@
+C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.csproj.AssemblyReference.cache
+C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.GeneratedMSBuildEditorConfig.editorconfig
+C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.AssemblyInfoInputs.cache
+C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.AssemblyInfo.cs
+C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.csproj.CoreCompileInputs.cache
+C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.MvcApplicationPartsAssemblyInfo.cache
+C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.sourcelink.json
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\appsettings.Development.json
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\appsettings.json
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\BlazorDebugProxy\BrowserDebugHost.dll
@@ -33,6 +40,7 @@ C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\Microsoft.Entity
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\Microsoft.Extensions.DependencyModel.dll
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\Microsoft.JSInterop.WebAssembly.dll
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\Mono.TextTemplating.dll
+C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\SixLabors.ImageSharp.dll
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\SQLitePCLRaw.batteries_v2.dll
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\SQLitePCLRaw.core.dll
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\SQLitePCLRaw.provider.e_sqlite3.dll
@@ -114,17 +122,9 @@ C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\runtimes\win-arm
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\runtimes\win-arm64\native\e_sqlite3.dll
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\runtimes\win-x64\native\e_sqlite3.dll
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\runtimes\win-x86\native\e_sqlite3.dll
-C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.csproj.AssemblyReference.cache
-C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.GeneratedMSBuildEditorConfig.editorconfig
-C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.AssemblyInfoInputs.cache
-C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.AssemblyInfo.cs
-C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.csproj.CoreCompileInputs.cache
-C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.MvcApplicationPartsAssemblyInfo.cache
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.csproj.Up2Date
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.dll
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\refint\ChurchApp.dll
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.pdb
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.genruntimeconfig.cache
 C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ref\ChurchApp.dll
-C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\obj\Debug\net8.0\ChurchApp.sourcelink.json
-C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\bin\Debug\net8.0\SixLabors.ImageSharp.dll

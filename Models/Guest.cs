@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Generic;
 
 namespace ChurchApp.Models
 {
@@ -114,5 +115,6 @@ namespace ChurchApp.Models
 
         [NotMapped]
         public string FirstTimerFullName => $"{FirstName} {Surname}".Trim();
+        public ICollection<GuestPhoneFollowUp> PhoneFollowUps { get; set; } = new List<GuestPhoneFollowUp>();
     }
 }

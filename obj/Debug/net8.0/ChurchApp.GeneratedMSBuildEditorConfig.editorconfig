@@ -172,12 +172,20 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xHdWVzdFxGaXJzdFRpbWVyLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Guest/FollowupReport.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xHdWVzdFxGb2xsb3d1cFJlcG9ydC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Guest/GuestDetails.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xHdWVzdFxHdWVzdERldGFpbHMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Guest/Index.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xHdWVzdFxJbmRleC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Guest/PhoneFollowUp.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xHdWVzdFxQaG9uZUZvbGxvd1VwLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Guest/Search.razor]

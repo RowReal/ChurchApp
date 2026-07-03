@@ -33,6 +33,7 @@ namespace ChurchApp.Data
         public DbSet<RecordNomination> RecordNominations { get; set; }
         public DbSet<Guest> Guests { get; set; }
         public DbSet<ServiceNote> ServiceNotes { get; set; }
+        public DbSet<GuestPhoneFollowUp> GuestPhoneFollowUps { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

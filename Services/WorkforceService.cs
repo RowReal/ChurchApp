@@ -51,39 +51,47 @@ namespace ChurchApp.Services
         // Determine who should approve based on worker's role
         private async Task<int?> DetermineApproverAsync(Worker worker)
         {
-            // If worker is Head of Directorate, Head of Service, Asst Head of Service, or Pastor in Charge
-            // Then approval goes to Head of Directorate of MEAT
-            var highLevelRoles = new[] {
-                "Head of Directorate",
-                "Head of Service",
-                "Assistant Head of Service",
-                "Pastor in Charge"
-            };
+            // High-level roles are approved by the Head of Directorate (MEAT)
+            var highLevelRoles = new[]
+            {
+        "Head of Directorate",
+        "Head of Service",
+        "Assistant Head of Service",
+        "Pastor in Charge"
+    };
 
+            // Get the Head of Directorate (MEAT) once
+            var meatHead = await _context.Workers
+                .FirstOrDefaultAsync(w =>
+                    w.Role == "Head of Directorate" &&
+                    w.Directorate != null &&
+                    w.Directorate.Code == "MEAT" &&
+                    w.IsActive);
+
+            // High-level workers go directly to MEAT
             if (highLevelRoles.Contains(worker.Role))
             {
-                // Find Head of Directorate of MEAT
-                var meatHead = await _context.Workers
-                    .FirstOrDefaultAsync(w => w.Role == "Head of Directorate" &&
-                                             w.Directorate != null &&
-                                             w.Directorate.Code == "MEAT" &&
-                                             w.IsActive);
                 return meatHead?.Id;
             }
-            else
+
+            // Regular workers go to the Head of their own Directorate
+            if (worker.DirectorateId.HasValue)
             {
-                // For regular workers, approval goes to their Head of Directorate
-                if (worker.DirectorateId.HasValue)
+                var directorateHead = await _context.Workers
+                    .FirstOrDefaultAsync(w =>
+                        w.DirectorateId == worker.DirectorateId &&
+                        w.Role == "Head of Directorate" &&
+                        w.IsActive);
+
+                if (directorateHead != null)
                 {
-                    var directorateHead = await _context.Workers
-                        .FirstOrDefaultAsync(w => w.DirectorateId == worker.DirectorateId &&
-                                                 w.Role == "Head of Directorate" &&
-                                                 w.IsActive);
-                    return directorateHead?.Id;
+                    return directorateHead.Id;
                 }
             }
 
-            return null; // No approver found
+            // Fallback: if no Head of Directorate exists for the worker's
+            // directorate, route the request to the Head of Directorate (MEAT).
+            return meatHead?.Id;
         }
 
         // Get pending update requests for a worker
