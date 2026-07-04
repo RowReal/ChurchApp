@@ -1,0 +1,435 @@
+﻿@page "/admin/prayer-focus"
+
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject AuthService AuthService
+@inject PrayerFocusService PrayerFocusService
+
+<PageTitle>Prayer Focus - BCC ServiceHub</PageTitle>
+
+@if (!CanManagePrayerFocus())
+{
+    <div class="alert alert-danger">
+        You are not authorized to access this page.
+    </div>
+}
+else
+{
+    <div class="notice-page">
+
+        <div class="notice-page-header">
+            <div>
+                <span class="notice-kicker">
+                    <i class="fas fa-praying-hands"></i>
+                    Spiritual Content Centre
+                </span>
+                <h2>Prayer Focus Management</h2>
+                <p>Create and manage weekly prayer themes and prayer points for church workers.</p>
+            </div>
+
+            <button class="notice-primary-btn" @onclick="ShowCreateForm">
+                <i class="fas fa-plus"></i>
+                New Prayer Focus
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (showForm)
+        {
+            <div class="notice-form-card">
+                <div class="notice-form-header">
+                    <h5>@(isEditing ? "Edit Prayer Focus" : "Create Prayer Focus")</h5>
+                    <button class="notice-close-btn" @onclick="CancelForm">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <EditForm Model="@prayerFocusModel" OnValidSubmit="@SavePrayerFocus">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Theme</label>
+                            <InputText class="form-control notice-input"
+                                       @bind-Value="prayerFocusModel.Theme"
+                                       placeholder="Example: Soul Winning" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Bible Verse</label>
+                            <InputText class="form-control notice-input"
+                                       @bind-Value="prayerFocusModel.BibleVerse"
+                                       placeholder="Example: Matthew 28:19" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Week Start Date</label>
+                            <InputDate class="form-control notice-input"
+                                       @bind-Value="prayerFocusModel.WeekStartDate" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Week End Date</label>
+                            <InputDate class="form-control notice-input"
+                                       @bind-Value="prayerFocusModel.WeekEndDate" />
+                        </div>
+
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label mb-0">Prayer Points</label>
+
+                                <button type="button" class="notice-secondary-btn" @onclick="AddPrayerPoint">
+                                    <i class="fas fa-plus"></i>
+                                    Add Point
+                                </button>
+                            </div>
+
+                            @for (int i = 0; i < prayerFocusModel.PrayerPoints.Count; i++)
+                            {
+                                var index = i;
+
+                                <div class="prayer-point-row">
+                                    <span class="prayer-point-number">@(index + 1)</span>
+
+                                    <InputText class="form-control notice-input"
+                                               @bind-Value="prayerFocusModel.PrayerPoints[index].PointText"
+                                               placeholder="Enter prayer point..." />
+
+                                    <button type="button"
+                                            class="notice-action-btn delete"
+                                            @onclick="() => RemovePrayerPoint(index)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="notice-check">
+                                <InputCheckbox @bind-Value="prayerFocusModel.IsActive" />
+                                <span>Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="notice-form-actions">
+                        <button type="button" class="notice-secondary-btn" @onclick="CancelForm">
+                            Cancel
+                        </button>
+
+                        <button type="submit" class="notice-primary-btn" disabled="@isSaving">
+                            @(isEditing ? "Update Prayer Focus" : "Save Prayer Focus")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        }
+
+        <div class="notice-list-card">
+            <div class="notice-list-header">
+                <h5>All Prayer Focuses</h5>
+                <span>@prayerFocuses.Count item(s)</span>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="text-muted mt-2">Loading prayer focuses...</p>
+                </div>
+            }
+            else if (!prayerFocuses.Any())
+            {
+                <div class="notice-empty">
+                    <i class="fas fa-praying-hands"></i>
+                    <h5>No prayer focus yet</h5>
+                    <p>Create your first weekly prayer focus.</p>
+                </div>
+            }
+            else
+            {
+                <div class="notice-table-wrapper">
+                    <table class="table notice-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Prayer Focus</th>
+                                <th>Week</th>
+                                <th>Points</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var focus in prayerFocuses)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="notice-title-cell">
+                                            <div class="notice-type-icon notice-prayer">
+                                                <i class="fas fa-praying-hands"></i>
+                                            </div>
+                                            <div>
+                                                <strong>@focus.Theme</strong>
+                                                <span>@focus.BibleVerse</span>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        @focus.WeekStartDate.ToString("dd MMM") -
+                                        @focus.WeekEndDate.ToString("dd MMM yyyy")
+                                    </td>
+
+                                    <td>
+                                        <span class="notice-type-badge notice-prayer">
+                                            @focus.PrayerPoints.Count point(s)
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        @if (focus.IsActive)
+                                        {
+                                            <span class="notice-status active">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="notice-status inactive">Inactive</span>
+                                        }
+                                    </td>
+
+                                    <td class="text-end">
+                                        <button class="notice-action-btn edit" @onclick="() => EditPrayerFocus(focus)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+
+                                        <button class="notice-action-btn toggle" @onclick="() => TogglePrayerFocus(focus.Id)">
+                                            <i class="fas @(focus.IsActive ? "fa-eye-slash" : "fa-eye")"></i>
+                                        </button>
+
+                                        <button class="notice-action-btn delete" @onclick="() => DeletePrayerFocus(focus.Id)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+    </div>
+}
+
+@code {
+    private List<PrayerFocus> prayerFocuses = new();
+    private PrayerFocus prayerFocusModel = new();
+
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool showForm = false;
+    private bool isEditing = false;
+
+    private string successMessage = "";
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPrayerFocuses();
+    }
+
+    private async Task LoadPrayerFocuses()
+    {
+        try
+        {
+            isLoading = true;
+            prayerFocuses = await PrayerFocusService.GetAllPrayerFocusesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading prayer focuses: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        var today = DateTime.Today;
+        var startOfWeek = today.AddDays(-(int)today.DayOfWeek + 1);
+
+        prayerFocusModel = new PrayerFocus
+        {
+            WeekStartDate = startOfWeek,
+            WeekEndDate = startOfWeek.AddDays(6),
+            IsActive = true,
+            PrayerPoints = new List<PrayerPoint>
+            {
+                new PrayerPoint { DisplayOrder = 1 }
+            }
+        };
+
+        isEditing = false;
+        showForm = true;
+        ClearMessages();
+    }
+
+    private void EditPrayerFocus(PrayerFocus focus)
+    {
+        prayerFocusModel = new PrayerFocus
+        {
+            Id = focus.Id,
+            Theme = focus.Theme,
+            BibleVerse = focus.BibleVerse,
+            WeekStartDate = focus.WeekStartDate,
+            WeekEndDate = focus.WeekEndDate,
+            IsActive = focus.IsActive,
+            CreatedDate = focus.CreatedDate,
+            PrayerPoints = focus.PrayerPoints
+                .OrderBy(p => p.DisplayOrder)
+                .Select(p => new PrayerPoint
+                {
+                    Id = p.Id,
+                    PrayerFocusId = p.PrayerFocusId,
+                    PointText = p.PointText,
+                    DisplayOrder = p.DisplayOrder
+                })
+                .ToList()
+        };
+
+        if (!prayerFocusModel.PrayerPoints.Any())
+        {
+            prayerFocusModel.PrayerPoints.Add(new PrayerPoint { DisplayOrder = 1 });
+        }
+
+        isEditing = true;
+        showForm = true;
+        ClearMessages();
+    }
+
+    private async Task SavePrayerFocus()
+    {
+        try
+        {
+            isSaving = true;
+            ClearMessages();
+
+            if (prayerFocusModel.WeekEndDate < prayerFocusModel.WeekStartDate)
+            {
+                errorMessage = "Week end date cannot be earlier than week start date.";
+                return;
+            }
+
+            if (!prayerFocusModel.PrayerPoints.Any(p => !string.IsNullOrWhiteSpace(p.PointText)))
+            {
+                errorMessage = "Please add at least one prayer point.";
+                return;
+            }
+
+            if (isEditing)
+            {
+                await PrayerFocusService.UpdatePrayerFocusAsync(prayerFocusModel);
+                successMessage = "Prayer focus updated successfully.";
+            }
+            else
+            {
+                await PrayerFocusService.CreatePrayerFocusAsync(prayerFocusModel);
+                successMessage = "Prayer focus created successfully.";
+            }
+
+            showForm = false;
+            await LoadPrayerFocuses();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving prayer focus: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void AddPrayerPoint()
+    {
+        prayerFocusModel.PrayerPoints.Add(new PrayerPoint
+        {
+            DisplayOrder = prayerFocusModel.PrayerPoints.Count + 1
+        });
+    }
+
+    private void RemovePrayerPoint(int index)
+    {
+        if (index >= 0 && index < prayerFocusModel.PrayerPoints.Count)
+        {
+            prayerFocusModel.PrayerPoints.RemoveAt(index);
+        }
+
+        for (int i = 0; i < prayerFocusModel.PrayerPoints.Count; i++)
+        {
+            prayerFocusModel.PrayerPoints[i].DisplayOrder = i + 1;
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        prayerFocusModel = new PrayerFocus();
+        ClearMessages();
+    }
+
+    private async Task TogglePrayerFocus(int id)
+    {
+        try
+        {
+            await PrayerFocusService.ToggleActiveStatusAsync(id);
+            successMessage = "Prayer focus status updated.";
+            await LoadPrayerFocuses();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating prayer focus status: {ex.Message}";
+        }
+    }
+
+    private async Task DeletePrayerFocus(int id)
+    {
+        try
+        {
+            await PrayerFocusService.DeletePrayerFocusAsync(id);
+            successMessage = "Prayer focus deleted successfully.";
+            await LoadPrayerFocuses();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting prayer focus: {ex.Message}";
+        }
+    }
+
+    private bool CanManagePrayerFocus()
+    {
+        return AuthService.IsInRole("Church Admin") ||
+               AuthService.IsInRole("Pastor in Charge") ||
+               AuthService.CanAccessAdminPanel();
+    }
+
+    private void ClearMessages()
+    {
+        successMessage = "";
+        errorMessage = "";
+    }
+}

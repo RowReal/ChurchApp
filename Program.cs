@@ -61,6 +61,10 @@ builder.Services.AddScoped<AttendanceService>();
 builder.Services.AddScoped<ServiceNoteService>();
 builder.Services.AddScoped<GuestService>();
 builder.Services.AddScoped<ImageOptimizationService>();
+builder.Services.AddScoped<ChurchUpdateService>();
+builder.Services.AddScoped<ChurchNoticeService>();
+builder.Services.AddScoped<VerseOfTheDayService>();
+builder.Services.AddScoped<PrayerFocusService>();
 
 builder.Services.AddCascadingAuthenticationState();
 

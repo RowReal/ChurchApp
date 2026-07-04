@@ -34,6 +34,11 @@ namespace ChurchApp.Data
         public DbSet<Guest> Guests { get; set; }
         public DbSet<ServiceNote> ServiceNotes { get; set; }
         public DbSet<GuestPhoneFollowUp> GuestPhoneFollowUps { get; set; }
+        public DbSet<ChurchAnnouncement> ChurchAnnouncements { get; set; }
+        public DbSet<PrayerFocus> PrayerFocuses { get; set; }
+        public DbSet<PrayerPoint> PrayerPoints { get; set; }
+        public DbSet<VerseOfTheDay> VerseOfTheDays { get; set; }
+        public DbSet<ChurchNotice> ChurchNotices { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -113,6 +118,18 @@ namespace ChurchApp.Data
                 .HasOne(u => u.LeaderWorker)
                 .WithMany()
                 .HasForeignKey(u => u.LeaderWorkerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Worker>()
+    .HasOne(w => w.SecondaryDirectorate)
+    .WithMany()
+    .HasForeignKey(w => w.SecondaryDirectorateId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Worker>()
+                .HasOne(w => w.SecondaryDepartment)
+                .WithMany()
+                .HasForeignKey(w => w.SecondaryDepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Audit Trail configurations

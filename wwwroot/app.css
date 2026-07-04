@@ -1002,3 +1002,237 @@ html, body {
     font-size: 0.84rem !important;
     padding: 9px 10px !important;
 }
+
+/* =========================
+   PROFESSIONAL MAIN LAYOUT V2
+========================= */
+
+.app-shell {
+    min-height: 100vh;
+    background: #f6f8fb;
+}
+
+.app-topbar {
+    height: 72px;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 1100;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
+}
+
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.app-logo-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    background: #111827;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.app-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.app-brand-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+    .app-brand-text strong {
+        color: #111827;
+        font-size: 1.05rem;
+        font-weight: 900;
+    }
+
+    .app-brand-text span {
+        color: #6b7280;
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+
+.app-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.app-user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.app-user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    background: #eff6ff;
+    color: #0d6efd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+    .app-user-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+.app-user-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    text-align: right;
+}
+
+    .app-user-text strong {
+        color: #111827;
+        font-size: 0.9rem;
+        font-weight: 900;
+    }
+
+    .app-user-text span {
+        color: #6b7280;
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+
+.app-signout-btn,
+.app-login-btn {
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #374151;
+    padding: 9px 14px;
+    border-radius: 14px;
+    font-size: 0.84rem;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+    .app-signout-btn:hover {
+        background: #fff1f2;
+        color: #dc3545;
+        border-color: #fecdd3;
+    }
+
+.app-login-btn {
+    background: #0d6efd;
+    color: #ffffff;
+    border-color: #0d6efd;
+}
+
+    .app-login-btn:hover {
+        background: #084298;
+        color: #ffffff;
+    }
+
+.app-menu-btn {
+    display: none;
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 14px;
+    background: #0d6efd;
+    color: #ffffff;
+    align-items: center;
+    justify-content: center;
+}
+
+.app-body {
+    display: flex;
+    padding-top: 72px;
+    min-height: 100vh;
+}
+
+.app-content {
+    flex: 1;
+    min-width: 0;
+    margin-left: 280px;
+    padding: 22px;
+    background: #f6f8fb;
+}
+
+.app-content-full {
+    margin-left: 0;
+    padding: 0;
+}
+
+.app-sidebar-backdrop {
+    display: none;
+}
+
+/* Make old sidebar align with new layout */
+.bcc-sidebar {
+    top: 72px !important;
+    height: calc(100vh - 72px) !important;
+}
+
+@media (max-width: 991px) {
+    .app-topbar {
+        padding: 0 14px;
+    }
+
+    .app-brand-text span {
+        display: none;
+    }
+
+    .app-user-text {
+        display: none;
+    }
+
+    .app-signout-btn span {
+        display: none;
+    }
+
+    .app-menu-btn {
+        display: inline-flex;
+    }
+
+    .app-content {
+        margin-left: 0;
+        padding: 16px;
+    }
+
+    .bcc-sidebar {
+        position: fixed !important;
+        left: -290px !important;
+        top: 72px !important;
+        z-index: 1200 !important;
+        transition: left 0.25s ease !important;
+    }
+
+        .bcc-sidebar.show {
+            left: 0 !important;
+        }
+
+    .app-sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 72px 0 0 0;
+        background: rgba(15, 23, 42, 0.45);
+        z-index: 1150;
+    }
+}

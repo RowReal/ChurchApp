@@ -1,0 +1,348 @@
+﻿@page "/admin/verse-of-the-day"
+
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject AuthService AuthService
+@inject VerseOfTheDayService VerseService
+
+<PageTitle>Verse of the Day - BCC ServiceHub</PageTitle>
+
+@if (!CanManageVerses())
+{
+    <div class="alert alert-danger">
+        You are not authorized to access this page.
+    </div>
+}
+else
+{
+    <div class="notice-page">
+
+        <div class="notice-page-header">
+            <div>
+                <span class="notice-kicker">
+                    <i class="fas fa-book-open"></i>
+                    Spiritual Content Centre
+                </span>
+                <h2>Verse of the Day</h2>
+                <p>Create and manage daily Bible verses displayed on the dashboard.</p>
+            </div>
+
+            <button class="notice-primary-btn" @onclick="ShowCreateForm">
+                <i class="fas fa-plus"></i>
+                New Verse
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (showForm)
+        {
+            <div class="notice-form-card">
+                <div class="notice-form-header">
+                    <h5>@(isEditing ? "Edit Verse" : "Create New Verse")</h5>
+                    <button class="notice-close-btn" @onclick="CancelForm">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <EditForm Model="@verseModel" OnValidSubmit="@SaveVerse">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Scripture Reference</label>
+                            <InputText class="form-control notice-input"
+                                       @bind-Value="verseModel.ScriptureReference"
+                                       placeholder="Example: Ecclesiastes 9:10" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Display Date</label>
+                            <InputDate class="form-control notice-input"
+                                       @bind-Value="verseModel.DisplayDate" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Verse Text</label>
+                            <InputTextArea class="form-control notice-input"
+                                           @bind-Value="verseModel.VerseText"
+                                           rows="4"
+                                           placeholder="Enter the Bible verse text..." />
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="notice-check">
+                                <InputCheckbox @bind-Value="verseModel.IsActive" />
+                                <span>Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="notice-form-actions">
+                        <button type="button" class="notice-secondary-btn" @onclick="CancelForm">
+                            Cancel
+                        </button>
+
+                        <button type="submit" class="notice-primary-btn" disabled="@isSaving">
+                            @(isEditing ? "Update Verse" : "Save Verse")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        }
+
+        <div class="notice-list-card">
+            <div class="notice-list-header">
+                <h5>All Verses</h5>
+                <span>@verses.Count verse(s)</span>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="text-muted mt-2">Loading verses...</p>
+                </div>
+            }
+            else if (!verses.Any())
+            {
+                <div class="notice-empty">
+                    <i class="fas fa-book-open"></i>
+                    <h5>No verses yet</h5>
+                    <p>Create your first verse of the day.</p>
+                </div>
+            }
+            else
+            {
+                <div class="notice-table-wrapper">
+                    <table class="table notice-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Verse</th>
+                                <th>Reference</th>
+                                <th>Display Date</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var verse in verses)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="notice-title-cell">
+                                            <div class="notice-type-icon notice-prayer">
+                                                <i class="fas fa-book-open"></i>
+                                            </div>
+                                            <div>
+                                                <strong>@TrimText(verse.VerseText)</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <span class="notice-type-badge notice-prayer">
+                                            @verse.ScriptureReference
+                                        </span>
+                                    </td>
+
+                                    <td>@verse.DisplayDate.ToString("dd MMM yyyy")</td>
+
+                                    <td>
+                                        @if (verse.IsActive)
+                                        {
+                                            <span class="notice-status active">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="notice-status inactive">Inactive</span>
+                                        }
+                                    </td>
+
+                                    <td class="text-end">
+                                        <button class="notice-action-btn edit" @onclick="() => EditVerse(verse)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+
+                                        <button class="notice-action-btn toggle" @onclick="() => ToggleVerse(verse.Id)">
+                                            <i class="fas @(verse.IsActive ? "fa-eye-slash" : "fa-eye")"></i>
+                                        </button>
+
+                                        <button class="notice-action-btn delete" @onclick="() => DeleteVerse(verse.Id)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+    </div>
+}
+
+@code {
+    private List<VerseOfTheDay> verses = new();
+    private VerseOfTheDay verseModel = new();
+
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool showForm = false;
+    private bool isEditing = false;
+
+    private string successMessage = "";
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadVerses();
+    }
+
+    private async Task LoadVerses()
+    {
+        try
+        {
+            isLoading = true;
+            verses = await VerseService.GetAllVersesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading verses: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        verseModel = new VerseOfTheDay
+        {
+            DisplayDate = DateTime.Today,
+            IsActive = true
+        };
+
+        isEditing = false;
+        showForm = true;
+        ClearMessages();
+    }
+
+    private void EditVerse(VerseOfTheDay verse)
+    {
+        verseModel = new VerseOfTheDay
+        {
+            Id = verse.Id,
+            VerseText = verse.VerseText,
+            ScriptureReference = verse.ScriptureReference,
+            DisplayDate = verse.DisplayDate,
+            IsActive = verse.IsActive,
+            CreatedDate = verse.CreatedDate
+        };
+
+        isEditing = true;
+        showForm = true;
+        ClearMessages();
+    }
+
+    private async Task SaveVerse()
+    {
+        try
+        {
+            isSaving = true;
+            ClearMessages();
+
+            if (isEditing)
+            {
+                await VerseService.UpdateVerseAsync(verseModel);
+                successMessage = "Verse updated successfully.";
+            }
+            else
+            {
+                await VerseService.CreateVerseAsync(verseModel);
+                successMessage = "Verse created successfully.";
+            }
+
+            showForm = false;
+            await LoadVerses();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving verse: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        verseModel = new VerseOfTheDay();
+        ClearMessages();
+    }
+
+    private async Task ToggleVerse(int id)
+    {
+        try
+        {
+            await VerseService.ToggleActiveStatusAsync(id);
+            successMessage = "Verse status updated.";
+            await LoadVerses();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating verse status: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteVerse(int id)
+    {
+        try
+        {
+            await VerseService.DeleteVerseAsync(id);
+            successMessage = "Verse deleted successfully.";
+            await LoadVerses();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting verse: {ex.Message}";
+        }
+    }
+
+    private bool CanManageVerses()
+    {
+        return AuthService.IsInRole("Church Admin") ||
+               AuthService.IsInRole("Pastor in Charge") ||
+               AuthService.CanAccessAdminPanel();
+    }
+
+    private string TrimText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "";
+        }
+
+        return text.Length <= 100 ? text : text.Substring(0, 100) + "...";
+    }
+
+    private void ClearMessages()
+    {
+        successMessage = "";
+        errorMessage = "";
+    }
+}

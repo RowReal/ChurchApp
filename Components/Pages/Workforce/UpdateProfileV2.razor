@@ -1,0 +1,919 @@
+﻿@page "/workforce/update-profile"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@using SixLabors.ImageSharp
+@using SixLabors.ImageSharp.Processing
+@using SixLabors.ImageSharp.Formats.Jpeg
+@using ChurchApp.Components.Shared
+@inject WorkforceService WorkforceService
+@inject WorkerService WorkerService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IWebHostEnvironment Environment
+@inject ImageOptimizationService imageOptimizationService
+
+@if (AuthService.IsAuthenticated)
+{
+    <PageTitle>Update My Profile - BCC ServiceHub</PageTitle>
+
+    <div class="profile-form-v2-page">
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-user-edit me-2"></i>
+                    Workforce Profile Update
+                </div>
+                <div class="bcc-page-title">Update My Profile</div>
+                <div class="bcc-page-subtitle">
+                    Update your personal and ministry information. Changes will require approval.
+                </div>
+            </div>
+
+            <button class="bcc-btn bcc-btn-primary" @onclick="NavigateBack">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back to Profile
+            </button>
+        </div>
+
+        @if (worker != null)
+        {
+            <div class="bcc-card profile-form-v2-hero">
+                <div class="bcc-card-body">
+                    <div class="row align-items-center g-4">
+                        <div class="col-md-auto text-center">
+                            @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
+                            {
+                                <img src="@($"/uploads/{worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath}")"
+                                     class="profile-form-v2-photo"
+                                     loading="lazy" />
+                            }
+                            else
+                            {
+                                <div class="profile-form-v2-photo-placeholder">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="col">
+                            <h3 class="profile-v2-name">@worker.FirstName @worker.LastName</h3>
+
+                            <div class="profile-v2-meta">
+                                <span><i class="fas fa-id-badge"></i>@worker.WorkerId</span>
+                                <span><i class="fas fa-user-tag"></i>@worker.Role</span>
+                                <span><i class="fas fa-user-check"></i>@worker.WorkerStatus</span>
+
+                                @if (worker.Directorate != null)
+                                {
+                                    <span><i class="fas fa-sitemap"></i>@worker.Directorate.Name</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-md-auto">
+                            <div class="profile-v2-status-box">
+                                <span>Approval Goes To</span>
+                                <strong>@approverInfo</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success">@successMessage</div>
+            }
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <EditForm Model="@profileModel" OnValidSubmit="SubmitForApproval">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="bcc-card">
+                    <div class="profile-form-v2-tabs">
+                        <button type="button" class="@GetTabClass("personal")" @onclick='() => SetTab("personal")'>
+                            <i class="fas fa-user"></i> Personal
+                        </button>
+
+                        <button type="button" class="@GetTabClass("church")" @onclick='() => SetTab("church")'>
+                            <i class="fas fa-church"></i> Church
+                        </button>
+
+                        <button type="button" class="@GetTabClass("ordination")" @onclick='() => SetTab("ordination")'>
+                            <i class="fas fa-hands-praying"></i> Ordination
+                        </button>
+
+                        <button type="button" class="@GetTabClass("qualifications")" @onclick='() => SetTab("qualifications")'>
+                            <i class="fas fa-graduation-cap"></i> Qualifications
+                        </button>
+
+                        <button type="button" class="@GetTabClass("documents")" @onclick='() => SetTab("documents")'>
+                            <i class="fas fa-camera"></i> Documents
+                        </button>
+
+                        <button type="button" class="@GetTabClass("review")" @onclick='() => SetTab("review")'>
+                            <i class="fas fa-paper-plane"></i> Review
+                        </button>
+                    </div>
+
+                    <div class="bcc-card-body">
+
+                        @if (activeTab == "personal")
+                        {
+                            <div class="profile-form-v2-section">
+                                <h5><i class="fas fa-user"></i> Personal Information</h5>
+
+                                <div class="row g-3">
+                                    <BccFormField Label="First Name" CurrentValue="@worker.FirstName">
+                                        <InputText @bind-Value="profileModel.FirstName" class="form-control bcc-input" />
+                                        <ValidationMessage For="@(() => profileModel.FirstName)" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Middle Name" CurrentValue="@(worker.MiddleName ?? "Not provided")">
+                                        <InputText @bind-Value="profileModel.MiddleName" class="form-control bcc-input" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Last Name" CurrentValue="@worker.LastName">
+                                        <InputText @bind-Value="profileModel.LastName" class="form-control bcc-input" />
+                                        <ValidationMessage For="@(() => profileModel.LastName)" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Sex" CurrentValue="@(worker.Sex ?? "Not provided")">
+                                        <select @bind="profileModel.Sex" class="form-select bcc-input">
+                                            <option value="">Select Sex</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                        <ValidationMessage For="@(() => profileModel.Sex)" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Title" CurrentValue="@(worker.Title ?? "Not provided")">
+                                        <select @bind="profileModel.Title" class="form-select bcc-input">
+                                            <option value="">Select Title</option>
+                                            <option value="Mr">Mr</option>
+                                            <option value="Mrs">Mrs</option>
+                                            <option value="Miss">Miss</option>
+                                            <option value="Dr">Dr</option>
+                                            <option value="Prof">Prof</option>
+                                            <option value="Rev">Rev</option>
+                                            <option value="Pastor">Pastor</option>
+                                            <option value="Deacon">Deacon</option>
+                                            <option value="Deaconess">Deaconess</option>
+                                        </select>
+                                    </BccFormField>
+
+                                    <BccFormField Label="Date of Birth" CurrentValue="@(worker.DateOfBirth?.ToString("dd MMMM yyyy") ?? "Not provided")">
+                                        <InputDate @bind-Value="profileModel.DateOfBirth" class="form-control bcc-input" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Email Address" CurrentValue="@(worker.Email ?? "Not provided")">
+                                        <InputText @bind-Value="profileModel.Email" class="form-control bcc-input" />
+                                        <ValidationMessage For="@(() => profileModel.Email)" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Phone Number" CurrentValue="@(worker.Phone ?? "Not provided")">
+                                        <InputText @bind-Value="profileModel.Phone" class="form-control bcc-input" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Marital Status" CurrentValue="@worker.MaritalStatus">
+                                        <select @bind="profileModel.MaritalStatus" class="form-select bcc-input">
+                                            <option value="Single">Single</option>
+                                            <option value="Married">Married</option>
+                                            <option value="Divorced">Divorced</option>
+                                            <option value="Widowed">Widowed</option>
+                                        </select>
+                                    </BccFormField>
+
+                                    <BccFormField Label="Wedding Anniversary" CurrentValue="@(worker.WeddingAnniversary?.ToString("dd MMMM yyyy") ?? "Not applicable")">
+                                        <InputDate @bind-Value="profileModel.WeddingAnniversary" class="form-control bcc-input" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Profession" CurrentValue="@(worker.Profession ?? "Not provided")">
+                                        <InputText @bind-Value="profileModel.Profession" class="form-control bcc-input" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Organization" CurrentValue="@(worker.Organization ?? "Not provided")">
+                                        <InputText @bind-Value="profileModel.Organization" class="form-control bcc-input" />
+                                    </BccFormField>
+
+                                   <div class="col-12 col-md-6">
+   <BccFormField Label="Address" CurrentValue="@(worker.Address ?? "Not provided")">
+    <InputText @bind-Value="profileModel.Address" class="form-control bcc-input" />
+</BccFormField>
+</div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (activeTab == "church")
+                        {
+                            <div class="profile-form-v2-section">
+                                <h5><i class="fas fa-church"></i> BCC Membership & Previous Church</h5>
+
+                                <div class="row g-3">
+                                    <BccFormField Label="Date Joined BCC" CurrentValue="@(worker.DateJoinedChurch?.ToString("dd MMMM yyyy") ?? "Not provided")">
+                                        <InputDate @bind-Value="profileModel.DateJoinedChurch" class="form-control bcc-input" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Worker Status" CurrentValue="@worker.WorkerStatus">
+                                        <select @bind="profileModel.WorkerStatus" class="form-select bcc-input">
+                                            <option value="Temp Worker">Temp Worker</option>
+                                            <option value="Ordained">Ordained</option>
+                                            <option value="Non-Ordained">Non-Ordained</option>
+                                        </select>
+                                    </BccFormField>
+
+                                    <BccFormField Label="Previous Church" CurrentValue="@(worker.PreviousChurch ?? "Not provided")">
+                                        <InputText @bind-Value="profileModel.PreviousChurch" class="form-control bcc-input" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Previous Role" CurrentValue="@(worker.PreviousChurchRole ?? "Not provided")">
+                                        <InputText @bind-Value="profileModel.PreviousChurchRole" class="form-control bcc-input" />
+                                    </BccFormField>
+
+                                    <BccFormField Label="Previous Unit" CurrentValue="@(worker.PreviousChurchUnit ?? "Not provided")">
+                                        <InputText @bind-Value="profileModel.PreviousChurchUnit" class="form-control bcc-input" />
+                                    </BccFormField>
+                                </div>
+                            </div>
+                        }
+
+                        @if (activeTab == "ordination")
+                        {
+                            <div class="profile-form-v2-section">
+                                <h5><i class="fas fa-hands-praying"></i> Ordination Information</h5>
+
+                                <div class="row g-3">
+                                    <BccFormField Label="Ordination Status" CurrentValue="@worker.OrdinationStatus">
+                                        <select @bind="profileModel.OrdinationStatus" class="form-select bcc-input">
+                                            <option value="Not Ordained">Not Ordained</option>
+                                            <option value="Ordained">Ordained</option>
+                                            <option value="Under Consideration">Under Consideration</option>
+                                            <option value="Eligible">Eligible</option>
+                                        </select>
+                                    </BccFormField>
+
+                                    <BccFormField Label="Ordination Level" CurrentValue="@worker.OrdinationLevel">
+                                        <select @bind="profileModel.OrdinationLevel" class="form-select bcc-input">
+                                            <option value="Not Ordained">Not Ordained</option>
+                                            <option value="Deacon">Deacon</option>
+                                            <option value="Deaconess">Deaconess</option>
+                                            <option value="Asst Pastor">Asst Pastor</option>
+                                            <option value="Pastor">Pastor</option>
+                                        </select>
+                                    </BccFormField>
+
+                                    <BccFormField Label="Last Ordination Date" CurrentValue="@(worker.LastOrdinationDate?.ToString("dd MMMM yyyy") ?? "Not applicable")">
+                                        <InputDate @bind-Value="profileModel.LastOrdinationDate" class="form-control bcc-input" />
+                                    </BccFormField>
+                                </div>
+                            </div>
+                        }
+
+                        @if (activeTab == "qualifications")
+                        {
+                            <div class="profile-form-v2-section">
+                                <h5><i class="fas fa-graduation-cap"></i> Qualifications & Certificates</h5>
+
+                                @if (isUploadingCertificate)
+                                {
+                                    <div class="alert alert-info">
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        Uploading certificate...
+                                    </div>
+                                }
+
+                                <div class="row g-3">
+                                    @QualificationUpload("Believer's Baptism", profileModel.HasBelieverBaptism, "HasBelieverBaptism", profileModel.BelieverBaptismCertificatePath, "BelieverBaptism")
+                                    @QualificationUpload("Worker in Training", profileModel.HasWorkerInTraining, "HasWorkerInTraining", profileModel.WorkerInTrainingCertificatePath, "WorkerInTraining")
+                                    @QualificationUpload("School of Discipleship (SOD)", profileModel.HasSOD, "HasSOD", profileModel.SODCertificatePath, "SOD")
+                                    @QualificationUpload("Bible College", profileModel.HasBibleCollege, "HasBibleCollege", profileModel.BibleCollegeCertificatePath, "BibleCollege")
+                                </div>
+                            </div>
+                        }
+
+                        @if (activeTab == "documents")
+                        {
+                            <div class="profile-form-v2-section">
+                                <h5><i class="fas fa-camera"></i> Passport Photo</h5>
+
+                                <div class="row g-4 align-items-center">
+                                    <div class="col-md-4 text-center">
+                                        @if (!string.IsNullOrEmpty(profileModel.PassportPhotoPath))
+                                        {
+                                            <img src="/uploads/@profileModel.PassportPhotoPath" class="profile-form-v2-preview" />
+                                        }
+                                        else
+                                        {
+                                            <div class="profile-form-v2-photo-placeholder">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    <div class="col-md-8">
+                                        <label class="form-label">Upload Passport Photo</label>
+                                        <InputFile OnChange="@OnPassportPhotoChanged" class="form-control bcc-input" accept=".jpg,.jpeg,.png,.gif" />
+                                        <small class="profile-form-current">Max file size: 2MB. Supported formats: JPG, PNG, GIF</small>
+
+                                        @if (isUploading)
+                                        {
+                                            <div class="mt-3">
+                                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                                Uploading...
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                     @if (activeTab == "review")
+{
+    <div class="profile-form-v2-section">
+        <h5><i class="fas fa-paper-plane"></i> Review & Submit</h5>
+
+        <div class="row g-3">
+
+            <div class="col-md-6">
+                <div class="profile-review-card">
+                    <h6><i class="fas fa-user"></i> Personal Information</h6>
+                    <p><strong>Name:</strong> @profileModel.Title @profileModel.FirstName @profileModel.MiddleName @profileModel.LastName</p>
+                    <p><strong>Sex:</strong> @profileModel.Sex</p>
+                    <p><strong>Email:</strong> @profileModel.Email</p>
+                    <p><strong>Phone:</strong> @profileModel.Phone</p>
+                    <p><strong>Marital Status:</strong> @profileModel.MaritalStatus</p>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="profile-review-card">
+                    <h6><i class="fas fa-church"></i> Church Information</h6>
+                    <p><strong>Date Joined:</strong> @(profileModel.DateJoinedChurch?.ToString("dd MMM yyyy") ?? "Not provided")</p>
+                    <p><strong>Worker Status:</strong> @profileModel.WorkerStatus</p>
+                    <p><strong>Previous Church:</strong> @(string.IsNullOrWhiteSpace(profileModel.PreviousChurch) ? "Not provided" : profileModel.PreviousChurch)</p>
+                    <p><strong>Previous Role:</strong> @(string.IsNullOrWhiteSpace(profileModel.PreviousChurchRole) ? "Not provided" : profileModel.PreviousChurchRole)</p>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="profile-review-card">
+                    <h6><i class="fas fa-hands-praying"></i> Ordination</h6>
+                    <p><strong>Status:</strong> @profileModel.OrdinationStatus</p>
+                    <p><strong>Level:</strong> @profileModel.OrdinationLevel</p>
+                    <p><strong>Last Ordination:</strong> @(profileModel.LastOrdinationDate?.ToString("dd MMM yyyy") ?? "Not applicable")</p>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="profile-review-card">
+                    <h6><i class="fas fa-graduation-cap"></i> Qualifications</h6>
+                    <p><strong>Believer's Baptism:</strong> @(profileModel.HasBelieverBaptism ? "Yes" : "No")</p>
+                    <p><strong>Worker in Training:</strong> @(profileModel.HasWorkerInTraining ? "Yes" : "No")</p>
+                    <p><strong>SOD:</strong> @(profileModel.HasSOD ? "Yes" : "No")</p>
+                    <p><strong>Bible College:</strong> @(profileModel.HasBibleCollege ? "Yes" : "No")</p>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="profile-form-approval-box">
+                    <div class="profile-v2-card-icon green">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+
+                    <div>
+                        <h6>Approval Information</h6>
+                        <p>
+                            Your changes will be sent to
+                            <strong>@approverInfo</strong>
+                            for approval.
+                        </p>
+                        <span>
+                            Please confirm the information above before submitting.
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-form-v2-actions">
+            <button type="button" class="bcc-btn profile-form-secondary-btn" @onclick="NavigateBack">
+                Cancel
+            </button>
+
+            <button type="submit" class="bcc-btn bcc-btn-primary" disabled="@isSubmitting">
+                @if (isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    <span>Submitting...</span>
+                }
+                else
+                {
+                    <i class="fas fa-paper-plane me-2"></i>
+                    <span>Submit for Approval</span>
+                }
+            </button>
+        </div>
+    </div>
+}
+
+                    </div>
+                </div>
+            </EditForm>
+        }
+        else
+        {
+            <div class="bcc-empty">
+                <i class="fas fa-user-slash"></i>
+                <h4>Worker Not Found</h4>
+                <p>Your worker profile could not be found.</p>
+                <button class="bcc-btn bcc-btn-primary" @onclick="NavigateBack">Back to Profile</button>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access this page.</p>
+        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+    </div>
+}
+
+@code {
+    private Worker? worker = null;
+    private ProfileUpdateModel profileModel = new();
+    private bool isSubmitting = false;
+    private bool isUploading = false;
+    private bool isUploadingCertificate = false;
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+    private string approverInfo = string.Empty;
+    private string activeTab = "personal";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
+        {
+            await LoadWorkerData();
+            await DetermineApproverInfo();
+        }
+    }
+
+    private void SetTab(string tab) => activeTab = tab;
+
+    private string GetTabClass(string tab)
+    {
+        return activeTab == tab ? "profile-form-tab active" : "profile-form-tab";
+    }
+
+  
+    private RenderFragment QualificationUpload(string title, bool isChecked, string propertyName, string certificatePath, string certificateType) => @<div class="col-md-6">
+        <div class="profile-form-qualification-card">
+            <div class="form-check mb-3">
+                @if (propertyName == "HasBelieverBaptism")
+                {
+                    <input class="form-check-input" type="checkbox" @bind="profileModel.HasBelieverBaptism" />
+                }
+                else if (propertyName == "HasWorkerInTraining")
+                {
+                    <input class="form-check-input" type="checkbox" @bind="profileModel.HasWorkerInTraining" />
+                }
+                else if (propertyName == "HasSOD")
+                {
+                    <input class="form-check-input" type="checkbox" @bind="profileModel.HasSOD" />
+                }
+                else if (propertyName == "HasBibleCollege")
+                {
+                    <input class="form-check-input" type="checkbox" @bind="profileModel.HasBibleCollege" />
+                }
+
+                <label class="form-check-label fw-bold">@title</label>
+            </div>
+
+            @if (isChecked)
+            {
+                <label class="form-label">Upload Certificate</label>
+                <InputFile OnChange="@(e => OnCertificateChanged(e, certificateType))"
+                           class="form-control bcc-input"
+                           accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+
+                <small class="profile-form-current">Max 5MB. Supported: PDF, JPG, PNG, DOC</small>
+
+                @if (!string.IsNullOrEmpty(certificatePath))
+                {
+                    <div class="mt-2">
+                        <a href="/uploads/@certificatePath" target="_blank" class="profile-form-file-link">
+                            <i class="fas fa-download me-1"></i>
+                            View Current Certificate
+                        </a>
+                    </div>
+                }
+            }
+        </div>
+    </div>;
+
+    private async Task LoadWorkerData()
+    {
+        try
+        {
+            worker = await WorkforceService.GetMyProfileAsync(AuthService.CurrentWorker!.Id);
+
+            if (worker != null)
+            {
+                profileModel = new ProfileUpdateModel
+                {
+                    FirstName = worker.FirstName,
+                    MiddleName = worker.MiddleName,
+                    LastName = worker.LastName,
+                    Sex = worker.Sex,
+                    Title = worker.Title ?? "",
+                    Email = worker.Email,
+                    Phone = worker.Phone,
+                    DateOfBirth = worker.DateOfBirth,
+                    MaritalStatus = worker.MaritalStatus,
+                    WeddingAnniversary = worker.WeddingAnniversary,
+                    Address = worker.Address,
+                    Profession = worker.Profession,
+                    Organization = worker.Organization,
+                    DateJoinedChurch = worker.DateJoinedChurch,
+                    WorkerStatus = worker.WorkerStatus,
+                    PreviousChurch = worker.PreviousChurch ?? "",
+                    PreviousChurchRole = worker.PreviousChurchRole ?? "",
+                    PreviousChurchUnit = worker.PreviousChurchUnit ?? "",
+                    OrdinationStatus = worker.OrdinationStatus,
+                    OrdinationLevel = worker.OrdinationLevel,
+                    LastOrdinationDate = worker.LastOrdinationDate,
+                    HasBelieverBaptism = worker.HasBelieverBaptism,
+                    HasWorkerInTraining = worker.HasWorkerInTraining,
+                    HasSOD = worker.HasSOD,
+                    HasBibleCollege = worker.HasBibleCollege,
+                    BelieverBaptismCertificatePath = worker.BelieverBaptismCertificatePath ?? "",
+                    WorkerInTrainingCertificatePath = worker.WorkerInTrainingCertificatePath ?? "",
+                    SODCertificatePath = worker.SODCertificatePath ?? "",
+                    BibleCollegeCertificatePath = worker.BibleCollegeCertificatePath ?? "",
+                    PassportPhotoPath = worker.PassportPhotoPath ?? "",
+                    PassportPhotoThumbPath = worker.PassportPhotoThumbPath ?? ""
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error loading worker data: " + ex.Message;
+        }
+    }
+
+    private async Task DetermineApproverInfo()
+    {
+        if (worker == null) return;
+
+        try
+        {
+            var highLevelRoles = new[]
+            {
+                "Head of Directorate",
+                "Head of Service",
+                "Assistant Head of Service",
+                "Pastor in Charge"
+            };
+
+            if (highLevelRoles.Contains(worker.Role))
+            {
+                approverInfo = "Head of Directorate of MEAT";
+                return;
+            }
+
+            if (worker.DirectorateId.HasValue)
+            {
+                var allWorkers = await WorkerService.GetAllWorkersAsync();
+
+                var hod = allWorkers.FirstOrDefault(w =>
+                    w.DirectorateId == worker.DirectorateId &&
+                    w.Role == "Head of Directorate");
+
+                approverInfo = hod != null
+                    ? $"{hod.FirstName} {hod.LastName} (Head of {worker.Directorate?.Name} Directorate)"
+                    : $"No Head of Directorate assigned for {worker.Directorate?.Name}";
+            }
+            else
+            {
+                approverInfo = "System Administrator";
+            }
+        }
+        catch (Exception ex)
+        {
+            approverInfo = "Unable to determine approver";
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private async Task SubmitForApproval()
+    {
+        if (worker == null) return;
+
+        isSubmitting = true;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var changes = new ProposedChanges
+            {
+                FirstName = profileModel.FirstName,
+                MiddleName = profileModel.MiddleName,
+                LastName = profileModel.LastName,
+                Sex = profileModel.Sex,
+                Title = profileModel.Title,
+                Email = profileModel.Email,
+                Phone = profileModel.Phone,
+                DateOfBirth = profileModel.DateOfBirth,
+                MaritalStatus = profileModel.MaritalStatus,
+                WeddingAnniversary = profileModel.WeddingAnniversary,
+                Address = profileModel.Address,
+                Profession = profileModel.Profession,
+                Organization = profileModel.Organization,
+                DateJoinedChurch = profileModel.DateJoinedChurch,
+                WorkerStatus = profileModel.WorkerStatus,
+                PreviousChurch = profileModel.PreviousChurch,
+                PreviousChurchRole = profileModel.PreviousChurchRole,
+                PreviousChurchUnit = profileModel.PreviousChurchUnit,
+                PreviousExperience = profileModel.PreviousExperience,
+                OrdinationStatus = profileModel.OrdinationStatus,
+                OrdinationLevel = profileModel.OrdinationLevel,
+                LastOrdinationDate = profileModel.LastOrdinationDate,
+                HasBelieverBaptism = profileModel.HasBelieverBaptism,
+                HasWorkerInTraining = profileModel.HasWorkerInTraining,
+                HasSOD = profileModel.HasSOD,
+                HasBibleCollege = profileModel.HasBibleCollege,
+                BelieverBaptismCertificatePath = profileModel.BelieverBaptismCertificatePath,
+                WorkerInTrainingCertificatePath = profileModel.WorkerInTrainingCertificatePath,
+                SODCertificatePath = profileModel.SODCertificatePath,
+                BibleCollegeCertificatePath = profileModel.BibleCollegeCertificatePath,
+                PassportPhotoPath = profileModel.PassportPhotoPath
+            };
+
+            var request = await WorkforceService.SubmitProfileUpdateAsync(worker.Id, changes, AuthService);
+
+            successMessage = request.Id == -1
+                ? "Your profile has been updated directly!"
+                : "Your profile changes have been submitted for approval.";
+
+            await Task.Delay(1500);
+            Navigation.NavigateTo("/workforce/my-profile-v2");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error submitting profile update: " + ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnPassportPhotoChanged(InputFileChangeEventArgs e)
+    {
+        if (worker == null) return;
+
+        isUploading = true;
+        StateHasChanged();
+
+        try
+        {
+            var file = e.File;
+            if (file == null) return;
+
+            if (file.Size > 2 * 1024 * 1024)
+            {
+                errorMessage = "File size must be less than 2MB.";
+                return;
+            }
+
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+            var fileExtension = Path.GetExtension(file.Name).ToLower();
+
+            if (!allowedExtensions.Contains(fileExtension))
+            {
+                errorMessage = "Only JPG, PNG, and GIF files are allowed.";
+                return;
+            }
+
+            var folder = Environment.IsDevelopment()
+                ? Path.Combine(Environment.ContentRootPath, "wwwroot", "uploads")
+                : "/var/data/uploads";
+
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+
+            if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath))
+            {
+                var oldFile = Path.Combine(folder, worker.PassportPhotoPath);
+                if (File.Exists(oldFile)) File.Delete(oldFile);
+            }
+
+            var fileName = $"{worker.WorkerId}_passport_{Guid.NewGuid()}{fileExtension}";
+            var filePath = Path.Combine(folder, fileName);
+
+            using var image = await Image.LoadAsync(file.OpenReadStream(5 * 1024 * 1024));
+
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Size = new Size(800, 800),
+                Mode = ResizeMode.Max
+            }));
+
+            var encoder = new JpegEncoder { Quality = 75 };
+            await image.SaveAsJpegAsync(filePath, encoder);
+
+            var optimizedFileName = $"{Path.GetFileNameWithoutExtension(fileName)}_mobile.webp";
+            var optimizedPath = Path.Combine(folder, optimizedFileName);
+
+            await imageOptimizationService.CreateMobileVersion(filePath, optimizedPath);
+
+            worker.PassportPhotoThumbPath = optimizedFileName;
+            profileModel.PassportPhotoThumbPath = optimizedFileName;
+            profileModel.PassportPhotoPath = fileName;
+            worker.PassportPhotoPath = fileName;
+
+            successMessage = "Passport photo uploaded successfully!";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error uploading photo: " + ex.Message;
+        }
+        finally
+        {
+            isUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnCertificateChanged(InputFileChangeEventArgs e, string certificateType)
+    {
+        if (worker == null) return;
+
+        isUploadingCertificate = true;
+        StateHasChanged();
+
+        try
+        {
+            var file = e.File;
+            if (file == null) return;
+
+            if (file.Size > 5 * 1024 * 1024)
+            {
+                errorMessage = "Certificate file size must be less than 5MB.";
+                return;
+            }
+
+            var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+            var fileExtension = Path.GetExtension(file.Name).ToLower();
+
+            if (!allowedExtensions.Contains(fileExtension))
+            {
+                errorMessage = "Only PDF, JPG, PNG, DOC, and DOCX files are allowed.";
+                return;
+            }
+
+            var folder = Environment.IsDevelopment()
+                ? Path.Combine(Environment.ContentRootPath, "wwwroot", "uploads")
+                : "/var/data/uploads";
+
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+
+            var fileName = $"{worker.WorkerId}_{certificateType.ToLower()}_{Guid.NewGuid()}{fileExtension}";
+            var filePath = Path.Combine(folder, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.OpenReadStream().CopyToAsync(stream);
+            }
+
+            switch (certificateType)
+            {
+                case "BelieverBaptism":
+                    profileModel.BelieverBaptismCertificatePath = fileName;
+                    break;
+                case "WorkerInTraining":
+                    profileModel.WorkerInTrainingCertificatePath = fileName;
+                    break;
+                case "SOD":
+                    profileModel.SODCertificatePath = fileName;
+                    break;
+                case "BibleCollege":
+                    profileModel.BibleCollegeCertificatePath = fileName;
+                    break;
+            }
+
+            successMessage = $"{certificateType} certificate uploaded successfully!";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error uploading {certificateType} certificate: " + ex.Message;
+        }
+        finally
+        {
+            isUploadingCertificate = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/workforce/my-profile");
+    }
+
+    public class ProfileUpdateModel
+    {
+        [Required(ErrorMessage = "First name is required")]
+        [MaxLength(50)]
+        public string FirstName { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string MiddleName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required")]
+        [MaxLength(50)]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Sex is required")]
+        [MaxLength(10)]
+        public string Sex { get; set; } = string.Empty;
+
+        [MaxLength(20)]
+        public string Title { get; set; } = string.Empty;
+
+        [EmailAddress]
+        [MaxLength(100)]
+        public string Email { get; set; } = string.Empty;
+
+        [MaxLength(20)]
+        public string Phone { get; set; } = string.Empty;
+
+        public DateTime? DateOfBirth { get; set; }
+        public string MaritalStatus { get; set; } = "Single";
+        public DateTime? WeddingAnniversary { get; set; }
+
+        [MaxLength(500)]
+        public string Address { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string Profession { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string Organization { get; set; } = string.Empty;
+
+        public DateTime? DateJoinedChurch { get; set; }
+
+        [Required]
+        public string WorkerStatus { get; set; } = "Temp Worker";
+
+        [MaxLength(200)]
+        public string PreviousChurch { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string PreviousChurchRole { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string PreviousChurchUnit { get; set; } = string.Empty;
+
+        [MaxLength(500)]
+        public string PreviousExperience { get; set; } = string.Empty;
+
+        [Required]
+        public string OrdinationStatus { get; set; } = "Not Ordained";
+
+        [MaxLength(50)]
+        public string OrdinationLevel { get; set; } = "Not Ordained";
+
+        public DateTime? LastOrdinationDate { get; set; }
+
+        public bool HasBelieverBaptism { get; set; }
+        public bool HasWorkerInTraining { get; set; }
+        public bool HasSOD { get; set; }
+        public bool HasBibleCollege { get; set; }
+
+        public string BelieverBaptismCertificatePath { get; set; } = string.Empty;
+        public string WorkerInTrainingCertificatePath { get; set; } = string.Empty;
+        public string SODCertificatePath { get; set; } = string.Empty;
+        public string BibleCollegeCertificatePath { get; set; } = string.Empty;
+
+        public string PassportPhotoPath { get; set; } = string.Empty;
+        public string? PassportPhotoThumbPath { get; set; } = string.Empty;
+    }
+}

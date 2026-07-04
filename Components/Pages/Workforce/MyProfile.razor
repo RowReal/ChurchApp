@@ -5,927 +5,236 @@
 @inject WorkforceService WorkforceService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
-@inject IWebHostEnvironment Environment
-@inject ImageOptimizationService imageOptimizationService
+
 @if (AuthService.IsAuthenticated)
 {
-    <PageTitle>My Profile - Workforce</PageTitle>
+    <PageTitle>My Profile - BCC ServiceHub</PageTitle>
 
-    <div class="container-fluid py-4">
-        @if (worker != null)
-        {
-            <!-- Header -->
-            <div class="row mb-4">
-                <div class="col">
-                    <h2>My Profile</h2>
-                    <p class="text-muted">View and update your personal information</p>
+    @if (worker != null)
+    {
+        <div class="profile-v2-page">
+
+            <div class="bcc-page-header">
+                <div>
+                    <div class="bcc-page-subtitle">
+                        <i class="fas fa-user-circle me-2"></i>
+                        Workforce Profile
+                    </div>
+                    <div class="bcc-page-title">My Profile</div>
+                    <div class="bcc-page-subtitle">
+                        View your personal, church, qualification and service information.
+                    </div>
                 </div>
-                <div class="col-auto">
-                    <button class="btn btn-primary" @onclick="NavigateToUpdate" disabled="@hasPendingUpdate">
-                        <i class="fas fa-edit me-2"></i>
-                        @if (hasPendingUpdate)
-                        {
-                            <span>Update Pending</span>
-                        }
-                        else
-                        {
-                            <span>Update Profile</span>
-                        }
-                    </button>
-                </div>
+
+                <button class="bcc-btn bcc-btn-primary" @onclick="NavigateToUpdate" disabled="@hasPendingUpdate">
+                    <i class="fas fa-edit me-2"></i>
+                    @(hasPendingUpdate ? "Update Pending" : "Update Profile")
+                </button>
             </div>
 
-            <!-- Pending Update Banner -->
             @if (hasPendingUpdate)
             {
-                <div class="alert alert-warning">
+                <div class="alert alert-warning profile-v2-alert">
                     <i class="fas fa-clock me-2"></i>
                     <strong>Update Pending Approval</strong>
-                    <p class="mb-0">Your profile changes are waiting for approval from @approverName.</p>
+                    <div>Your profile changes are waiting for approval from @approverName.</div>
                 </div>
             }
 
-            <!-- Worker Profile -->
-            <div class="row">
-                <div class="col-lg-8">
-                    <!-- Personal Information Card -->
-                    <div class="card">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0">Personal Information</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <th width="40%">Worker ID:</th>
-                                            <td><strong>@worker.WorkerId</strong></td>
-                                        </tr>
-                                        <!-- Add Title row before Full Name: -->
-<tr>
-    <th>Title:</th>
-    <td>
-        @if (proposedChanges?.Title != null)
-        {
-            <span class="text-warning"><s>@(worker.Title ?? "Not provided")</s></span>
-            <br />
-            <strong>@proposedChanges.Title</strong>
-            <span class="badge bg-warning ms-2">Pending</span>
-        }
-        else if (!string.IsNullOrEmpty(worker.Title))
-        {
-            <span>@worker.Title</span>
-        }
-        else
-        {
-            <span class="text-muted">Not provided</span>
-        }
-    </td>
-</tr>
-<tr>
-    <th>Full Name:</th>
-    <td>
-        @if (proposedChanges?.FirstName != null)
-        {
-            <span class="text-warning"><s>@worker.FirstName @worker.MiddleName @worker.LastName</s></span>
-            <br />
-            <strong>@proposedChanges.FirstName @proposedChanges.MiddleName @proposedChanges.LastName</strong>
-            <span class="badge bg-warning ms-2">Pending</span>
-        }
-        else
-        {
-            <span>@worker.FirstName @worker.MiddleName @worker.LastName</span>
-        }
-    </td>
-</tr>
-                                        <tr>
-                                            <th>Sex:</th>
-                                            <td>
-                                                @if (proposedChanges?.Sex != null)
-                                                {
-                                                    <span class="text-warning"><s>@worker.Sex</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.Sex</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (!string.IsNullOrEmpty(worker.Sex))
-                                                {
-                                                    <span>@worker.Sex</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not provided</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Email:</th>
-                                            <td>
-                                                @if (proposedChanges?.Email != null)
-                                                {
-                                                    <span class="text-warning"><s>@worker.Email</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.Email</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (!string.IsNullOrEmpty(worker.Email))
-                                                {
-                                                    <span>@worker.Email</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not provided</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Phone:</th>
-                                            <td>
-                                                @if (proposedChanges?.Phone != null)
-                                                {
-                                                    <span class="text-warning"><s>@worker.Phone</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.Phone</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (!string.IsNullOrEmpty(worker.Phone))
-                                                {
-                                                    <span>@worker.Phone</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not provided</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Date of Birth:</th>
-                                            <td>
-                                                @if (proposedChanges?.DateOfBirth != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.DateOfBirth?.ToString("dd MMMM yyyy") ?? "Not provided")</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.DateOfBirth?.ToString("dd MMMM yyyy")</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>@(worker.DateOfBirth?.ToString("dd MMMM yyyy") ?? "Not provided")</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                                <div class="col-md-6">
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <th width="40%">Marital Status:</th>
-                                            <td>
-                                                @if (proposedChanges?.MaritalStatus != null)
-                                                {
-                                                    <span class="text-warning"><s>@worker.MaritalStatus</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.MaritalStatus</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>@worker.MaritalStatus</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Wedding Anniversary:</th>
-                                            <td>
-                                                @if (proposedChanges?.WeddingAnniversary != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.WeddingAnniversary?.ToString("dd MMMM yyyy") ?? "Not applicable")</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.WeddingAnniversary?.ToString("dd MMMM yyyy")</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>@(worker.WeddingAnniversary?.ToString("dd MMMM yyyy") ?? "Not applicable")</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Profession:</th>
-                                            <td>
-                                                @if (proposedChanges?.Profession != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.Profession ?? "Not provided")</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.Profession</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>@(worker.Profession ?? "Not provided")</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Organization:</th>
-                                            <td>
-                                                @if (proposedChanges?.Organization != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.Organization ?? "Not provided")</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.Organization</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>@(worker.Organization ?? "Not provided")</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Status:</th>
-                                            <td>
-                                                <span class="badge @(worker.IsActive ? "bg-success" : "bg-secondary")">
-                                                    @(worker.IsActive ? "Active" : "Inactive")
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-12">
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <th width="15%">Address:</th>
-                                            <td>
-                                                @if (proposedChanges?.Address != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.Address ?? "Not provided")</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.Address</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>@(worker.Address ?? "Not provided")</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Church Information -->
-                    <div class="card mt-4">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">Church Information</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <th width="40%">Directorate:</th>
-                                            <td>
-                                                @if (worker.Directorate != null)
-                                                {
-                                                    <span class="badge bg-primary">@worker.Directorate.Name</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not assigned</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Department:</th>
-                                            <td>
-                                                @if (worker.Department != null)
-                                                {
-                                                    <span class="badge bg-info">@worker.Department.Name</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not assigned</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Unit:</th>
-                                            <td>
-                                                @if (worker.Unit != null)
-                                                {
-                                                    <span>@worker.Unit.Name</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not assigned</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                                <div class="col-md-6">
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <th width="40%">Role:</th>
-                                            <td><span class="badge bg-secondary">@worker.Role</span></td>
-                                        </tr>
-                                        <tr>
-                                            <th>Worker Status:</th>
-                                            <td>@worker.WorkerStatus</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Ordination Status:</th>
-                                            <td>@worker.OrdinationStatus</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Ordination Level:</th>
-                                            <td>
-                                                @if (worker.OrdinationLevel != "Not Ordained")
-                                                {
-                                                    <span class="badge bg-info">@worker.OrdinationLevel</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>@worker.OrdinationLevel</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Last Ordination:</th>
-                                            <td>@(worker.LastOrdinationDate?.ToString("dd MMMM yyyy") ?? "N/A")</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Date Joined:</th>
-                                            <td>@(worker.DateJoinedChurch?.ToString("dd MMMM yyyy") ?? "Not provided")</td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Previous Church Information -->
-                    <div class="card mt-4">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0">Previous Church Information</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <th width="40%">Previous Church:</th>
-                                            <td>
-                                                @if (proposedChanges?.PreviousChurch != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.PreviousChurch ?? "Not provided")</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.PreviousChurch</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (!string.IsNullOrEmpty(worker.PreviousChurch))
-                                                {
-                                                    <span>@worker.PreviousChurch</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not provided</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Previous Role:</th>
-                                            <td>
-                                                @if (proposedChanges?.PreviousChurchRole != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.PreviousChurchRole ?? "Not provided")</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.PreviousChurchRole</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (!string.IsNullOrEmpty(worker.PreviousChurchRole))
-                                                {
-                                                    <span class="badge bg-secondary">@worker.PreviousChurchRole</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not provided</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                                <div class="col-md-6">
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <th width="40%">Previous Unit:</th>
-                                            <td>
-                                                @if (proposedChanges?.PreviousChurchUnit != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.PreviousChurchUnit ?? "Not provided")</s></span>
-                                                    <br />
-                                                    <strong>@proposedChanges.PreviousChurchUnit</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (!string.IsNullOrEmpty(worker.PreviousChurchUnit))
-                                                {
-                                                    <span>@worker.PreviousChurchUnit</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">Not provided</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Experience:</th>
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(worker.PreviousChurch) || !string.IsNullOrEmpty(worker.PreviousChurchRole) || !string.IsNullOrEmpty(worker.PreviousChurchUnit))
-                                                {
-                                                    <span class="badge bg-success">Has Previous Experience</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">No previous experience recorded</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                            @if (!string.IsNullOrEmpty(worker.PreviousChurch) || !string.IsNullOrEmpty(worker.PreviousChurchRole) || !string.IsNullOrEmpty(worker.PreviousChurchUnit))
+            <div class="bcc-card profile-v2-hero">
+                <div class="bcc-card-body">
+                    <div class="row align-items-center g-4">
+                        <div class="col-md-auto text-center">
+                            @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
                             {
-                                <div class="row mt-3">
-                                    <div class="col-12">
-                                        <div class="alert alert-info mb-0">
-                                            <i class="fas fa-info-circle me-2"></i>
-                                            <strong>Background Information:</strong> Your previous church experience is valuable for your current role and responsibilities.
-                                        </div>
-                                    </div>
+                                <img src="/uploads/@worker.PassportPhotoPath" alt="Profile Photo" class="profile-v2-photo" />
+                            }
+                            else
+                            {
+                                <div class="profile-v2-photo-placeholder">
+                                    <i class="fas fa-user"></i>
                                 </div>
                             }
                         </div>
-                    </div>
 
-                    <!-- Qualifications & Certificates -->
-                    <div class="card mt-4">
-                        <div class="card-header bg-warning text-dark">
-                            <h5 class="mb-0">Qualifications & Certificates</h5>
+                        <div class="col">
+                            <h3 class="profile-v2-name">
+                                @worker.Title @worker.FirstName @worker.MiddleName @worker.LastName
+                            </h3>
+
+                            <div class="profile-v2-meta">
+                                <span><i class="fas fa-id-badge"></i> @worker.WorkerId</span>
+                                <span><i class="fas fa-user-tag"></i> @worker.Role</span>
+
+                                @if (worker.Directorate != null)
+                                {
+                                    <span><i class="fas fa-building"></i> @worker.Directorate.Name</span>
+                                }
+
+                                @if (worker.Department != null)
+                                {
+                                    <span><i class="fas fa-sitemap"></i> @worker.Department.Name</span>
+                                }
+                            </div>
+
+                            @{
+                                var completeness = CalculateCompleteness(worker);
+                            }
+
+                            <div class="profile-v2-progress mt-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Profile Completion</span>
+                                    <strong>@completeness%</strong>
+                                </div>
+
+                                <div class="progress">
+                                    <div class="progress-bar @GetCompletenessClass(completeness)" style="width:@completeness%"></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <td width="30px">
-                                                @if (proposedChanges?.HasBelieverBaptism != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.HasBelieverBaptism ? "✓" : "✗")</s></span>
-                                                    <br />
-                                                    <strong>@(proposedChanges.HasBelieverBaptism ? "✓" : "✗")</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (worker.HasBelieverBaptism)
-                                                {
-                                                    <i class="fas fa-check-circle text-success"></i>
-                                                }
-                                                else
-                                                {
-                                                    <i class="fas fa-times-circle text-secondary"></i>
-                                                }
-                                            </td>
-                                            <th>Believer's Baptism</th>
-                                            <td>
-                                                @if (proposedChanges?.BelieverBaptismCertificatePath != null)
-                                                {
-                                                    <span class="text-warning">
-                                                        @if (!string.IsNullOrEmpty(worker.BelieverBaptismCertificatePath))
-                                                        {
-                                                            <s><a href="/uploads/@worker.BelieverBaptismCertificatePath" target="_blank" class="btn btn-sm btn-outline-success">
-                                                                <i class="fas fa-download me-1"></i>Current Certificate
-                                                            </a></s>
-                                                        }
-                                                    </span>
-                                                    <br />
-                                                    @if (!string.IsNullOrEmpty(proposedChanges.BelieverBaptismCertificatePath))
-                                                    {
-                                                        <a href="/uploads/@proposedChanges.BelieverBaptismCertificatePath" target="_blank" class="btn btn-sm btn-outline-warning">
-                                                            <i class="fas fa-download me-1"></i>New Certificate
-                                                        </a>
-                                                    }
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (!string.IsNullOrEmpty(worker.BelieverBaptismCertificatePath))
-                                                {
-                                                    <a href="/uploads/@worker.BelieverBaptismCertificatePath" target="_blank" class="btn btn-sm btn-outline-success">
-                                                        <i class="fas fa-download me-1"></i>Certificate
-                                                    </a>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                @if (proposedChanges?.HasWorkerInTraining != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.HasWorkerInTraining ? "✓" : "✗")</s></span>
-                                                    <br />
-                                                    <strong>@(proposedChanges.HasWorkerInTraining ? "✓" : "✗")</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (worker.HasWorkerInTraining)
-                                                {
-                                                    <i class="fas fa-check-circle text-success"></i>
-                                                }
-                                                else
-                                                {
-                                                    <i class="fas fa-times-circle text-secondary"></i>
-                                                }
-                                            </td>
-                                            <th>Worker in Training</th>
-                                            <td>
-                                                @if (proposedChanges?.WorkerInTrainingCertificatePath != null)
-                                                {
-                                                    <span class="text-warning">
-                                                        @if (!string.IsNullOrEmpty(worker.WorkerInTrainingCertificatePath))
-                                                        {
-                                                            <s><a href="/uploads/@worker.WorkerInTrainingCertificatePath" target="_blank" class="btn btn-sm btn-outline-success">
-                                                                <i class="fas fa-download me-1"></i>Current Certificate
-                                                            </a></s>
-                                                        }
-                                                    </span>
-                                                    <br />
-                                                    @if (!string.IsNullOrEmpty(proposedChanges.WorkerInTrainingCertificatePath))
-                                                    {
-                                                        <a href="/uploads/@proposedChanges.WorkerInTrainingCertificatePath" target="_blank" class="btn btn-sm btn-outline-warning">
-                                                            <i class="fas fa-download me-1"></i>New Certificate
-                                                        </a>
-                                                    }
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (!string.IsNullOrEmpty(worker.WorkerInTrainingCertificatePath))
-                                                {
-                                                    <a href="/uploads/@worker.WorkerInTrainingCertificatePath" target="_blank" class="btn btn-sm btn-outline-success">
-                                                        <i class="fas fa-download me-1"></i>Certificate
-                                                    </a>
-                                                }
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                                <div class="col-md-6">
-                                    <table class="table table-borderless">
-                                        <tr>
-                                            <td width="30px">
-                                                @if (proposedChanges?.HasSOD != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.HasSOD ? "✓" : "✗")</s></span>
-                                                    <br />
-                                                    <strong>@(proposedChanges.HasSOD ? "✓" : "✗")</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (worker.HasSOD)
-                                                {
-                                                    <i class="fas fa-check-circle text-success"></i>
-                                                }
-                                                else
-                                                {
-                                                    <i class="fas fa-times-circle text-secondary"></i>
-                                                }
-                                            </td>
-                                            <th>School of Discipleship</th>
-                                            <td>
-                                                @if (proposedChanges?.SODCertificatePath != null)
-                                                {
-                                                    <span class="text-warning">
-                                                        @if (!string.IsNullOrEmpty(worker.SODCertificatePath))
-                                                        {
-                                                            <s><a href="/uploads/@worker.SODCertificatePath" target="_blank" class="btn btn-sm btn-outline-success">
-                                                                <i class="fas fa-download me-1"></i>Current Certificate
-                                                            </a></s>
-                                                        }
-                                                    </span>
-                                                    <br />
-                                                    @if (!string.IsNullOrEmpty(proposedChanges.SODCertificatePath))
-                                                    {
-                                                        <a href="/uploads/@proposedChanges.SODCertificatePath" target="_blank" class="btn btn-sm btn-outline-warning">
-                                                            <i class="fas fa-download me-1"></i>New Certificate
-                                                        </a>
-                                                    }
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (!string.IsNullOrEmpty(worker.SODCertificatePath))
-                                                {
-                                                    <a href="/uploads/@worker.SODCertificatePath" target="_blank" class="btn btn-sm btn-outline-success">
-                                                        <i class="fas fa-download me-1"></i>Certificate
-                                                    </a>
-                                                }
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                @if (proposedChanges?.HasBibleCollege != null)
-                                                {
-                                                    <span class="text-warning"><s>@(worker.HasBibleCollege ? "✓" : "✗")</s></span>
-                                                    <br />
-                                                    <strong>@(proposedChanges.HasBibleCollege ? "✓" : "✗")</strong>
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (worker.HasBibleCollege)
-                                                {
-                                                    <i class="fas fa-check-circle text-success"></i>
-                                                }
-                                                else
-                                                {
-                                                    <i class="fas fa-times-circle text-secondary"></i>
-                                                }
-                                            </td>
-                                            <th>Bible College</th>
-                                            <td>
-                                                @if (proposedChanges?.BibleCollegeCertificatePath != null)
-                                                {
-                                                    <span class="text-warning">
-                                                        @if (!string.IsNullOrEmpty(worker.BibleCollegeCertificatePath))
-                                                        {
-                                                            <s><a href="/uploads/@worker.BibleCollegeCertificatePath" target="_blank" class="btn btn-sm btn-outline-success">
-                                                                <i class="fas fa-download me-1"></i>Current Certificate
-                                                            </a></s>
-                                                        }
-                                                    </span>
-                                                    <br />
-                                                    @if (!string.IsNullOrEmpty(proposedChanges.BibleCollegeCertificatePath))
-                                                    {
-                                                        <a href="/uploads/@proposedChanges.BibleCollegeCertificatePath" target="_blank" class="btn btn-sm btn-outline-warning">
-                                                            <i class="fas fa-download me-1"></i>New Certificate
-                                                        </a>
-                                                    }
-                                                    <span class="badge bg-warning ms-2">Pending</span>
-                                                }
-                                                else if (!string.IsNullOrEmpty(worker.BibleCollegeCertificatePath))
-                                                {
-                                                    <a href="/uploads/@worker.BibleCollegeCertificatePath" target="_blank" class="btn btn-sm btn-outline-success">
-                                                        <i class="fas fa-download me-1"></i>Certificate
-                                                    </a>
-                                                }
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
+
+                        <div class="col-md-auto">
+                            <div class="profile-v2-status-box">
+                                <span>Status</span>
+                                <strong class="@(worker.IsActive ? "text-success" : "text-secondary")">
+                                    @(worker.IsActive ? "Active" : "Inactive")
+                                </strong>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Sidebar -->
+            <div class="row g-4">
+                <div class="col-lg-8">
+
+                    <div class="bcc-card">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-user text-primary"></i>
+                            <div class="bcc-card-title">Personal Information</div>
+                        </div>
+
+                        <div class="bcc-card-body">
+                            <div class="profile-v2-grid">
+                                @InfoRow("Worker ID", worker.WorkerId)
+                                @InfoRow("Title", worker.Title, proposedChanges?.Title)
+                                @InfoRow("Full Name", $"{worker.FirstName} {worker.MiddleName} {worker.LastName}", proposedChanges?.FirstName != null ? $"{proposedChanges.FirstName} {proposedChanges.MiddleName} {proposedChanges.LastName}" : null)
+                                @InfoRow("Sex", worker.Sex, proposedChanges?.Sex)
+                                @InfoRow("Email", worker.Email, proposedChanges?.Email)
+                                @InfoRow("Phone", worker.Phone, proposedChanges?.Phone)
+                                @InfoRow("Date of Birth", worker.DateOfBirth?.ToString("dd MMMM yyyy"), proposedChanges?.DateOfBirth?.ToString("dd MMMM yyyy"))
+                                @InfoRow("Marital Status", worker.MaritalStatus, proposedChanges?.MaritalStatus)
+                                @InfoRow("Wedding Anniversary", worker.WeddingAnniversary?.ToString("dd MMMM yyyy"), proposedChanges?.WeddingAnniversary?.ToString("dd MMMM yyyy"))
+                                @InfoRow("Profession", worker.Profession, proposedChanges?.Profession)
+                                @InfoRow("Organization", worker.Organization, proposedChanges?.Organization)
+                                @InfoRow("Address", worker.Address, proposedChanges?.Address)
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bcc-card">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-church text-success"></i>
+                            <div class="bcc-card-title">Church Information</div>
+                        </div>
+
+                        <div class="bcc-card-body">
+                            <div class="profile-v2-grid">
+                                @InfoRow("Directorate", worker.Directorate?.Name)
+                                @InfoRow("Department", worker.Department?.Name)
+                                @InfoRow("Unit", worker.Unit?.Name)
+                                @InfoRow("Role", worker.Role)
+                                @InfoRow("Worker Status", worker.WorkerStatus)
+                                @InfoRow("Ordination Status", worker.OrdinationStatus)
+                                @InfoRow("Ordination Level", worker.OrdinationLevel)
+                                @InfoRow("Last Ordination", worker.LastOrdinationDate?.ToString("dd MMMM yyyy"))
+                                @InfoRow("Date Joined BCC", worker.DateJoinedChurch?.ToString("dd MMMM yyyy"))
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bcc-card">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-award text-warning"></i>
+                            <div class="bcc-card-title">Qualifications & Certificates</div>
+                        </div>
+
+                        <div class="bcc-card-body">
+                            <div class="row g-3">
+                                @QualificationCard("Believer's Baptism", worker.HasBelieverBaptism, worker.BelieverBaptismCertificatePath)
+                                @QualificationCard("Worker in Training", worker.HasWorkerInTraining, worker.WorkerInTrainingCertificatePath)
+                                @QualificationCard("School of Discipleship", worker.HasSOD, worker.SODCertificatePath)
+                                @QualificationCard("Bible College", worker.HasBibleCollege, worker.BibleCollegeCertificatePath)
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bcc-card">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-history text-info"></i>
+                            <div class="bcc-card-title">Previous Church Experience</div>
+                        </div>
+
+                        <div class="bcc-card-body">
+                            <div class="profile-v2-grid">
+                                @InfoRow("Previous Church", worker.PreviousChurch, proposedChanges?.PreviousChurch)
+                                @InfoRow("Previous Role", worker.PreviousChurchRole, proposedChanges?.PreviousChurchRole)
+                                @InfoRow("Previous Unit", worker.PreviousChurchUnit, proposedChanges?.PreviousChurchUnit)
+                                @InfoRow("Experience", HasPreviousChurchExperience() ? "Has Previous Experience" : "No previous experience recorded")
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
                 <div class="col-lg-4">
-                    <!-- Passport Photo Card -->
-                    <div class="card">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0">Passport Photo</h5>
+
+                    <div class="bcc-card">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-chart-pie text-primary"></i>
+                            <div class="bcc-card-title">My Summary</div>
                         </div>
-                        <div class="card-body text-center">
-                            @if (proposedChanges?.PassportPhotoPath != null)
-                            {
-                                <div class="mb-3">
-                                    <span class="text-warning">Current Photo:</span>
-                                    @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
-                                    {
-                                       <img src="@($"/uploads/{worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath}")"
-                                                         style="width:40px;height:40px;
-                object-fit:cover;
-                border-radius:50%;
-                border:1px solid #ddd;"
-                                                         class="me-3"
-                                                         loading="lazy" />
-                                    }
-                                    else
-                                    {
-                                        <div class="text-center py-3">
-                                            <i class="fas fa-user-circle fa-3x text-muted mb-2"></i>
-                                            <p class="text-muted small">No current photo</p>
-                                        </div>
-                                    }
-                                </div>
-                                <div>
-                                    <span class="text-success">New Photo (Pending):</span>
-                                    <img src="/uploads/@proposedChanges.PassportPhotoPath" 
-                                         alt="New Passport Photo" 
-                                         class="img-fluid rounded"
-                                         style="max-height: 200px;" />
-                                    <span class="badge bg-warning mt-2">Pending Approval</span>
-                                </div>
-                            }
-                            else if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
-                            {
-                                <img src="/uploads/@worker.PassportPhotoPath" 
-                                     alt="Passport Photo" 
-                                     class="img-fluid rounded"
-                                     style="max-height: 300px;" />
-                                <div class="mt-3">
-                                    <a href="/uploads/@worker.PassportPhotoPath" target="_blank" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-expand me-1"></i>View Full Size
-                                    </a>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="text-center py-5">
-                                    <i class="fas fa-user-circle fa-5x text-muted mb-3"></i>
-                                    <p class="text-muted">No passport photo uploaded</p>
-                                </div>
-                            }
+
+                        <div class="bcc-card-body">
+                            @InfoRow("Supervisor", worker.Supervisor != null ? $"{worker.Supervisor.FirstName} {worker.Supervisor.LastName}" : "Not assigned")
+                            @InfoRow("Years in BCC", $"{CalculateYearsInBCC()} years")
+                            @InfoRow("Last Login", worker.LastLoginDate?.ToString("dd MMM yyyy") ?? "Never")
+                            @InfoRow("Previous Experience", HasPreviousChurchExperience() ? "Yes" : "No")
                         </div>
                     </div>
 
-                    <!-- Quick Stats -->
-                    <div class="card mt-4">
-                        <div class="card-header bg-secondary text-white">
-                            <h5 class="mb-0">Quick Information</h5>
-                        </div>
-                        <div class="card-body">
-                            <table class="table table-sm table-borderless">
-                                <tr>
-    <th>Title:</th>
-    <td>
-        @if (!string.IsNullOrEmpty(worker.Title))
-        {
-            <span>@worker.Title</span>
-        }
-        else
-        {
-            <span class="text-muted">Not specified</span>
-        }
-    </td>
-</tr>
-                                <tr>
-                                    <th>Sex:</th>
-                                    <td>
-                                        @if (!string.IsNullOrEmpty(worker.Sex))
-                                        {
-                                            <span>@worker.Sex</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">Not specified</span>
-                                        }
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Supervisor:</th>
-                                    <td>
-                                        @if (worker.Supervisor != null)
-                                        {
-                                            <span>@worker.Supervisor.FirstName @worker.Supervisor.LastName</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">Not assigned</span>
-                                        }
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Previous Church:</th>
-                                    <td>
-                                        @if (!string.IsNullOrEmpty(worker.PreviousChurch))
-                                        {
-                                            <span class="text-truncate d-inline-block" style="max-width: 150px;" title="@worker.PreviousChurch">
-                                                @worker.PreviousChurch
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">None</span>
-                                        }
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Previous Role:</th>
-                                    <td>
-                                        @if (!string.IsNullOrEmpty(worker.PreviousChurchRole))
-                                        {
-                                            <span class="badge bg-info">@worker.PreviousChurchRole</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">None</span>
-                                        }
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Last Ordination:</th>
-                                    <td>@(worker.LastOrdinationDate?.ToString("dd MMM yyyy") ?? "N/A")</td>
-                                </tr>
-                                <tr>
-                                    <th>Ordination Level:</th>
-                                    <td>
-                                        @if (worker.OrdinationLevel != "Not Ordained")
-                                        {
-                                            <span class="badge bg-info">@worker.OrdinationLevel</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">Not Ordained</span>
-                                        }
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Last Login:</th>
-                                    <td>@(worker.LastLoginDate?.ToString("dd MMM yyyy") ?? "Never")</td>
-                                </tr>
-                                <tr>
-                                    <th>Profile Complete:</th>
-                                    <td>
-                                        @{
-                                            var completeness = CalculateCompleteness(worker);
-                                        }
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar @GetCompletenessClass(completeness)"
-                                                 style="width: @completeness%">
-                                                @completeness%
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Church History Summary -->
-                    <div class="card mt-4">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">Church History Summary</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="small text-muted">Current Church:</span>
-                                <span class="badge bg-success">BCC</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span class="small text-muted">Years in BCC:</span>
-                                <span class="fw-semibold">@CalculateYearsInBCC() years</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="small text-muted">Previous Experience:</span>
-                                <span class="badge @(HasPreviousChurchExperience() ? "bg-info" : "bg-secondary")">
-                                    @(HasPreviousChurchExperience() ? "Yes" : "No")
-                                </span>
-                            </div>
-                            @if (HasPreviousChurchExperience())
-                            {
-                                <div class="mt-3 p-2 bg-light rounded">
-                                    <small class="text-muted">
-                                        <i class="fas fa-history me-1"></i>
-                                        Your previous church experience is valuable for your current role.
-                                    </small>
-                                </div>
-                            }
-                        </div>
-                    </div>
-
-                    <!-- Update Status Card -->
                     @if (hasPendingUpdate)
                     {
-                        <div class="card mt-4">
-                            <div class="card-header bg-warning text-dark">
-                                <h5 class="mb-0">Update Status</h5>
+                        <div class="bcc-card">
+                            <div class="bcc-card-header">
+                                <i class="fas fa-clock text-warning"></i>
+                                <div class="bcc-card-title">Update Status</div>
                             </div>
-                            <div class="card-body">
-                                <p><strong>Submitted:</strong> @pendingRequest?.SubmittedDate.ToString("MMM dd, yyyy")</p>
-                                <p><strong>Waiting for:</strong> @approverName</p>
-                                <button class="btn btn-sm btn-outline-danger" @onclick="CancelUpdateRequest">
-                                    <i class="fas fa-times me-1"></i>Cancel Request
+
+                            <div class="bcc-card-body">
+                                @InfoRow("Submitted", pendingRequest?.SubmittedDate.ToString("MMM dd, yyyy"))
+                                @InfoRow("Waiting For", approverName)
+
+                                <button class="btn btn-outline-danger btn-sm mt-3 w-100" @onclick="CancelUpdateRequest">
+                                    <i class="fas fa-times me-1"></i>
+                                    Cancel Request
                                 </button>
                             </div>
                         </div>
                     }
-                </div>
-            </div>
-        }
-    </div>
-}
-else
-{
-    <!-- Not authenticated -->
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0">Authentication Required</h5>
-                    </div>
-                    <div class="card-body text-center">
-                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                        <h4>Please Log In</h4>
-                        <p class="text-muted">You need to be logged in to access this page.</p>
-                        <a href="/login" class="btn btn-primary">Go to Login</a>
-                    </div>
+
                 </div>
             </div>
         </div>
+    }
+}
+else
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access this page.</p>
+        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
     </div>
 }
 
@@ -950,14 +259,13 @@ else
         {
             var workerId = AuthService.CurrentWorker!.Id;
             var (workerData, changes) = await WorkforceService.GetWorkerWithProposedChangesAsync(workerId);
-            
+
             worker = workerData;
             proposedChanges = changes;
-            
-            // Check for pending updates
+
             pendingRequest = await WorkforceService.GetPendingUpdateRequestAsync(workerId);
             hasPendingUpdate = pendingRequest != null;
-            
+
             if (hasPendingUpdate && pendingRequest.ApproverWorker != null)
             {
                 approverName = $"{pendingRequest.ApproverWorker.FirstName} {pendingRequest.ApproverWorker.LastName}";
@@ -995,56 +303,129 @@ else
         }
     }
 
- private int CalculateCompleteness(Worker worker)
-{
-    var filledFields = 0;
-    var totalFields = 27; // Updated count to include all fields
-    
-    // Personal fields (12 fields)
-    if (!string.IsNullOrEmpty(worker.Sex)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Title)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.FirstName)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.MiddleName)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.LastName)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Email)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Phone)) filledFields++;
-    if (worker.DateOfBirth.HasValue) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Address)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Profession)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Organization)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.MaritalStatus)) filledFields++;
-    
-    // Photo field
-    if (!string.IsNullOrEmpty(worker.PassportPhotoPath)) filledFields++;
-    
-    // Church fields (7 fields)
-    if (worker.DirectorateId.HasValue) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Role)) filledFields++;
-    if (worker.DateJoinedChurch.HasValue) filledFields++;
-    if (!string.IsNullOrEmpty(worker.OrdinationStatus)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.OrdinationLevel)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.WorkerStatus)) filledFields++;
-    if (worker.LastOrdinationDate.HasValue && worker.OrdinationLevel != "Not Ordained") filledFields++;
-    
-    // Qualifications fields (4 fields)
-    if (worker.HasBelieverBaptism) filledFields++;
-    if (worker.HasWorkerInTraining) filledFields++;
-    if (worker.HasSOD) filledFields++;
-    if (worker.HasBibleCollege) filledFields++;
-    
-    // Previous church fields (3 fields)
-    if (!string.IsNullOrEmpty(worker.PreviousChurch)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.PreviousChurchRole)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.PreviousChurchUnit)) filledFields++;
-    
-    return totalFields > 0 ? (int)Math.Round((double)filledFields / totalFields * 100) : 0;
-}
+    private RenderFragment InfoRow(string label, string? value, string? pendingValue = null) => builder =>
+    {
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "bcc-info-row");
+
+        builder.OpenElement(2, "div");
+        builder.AddAttribute(3, "class", "bcc-info-label");
+        builder.AddContent(4, label);
+        builder.CloseElement();
+
+        builder.OpenElement(5, "div");
+        builder.AddAttribute(6, "class", "bcc-info-value");
+
+        if (!string.IsNullOrWhiteSpace(pendingValue))
+        {
+            builder.OpenElement(7, "div");
+            builder.AddAttribute(8, "class", "profile-v2-old-value");
+            builder.OpenElement(9, "s");
+            builder.AddContent(10, string.IsNullOrWhiteSpace(value) ? "Not provided" : value);
+            builder.CloseElement();
+            builder.CloseElement();
+
+            builder.OpenElement(11, "div");
+            builder.AddAttribute(12, "class", "profile-v2-pending-value");
+            builder.AddContent(13, pendingValue);
+            builder.OpenElement(14, "span");
+            builder.AddAttribute(15, "class", "profile-v2-pending-badge");
+            builder.AddContent(16, "Pending");
+            builder.CloseElement();
+            builder.CloseElement();
+        }
+        else
+        {
+            builder.AddContent(17, string.IsNullOrWhiteSpace(value) ? "Not provided" : value);
+        }
+
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private RenderFragment QualificationCard(string title, bool hasQualification, string? certificatePath) => builder =>
+    {
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "col-md-6");
+
+        builder.OpenElement(2, "div");
+        builder.AddAttribute(3, "class", "profile-v2-qualification-card");
+
+        builder.OpenElement(4, "div");
+        builder.AddAttribute(5, "class", hasQualification ? "profile-v2-qual-icon active" : "profile-v2-qual-icon inactive");
+        builder.OpenElement(6, "i");
+        builder.AddAttribute(7, "class", hasQualification ? "fas fa-check" : "fas fa-times");
+        builder.CloseElement();
+        builder.CloseElement();
+
+        builder.OpenElement(8, "div");
+        builder.OpenElement(9, "strong");
+        builder.AddContent(10, title);
+        builder.CloseElement();
+
+        if (!string.IsNullOrEmpty(certificatePath))
+        {
+            builder.OpenElement(11, "a");
+            builder.AddAttribute(12, "href", $"/uploads/{certificatePath}");
+            builder.AddAttribute(13, "target", "_blank");
+            builder.AddAttribute(14, "class", "profile-v2-cert-link");
+            builder.AddContent(15, "View Certificate");
+            builder.CloseElement();
+        }
+        else
+        {
+            builder.OpenElement(16, "span");
+            builder.AddAttribute(17, "class", "text-muted small");
+            builder.AddContent(18, "No certificate");
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private int CalculateCompleteness(Worker worker)
+    {
+        var filledFields = 0;
+        var totalFields = 27;
+
+        if (!string.IsNullOrEmpty(worker.Sex)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Title)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.FirstName)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.MiddleName)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.LastName)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Email)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Phone)) filledFields++;
+        if (worker.DateOfBirth.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Address)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Profession)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Organization)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.MaritalStatus)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.PassportPhotoPath)) filledFields++;
+        if (worker.DirectorateId.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Role)) filledFields++;
+        if (worker.DateJoinedChurch.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.OrdinationStatus)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.OrdinationLevel)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.WorkerStatus)) filledFields++;
+        if (worker.LastOrdinationDate.HasValue && worker.OrdinationLevel != "Not Ordained") filledFields++;
+        if (worker.HasBelieverBaptism) filledFields++;
+        if (worker.HasWorkerInTraining) filledFields++;
+        if (worker.HasSOD) filledFields++;
+        if (worker.HasBibleCollege) filledFields++;
+        if (!string.IsNullOrEmpty(worker.PreviousChurch)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.PreviousChurchRole)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.PreviousChurchUnit)) filledFields++;
+
+        return totalFields > 0 ? (int)Math.Round((double)filledFields / totalFields * 100) : 0;
+    }
 
     private string GetCompletenessClass(int percentage)
     {
         if (percentage < 50) return "bg-danger";
-        else if (percentage >= 50 && percentage < 80) return "bg-warning";
-        else return "bg-success";
+        if (percentage < 80) return "bg-warning";
+        return "bg-success";
     }
 
     private int CalculateYearsInBCC()
@@ -1061,8 +442,8 @@ else
 
     private bool HasPreviousChurchExperience()
     {
-        return !string.IsNullOrEmpty(worker?.PreviousChurch) || 
-               !string.IsNullOrEmpty(worker?.PreviousChurchRole) || 
+        return !string.IsNullOrEmpty(worker?.PreviousChurch) ||
+               !string.IsNullOrEmpty(worker?.PreviousChurchRole) ||
                !string.IsNullOrEmpty(worker?.PreviousChurchUnit);
     }
 }

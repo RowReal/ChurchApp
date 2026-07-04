@@ -1,0 +1,487 @@
+﻿@page "/workforce/my-team"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Models
+@inject WorkerService WorkerService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>My Team - BCC ServiceHub</PageTitle>
+
+<div class="my-team-v2-page">
+
+    <div class="bcc-page-header">
+        <div>
+            <div class="bcc-page-subtitle">
+                <i class="fas fa-users me-2"></i>
+                Workforce Management
+            </div>
+            <div class="bcc-page-title">My Team</div>
+            <div class="bcc-page-subtitle">
+                View and manage workers under your supervision.
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="team-summary-card">
+                <span>Total Workers</span>
+                <strong>@workers.Count</strong>
+                <i class="fas fa-users"></i>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="team-summary-card active">
+                <span>Active</span>
+                <strong>@workers.Count(w => w.IsActive)</strong>
+                <i class="fas fa-user-check"></i>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="team-summary-card inactive">
+                <span>Inactive</span>
+                <strong>@workers.Count(w => !w.IsActive)</strong>
+                <i class="fas fa-user-slash"></i>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="team-summary-card directorate">
+                <span>Directorates</span>
+                <strong>@directorates.Count</strong>
+                <i class="fas fa-sitemap"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="bcc-card">
+        <div class="bcc-card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="profile-form-label">Search Workers</label>
+                    <input type="text"
+                           class="form-control bcc-input"
+                           placeholder="Search by name or worker ID..."
+                           @bind-value="searchText"
+                           @bind-value:event="oninput"
+                           @onkeyup="ApplyFilters" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="profile-form-label">Directorate</label>
+                    <select class="form-select bcc-input"
+        @bind="selectedDirectorate"
+        @bind:after="ApplyFilters">
+                        <option value="">All Directorates</option>
+                        @foreach (var dir in directorates)
+                        {
+                            <option value="@dir">@dir</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="profile-form-label">Department</label>
+                    <select class="form-select bcc-input"
+        @bind="selectedDepartment"
+        @bind:after="ApplyFilters">
+                        <option value="">All Departments</option>
+                        @foreach (var dept in departments)
+                        {
+                            <option value="@dept">@dept</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <button class="bcc-btn team-clear-btn w-100" @onclick="ClearFilters">
+                        <i class="fas fa-filter-circle-xmark me-1"></i>
+                        Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bcc-card">
+        <div class="bcc-card-header">
+            <div class="profile-v2-card-icon">
+                <i class="fas fa-id-card"></i>
+            </div>
+            <div class="bcc-card-title">
+                Team Members (@filteredWorkers.Count)
+            </div>
+        </div>
+
+        <div class="bcc-card-body">
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="text-muted mt-2">Loading team members...</p>
+                </div>
+            }
+            else if (filteredWorkers.Count == 0)
+            {
+                <div class="bcc-empty">
+                    <i class="fas fa-users-slash"></i>
+                    <h4>No Team Members Found</h4>
+                    <p>@(workers.Count == 0 ? "No team members are assigned to you." : "No workers match your search criteria.")</p>
+                </div>
+            }
+            else
+            {
+                <div class="row g-4">
+                    @foreach (var worker in filteredWorkers)
+                    {
+                        <div class="col-xl-4 col-lg-6">
+                            <div class="team-worker-card">
+
+                                <div class="team-worker-top">
+                                    @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
+                                    {
+                                        <img src="/uploads/@worker.PassportPhotoPath"
+                                             alt="@worker.FirstName"
+                                             class="team-worker-photo"
+                                             @onclick="() => OpenWorkerPreview(worker)" />
+                                    }
+                                    else
+                                    {
+                                        <div class="team-worker-photo-placeholder" @onclick="() => OpenWorkerPreview(worker)">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                    }
+
+                                    <div>
+                                        <h5>@worker.FirstName @worker.LastName</h5>
+                                        <span>@worker.WorkerId</span>
+                                    </div>
+                                </div>
+
+                                <div class="team-worker-meta">
+                                    <div>
+                                        <small>Role</small>
+                                        <strong>@worker.Role</strong>
+                                    </div>
+
+                                    <div>
+                                        <small>Directorate</small>
+                                        <strong>@(worker.Directorate?.Name ?? "Not assigned")</strong>
+                                    </div>
+
+                                    <div>
+                                        <small>Department</small>
+                                        <strong>@(worker.Department?.Name ?? "Not assigned")</strong>
+                                    </div>
+                                </div>
+
+                                <div class="team-worker-footer">
+                                    <span class="team-status @(worker.IsActive ? "active" : "inactive")">
+                                        @(worker.IsActive ? "Active" : "Inactive")
+                                    </span>
+
+                                    <button class="team-action-btn" @onclick="() => ViewWorkerDetails(worker.Id)">
+                                        <i class="fas fa-eye me-1"></i>
+                                        View
+                                    </button>
+                                </div>
+
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @if (totalPages > 1)
+                {
+                    <div class="team-pagination">
+                        <button class="team-page-btn" disabled="@(currentPage == 1)" @onclick="() => ChangePage(currentPage - 1)">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+
+                        <span>Page @currentPage of @totalPages</span>
+
+                        <button class="team-page-btn" disabled="@(currentPage == totalPages)" @onclick="() => ChangePage(currentPage + 1)">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@if (showWorkerPreview)
+{
+    <div class="team-modal-backdrop" @onclick="CloseWorkerPreview">
+        <div class="team-modal-card" @onclick:stopPropagation="true">
+
+            <button class="team-modal-close" @onclick="CloseWorkerPreview">
+                <i class="fas fa-times"></i>
+            </button>
+
+            @if (selectedWorker != null)
+            {
+                <div class="text-center">
+                    @if (!string.IsNullOrEmpty(selectedWorker.PassportPhotoPath))
+                    {
+                        <img src="/uploads/@selectedWorker.PassportPhotoPath" class="team-modal-photo" />
+                    }
+                    else
+                    {
+                        <div class="team-modal-photo-placeholder">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    }
+
+                    <h4>@selectedWorker.FirstName @selectedWorker.LastName</h4>
+                    <p>@selectedWorker.Role</p>
+
+                    <span class="team-status @(selectedWorker.IsActive ? "active" : "inactive")">
+                        @(selectedWorker.IsActive ? "Active" : "Inactive")
+                    </span>
+                </div>
+
+                <div class="team-modal-info">
+                    <div><strong>Worker ID:</strong> @selectedWorker.WorkerId</div>
+                    <div><strong>Directorate:</strong> @(selectedWorker.Directorate?.Name ?? "Not assigned")</div>
+                    <div><strong>Department:</strong> @(selectedWorker.Department?.Name ?? "Not assigned")</div>
+                </div>
+
+                <div class="team-modal-actions">
+                    <button class="team-action-btn" @onclick="() => ViewWorkerDetails(selectedWorker.Id)">
+                        <i class="fas fa-eye me-1"></i>
+                        View Profile
+                    </button>
+
+                    @if (selectedWorker.IsActive)
+                    {
+                        <button class="team-danger-btn" @onclick="() => DeactivateFromModal(selectedWorker)">
+                            <i class="fas fa-user-slash me-1"></i>
+                            Deactivate
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="team-success-btn" @onclick="() => ActivateFromModal(selectedWorker)">
+                            <i class="fas fa-user-check me-1"></i>
+                            Activate
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private List<Worker> workers = new();
+    private List<Worker> filteredWorkers = new();
+    private bool isLoading = true;
+
+    private bool showWorkerPreview = false;
+    private Worker? selectedWorker;
+
+    private string searchText = "";
+    private string selectedDirectorate = "";
+    private string selectedDepartment = "";
+
+    private int currentPage = 1;
+    private int pageSize = 9;
+    private int totalPages = 1;
+
+    private List<string> directorates = new();
+    private List<string> departments = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!CanAccessMyTeam())
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        await LoadTeamMembers();
+    }
+
+    private async Task LoadTeamMembers()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var currentWorker = AuthService.CurrentWorker;
+            if (currentWorker == null) return;
+
+            if (currentWorker.Role?.Contains("Pastor in Charge") == true ||
+                currentWorker.Role?.Contains("Head of Service") == true)
+            {
+                workers = await WorkerService.GetAllWorkersAsync();
+            }
+            else if (currentWorker.Role?.Contains("Head of Directorate") == true ||
+                     currentWorker.Role?.Contains("Asst Head of Directorate") == true)
+            {
+                if (currentWorker.DirectorateId.HasValue)
+                {
+                    workers = await WorkerService.GetWorkersByDirectorateAsync(currentWorker.DirectorateId.Value);
+                }
+                else
+                {
+                    workers = new List<Worker>();
+                }
+            }
+            else
+            {
+                workers = new List<Worker>();
+            }
+
+            ExtractFilterOptions();
+            ApplyFilters();
+
+            isLoading = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading team members: {ex.Message}");
+            workers = new List<Worker>();
+            isLoading = false;
+        }
+    }
+
+    private void ExtractFilterOptions()
+    {
+        directorates = workers
+            .Where(w => w.Directorate != null)
+            .Select(w => w.Directorate!.Name)
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+
+        departments = workers
+            .Where(w => w.Department != null)
+            .Select(w => w.Department!.Name)
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+    }
+
+    // private void OnFilterChanged(ChangeEventArgs e)
+    // {
+    //     currentPage = 1;
+    //     ApplyFilters();
+    // }
+
+    private void ApplyFilters()
+    {
+        var filtered = workers.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var search = searchText.ToLowerInvariant();
+
+            filtered = filtered.Where(w =>
+                (w.FirstName?.ToLowerInvariant().Contains(search) == true) ||
+                (w.LastName?.ToLowerInvariant().Contains(search) == true) ||
+                (w.MiddleName?.ToLowerInvariant().Contains(search) == true) ||
+                (w.WorkerId?.ToLowerInvariant().Contains(search) == true));
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedDirectorate))
+        {
+            filtered = filtered.Where(w =>
+                w.Directorate != null &&
+                w.Directorate.Name == selectedDirectorate);
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedDepartment))
+        {
+            filtered = filtered.Where(w =>
+                w.Department != null &&
+                w.Department.Name == selectedDepartment);
+        }
+
+        var filteredList = filtered.ToList();
+
+        totalPages = (int)Math.Ceiling(filteredList.Count / (double)pageSize);
+
+        if (totalPages == 0)
+            totalPages = 1;
+
+        if (currentPage > totalPages)
+            currentPage = totalPages;
+
+        filteredWorkers = filteredList
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    private void ClearFilters()
+    {
+        searchText = "";
+        selectedDirectorate = "";
+        selectedDepartment = "";
+        currentPage = 1;
+        ApplyFilters();
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page < 1 || page > totalPages) return;
+
+        currentPage = page;
+        ApplyFilters();
+    }
+
+    private void OpenWorkerPreview(Worker worker)
+    {
+        selectedWorker = worker;
+        showWorkerPreview = true;
+    }
+
+    private void CloseWorkerPreview()
+    {
+        showWorkerPreview = false;
+        selectedWorker = null;
+    }
+
+    private async Task DeactivateFromModal(Worker worker)
+    {
+        worker.IsActive = false;
+        await WorkerService.UpdateWorkerAsync(worker);
+        ApplyFilters();
+        CloseWorkerPreview();
+    }
+
+    private async Task ActivateFromModal(Worker worker)
+    {
+        worker.IsActive = true;
+        await WorkerService.UpdateWorkerAsync(worker);
+        ApplyFilters();
+        CloseWorkerPreview();
+    }
+
+    private void ViewWorkerDetails(int workerId)
+    {
+        Navigation.NavigateTo($"/workforce/worker-details/{workerId}");
+    }
+
+    private bool CanAccessMyTeam()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return false;
+
+        var role = worker.Role?.ToLowerInvariant() ?? "";
+
+        return role.Contains("head of directorate") ||
+               role.Contains("asst head of directorate") ||
+               role.Contains("head of service") ||
+               role.Contains("pastor in charge") ||
+               role.Contains("senior pastor");
+    }
+}

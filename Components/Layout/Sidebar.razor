@@ -413,6 +413,24 @@
                                     </div>
                                     <span class="bcc-nav-text">Remove Worker</span>
                                 </a>
+                                <a href="/admin/church-notices" class="bcc-nav-subitem @GetNavItemClass("/admin/church-notices")">
+    <div class="bcc-nav-icon-container">
+        <i class="fas fa-bullhorn"></i>
+    </div>
+    <span class="bcc-nav-text">Church Notices</span>
+</a>
+<a href="/admin/verse-of-the-day" class="bcc-nav-subitem @GetNavItemClass("/admin/verse-of-the-day")">
+    <div class="bcc-nav-icon-container">
+        <i class="fas fa-book-open"></i>
+    </div>
+    <span class="bcc-nav-text">Verse of the Day</span>
+</a>
+<a href="/admin/prayer-focus" class="bcc-nav-subitem @GetNavItemClass("/admin/prayer-focus")">
+    <div class="bcc-nav-icon-container">
+        <i class="fas fa-praying-hands"></i>
+    </div>
+    <span class="bcc-nav-text">Prayer Focus</span>
+</a>
                             </div>
                         }
                     </div>
@@ -549,8 +567,9 @@
         if (worker == null) return false;
 
         var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        var SecondaryDepartmentName = worker.SecondaryDepartment?.Name?.ToLowerInvariant() ?? "";
 
-        return directorateName.Contains("fig");
+        return directorateName.Contains("fig") || SecondaryDepartmentName.Contains("membership assimilation");
     }
 
     private bool IsUsheringDepartment()

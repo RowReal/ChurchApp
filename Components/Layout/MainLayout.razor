@@ -1,76 +1,78 @@
 ﻿@inherits LayoutComponentBase
 @using ChurchApp.Services
-@using ChurchApp.Models
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
-<div class="bcc-layout-container">
-    <!-- Top Navigation Bar - REMOVED BOOTSTRAP CLASSES -->
-    <div class="bcc-top-navbar">
-        <div class="bcc-navbar-brand">
-            <div class="bcc-church-logo">
-                <img src="images/bcc-logo.png" alt="BCC Logo" class="bcc-logo-img" />
+<div class="bccv2-shell">
+
+    <header class="bccv2-topbar">
+        <div class="bccv2-brand">
+            <div class="bccv2-logo-box">
+                <img src="/images/bcc-logo.png" alt="BCC Logo" class="bccv2-logo" />
             </div>
-            <span class="bcc-brand-text">BCC ServiceHub</span>
+
+            <div class="bccv2-brand-text">
+                <strong>BCC ServiceHub</strong>
+               <span>Church Workforce Management</span>
+            </div>
         </div>
 
-        <!-- User Info -->
-        <div class="bcc-navbar-user">
+        <div class="bccv2-actions">
             @if (AuthService.IsAuthenticated)
             {
-                <div class="bcc-user-header">
-
-                    <div class="bcc-user-info">
-                        <span class="bcc-user-name">
-                            @AuthService.CurrentWorker?.FirstName @AuthService.CurrentWorker?.LastName
-                        </span>
-                        <span class="bcc-user-role">
-                            @AuthService.CurrentWorker?.Role
-                        </span>
+                <div class="bccv2-user">
+                    <div class="bccv2-avatar">
+                        @if (!string.IsNullOrEmpty(AuthService.CurrentWorker?.PassportPhotoPath))
+                        {
+                            <img src="@AuthService.CurrentWorker.PassportPhotoPath"
+     alt="@AuthService.CurrentWorker?.FirstName"
+     onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-user&quot;></i>';" />
+                        }
+                        else
+                        {
+                            <i class="fas fa-user"></i>
+                        }
                     </div>
 
-                    <button class="bcc-btn-signout" @onclick="SignOut">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Sign Out</span>
-                    </button>
-
+                    <div class="bccv2-user-text">
+                        <strong>@AuthService.CurrentWorker?.FirstName @AuthService.CurrentWorker?.LastName</strong>
+                        <span>@AuthService.CurrentWorker?.Role</span>
+                    </div>
                 </div>
+
+                <button class="bccv2-btn" @onclick="SignOut">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sign Out</span>
+                </button>
+
+                <button type="button" class="bccv2-menu-btn" @onclick="ToggleSidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
             }
             else
             {
-                <a href="/login" class="bcc-btn-signout">
-                    <i class="fas fa-sign-in-alt"></i>
-                    Login
-                </a>
+                <a href="/login" class="bccv2-btn bccv2-login-btn">
+    <i class="fas fa-right-to-bracket"></i>
+    <span>Worker Login</span>
+</a>
             }
         </div>
+    </header>
 
-        @if (AuthService.IsAuthenticated)
-        {
-            <button type="button" class="bcc-navbar-toggler" @onclick="ToggleSidebar">
-                ☰
-            </button>
-        }
-    </div>
-
-    <!-- Main Layout Container -->
-    <div class="bcc-main-container">
-        <!-- Sidebar - Only show when authenticated -->
+    <div class="bccv2-body">
         @if (AuthService.IsAuthenticated)
         {
             <Sidebar IsVisible="@isSidebarVisible" />
         }
 
-        <!-- Main Content Area -->
-        <main class="bcc-main-content @(!AuthService.IsAuthenticated ? "bcc-full-width" : "")">
+        <main class="bccv2-content @(!AuthService.IsAuthenticated ? "bccv2-content-full" : "")">
             @Body
         </main>
     </div>
 
-    <!-- Mobile Backdrop - Only show when authenticated and sidebar is visible -->
     @if (AuthService.IsAuthenticated && isSidebarVisible)
     {
-        <div class="bcc-sidebar-backdrop" @onclick="ToggleSidebar"></div>
+        <div class="bccv2-backdrop" @onclick="ToggleSidebar"></div>
     }
 </div>
 
@@ -89,5 +91,4 @@
         Navigation.NavigateTo("/login", forceLoad: true);
     }
 }
-
 

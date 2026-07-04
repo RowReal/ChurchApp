@@ -1,0 +1,20 @@
+﻿<div class="col-12 col-md-6">
+    <div class="bcc-form-field">
+        <label class="bcc-form-label">@Label</label>
+
+        @ChildContent
+
+        @if (!string.IsNullOrWhiteSpace(CurrentValue))
+        {
+            <small class="bcc-form-current">
+                Current: @CurrentValue
+            </small>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string? CurrentValue { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

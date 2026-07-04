@@ -8,302 +8,289 @@
 
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
 {
-    <PageTitle>Update Workers - Admin Panel</PageTitle>
+    <PageTitle>Workers - Admin</PageTitle>
 
-    <div class="container-fluid py-4">
+    <div class="my-team-v2-page">
 
-       <!-- HEADER -->
-<div class="row mb-4 align-items-center">
-    <div class="col">
-        <h2>Worker Profiles</h2>
-        <p class="text-muted">View or Update worker profile</p>
-    </div>
-
-    <!-- ADD NEW WORKER BUTTON -->
-    <div class="col-auto">
-        <a class="btn btn-primary"
-           href="/admin/worker-setup">
-            + Add New Worker
-        </a>
-    </div>
-</div>
-
-        <!-- FILTERS -->
-        <div class="row mb-3 g-2 align-items-end">
-
-            <div class="col-12 col-md-5">
-                <label class="form-label fw-semibold">Search Worker</label>
-                <input class="form-control"
-                       placeholder="Search by name or Worker ID..."
-                       @bind="SearchText"
-                       @bind:event="oninput" />
-            </div>
-
-            <div class="col-12 col-md-4">
-                <label class="form-label fw-semibold">Directorate</label>
-                <select class="form-control" @bind="SelectedDirectorateId">
-                    <option value="0">All Directorates</option>
-                    @foreach (var d in directorates)
-                    {
-                        <option value="@d.Id">@d.Name</option>
-                    }
-                </select>
-            </div>
-
-            <div class="col-12 col-md-3 d-flex align-items-end">
-                <div class="form-check form-switch">
-                    <input class="form-check-input"
-                           type="checkbox"
-                           checked="@showInactiveWorkers"
-                           @onchange="ToggleInactiveWorkers"
-                           id="showInactive" />
-
-                    <label class="form-check-label ms-2" for="showInactive">
-                        Show Inactive Workers
-                    </label>
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-users-cog me-2"></i>
+                    Administration
+                </div>
+                <div class="bcc-page-title">Worker Profiles</div>
+                <div class="bcc-page-subtitle">
+                    View, update, activate or deactivate worker records.
                 </div>
             </div>
 
+            <a class="bcc-btn bcc-btn-primary" href="/admin/worker-setup">
+                <i class="fas fa-user-plus me-2"></i>
+                Add New Worker
+            </a>
         </div>
 
-        <!-- TABLE -->
-        <div class="card">
-            <div class="card-body">
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="team-summary-card">
+                    <span>Total Workers</span>
+                    <strong>@workers.Count</strong>
+                    <i class="fas fa-users"></i>
+                </div>
+            </div>
 
+            <div class="col-md-3">
+                <div class="team-summary-card active">
+                    <span>Active</span>
+                    <strong>@workers.Count(w => w.IsActive)</strong>
+                    <i class="fas fa-user-check"></i>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="team-summary-card inactive">
+                    <span>Inactive</span>
+                    <strong>@workers.Count(w => !w.IsActive)</strong>
+                    <i class="fas fa-user-slash"></i>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="team-summary-card directorate">
+                    <span>Directorates</span>
+                    <strong>@directorates.Count</strong>
+                    <i class="fas fa-sitemap"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bcc-card">
+            <div class="bcc-card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label class="profile-form-label">Search Worker</label>
+                        <input class="form-control bcc-input"
+                               placeholder="Search by name or Worker ID..."
+                               @bind="SearchText"
+                               @bind:event="oninput" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="profile-form-label">Directorate</label>
+                        <select class="form-select bcc-input" @bind="SelectedDirectorateId">
+                            <option value="0">All Directorates</option>
+                            @foreach (var d in directorates)
+                            {
+                                <option value="@d.Id">@d.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="notice-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   checked="@showInactiveWorkers"
+                                   @onchange="ToggleInactiveWorkers"
+                                   id="showInactive" />
+
+                            <label for="showInactive">
+                                Show Inactive
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bcc-card">
+            <div class="bcc-card-header">
+                <div class="profile-v2-card-icon">
+                    <i class="fas fa-address-card"></i>
+                </div>
+                <div class="bcc-card-title">
+                    Workers (@filteredWorkers.Count)
+                </div>
+            </div>
+
+            <div class="bcc-card-body p-0">
                 @if (filteredWorkers.Any())
                 {
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-
+                    <div class="notice-table-wrapper">
+                        <table class="table notice-table align-middle mb-0">
                             <thead>
                                 <tr>
-                                    <th>Worker ID</th>
-                                    <th>Name</th>
+                                    <th>Worker</th>
                                     <th>Directorate</th>
                                     <th>Department</th>
                                     <th>Role</th>
-                                    <th>Data %</th>
+                                    <th>Data</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
+                                    <th class="text-end">Actions</th>
                                 </tr>
                             </thead>
 
                             <tbody>
                                 @foreach (var worker in filteredWorkers)
                                 {
+                                    var completeness = CalculateCompleteness(worker);
+
                                     <tr>
-
-                                        <!-- WORKER ID + AVATAR -->
                                         <td>
-                                            <div class="d-flex align-items-center">
-
+                                            <div class="notice-title-cell">
                                                 @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
                                                 {
                                                     <img src="/uploads/@(worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath)"
-                                                         class="rounded-circle me-2"
-                                                         style="width:38px;height:38px;object-fit:cover;border:1px solid #ddd;cursor:pointer;"
+                                                         class="admin-worker-avatar"
                                                          loading="lazy"
                                                          @onclick="() => OpenImagePreview(worker.PassportPhotoPath, worker)" />
                                                 }
                                                 else
                                                 {
-                                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2"
-                                                         style="width:38px;height:38px;font-size:0.75rem;font-weight:600;cursor:pointer;"
+                                                    <div class="admin-worker-avatar-placeholder"
                                                          @onclick="() => OpenImagePreview(null, worker)">
-                                                        @worker.WorkerId
+                                                        <i class="fas fa-user"></i>
                                                     </div>
                                                 }
 
-                                                <div class="fw-semibold">
-                                                    @worker.WorkerId
+                                                <div>
+                                                    <strong>@worker.FirstName @worker.LastName</strong>
+                                                    <span>@worker.WorkerId</span>
                                                 </div>
-
                                             </div>
                                         </td>
 
-                                        <td>@worker.FirstName @worker.LastName</td>
                                         <td>@(worker.Directorate?.Name ?? "Not assigned")</td>
                                         <td>@(worker.Department?.Name ?? "Not assigned")</td>
 
                                         <td>
-                                            <span class="badge bg-secondary">@worker.Role</span>
+                                            <span class="notice-type-badge notice-prayer">
+                                                @worker.Role
+                                            </span>
                                         </td>
 
                                         <td>
-                                            @{
-                                                var completeness = CalculateCompleteness(worker);
-                                            }
-
-                                            <div class="completeness-container">
-                                                <span class="badge @GetCompletenessBadgeClass(completeness)">
-                                                    @completeness%
-                                                </span>
-                                            </div>
+                                            <span class="notice-status @GetCompletenessClass(completeness)">
+                                                @completeness%
+                                            </span>
                                         </td>
 
                                         <td>
                                             @if (worker.IsActive)
                                             {
-                                                <span class="badge bg-success">Active</span>
+                                                <span class="notice-status active">Active</span>
                                             }
                                             else
                                             {
-                                                <span class="badge bg-danger">Inactive</span>
+                                                <span class="notice-status inactive">Inactive</span>
                                             }
                                         </td>
 
-                                        <!-- ACTIONS -->
-                                        <td>
-                                            <div class="action-icons">
+                                        <td class="text-end">
+                                            <a href="/admin/worker-details/@worker.Id" class="notice-action-btn edit" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
 
-                                                <a href="/admin/worker-details/@worker.Id"
-                                                   class="action-btn view">
-                                                    <i class="fas fa-eye"></i>
+                                            <a href="/admin/worker-update-form/@worker.Id" class="notice-action-btn toggle" title="Update">
+                                                <i class="fas fa-pen"></i>
+                                            </a>
+
+                                            @if (worker.IsActive)
+                                            {
+                                                <a href="/admin/deactivate-worker/@worker.Id" class="notice-action-btn delete" title="Deactivate">
+                                                    <i class="fas fa-user-slash"></i>
                                                 </a>
-
-                                                <a href="/admin/worker-update-form/@worker.Id"
-                                                   class="action-btn edit">
-                                                    <i class="fas fa-pen"></i>
+                                            }
+                                            else
+                                            {
+                                                <a href="/admin/activate-worker/@worker.Id" class="notice-action-btn edit" title="Activate">
+                                                    <i class="fas fa-user-check"></i>
                                                 </a>
-
-                                                @if (worker.IsActive)
-                                                {
-                                                    <a href="/admin/deactivate-worker/@worker.Id"
-                                                       class="action-btn danger">
-                                                        <i class="fas fa-user-slash"></i>
-                                                    </a>
-                                                }
-                                                else
-                                                {
-                                                    <a href="/admin/activate-worker/@worker.Id"
-                                                       class="action-btn success">
-                                                        <i class="fas fa-user-check"></i>
-                                                    </a>
-                                                }
-
-                                            </div>
+                                            }
                                         </td>
-
                                     </tr>
                                 }
                             </tbody>
-
                         </table>
                     </div>
                 }
                 else
                 {
-                    <div class="text-center py-4">
-                        <p class="text-muted">No workers found.</p>
+                    <div class="bcc-empty">
+                        <i class="fas fa-users-slash"></i>
+                        <h4>No workers found</h4>
+                        <p>No worker matches your current filter.</p>
                     </div>
                 }
-
             </div>
         </div>
-
     </div>
 }
 
-<!-- ================= MODAL ================= -->
 @if (showImagePreview)
 {
-    <div class="modal-backdrop-custom" @onclick="CloseImagePreview">
-
-        <div class="modal-content-custom p-3"
-             style="max-width:520px; width:95%;"
-             @onclick:stopPropagation="true">
-
-            <!-- CLOSE -->
-            <button class="btn btn-sm btn-dark position-absolute top-0 end-0 m-2"
-                    @onclick="CloseImagePreview">
-                ✕
+    <div class="team-modal-backdrop" @onclick="CloseImagePreview">
+        <div class="team-modal-card" @onclick:stopPropagation="true">
+            <button class="team-modal-close" @onclick="CloseImagePreview">
+                <i class="fas fa-times"></i>
             </button>
 
             @if (previewWorker != null)
             {
-                <div class="row g-3 align-items-center">
-
-                    <!-- LEFT: PHOTO -->
-                    <div class="col-4 text-center">
-
-                        <img src="@previewImageUrl"
-                             class="rounded-circle"
-                             style="width:90px;height:90px;object-fit:cover;border:2px solid #ddd;" />
-
-                        <div class="mt-2">
-                            <span class="badge @(previewWorker.IsActive ? "bg-success" : "bg-danger")">
-                                @(previewWorker.IsActive ? "Active" : "Inactive")
-                            </span>
+                <div class="text-center">
+                    @if (!string.IsNullOrEmpty(previewImageUrl))
+                    {
+                        <img src="@previewImageUrl" class="team-modal-photo" />
+                    }
+                    else
+                    {
+                        <div class="team-modal-photo-placeholder">
+                            <i class="fas fa-user"></i>
                         </div>
+                    }
 
-                    </div>
+                    <h4>@previewWorker.FirstName @previewWorker.LastName</h4>
+                    <p>@previewWorker.Role</p>
 
-                    <!-- RIGHT: DETAILS -->
-                    <div class="col-8">
-
-                        <h6 class="mb-1">
-                            @previewWorker.FirstName @previewWorker.LastName
-                        </h6>
-
-                        <div class="text-muted small mb-2">
-                            @previewWorker.Role
-                        </div>
-
-                        <div class="small">
-    <div><strong>ID:</strong> @previewWorker.WorkerId</div>
-    <div><strong>Directorate:</strong> @(previewWorker.Directorate?.Name ?? "Not assigned")</div>
-    <div><strong>Department:</strong> @(previewWorker.Department?.Name ?? "Not assigned")</div>
-
-    <div class="mt-2">
-        <strong>BCC:</strong>
-        <span class="text-primary fw-semibold">
-            @GetBccAge(previewWorker)
-        </span>
-    </div>
-</div>
-
-                    </div>
-
+                    <span class="team-status @(previewWorker.IsActive ? "active" : "inactive")">
+                        @(previewWorker.IsActive ? "Active" : "Inactive")
+                    </span>
                 </div>
 
-                <hr class="my-3" />
+                <div class="team-modal-info">
+                    <div><strong>ID:</strong> @previewWorker.WorkerId</div>
+                    <div><strong>Directorate:</strong> @(previewWorker.Directorate?.Name ?? "Not assigned")</div>
+                    <div><strong>Department:</strong> @(previewWorker.Department?.Name ?? "Not assigned")</div>
+                    <div><strong>BCC:</strong> @GetBccAge(previewWorker)</div>
+                </div>
 
-                <!-- BUTTON ROW -->
-                <div class="d-flex gap-2 justify-content-between flex-wrap">
-
-                    <a class="btn btn-primary btn-sm flex-fill"
-                       href="/admin/worker-details/@previewWorker.Id"
-                       @onclick="CloseImagePreview">
+                <div class="team-modal-actions">
+                    <a class="team-action-btn text-center" href="/admin/worker-details/@previewWorker.Id" @onclick="CloseImagePreview">
                         <i class="fas fa-eye me-1"></i> View
                     </a>
 
-                    <a class="btn btn-warning btn-sm flex-fill"
-                       href="/admin/worker-update-form/@previewWorker.Id"
-                       @onclick="CloseImagePreview">
+                    <a class="team-action-btn text-center" href="/admin/worker-update-form-v2/@previewWorker.Id" @onclick="CloseImagePreview">
                         <i class="fas fa-pen me-1"></i> Update
                     </a>
 
                     @if (previewWorker.IsActive)
                     {
-                        <button class="btn btn-danger btn-sm flex-fill"
-                                @onclick="() => DeactivateFromModal(previewWorker)">
+                        <button class="team-danger-btn" @onclick="() => DeactivateFromModal(previewWorker)">
                             <i class="fas fa-user-slash me-1"></i> Deactivate
                         </button>
                     }
                     else
                     {
-                        <button class="btn btn-success btn-sm flex-fill"
-                                @onclick="() => ActivateFromModal(previewWorker)">
+                        <button class="team-success-btn" @onclick="() => ActivateFromModal(previewWorker)">
                             <i class="fas fa-user-check me-1"></i> Activate
                         </button>
                     }
-
                 </div>
             }
-
         </div>
     </div>
 }
+
 @code {
     private List<Worker> workers = new();
     private List<Worker> filteredWorkers = new();
@@ -312,7 +299,6 @@
 
     private string? previewImageUrl;
     private bool showImagePreview = false;
-
     private Worker? previewWorker;
 
     private List<Directorate> directorates = new();
@@ -322,7 +308,11 @@
     private int SelectedDirectorateId
     {
         get => selectedDirectorateId;
-        set { selectedDirectorateId = value; ApplyFilter(); }
+        set
+        {
+            selectedDirectorateId = value;
+            ApplyFilter();
+        }
     }
 
     private string searchText = "";
@@ -330,7 +320,11 @@
     private string SearchText
     {
         get => searchText;
-        set { searchText = value; ApplyFilter(); }
+        set
+        {
+            searchText = value;
+            ApplyFilter();
+        }
     }
 
     protected override async Task OnInitializedAsync()
@@ -340,45 +334,41 @@
         ApplyFilter();
     }
 
-   private void ApplyFilter()
-{
-    IEnumerable<Worker> query = workers;
-
-    // SEARCH FILTER
-    if (!string.IsNullOrWhiteSpace(searchText))
+    private void ApplyFilter()
     {
-        var text = searchText.ToLower();
+        IEnumerable<Worker> query = workers;
 
-        query = query.Where(w =>
-            ($"{w.FirstName} {w.MiddleName} {w.LastName}")
-                .ToLower()
-                .Contains(text)
-            || (w.WorkerId ?? "").ToLower().Contains(text));
-    }
-
-    // DIRECTORATE FILTER
-    if (selectedDirectorateId > 0)
-        query = query.Where(w => w.DirectorateId == selectedDirectorateId);
-
-    // ACTIVE FILTER
-    if (!showInactiveWorkers)
-        query = query.Where(w => w.IsActive);
-
-    // ✅ SORTING (P → C → D → W → others, then numeric order)
-    query = query
-        .OrderBy(w => GetWorkerPriority(w.WorkerId))
-        .ThenBy(w =>
+        if (!string.IsNullOrWhiteSpace(searchText))
         {
-            var id = w.WorkerId ?? "";
-            var digits = new string(id.Where(char.IsDigit).ToArray());
+            var text = searchText.ToLower();
 
-            return int.TryParse(digits, out var num)
-                ? num
-                : int.MaxValue;
-        });
+            query = query.Where(w =>
+                ($"{w.FirstName} {w.MiddleName} {w.LastName}")
+                    .ToLower()
+                    .Contains(text)
+                || (w.WorkerId ?? "").ToLower().Contains(text));
+        }
 
-    filteredWorkers = query.ToList();
-}
+        if (selectedDirectorateId > 0)
+            query = query.Where(w => w.DirectorateId == selectedDirectorateId);
+
+        if (!showInactiveWorkers)
+            query = query.Where(w => w.IsActive);
+
+        query = query
+            .OrderBy(w => GetWorkerPriority(w.WorkerId))
+            .ThenBy(w =>
+            {
+                var id = w.WorkerId ?? "";
+                var digits = new string(id.Where(char.IsDigit).ToArray());
+
+                return int.TryParse(digits, out var num)
+                    ? num
+                    : int.MaxValue;
+            });
+
+        filteredWorkers = query.ToList();
+    }
 
     private void ToggleInactiveWorkers(ChangeEventArgs e)
     {
@@ -417,101 +407,75 @@
         await WorkerService.UpdateWorkerAsync(w);
         ApplyFilter();
         CloseImagePreview();
-
     }
 
     private int CalculateCompleteness(Worker worker)
-{
-    var filledFields = 0;
-    var totalFields = 15;
+    {
+        var filledFields = 0;
+        var totalFields = 15;
 
-    // Personal Information
-    if (!string.IsNullOrEmpty(worker.FirstName)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.LastName)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Email)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Phone)) filledFields++;
-    if (worker.DateOfBirth.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.FirstName)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.LastName)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Email)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Phone)) filledFields++;
+        if (worker.DateOfBirth.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Profession)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Organization)) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Address)) filledFields++;
+        if (worker.DirectorateId.HasValue) filledFields++;
+        if (worker.DepartmentId.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.Role)) filledFields++;
+        if (worker.DateJoinedChurch.HasValue) filledFields++;
+        if (!string.IsNullOrEmpty(worker.OrdinationLevel)) filledFields++;
+        if (worker.HasBelieverBaptism || worker.HasWorkerInTraining || worker.HasSOD || worker.HasBibleCollege) filledFields++;
+        if (!string.IsNullOrEmpty(worker.PassportPhotoPath)) filledFields++;
 
-    // Professional
-    if (!string.IsNullOrEmpty(worker.Profession)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Organization)) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Address)) filledFields++;
+        return totalFields > 0
+            ? (int)Math.Round((double)filledFields / totalFields * 100)
+            : 0;
+    }
 
-    // Church Info
-    if (worker.DirectorateId.HasValue) filledFields++;
-    if (worker.DepartmentId.HasValue) filledFields++;
-    if (!string.IsNullOrEmpty(worker.Role)) filledFields++;
-    if (worker.DateJoinedChurch.HasValue) filledFields++;
-    if (!string.IsNullOrEmpty(worker.OrdinationLevel)) filledFields++;
+    private string GetCompletenessClass(int percentage)
+    {
+        if (percentage < 50) return "inactive";
+        if (percentage < 86) return "notice-prayer";
+        return "active";
+    }
 
-    // Qualifications
-    if (worker.HasBelieverBaptism || worker.HasWorkerInTraining ||
-        worker.HasSOD || worker.HasBibleCollege) filledFields++;
+    private string GetBccAge(Worker worker)
+    {
+        if (!worker.DateJoinedChurch.HasValue)
+            return "Not set";
 
-    if (!string.IsNullOrEmpty(worker.PassportPhotoPath)) filledFields++;
+        var joined = worker.DateJoinedChurch.Value;
+        var now = DateTime.Now;
+        var totalDays = (now - joined).TotalDays;
 
-    return totalFields > 0
-        ? (int)Math.Round((double)filledFields / totalFields * 100)
-        : 0;
-}
+        if (totalDays < 0)
+            return "Invalid date";
 
-private string GetCompletenessBadgeClass(int percentage)
-{
-    if (percentage < 50)
-        return "bg-danger";
-    else if (percentage < 61)
-        return "bg-purple";
-    else if (percentage < 86)
-        return "bg-primary";
-    else
-        return "bg-success";
-}
+        if (totalDays < 30)
+            return $"{(int)totalDays} days in BCC";
 
-private string GetCompletenessClass(int percentage)
-{
-    if (percentage < 50)
-        return "completeness-red";
-    else if (percentage < 61)
-        return "completeness-purple";
-    else if (percentage < 86)
-        return "completeness-blue";
-    else
-        return "completeness-green";
-}
-private string GetBccAge(Worker worker)
-{
-    if (!worker.DateJoinedChurch.HasValue)
-        return "Not set";
+        if (totalDays < 365)
+            return $"{(int)(totalDays / 30)} months in BCC";
 
-    var joined = worker.DateJoinedChurch.Value;
-    var now = DateTime.Now;
+        var years = totalDays / 365;
+        return $"{Math.Floor(years)} years in BCC";
+    }
 
-    var totalDays = (now - joined).TotalDays;
+    private int GetWorkerPriority(string? workerId)
+    {
+        if (string.IsNullOrWhiteSpace(workerId))
+            return 99;
 
-    if (totalDays < 0)
-        return "Invalid date";
+        workerId = workerId.Trim().ToUpper();
 
-    if (totalDays < 30)
-        return $"{(int)totalDays} days in BCC";
+        if (workerId.StartsWith("P")) return 1;
+        if (workerId.StartsWith("C")) return 2;
+        if (workerId.StartsWith("D")) return 3;
+        if (workerId.StartsWith("W")) return 4;
 
-    if (totalDays < 365)
-        return $"{(int)(totalDays / 30)} months in BCC";
-
-    var years = totalDays / 365;
-    return $"{Math.Floor(years)} years in BCC";
-}
-private int GetWorkerPriority(string? workerId)
-{
-    if (string.IsNullOrWhiteSpace(workerId))
         return 99;
-
-    workerId = workerId.Trim().ToUpper();
-
-    if (workerId.StartsWith("P")) return 1;
-    if (workerId.StartsWith("C")) return 2;
-    if (workerId.StartsWith("D")) return 3;
-    if (workerId.StartsWith("W")) return 4;
-
-    return 99;
-}
+    }
 }

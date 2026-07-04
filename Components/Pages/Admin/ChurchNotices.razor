@@ -1,0 +1,427 @@
+﻿@page "/admin/church-notices"
+
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject AuthService AuthService
+@inject ChurchNoticeService ChurchNoticeService
+@inject NavigationManager Navigation
+
+<PageTitle>Church Notices - BCC ServiceHub</PageTitle>
+
+@if (!CanManageNotices())
+{
+    <div class="alert alert-danger">
+        You are not authorized to access this page.
+    </div>
+}
+else
+{
+    <div class="notice-page">
+
+        <div class="notice-page-header">
+            <div>
+                <span class="notice-kicker">
+                    <i class="fas fa-bullhorn"></i>
+                    Church Information Centre
+                </span>
+                <h2>Church Notices</h2>
+                <p>Create and manage announcements, events, reminders, prayer notices and celebrations.</p>
+            </div>
+
+            <button class="notice-primary-btn" @onclick="ShowCreateForm">
+                <i class="fas fa-plus"></i>
+                New Notice
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (showForm)
+        {
+            <div class="notice-form-card">
+                <div class="notice-form-header">
+                    <h5>@(isEditing ? "Edit Notice" : "Create New Notice")</h5>
+                    <button class="notice-close-btn" @onclick="CancelForm">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <EditForm Model="@noticeModel" OnValidSubmit="@SaveNotice">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Title</label>
+                            <InputText class="form-control notice-input"
+                                       @bind-Value="noticeModel.Title"
+                                       placeholder="Example: Workers' Meeting" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Type</label>
+                            <InputSelect class="form-select notice-input"
+                                         @bind-Value="noticeModel.Type">
+                                @foreach (var type in Enum.GetValues<NoticeType>())
+                                {
+                                    <option value="@type">@type</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Message</label>
+                            <InputTextArea class="form-control notice-input"
+                                           @bind-Value="noticeModel.Message"
+                                           rows="4"
+                                           placeholder="Write the full notice message here..." />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Publish Date</label>
+                            <InputDate class="form-control notice-input"
+                                       @bind-Value="noticeModel.PublishDate" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Expiry Date</label>
+                            <InputDate class="form-control notice-input"
+                                       @bind-Value="noticeModel.ExpiryDate" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="notice-check">
+                                <InputCheckbox @bind-Value="noticeModel.IsPinned" />
+                                <span>Pin this notice to the top</span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="notice-check">
+                                <InputCheckbox @bind-Value="noticeModel.IsActive" />
+                                <span>Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="notice-form-actions">
+                        <button type="button" class="notice-secondary-btn" @onclick="CancelForm">
+                            Cancel
+                        </button>
+
+                        <button type="submit" class="notice-primary-btn" disabled="@isSaving">
+                            @if (isSaving)
+                            {
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <span>@(isEditing ? "Update Notice" : "Save Notice")</span>
+                            }
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        }
+
+        <div class="notice-list-card">
+            <div class="notice-list-header">
+                <h5>All Notices</h5>
+                <span>@notices.Count notice(s)</span>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="text-muted mt-2">Loading notices...</p>
+                </div>
+            }
+            else if (!notices.Any())
+            {
+                <div class="notice-empty">
+                    <i class="fas fa-bullhorn"></i>
+                    <h5>No notices yet</h5>
+                    <p>Create your first church notice to show on the dashboard.</p>
+                </div>
+            }
+            else
+            {
+                <div class="notice-table-wrapper">
+                    <table class="table notice-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Notice</th>
+                                <th>Type</th>
+                                <th>Publish Date</th>
+                                <th>Status</th>
+                                <th>Pinned</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var notice in notices)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="notice-title-cell">
+                                            <div class="notice-type-icon @GetNoticeCssClass(notice.Type)">
+                                                <i class="@GetNoticeIcon(notice.Type)"></i>
+                                            </div>
+                                            <div>
+                                                <strong>@notice.Title</strong>
+                                                <span>@TrimMessage(notice.Message)</span>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <span class="notice-type-badge @GetNoticeCssClass(notice.Type)">
+                                            @notice.Type
+                                        </span>
+                                    </td>
+
+                                    <td>@notice.PublishDate.ToString("dd MMM yyyy")</td>
+
+                                    <td>
+                                        @if (notice.IsActive)
+                                        {
+                                            <span class="notice-status active">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="notice-status inactive">Inactive</span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @if (notice.IsPinned)
+                                        {
+                                            <span class="notice-pinned">
+                                                <i class="fas fa-thumbtack"></i>
+                                                Yes
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No</span>
+                                        }
+                                    </td>
+
+                                    <td class="text-end">
+                                        <button class="notice-action-btn edit" @onclick="() => EditNotice(notice)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+
+                                        <button class="notice-action-btn toggle" @onclick="() => ToggleNotice(notice.Id)">
+                                            <i class="fas @(notice.IsActive ? "fa-eye-slash" : "fa-eye")"></i>
+                                        </button>
+
+                                        <button class="notice-action-btn delete" @onclick="() => DeleteNotice(notice.Id)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+    </div>
+}
+
+@code {
+    private List<ChurchNotice> notices = new();
+    private ChurchNotice noticeModel = new();
+
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool showForm = false;
+    private bool isEditing = false;
+
+    private string successMessage = "";
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotices();
+    }
+
+    private async Task LoadNotices()
+    {
+        try
+        {
+            isLoading = true;
+            notices = await ChurchNoticeService.GetAllNoticesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading notices: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        noticeModel = new ChurchNotice
+        {
+            PublishDate = DateTime.UtcNow,
+            IsActive = true,
+            IsPinned = false,
+            Type = NoticeType.Announcement
+        };
+
+        isEditing = false;
+        showForm = true;
+        ClearMessages();
+    }
+
+    private void EditNotice(ChurchNotice notice)
+    {
+        noticeModel = new ChurchNotice
+        {
+            Id = notice.Id,
+            Title = notice.Title,
+            Message = notice.Message,
+            Type = notice.Type,
+            PublishDate = notice.PublishDate,
+            ExpiryDate = notice.ExpiryDate,
+            IsPinned = notice.IsPinned,
+            IsActive = notice.IsActive,
+            CreatedDate = notice.CreatedDate
+        };
+
+        isEditing = true;
+        showForm = true;
+        ClearMessages();
+    }
+
+    private async Task SaveNotice()
+    {
+        try
+        {
+            isSaving = true;
+            ClearMessages();
+
+            if (isEditing)
+            {
+                await ChurchNoticeService.UpdateNoticeAsync(noticeModel);
+                successMessage = "Notice updated successfully.";
+            }
+            else
+            {
+                await ChurchNoticeService.CreateNoticeAsync(noticeModel);
+                successMessage = "Notice created successfully.";
+            }
+
+            showForm = false;
+            await LoadNotices();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving notice: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        noticeModel = new ChurchNotice();
+        ClearMessages();
+    }
+
+    private async Task ToggleNotice(int id)
+    {
+        try
+        {
+            await ChurchNoticeService.ToggleActiveStatusAsync(id);
+            successMessage = "Notice status updated.";
+            await LoadNotices();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating notice status: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteNotice(int id)
+    {
+        try
+        {
+            await ChurchNoticeService.DeleteNoticeAsync(id);
+            successMessage = "Notice deleted successfully.";
+            await LoadNotices();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting notice: {ex.Message}";
+        }
+    }
+
+    private bool CanManageNotices()
+    {
+        return AuthService.IsInRole("Church Admin") ||
+               AuthService.IsInRole("Pastor in Charge") ||
+               AuthService.CanAccessAdminPanel();
+    }
+
+    private string GetNoticeIcon(NoticeType type)
+    {
+        return type switch
+        {
+            NoticeType.Event => "fas fa-calendar-alt",
+            NoticeType.Prayer => "fas fa-praying-hands",
+            NoticeType.Celebration => "fas fa-gift",
+            NoticeType.Reminder => "fas fa-clock",
+            NoticeType.Emergency => "fas fa-triangle-exclamation",
+            _ => "fas fa-bullhorn"
+        };
+    }
+
+    private string GetNoticeCssClass(NoticeType type)
+    {
+        return type switch
+        {
+            NoticeType.Event => "notice-event",
+            NoticeType.Prayer => "notice-prayer",
+            NoticeType.Celebration => "notice-celebration",
+            NoticeType.Reminder => "notice-reminder",
+            NoticeType.Emergency => "notice-emergency",
+            _ => "notice-announcement"
+        };
+    }
+
+    private string TrimMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return "";
+        }
+
+        return message.Length <= 80 ? message : message.Substring(0, 80) + "...";
+    }
+
+    private void ClearMessages()
+    {
+        successMessage = "";
+        errorMessage = "";
+    }
+}

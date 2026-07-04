@@ -456,6 +456,73 @@ namespace ChurchApp.Migrations
                     b.ToTable("CaseActions");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.ChurchAnnouncement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("EventDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ChurchAnnouncements");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.ChurchNotice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PublishDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ChurchNotices");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Department", b =>
                 {
                     b.Property<int>("Id")
@@ -1047,6 +1114,62 @@ namespace ChurchApp.Migrations
                     b.ToTable("OfferingTypes");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.PrayerFocus", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BibleVerse")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("WeekEndDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("WeekStartDate")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PrayerFocuses");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.PrayerPoint", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PointText")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PrayerFocusId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PrayerFocusId");
+
+                    b.ToTable("PrayerPoints");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.ProfileUpdateRequest", b =>
                 {
                     b.Property<int>("Id")
@@ -1435,6 +1558,36 @@ namespace ChurchApp.Migrations
                     b.ToTable("Units");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.VerseOfTheDay", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DisplayDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ScriptureReference")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VerseText")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("VerseOfTheDays");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Worker", b =>
                 {
                     b.Property<int>("Id")
@@ -1606,6 +1759,12 @@ namespace ChurchApp.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("SecondaryDepartmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("SecondaryDirectorateId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Sex")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -1650,6 +1809,10 @@ namespace ChurchApp.Migrations
                     b.HasIndex("DepartmentId");
 
                     b.HasIndex("DirectorateId");
+
+                    b.HasIndex("SecondaryDepartmentId");
+
+                    b.HasIndex("SecondaryDirectorateId");
 
                     b.HasIndex("SupervisorId");
 
@@ -2038,6 +2201,17 @@ namespace ChurchApp.Migrations
                     b.Navigation("Creator");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.PrayerPoint", b =>
+                {
+                    b.HasOne("ChurchApp.Models.PrayerFocus", "PrayerFocus")
+                        .WithMany("PrayerPoints")
+                        .HasForeignKey("PrayerFocusId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PrayerFocus");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.ProfileUpdateRequest", b =>
                 {
                     b.HasOne("ChurchApp.Models.Worker", "ApprovedByWorker")
@@ -2148,6 +2322,16 @@ namespace ChurchApp.Migrations
                         .WithMany("Workers")
                         .HasForeignKey("DirectorateId");
 
+                    b.HasOne("ChurchApp.Models.Department", "SecondaryDepartment")
+                        .WithMany()
+                        .HasForeignKey("SecondaryDepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.Directorate", "SecondaryDirectorate")
+                        .WithMany()
+                        .HasForeignKey("SecondaryDirectorateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ChurchApp.Models.Worker", "Supervisor")
                         .WithMany("Subordinates")
                         .HasForeignKey("SupervisorId")
@@ -2160,6 +2344,10 @@ namespace ChurchApp.Migrations
                     b.Navigation("Department");
 
                     b.Navigation("Directorate");
+
+                    b.Navigation("SecondaryDepartment");
+
+                    b.Navigation("SecondaryDirectorate");
 
                     b.Navigation("Supervisor");
 
@@ -2230,6 +2418,11 @@ namespace ChurchApp.Migrations
             modelBuilder.Entity("ChurchApp.Models.OfferingType", b =>
                 {
                     b.Navigation("OfferingRecords");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.PrayerFocus", b =>
+                {
+                    b.Navigation("PrayerPoints");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.Service", b =>

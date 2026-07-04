@@ -33,7 +33,9 @@ namespace ChurchApp.Services
                 .Include(w => w.Directorate)
                 .Include(w => w.Department)
                 .Include(w => w.Unit)
-                //.FirstOrDefaultAsync(w => w.Id == id && w.IsActive);
+                .Include(w => w.SecondaryDirectorate)
+.Include(w => w.SecondaryDepartment)
+            //.FirstOrDefaultAsync(w => w.Id == id && w.IsActive);
             .FirstOrDefaultAsync(w => w.Id == id);
         }
 
@@ -43,6 +45,8 @@ namespace ChurchApp.Services
                 .Include(w => w.Directorate)
                 .Include(w => w.Department)
                 .Include(w => w.Unit)
+                .Include(w => w.SecondaryDirectorate)
+.Include(w => w.SecondaryDepartment)
                 .FirstOrDefaultAsync(w => w.WorkerId == workerId && w.IsActive);
         }
 

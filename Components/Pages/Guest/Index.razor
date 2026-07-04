@@ -301,9 +301,11 @@ else
 
         var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
         var role = worker.Role?.ToLowerInvariant() ?? "";
+        var SecondaryDirectorateName = worker.SecondaryDirectorate?.Name?.ToLowerInvariant() ?? "";
+        var SecondaryDepartmentName = worker.SecondaryDepartment?.Name?.ToLowerInvariant() ?? "";
 
         // Check if worker is in FIG Directorate
-        var isInFIG = directorateName.Contains("fig");
+        var isInFIG = directorateName.Contains("fig") || SecondaryDirectorateName.Contains("fig"); 
 
         // Check if worker has appropriate role
         var hasValidRole = AuthService.IsInRole("Church Admin") ||

@@ -145,6 +145,11 @@ namespace ChurchApp.Models
         public DateTime? LastUpdated { get; set; }
         public DateTime? LastLoginDate { get; set; }
         public bool IsActive { get; set; } = true;
+        public int? SecondaryDirectorateId { get; set; }
+        public Directorate? SecondaryDirectorate { get; set; }
+
+        public int? SecondaryDepartmentId { get; set; }
+        public Department? SecondaryDepartment { get; set; }
 
         // Navigation Properties
         public virtual ICollection<Worker> Subordinates { get; set; } = new List<Worker>();

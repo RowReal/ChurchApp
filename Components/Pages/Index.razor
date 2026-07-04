@@ -12,6 +12,10 @@
 @inject AttendanceService AttendanceService
 @inject NavigationManager Navigation
 @inject IServiceProvider ScopedServices
+@inject ChurchUpdateService ChurchUpdateService
+@inject ChurchNoticeService ChurchNoticeService
+@inject VerseOfTheDayService VerseService
+@inject PrayerFocusService PrayerFocusService
 
 <PageTitle>BCC ServiceHub - Dashboard</PageTitle>
 
@@ -856,8 +860,134 @@
                 </div>
             </div>
 
-            <!-- Right Column - Notifications & Profile Status -->
-            <div class="col-lg-4 mb-4">
+           <!-- Right Column - Notifications & Profile Status -->
+<div class="col-lg-4 mb-4">
+
+    <!-- Today's Church Update -->
+    <div class="card border-0 shadow-sm mb-4 church-update-card">
+        <div class="card-header bg-white border-0 py-3">
+            <h5 class="mb-0 d-flex align-items-center">
+                <div class="church-update-icon me-2">
+                    <i class="fas fa-sun"></i>
+                </div>
+                Today's Church Update
+            </h5>
+        </div>
+
+        <div class="card-body">
+
+            <!-- Birthdays -->
+            <div class="church-update-item">
+                <div class="church-update-title">
+                    <i class="fas fa-birthday-cake"></i>
+                    Happy Birthday
+                </div>
+
+                @if (birthdayWorkers.Any())
+                {
+                    @foreach (var worker in birthdayWorkers.Take(3))
+                    {
+                        <div class="birthday-person">
+                            <strong>@worker.FirstName @worker.LastName</strong>
+                            <span>@worker.Department?.Name</span>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="church-update-muted">No worker birthday today.</p>
+                }
+            </div>
+
+            <!-- Announcement -->
+            <div class="church-update-item">
+    <div class="church-update-title">
+        <i class="@GetNoticeIcon(dashboardNotice?.Type)"></i>
+        Church Update
+    </div>
+
+    @if (dashboardNotice != null)
+    {
+        <p class="mb-1 fw-bold">@dashboardNotice.Title</p>
+
+        <span class="church-update-muted">
+            @dashboardNotice.Type • @dashboardNotice.PublishDate.ToString("dd MMM yyyy")
+        </span>
+
+        <div class="mt-2">
+            <small class="text-muted">@dashboardNotice.Message</small>
+        </div>
+    }
+    else
+    {
+        <span class="church-update-muted">No church notice available.</span>
+    }
+</div>
+            <!-- Notifications -->
+            <div class="church-update-item">
+                <div class="church-update-title">
+                    <i class="fas fa-bell"></i>
+                    Notifications
+                </div>
+                <p class="mb-0">
+                    You have <strong>@notifications.Count</strong> update(s) today.
+                </p>
+            </div>
+
+            <!-- Verse -->
+<div class="church-update-item">
+    <div class="church-update-title">
+        <i class="fas fa-book-open"></i>
+        Verse of the Day
+    </div>
+
+    @if (todayVerse != null)
+    {
+        <p class="church-verse">“@todayVerse.VerseText”</p>
+        <span class="church-update-muted">@todayVerse.ScriptureReference</span>
+    }
+    else
+    {
+        <p class="church-verse">“Whatever your hand finds to do, do it with all your might.”</p>
+        <span class="church-update-muted">Ecclesiastes 9:10</span>
+    }
+</div>
+
+            <!-- Prayer Focus -->
+            <div class="church-update-item mb-0">
+    <div class="church-update-title">
+        <i class="fas fa-praying-hands"></i>
+        Prayer Focus
+    </div>
+
+    @if (currentPrayerFocus != null)
+    {
+        <p class="mb-1 fw-bold">@currentPrayerFocus.Theme</p>
+
+        @foreach (var point in currentPrayerFocus.PrayerPoints.OrderBy(p => p.DisplayOrder).Take(3))
+        {
+            <div class="church-update-muted">
+                • @point.PointText
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(currentPrayerFocus.BibleVerse))
+        {
+            <div class="mt-2">
+                <span class="church-update-muted">@currentPrayerFocus.BibleVerse</span>
+            </div>
+        }
+    }
+    else
+    {
+        <p class="mb-0">Pray for the Evangelism Team.</p>
+    }
+</div>
+
+        </div>
+    </div>
+
+    <!-- Notifications -->>
                 <!-- Notifications -->
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-header bg-white border-0 py-3">
@@ -1168,6 +1298,12 @@ else
     private int pendingExcuseApprovals = 0;
     private int pendingBreakApprovals = 0;
     private int pendingApprovalCount = 0;
+    private List<Worker> birthdayWorkers = new();
+    private ChurchNotice? dashboardNotice;
+
+    private ChurchAnnouncement? latestAnnouncement;
+private PrayerFocus? currentPrayerFocus;
+private VerseOfTheDay? todayVerse;
 
     private ChurchApp.Services.GrowthHubCounts growthHubCounts = new();
 
@@ -1191,7 +1327,12 @@ else
             await LoadNotificationCounts();
             await LoadGrowthHubCounts();
             await LoadNotifications();
-            await LoadRecentActivities();
+await LoadTodaysBirthdays();
+await LoadRecentActivities();
+latestAnnouncement = await ChurchUpdateService.GetLatestAnnouncementAsync();
+currentPrayerFocus = await PrayerFocusService.GetCurrentPrayerFocusAsync();
+dashboardNotice = await ChurchNoticeService.GetDashboardNoticeAsync();
+todayVerse = await VerseService.GetTodayVerseAsync();
         }
         catch (Exception ex)
         {
@@ -1826,7 +1967,18 @@ else
         public string Time { get; set; } = string.Empty;
         public bool IsImportant { get; set; } = false;
     }
-
+    private string GetNoticeIcon(NoticeType? type)
+{
+    return type switch
+    {
+        NoticeType.Event => "fas fa-calendar-alt",
+        NoticeType.Prayer => "fas fa-praying-hands",
+        NoticeType.Celebration => "fas fa-gift",
+        NoticeType.Reminder => "fas fa-clock",
+        NoticeType.Emergency => "fas fa-triangle-exclamation",
+        _ => "fas fa-bullhorn"
+    };
+}
     private class Activity
     {
         public string Icon { get; set; } = string.Empty;
@@ -1836,6 +1988,28 @@ else
         public string Badge { get; set; } = string.Empty;
         public DateTime SortTime { get; set; } = DateTime.Now;
     }
+    private async Task LoadTodaysBirthdays()
+{
+    try
+    {
+        var workers = await WorkerService.GetAllWorkersAsync();
+
+        var today = DateTime.Today;
+
+        birthdayWorkers = workers
+            .Where(w => w.IsActive &&
+                        w.DateOfBirth.HasValue &&
+                        w.DateOfBirth.Value.Month == today.Month &&
+                        w.DateOfBirth.Value.Day == today.Day)
+            .OrderBy(w => w.FirstName)
+            .ToList();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error loading today's birthdays: {ex.Message}");
+        birthdayWorkers = new List<Worker>();
+    }
+}
 }
 
 <style>
