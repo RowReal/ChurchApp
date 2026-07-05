@@ -6,363 +6,438 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
-<PageTitle>Guest Details - BCC ServiceHub</PageTitle>
+<PageTitle>Guest 360 - BCC ServiceHub</PageTitle>
 
 @if (AuthService.IsAuthenticated)
 {
     @if (!IsFIGDirectorateMember())
     {
-        <div class="container mt-4">
-            <div class="row justify-content-center">
-                <div class="col-md-8">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-warning text-dark">
-                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Access Restricted</h5>
-                        </div>
-                        <div class="card-body text-center py-4">
-                            <i class="fas fa-lock fa-3x text-warning mb-3"></i>
-                            <h4>Access Denied</h4>
-                            <p class="text-muted">This section is only accessible to FIG Directorate members.</p>
-                            <a href="/guest" class="btn btn-primary mt-2">
-                                <i class="fas fa-arrow-left me-1"></i>Back to Guest Management
-                            </a>
-                        </div>
-                    </div>
-                </div>
+        <div class="guest360-v2-page">
+            <div class="bcc-empty">
+                <i class="fas fa-lock"></i>
+                <h4>Access Denied</h4>
+                <p>This section is only accessible to FIG Directorate members.</p>
+                <a href="/guest" class="bcc-btn bcc-btn-primary text-decoration-none">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Guest Centre
+                </a>
             </div>
         </div>
     }
     else if (isLoading)
     {
-        <div class="container mt-4">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="card shadow-sm">
-                        <div class="card-body text-center py-5">
-                            <div class="spinner-border text-primary mb-3"></div>
-                            <p>Loading guest details...</p>
-                        </div>
-                    </div>
+        <div class="guest360-v2-page">
+            <div class="bcc-card">
+                <div class="bcc-card-body text-center py-5">
+                    <div class="spinner-border text-primary mb-3"></div>
+                    <h5 class="fw-bold">Loading Guest 360...</h5>
+                    <p class="text-muted mb-0">Please wait while we load the guest profile.</p>
                 </div>
             </div>
         </div>
     }
     else if (guest == null)
     {
-        <div class="container mt-4">
-            <div class="row justify-content-center">
-                <div class="col-md-8">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-danger text-white">
-                            <h5 class="mb-0"><i class="fas fa-exclamation-circle me-2"></i>Guest Not Found</h5>
-                        </div>
-                        <div class="card-body text-center py-4">
-                            <i class="fas fa-user-slash fa-3x text-danger mb-3"></i>
-                            <h4>Guest Not Found</h4>
-                            <p class="text-muted">The requested guest record could not be found or has been deleted.</p>
-                            <div class="d-flex justify-content-center gap-2 mt-3">
-                                <a href="/guest" class="btn btn-secondary">
-                                    <i class="fas fa-arrow-left me-1"></i>Back to Guest Management
-                                </a>
-                                <a href="/guest/first-timer" class="btn btn-primary">
-                                    <i class="fas fa-list me-1"></i>View Today's Guests
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+        <div class="guest360-v2-page">
+            <div class="bcc-empty">
+                <i class="fas fa-user-slash"></i>
+                <h4>Guest Not Found</h4>
+                <p>The requested guest record could not be found or may have been deleted.</p>
+
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    <a href="/guest" class="bcc-btn guest-secondary-btn text-decoration-none">
+                        <i class="fas fa-arrow-left me-1"></i>Guest Centre
+                    </a>
+                    <a href="/guest/first-timer" class="bcc-btn bcc-btn-primary text-decoration-none">
+                        <i class="fas fa-list me-1"></i>Today’s Guests
+                    </a>
                 </div>
             </div>
         </div>
     }
     else
     {
-        <div class="container py-3">
-            <!-- Success Message -->
+        <div class="guest360-v2-page">
+
             @if (!string.IsNullOrEmpty(successMessage))
             {
-                <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+                <div class="alert alert-success profile-v2-alert alert-dismissible fade show" role="alert">
                     <i class="fas fa-check-circle me-2"></i>
                     <strong>Success!</strong> @successMessage
                     <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
                 </div>
             }
 
-            <!-- Error Message -->
             @if (!string.IsNullOrEmpty(errorMessage))
             {
-                <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                <div class="alert alert-danger profile-v2-alert alert-dismissible fade show" role="alert">
                     <i class="fas fa-exclamation-circle me-2"></i> @errorMessage
                     <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
                 </div>
             }
 
-            <!-- Main Header - Very Bold -->
-            <div class="main-header mb-4">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h2 class="mb-1 fw-bold">
-                            <i class="fas fa-user-circle me-2"></i>
-                            Guest Details - @guest.Title @guest.FirstName @guest.Surname
-                            <span class="guest-number-badge">(@guest.GuestNumber)</span>
-                        </h2>
-                        <div class="guest-status">
-                            @if (guest.IsSecondTimer)
-                            {
-                                <span class="badge bg-warning me-2">Second Timer</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-success me-2">First Timer</span>
-                            }
-                            <span class="text-muted">
-                                <i class="fas fa-calendar me-1"></i>
-                                Visiting Date: @guest.VisitingDate.ToString("dd MMM yyyy")
-                            </span>
-                        </div>
+            <div class="bcc-page-header">
+                <div>
+                    <div class="guest-page-kicker">
+                        <i class="fas fa-user-circle me-2"></i>BCC ServiceHub
                     </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-outline-secondary btn-sm" @onclick="GoBack">
-                            <i class="fas fa-arrow-left me-1"></i>Back
-                        </button>
-                        <a href="@($"/guest/edit/{Id}")" class="btn btn-warning btn-sm">
-                            <i class="fas fa-edit me-1"></i>Edit
-                        </a>
-                        <button class="btn btn-danger btn-sm" @onclick="DeleteGuest">
-                            <i class="fas fa-trash me-1"></i>Delete
-                        </button>
+                    <div class="bcc-page-title">Guest 360</div>
+                    <div class="bcc-page-subtitle">
+                        Complete guest profile, visit history, contact details, and follow-up information.
                     </div>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="bcc-btn guest-light-btn" @onclick="GoBack">
+                        <i class="fas fa-arrow-left me-1"></i>Back
+                    </button>
+
+                    <a href="@($"/guest/edit/{Id}")" class="bcc-btn guest-warning-btn text-decoration-none">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </a>
+
+                    <button class="bcc-btn guest-danger-outline-btn" @onclick="DeleteGuest">
+                        <i class="fas fa-trash me-1"></i>Delete
+                    </button>
                 </div>
             </div>
 
-            <!-- Row 1: Personal & Contact Information Side by Side -->
-            <div class="row g-3 mb-4">
-                <!-- Personal Information Card -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100 border-0">
-                        <div class="card-header personal-header">
-                            <h6 class="mb-0">
-                                <i class="fas fa-user-circle me-2"></i>Personal Information
-                            </h6>
+            <div class="bcc-card">
+                <div class="bcc-card-body">
+                    <div class="guest360-profile-hero">
+                        <div class="guest360-avatar large">
+                            @GetGuestInitials()
                         </div>
-                        <div class="card-body">
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <div class="info-item">
-                                        <small class="text-muted">Title</small>
-                                        <div class="fw-semibold">@guest.Title</div>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="info-item">
-                                        <small class="text-muted">Full Name</small>
-                                        <div class="fw-semibold">@guest.FirstName @guest.MiddleName @guest.Surname</div>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="info-item">
-                                        <small class="text-muted">Sex</small>
-                                        <div class="fw-semibold">@guest.Sex</div>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="info-item">
-                                        <small class="text-muted">Age Group</small>
-                                        <div class="fw-semibold">@guest.AgeGroup</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Contact Information Card -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100 border-0">
-                        <div class="card-header contact-header">
-                            <h6 class="mb-0">
-                                <i class="fas fa-address-book me-2"></i>Contact Information
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-2">
-                                @if (!string.IsNullOrEmpty(guest.Address))
-                                {
-                                    <div class="col-12">
-                                        <div class="info-item">
-                                            <small class="text-muted">Address</small>
-                                            <div class="fw-semibold">@guest.Address</div>
-                                        </div>
-                                    </div>
-                                }
-                                @if (!string.IsNullOrEmpty(guest.Landmark))
-                                {
-                                    <div class="col-12">
-                                        <div class="info-item">
-                                            <small class="text-muted">Landmark</small>
-                                            <div class="fw-semibold">@guest.Landmark</div>
-                                        </div>
-                                    </div>
-                                }
-                                <div class="col-12">
-                                    <div class="row g-2">
-                                        @if (!string.IsNullOrEmpty(guest.PhoneNumber))
-                                        {
-                                            <div class="col-6">
-                                                <div class="info-item">
-                                                    <small class="text-muted">Phone</small>
-                                                    <div class="fw-semibold">@guest.PhoneNumber</div>
-                                                </div>
-                                            </div>
-                                        }
-                                        @if (!string.IsNullOrEmpty(guest.WhatsAppNumber))
-                                        {
-                                            <div class="col-6">
-                                                <div class="info-item">
-                                                    <small class="text-muted">WhatsApp</small>
-                                                    <div class="fw-semibold">@guest.WhatsAppNumber</div>
-                                                </div>
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-                                @if (!string.IsNullOrEmpty(guest.Email))
-                                {
-                                    <div class="col-12">
-                                        <div class="info-item">
-                                            <small class="text-muted">Email</small>
-                                            <div class="fw-semibold">@guest.Email</div>
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                        <div class="flex-grow-1">
+                            <h2>@guest.Title @guest.FirstName @guest.Surname</h2>
+                            <p>@guest.GuestNumber</p>
 
-            <!-- Row 2: Church & Service Information Side by Side -->
-            <div class="row g-3">
-                <!-- Church Information Card -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100 border-0">
-                        <div class="card-header church-header">
-                            <h6 class="mb-0">
-                                <i class="fas fa-church me-2"></i>Church Information
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <div class="info-item">
-                                        <small class="text-muted">RCCG Member</small>
-                                        <div>
-                                            @if (guest.IsRCCGMember)
-                                            {
-                                                <span class="badge bg-success">Yes</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-secondary">No</span>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                                @if (!guest.IsRCCGMember && !string.IsNullOrEmpty(guest.OtherChurch))
+                            <div class="guest360-meta-pills">
+                                @if (guest.IsSecondTimer)
                                 {
-                                    <div class="col-6">
-                                        <div class="info-item">
-                                            <small class="text-muted">Other Church</small>
-                                            <div class="fw-semibold">@guest.OtherChurch</div>
-                                        </div>
-                                    </div>
+                                    <span class="status-warning">
+                                        <i class="fas fa-user-check"></i>Second Timer
+                                    </span>
                                 }
-                                <div class="col-6">
-                                    <div class="info-item">
-                                        <small class="text-muted">How Found Us</small>
-                                        <div class="fw-semibold">@guest.HowFoundUs</div>
-                                    </div>
-                                </div>
-                                @if (guest.HowFoundUs == "invite" && !string.IsNullOrEmpty(guest.InvitedByName))
+                                else
                                 {
-                                    <div class="col-6">
-                                        <div class="info-item">
-                                            <small class="text-muted">Invited By</small>
-                                            <div class="fw-semibold">@guest.InvitedByName</div>
-                                        </div>
-                                    </div>
+                                    <span class="status-success">
+                                        <i class="fas fa-user-plus"></i>First Timer
+                                    </span>
                                 }
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Service Information Card -->
-                <div class="col-lg-6">
-                    <div class="card shadow-sm h-100 border-0">
-                        <div class="card-header service-header">
-                            <h6 class="mb-0">
-                                <i class="fas fa-calendar-alt me-2"></i>Service Information
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <div class="info-item">
-                                        <small class="text-muted">Service</small>
-                                        <div class="fw-semibold">@guest.Service?.Name</div>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="info-item">
-                                        <small class="text-muted">Visiting Date</small>
-                                        <div class="fw-semibold">@guest.VisitingDate.ToString("dd/MM/yyyy")</div>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="info-item">
-                                        <small class="text-muted">Recording Date</small>
-                                        <div class="fw-semibold">@guest.RecordingDate.ToString("dd/MM/yyyy")</div>
-                                    </div>
-                                </div>
-                                <div class="col-6">
-                                    <div class="info-item">
-                                        <small class="text-muted">Recorded By</small>
-                                        <div class="fw-semibold">@guest.RecordedByName</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Buttons Footer -->
-            <div class="card shadow-sm border-0 mt-4">
-                <div class="card-body py-2">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Guest ID: <strong>@guest.GuestNumber</strong>
-                                <span class="ms-3">
-                                    Created: @guest.CreatedDate.ToString("dd/MM/yyyy HH:mm")
-                                    @if (guest.UpdatedDate.HasValue)
-                                    {
-                                        <span class="ms-2">| Updated: @guest.UpdatedDate.Value.ToString("dd/MM/yyyy HH:mm")</span>
-                                    }
+                                <span>
+                                    <i class="fas fa-calendar-day"></i>@guest.VisitingDate.ToString("dd MMM yyyy")
                                 </span>
-                            </small>
+
+                                <span>
+                                    <i class="fas fa-church"></i>@DisplayText(guest.Service?.Name)
+                                </span>
+
+                                <span>
+                                    <i class="fas fa-user-edit"></i>@DisplayText(guest.RecordedByName)
+                                </span>
+                            </div>
                         </div>
-                        <div class="d-flex gap-2">
-                            @if (!guest.IsSecondTimer)
-                            {
-                                <button class="btn btn-outline-success btn-sm" @onclick="MarkAsSecondTimer">
-                                    <i class="fas fa-user-check me-1"></i>Mark as Second Timer
+
+                        <div class="guest360-status-box">
+                            <span>Guest Type</span>
+                            <strong>@(guest.IsSecondTimer ? "Return Visit" : "First Visit")</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="team-summary-card">
+                        <span>Guest Number</span>
+                        <strong>@guest.GuestNumber</strong>
+                        <i class="fas fa-id-card"></i>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="team-summary-card active">
+                        <span>Visit Status</span>
+                        <strong>@(guest.IsSecondTimer ? "Second" : "First")</strong>
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="team-summary-card directorate">
+                        <span>Service</span>
+                        <strong>@DisplayText(guest.Service?.Name)</strong>
+                        <i class="fas fa-church"></i>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="team-summary-card inactive">
+                        <span>Recorded</span>
+                        <strong>@guest.RecordingDate.ToString("dd MMM")</strong>
+                        <i class="fas fa-clipboard-check"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="bcc-card">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-user-circle text-primary"></i>
+                            <div>
+                                <div class="bcc-card-title">Guest Information</div>
+                                <small class="text-muted">Personal, contact, church and service details.</small>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body">
+                            <div class="guest-form-section">
+                                <div class="guest-form-section-header blue">
+                                    <i class="fas fa-user-circle"></i>
+                                    <span>Personal Information</span>
+                                </div>
+
+                                <div class="guest-detail-grid">
+                                    <div class="guest-detail-item">
+                                        <span>Title</span>
+                                        <strong>@DisplayText(guest.Title)</strong>
+                                    </div>
+
+                                    <div class="guest-detail-item">
+                                        <span>Full Name</span>
+                                        <strong>@guest.FirstName @guest.MiddleName @guest.Surname</strong>
+                                    </div>
+
+                                    <div class="guest-detail-item">
+                                        <span>Sex</span>
+                                        <strong>@DisplayText(guest.Sex)</strong>
+                                    </div>
+
+                                    <div class="guest-detail-item">
+                                        <span>Age Group</span>
+                                        <strong>@DisplayText(guest.AgeGroup)</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="guest-form-section">
+                                <div class="guest-form-section-header green">
+                                    <i class="fas fa-address-book"></i>
+                                    <span>Contact Information</span>
+                                </div>
+
+                                <div class="guest-detail-grid">
+                                    <div class="guest-detail-item full">
+                                        <span>Address</span>
+                                        <strong>@DisplayText(guest.Address)</strong>
+                                    </div>
+
+                                    <div class="guest-detail-item full">
+                                        <span>Landmark</span>
+                                        <strong>@DisplayText(guest.Landmark)</strong>
+                                    </div>
+
+                                    <div class="guest-detail-item">
+                                        <span>Phone</span>
+                                        <strong>@DisplayText(guest.PhoneNumber)</strong>
+                                    </div>
+
+                                    <div class="guest-detail-item">
+                                        <span>WhatsApp</span>
+                                        <strong>@DisplayText(guest.WhatsAppNumber)</strong>
+                                    </div>
+
+                                    <div class="guest-detail-item full">
+                                        <span>Email</span>
+                                        <strong>@DisplayText(guest.Email)</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="guest-form-section">
+                                <div class="guest-form-section-header purple">
+                                    <i class="fas fa-church"></i>
+                                    <span>Church Information</span>
+                                </div>
+
+                                <div class="guest-detail-grid">
+                                    <div class="guest-detail-item">
+                                        <span>RCCG Member</span>
+                                        <strong>@(guest.IsRCCGMember ? "Yes" : "No")</strong>
+                                    </div>
+
+                                    @if (!guest.IsRCCGMember)
+                                    {
+                                        <div class="guest-detail-item">
+                                            <span>Other Church</span>
+                                            <strong>@DisplayText(guest.OtherChurch)</strong>
+                                        </div>
+                                    }
+
+                                    <div class="guest-detail-item">
+                                        <span>How Found Us</span>
+                                        <strong>@DisplayText(guest.HowFoundUs)</strong>
+                                    </div>
+
+                                    @if (!string.IsNullOrEmpty(guest.InvitedByName))
+                                    {
+                                        <div class="guest-detail-item">
+                                            <span>Invited By</span>
+                                            <strong>@guest.InvitedByName</strong>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="guest-form-section mb-0">
+                                <div class="guest-form-section-header amber">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>Service Information</span>
+                                </div>
+
+                                <div class="guest-detail-grid">
+                                    <div class="guest-detail-item">
+                                        <span>Service</span>
+                                        <strong>@DisplayText(guest.Service?.Name)</strong>
+                                    </div>
+
+                                    <div class="guest-detail-item">
+                                        <span>Visiting Date</span>
+                                        <strong>@guest.VisitingDate.ToString("dd/MM/yyyy")</strong>
+                                    </div>
+
+                                    <div class="guest-detail-item">
+                                        <span>Recording Date</span>
+                                        <strong>@guest.RecordingDate.ToString("dd/MM/yyyy")</strong>
+                                    </div>
+
+                                    <div class="guest-detail-item">
+                                        <span>Recorded By</span>
+                                        <strong>@DisplayText(guest.RecordedByName)</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="bcc-card">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-bolt text-primary"></i>
+                            <div>
+                                <div class="bcc-card-title">Quick Actions</div>
+                                <small class="text-muted">Common guest actions.</small>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body">
+                            <div class="guest360-actions-list">
+                                <a href="@($"/guest/edit/{Id}")" class="guest360-action">
+                                    <i class="fas fa-edit"></i>
+                                    <span>Edit Guest Record</span>
+                                </a>
+
+                                @if (!guest.IsSecondTimer)
+                                {
+                                    <button class="guest360-action" @onclick="MarkAsSecondTimer">
+                                        <i class="fas fa-user-check"></i>
+                                        <span>Mark as Second Timer</span>
+                                    </button>
+                                }
+
+                                <a href="@($"/guest/phone-followup?guestId={Id}")" class="guest360-action">
+                                    <i class="fas fa-phone-alt"></i>
+                                    <span>Phone Follow-up</span>
+                                </a>
+
+                                <button class="guest360-action" onclick="window.print()">
+                                    <i class="fas fa-print"></i>
+                                    <span>Print Guest Profile</span>
                                 </button>
-                            }
-                            <button class="btn btn-outline-primary btn-sm" onclick="window.print()">
-                                <i class="fas fa-print me-1"></i>Print
-                            </button>
+
+                                <button class="guest360-action danger" @onclick="DeleteGuest">
+                                    <i class="fas fa-trash"></i>
+                                    <span>Delete Record</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bcc-card">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-clock text-primary"></i>
+                            <div>
+                                <div class="bcc-card-title">Record Timeline</div>
+                                <small class="text-muted">System dates and update history.</small>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body">
+                            <div class="worker360-timeline">
+                                <div class="worker360-timeline-item">
+                                    <div class="worker360-timeline-dot"></div>
+                                    <span>@guest.CreatedDate.ToString("dd MMM yyyy HH:mm")</span>
+                                    <strong>Guest record created</strong>
+                                    <p>Guest ID: @guest.GuestNumber</p>
+                                </div>
+
+                                <div class="worker360-timeline-item">
+                                    <div class="worker360-timeline-dot"></div>
+                                    <span>@guest.VisitingDate.ToString("dd MMM yyyy")</span>
+                                    <strong>First visit recorded</strong>
+                                    <p>@DisplayText(guest.Service?.Name)</p>
+                                </div>
+
+                                @if (guest.UpdatedDate.HasValue)
+                                {
+                                    <div class="worker360-timeline-item">
+                                        <div class="worker360-timeline-dot"></div>
+                                        <span>@guest.UpdatedDate.Value.ToString("dd MMM yyyy HH:mm")</span>
+                                        <strong>Record updated</strong>
+                                        <p>Latest profile update captured.</p>
+                                    </div>
+                                }
+
+                                @if (guest.IsSecondTimer)
+                                {
+                                    <div class="worker360-timeline-item">
+                                        <div class="worker360-timeline-dot"></div>
+                                        <span>Current status</span>
+                                        <strong>Second timer</strong>
+                                        <p>Guest has returned after first visit.</p>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bcc-card">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-info-circle text-primary"></i>
+                            <div>
+                                <div class="bcc-card-title">System Summary</div>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body">
+                            <div class="bcc-info-row">
+                                <div class="bcc-info-label">Guest ID</div>
+                                <div class="bcc-info-value">@guest.GuestNumber</div>
+                            </div>
+
+                            <div class="bcc-info-row">
+                                <div class="bcc-info-label">Created</div>
+                                <div class="bcc-info-value">@guest.CreatedDate.ToString("dd/MM/yyyy HH:mm")</div>
+                            </div>
+
+                            <div class="bcc-info-row">
+                                <div class="bcc-info-label">Updated</div>
+                                <div class="bcc-info-value">@(guest.UpdatedDate?.ToString("dd/MM/yyyy HH:mm") ?? "Not updated")</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -372,62 +447,61 @@
 }
 else
 {
-    <div class="container mt-4">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0">Authentication Required</h5>
-                    </div>
-                    <div class="card-body text-center py-4">
-                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                        <h4>Please Log In</h4>
-                        <p class="text-muted">You need to be logged in to access this page.</p>
-                        <a href="/login" class="btn btn-primary mt-2">Go to Login</a>
-                    </div>
-                </div>
-            </div>
+    <div class="guest360-v2-page">
+        <div class="bcc-empty">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h4>Please Log In</h4>
+            <p>You need to be logged in to access Guest 360.</p>
+            <a href="/login" class="bcc-btn bcc-btn-primary text-decoration-none">Go to Login</a>
         </div>
     </div>
 }
 
-<!-- Delete Confirmation Modal -->
 @if (showDeleteModal)
 {
-    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete
-                    </h5>
+    <div class="team-modal-backdrop">
+        <div class="team-modal-card">
+            <button class="team-modal-close" @onclick="CancelDelete">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div class="text-center">
+                <div class="guest-access-icon danger">
+                    <i class="fas fa-trash-alt"></i>
                 </div>
-                <div class="modal-body">
-                    <p>Are you sure you want to delete this guest record?</p>
-                    <div class="alert alert-warning mb-3">
-                        <strong>Guest:</strong> @guest?.Title @guest?.FirstName @guest?.Surname<br>
-                        <strong>Guest ID:</strong> @guest?.GuestNumber
-                    </div>
-                    <p class="text-danger small mb-0">
-                        <i class="fas fa-exclamation-circle me-1"></i>This action cannot be undone.
-                    </p>
+
+                <h4>Delete Guest Record?</h4>
+                <p>This action cannot be undone.</p>
+            </div>
+
+            <div class="guest-access-box">
+                <div>
+                    <strong>Guest</strong>
+                    <span>@guest?.Title @guest?.FirstName @guest?.Surname</span>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">
-                        <i class="fas fa-times me-1"></i>Cancel
-                    </button>
-                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isDeleting">
-                        @if (isDeleting)
-                        {
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                        }
-                        else
-                        {
-                            <i class="fas fa-trash me-1"></i>
-                        }
-                        Delete Guest
-                    </button>
+
+                <div>
+                    <strong>Guest ID</strong>
+                    <span>@guest?.GuestNumber</span>
                 </div>
+            </div>
+
+            <div class="team-modal-actions">
+                <button type="button" class="bcc-btn guest-secondary-btn" @onclick="CancelDelete">
+                    Cancel
+                </button>
+
+                <button type="button" class="bcc-btn guest-danger-btn" @onclick="ConfirmDelete" disabled="@isDeleting">
+                    @if (isDeleting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-trash me-1"></i>
+                    }
+                    Delete Guest
+                </button>
             </div>
         </div>
     </div>
@@ -473,11 +547,12 @@ else
         var role = worker.Role?.ToLowerInvariant() ?? "";
 
         var isInFIG = directorateName.Contains("fig");
+
         var hasValidRole = role.Contains("head of directorate") ||
-                          role.Contains("asst head of directorate") ||
-                          role.Contains("directorate member") ||
-                          AuthService.IsInRole("Church Admin") ||
-                          AuthService.IsInRole("Pastor in Charge");
+                           role.Contains("asst head of directorate") ||
+                           role.Contains("directorate member") ||
+                           AuthService.IsInRole("Church Admin") ||
+                           AuthService.IsInRole("Pastor in Charge");
 
         return isInFIG && hasValidRole;
     }
@@ -491,6 +566,7 @@ else
     private async Task ConfirmDelete()
     {
         isDeleting = true;
+
         try
         {
             var success = await GuestService.DeleteGuestAsync(Id);
@@ -500,7 +576,6 @@ else
                 successMessage = $"Guest {guest?.GuestNumber} deleted successfully.";
                 showDeleteModal = false;
 
-                // Redirect after 2 seconds
                 await Task.Delay(2000);
                 Navigation.NavigateTo("/guest/first-timer");
             }
@@ -528,7 +603,7 @@ else
 
     private async Task MarkAsSecondTimer()
     {
-        successMessage = "Marking as second timer feature coming soon!";
+        successMessage = "Use the Second Timer page to complete the second visit form for this guest.";
         StateHasChanged();
     }
 
@@ -548,203 +623,22 @@ else
         errorMessage = "";
         StateHasChanged();
     }
+
+    private string GetGuestInitials()
+    {
+        if (guest == null)
+            return "G";
+
+        var first = !string.IsNullOrWhiteSpace(guest.FirstName) ? guest.FirstName.Substring(0, 1).ToUpper() : "";
+        var last = !string.IsNullOrWhiteSpace(guest.Surname) ? guest.Surname.Substring(0, 1).ToUpper() : "";
+
+        var initials = $"{first}{last}";
+
+        return string.IsNullOrWhiteSpace(initials) ? "G" : initials;
+    }
+
+    private string DisplayText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+    }
 }
-
-<style>
-    /* Main Header - Very Bold */
-    .main-header h2 {
-        font-size: 1.8rem;
-        font-weight: 700 !important;
-        color: #2c3e50;
-        margin-bottom: 0.5rem;
-    }
-
-    .guest-number-badge {
-        font-size: 1.2rem;
-        color: #17a2b8;
-        font-weight: 700;
-        background: rgba(23, 162, 184, 0.1);
-        padding: 0.2rem 0.6rem;
-        border-radius: 6px;
-        margin-left: 0.5rem;
-    }
-
-    .guest-status {
-        margin-top: 0.25rem;
-    }
-
-        .guest-status .badge {
-            font-size: 0.75rem;
-            padding: 0.35em 0.65em;
-        }
-
-        .guest-status .text-muted {
-            font-size: 0.85rem;
-        }
-
-    /* Compact Card Design */
-    .card {
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-    /* Card Header Styling */
-    .card-header {
-        padding: 0.75rem 1rem;
-        font-weight: 600;
-        font-size: 0.85rem;
-        color: white;
-        border-bottom: none;
-    }
-
-    .personal-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-
-    .contact-header {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    }
-
-    .church-header {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    }
-
-    .service-header {
-        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    }
-
-    /* Card Body */
-    .card-body {
-        padding: 1rem;
-    }
-
-    /* Info Item Styling */
-    .info-item {
-        margin-bottom: 0.75rem;
-    }
-
-        .info-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .info-item small {
-            font-size: 0.7rem;
-            color: #6c757d;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            display: block;
-            margin-bottom: 2px;
-        }
-
-        .info-item .fw-semibold {
-            color: #2d3748;
-            font-size: 0.85rem;
-            line-height: 1.2;
-        }
-
-    /* Badge Styling */
-    .badge {
-        padding: 0.25em 0.5em;
-        font-size: 0.65em;
-        font-weight: 500;
-    }
-
-    /* Button Styling */
-    .btn-sm {
-        padding: 0.2rem 0.5rem;
-        font-size: 0.75rem;
-        border-radius: 4px;
-    }
-
-    /* Layout Spacing */
-    .row.g-3 {
-        --bs-gutter-x: 1rem;
-        --bs-gutter-y: 1rem;
-    }
-
-    .row.g-2 {
-        --bs-gutter-x: 0.75rem;
-        --bs-gutter-y: 0.75rem;
-    }
-
-    /* Equal Height Cards */
-    .h-100 {
-        height: 100%;
-    }
-
-    /* Responsive Adjustments */
-    @@media (max-width: 768px) {
-        .main-header h2 {
-            font-size: 1.4rem;
-        }
-
-        .guest-number-badge {
-            font-size: 1rem;
-            padding: 0.15rem 0.4rem;
-        }
-
-        .card-header {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.8rem;
-        }
-
-        .card-body {
-            padding: 0.75rem;
-        }
-
-        .info-item small {
-            font-size: 0.65rem;
-        }
-
-        .info-item .fw-semibold {
-            font-size: 0.8rem;
-        }
-
-        .btn-sm {
-            padding: 0.15rem 0.4rem;
-            font-size: 0.7rem;
-        }
-
-        .row.g-3 {
-            --bs-gutter-x: 0.75rem;
-            --bs-gutter-y: 0.75rem;
-        }
-
-        .row.g-2 {
-            --bs-gutter-x: 0.5rem;
-            --bs-gutter-y: 0.5rem;
-        }
-
-        .guest-status {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-            .guest-status .badge {
-                margin-bottom: 0.25rem;
-            }
-    }
-
-    /* Print Styles */
-    @@media print {
-        .btn, .card-footer {
-            display: none !important;
-        }
-
-        .card-header {
-            background: #f8f9fa !important;
-            color: #2d3748 !important;
-            border-bottom: 2px solid #dee2e6;
-        }
-
-        .main-header h2 {
-            font-size: 1.5rem;
-            color: #000 !important;
-        }
-
-        .guest-number-badge {
-            color: #000 !important;
-            background: none !important;
-        }
-    }
-</style>

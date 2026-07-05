@@ -901,27 +901,58 @@
 
             <!-- Announcement -->
             <div class="church-update-item">
+   <div class="church-update-item">
     <div class="church-update-title">
-        <i class="@GetNoticeIcon(dashboardNotice?.Type)"></i>
-        Church Update
+        <i class="fas fa-bullhorn"></i>
+        Church Updates
     </div>
 
-    @if (dashboardNotice != null)
+    @if (dashboardNotices.Any())
     {
-        <p class="mb-1 fw-bold">@dashboardNotice.Title</p>
+        @foreach (var notice in dashboardNotices)
+        {
+            <div class="mb-3 pb-2 border-bottom">
+                <p class="mb-1 fw-bold">@notice.Title</p>
 
-        <span class="church-update-muted">
-            @dashboardNotice.Type • @dashboardNotice.PublishDate.ToString("dd MMM yyyy")
-        </span>
+                <span class="church-update-muted">
+                    @notice.Type • @notice.PublishDate.ToString("dd MMM yyyy")
+                </span>
 
-        <div class="mt-2">
-            <small class="text-muted">@dashboardNotice.Message</small>
-        </div>
+                <div class="mt-2">
+                    <small class="text-muted">@notice.Message</small>
+                </div>
+            </div>
+        }
     }
     else
     {
-        <span class="church-update-muted">No church notice available.</span>
+        <span class="church-update-muted">
+            No church notice available.
+        </span>
     }
+</div>
+
+    @if (dashboardNotices.Any())
+{
+    @foreach (var notice in dashboardNotices)
+    {
+        <div class="mb-3">
+            <p class="mb-1 fw-bold">@notice.Title</p>
+
+            <span class="church-update-muted">
+                @notice.Type • @notice.PublishDate.ToString("dd MMM yyyy")
+            </span>
+
+            <div class="mt-2">
+                <small class="text-muted">@notice.Message</small>
+            </div>
+        </div>
+    }
+}
+else
+{
+    <span class="church-update-muted">No church notice available.</span>
+}
 </div>
             <!-- Notifications -->
             <div class="church-update-item">
@@ -1299,7 +1330,7 @@ else
     private int pendingBreakApprovals = 0;
     private int pendingApprovalCount = 0;
     private List<Worker> birthdayWorkers = new();
-    private ChurchNotice? dashboardNotice;
+   private List<ChurchNotice> dashboardNotices = new();
 
     private ChurchAnnouncement? latestAnnouncement;
 private PrayerFocus? currentPrayerFocus;
@@ -1331,7 +1362,7 @@ await LoadTodaysBirthdays();
 await LoadRecentActivities();
 latestAnnouncement = await ChurchUpdateService.GetLatestAnnouncementAsync();
 currentPrayerFocus = await PrayerFocusService.GetCurrentPrayerFocusAsync();
-dashboardNotice = await ChurchNoticeService.GetDashboardNoticeAsync();
+dashboardNotices = await ChurchNoticeService.GetActiveDashboardNoticesAsync();
 todayVerse = await VerseService.GetTodayVerseAsync();
         }
         catch (Exception ex)
@@ -3148,5 +3179,378 @@ todayVerse = await VerseService.GetTodayVerseAsync();
 .action-card:hover {
     background: #ffffff !important;
     border-color: #0d6efd !important;
+}
+@* /* ===============================
+   DASHBOARD COMPACT PASS
+   BCC ServiceHub
+================================ */
+
+.dashboard-hero {
+    padding: 22px 24px !important;
+    border-radius: 20px !important;
+    margin-bottom: 18px !important;
+    gap: 16px !important;
+}
+
+.dashboard-kicker {
+    padding: 5px 12px !important;
+    font-size: 0.75rem !important;
+    margin-bottom: 8px !important;
+}
+
+.dashboard-hero h2 {
+    font-size: clamp(1.35rem, 2.2vw, 1.9rem) !important;
+    margin-bottom: 4px !important;
+}
+
+.dashboard-hero p {
+    font-size: 0.88rem !important;
+    margin-bottom: 8px !important;
+}
+
+.dashboard-meta {
+    gap: 10px !important;
+    font-size: 0.78rem !important;
+}
+
+.dashboard-user img,
+.dashboard-user-placeholder {
+    width: 66px !important;
+    height: 66px !important;
+    border-radius: 18px !important;
+}
+
+.dashboard-user-placeholder {
+    font-size: 1.45rem !important;
+}
+
+.stat-card {
+    min-height: 112px !important;
+    padding: 15px !important;
+    border-radius: 18px !important;
+}
+
+.stat-image-container {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 14px !important;
+    margin-bottom: 8px !important;
+    font-size: 1rem !important;
+}
+
+.stat-number {
+    font-size: 1.55rem !important;
+    margin-bottom: 2px !important;
+}
+
+.stat-label {
+    font-size: 0.78rem !important;
+    margin-bottom: 0 !important;
+}
+
+.modern-menu-card .card-body {
+    padding: 18px !important;
+}
+
+.modern-menu-card .card-header,
+.card-header {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+}
+
+.card-header h5 {
+    font-size: 0.98rem !important;
+}
+
+.action-header-icon,
+.activity-header-icon,
+.notification-header-icon,
+.profile-header-icon,
+.links-header-icon,
+.church-update-icon {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 10px !important;
+    font-size: 0.82rem !important;
+}
+
+.menu-section {
+    margin-bottom: 18px !important;
+}
+
+.menu-section-title {
+    font-size: 0.82rem !important;
+    margin-bottom: 10px !important;
+}
+
+.action-card {
+    min-height: 94px !important;
+    padding: 12px 10px !important;
+    border-radius: 16px !important;
+}
+
+.action-image {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 13px !important;
+    font-size: 1rem !important;
+    margin-bottom: 8px !important;
+}
+
+.action-text {
+    font-size: 0.78rem !important;
+    line-height: 1.2 !important;
+}
+
+.church-update-card .card-body,
+.card-body {
+    padding: 14px !important;
+}
+
+.church-update-item {
+    padding: 10px 0 !important;
+}
+
+.church-update-title {
+    font-size: 0.82rem !important;
+    margin-bottom: 6px !important;
+}
+
+.church-update-muted,
+.notification-time,
+.activity-time {
+    font-size: 0.74rem !important;
+}
+
+.notification-item,
+.activity-item {
+    padding: 10px 14px !important;
+}
+
+.notification-text,
+.activity-text {
+    font-size: 0.82rem !important;
+}
+
+.profile-progress-avatar,
+.profile-progress-avatar-placeholder {
+    width: 58px !important;
+    height: 58px !important;
+}
+
+.progress-circle svg {
+    width: 64px !important;
+    height: 64px !important;
+}
+
+.progress-percent {
+    font-size: 0.82rem !important;
+}
+
+@@media (max-width: 768px) {
+    .dashboard-hero {
+        padding: 18px !important;
+    }
+
+    .dashboard-user {
+        display: none !important;
+    }
+
+    .stat-card {
+        min-height: 100px !important;
+        padding: 12px !important;
+    }
+
+    .stat-image-container {
+        width: 38px !important;
+        height: 38px !important;
+    }
+
+    .stat-number {
+        font-size: 1.35rem !important;
+    } *@
+@* } *@
+/* ===============================
+   SAFE DASHBOARD COMPACT OVERRIDE
+   Keeps original design, only reduces size
+================================ */
+
+/* Reduce main dashboard hero */
+@if (false) { }
+
+.dashboard-hero {
+    padding: 18px 22px !important;
+    border-radius: 20px !important;
+    margin-bottom: 16px !important;
+    gap: 14px !important;
+}
+
+.dashboard-kicker {
+    padding: 5px 11px !important;
+    font-size: 0.72rem !important;
+    margin-bottom: 7px !important;
+}
+
+.dashboard-hero h2 {
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem) !important;
+    margin-bottom: 4px !important;
+}
+
+.dashboard-hero p {
+    font-size: 0.84rem !important;
+    margin-bottom: 7px !important;
+}
+
+.dashboard-meta {
+    font-size: 0.76rem !important;
+    gap: 9px !important;
+}
+
+.dashboard-user img,
+.dashboard-user-placeholder {
+    width: 58px !important;
+    height: 58px !important;
+    border-radius: 16px !important;
+}
+
+.dashboard-user-placeholder {
+    font-size: 1.25rem !important;
+}
+
+.dashboard-user span {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+/* Reduce stat cards */
+.stat-card {
+    min-height: 95px !important;
+    height: 95px !important;
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+}
+
+.stat-image-container {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    border-radius: 12px !important;
+    margin-bottom: 0 !important;
+    font-size: 0.95rem !important;
+}
+
+.stat-image-container i,
+.worker-avatar,
+.document-icon,
+.request-paper,
+.checkmark-circle,
+.warning-triangle,
+.church-building,
+.church-icon-large,
+.calendar-waiting,
+.calendar-checked,
+.profile-avatar,
+.hand-icon {
+    font-size: 1rem !important;
+}
+
+.stat-number {
+    font-size: 1.35rem !important;
+    margin-bottom: 3px !important;
+}
+
+.stat-label {
+    font-size: 0.74rem !important;
+    line-height: 1.1 !important;
+}
+
+/* Reduce spacing around top cards */
+.row.mb-4 {
+    margin-bottom: 14px !important;
+}
+
+.row.mb-4 > .col-6,
+.row.mb-4 > .col-md-3 {
+    margin-bottom: 8px !important;
+}
+
+/* Reduce Quick Workspace card header/body */
+.modern-menu-card .card-header {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+}
+
+.modern-menu-card .card-body {
+    padding: 18px !important;
+}
+
+.menu-section {
+    margin-bottom: 16px !important;
+}
+
+.menu-section:nth-child(even) {
+    padding: 14px !important;
+    border-radius: 16px !important;
+}
+
+.menu-section-title {
+    font-size: 0.82rem !important;
+    margin-bottom: 10px !important;
+    padding-bottom: 8px !important;
+}
+
+.menu-section-title i {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 9px !important;
+}
+
+.action-card {
+    height: 78px !important;
+    min-height: 78px !important;
+    padding: 10px !important;
+    border-radius: 14px !important;
+    gap: 7px !important;
+}
+
+.action-image {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
+    font-size: 0.9rem !important;
+}
+
+.action-text {
+    font-size: 0.72rem !important;
+}
+
+/* Mobile */
+@@media (max-width: 768px) {
+    .dashboard-hero {
+        padding: 16px !important;
+    }
+
+    .dashboard-user {
+        display: none !important;
+    }
+
+    .stat-card {
+        height: 86px !important;
+        min-height: 86px !important;
+        padding: 10px !important;
+    }
+
+    .stat-image-container {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+    }
+
+    .stat-number {
+        font-size: 1.15rem !important;
+    }
 }
 </style>

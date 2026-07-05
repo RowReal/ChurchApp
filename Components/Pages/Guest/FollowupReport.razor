@@ -6,68 +6,121 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
-<PageTitle>Guest Follow-up Report</PageTitle>
+<PageTitle>Guest Follow-up Report - BCC ServiceHub</PageTitle>
 
 @if (!AuthService.IsAuthenticated)
 {
-    <div class="container mt-5">
-        <div class="alert alert-warning">Please log in to access this page.</div>
+    <div class="guest-report-v2-page">
+        <div class="bcc-empty">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h4>Please Log In</h4>
+            <p>You need to be logged in to access Guest Follow-up Report.</p>
+            <a href="/login" class="bcc-btn bcc-btn-primary text-decoration-none">
+                Go to Login
+            </a>
+        </div>
     </div>
 }
 else
 {
-    <div class="container-fluid py-4">
+    <div class="guest-report-v2-page">
 
-        <div class="card mb-4">
-            <div class="card-header bg-dark-blue text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-chart-line me-2"></i>Guest Follow-up Report
-                </h5>
+        <div class="bcc-page-header">
+            <div>
+                <div class="guest-page-kicker">
+                    <i class="fas fa-chart-line me-2"></i>BCC ServiceHub
+                </div>
+                <div class="bcc-page-title">Guest Follow-up Report</div>
+                <div class="bcc-page-subtitle">
+                    Monitor guest follow-up activities, phone call outcomes, visitation needs, and pending contacts.
+                </div>
             </div>
 
-            <div class="card-body">
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="bcc-btn guest-light-btn" @onclick="ResetFilters">
+                    <i class="fas fa-redo me-1"></i>Reset
+                </button>
 
-                <!-- Search Filters -->
-                <div class="report-filter-card mb-4">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                        <div>
-                            <h6 class="mb-1 text-primary fw-bold">
-                                <i class="fas fa-filter me-2"></i>Search Filters
-                            </h6>
-                            <small class="text-muted">Filter guest follow-up records by visit, status, call outcome, or officer.</small>
-                        </div>
+                <button class="bcc-btn guest-warning-btn" @onclick="SearchReport" disabled="@isSearching">
+                    @if (isSearching)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Searching...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-search me-1"></i>
+                        <span>Search Report</span>
+                    }
+                </button>
+            </div>
+        </div>
 
-                        <button class="btn btn-sm btn-outline-secondary" @onclick="ResetFilters">
-                            <i class="fas fa-redo me-1"></i>Reset
-                        </button>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger profile-v2-alert">
+                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
+            </div>
+        }
+
+        <div class="bcc-card">
+            <div class="bcc-card-header guest-register-header">
+                <div>
+                    <div class="bcc-card-title">
+                        <i class="fas fa-filter me-2 text-primary"></i>Report Filters
+                    </div>
+                    <small class="text-muted">
+                        Filter guest follow-up records by guest profile, visit date, follow-up status, call outcome, or officer.
+                    </small>
+                </div>
+
+                <button class="bcc-btn guest-secondary-btn" @onclick="ResetFilters">
+                    <i class="fas fa-redo me-1"></i>Reset Filters
+                </button>
+            </div>
+
+            <div class="bcc-card-body">
+
+                <div class="guest-form-section">
+                    <div class="guest-form-section-header blue">
+                        <i class="fas fa-user"></i>
+                        <span>Guest Information</span>
                     </div>
 
-                    <div class="filter-section mb-3">
-                        <div class="filter-section-title">Guest Information</div>
-
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Guest Name</label>
-                                <input class="form-control" @bind="searchName" placeholder="Search by name" />
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="bcc-form-field">
+                                <label class="bcc-form-label">Guest Name</label>
+                                <input class="form-control bcc-input"
+                                       @bind="searchName"
+                                       placeholder="Search by name" />
                             </div>
+                        </div>
 
-                            <div class="col-md-3">
-                                <label class="form-label">Guest No</label>
-                                <input class="form-control" @bind="guestNumber" placeholder="Guest number" />
+                        <div class="col-md-3">
+                            <div class="bcc-form-field">
+                                <label class="bcc-form-label">Guest Number</label>
+                                <input class="form-control bcc-input"
+                                       @bind="guestNumber"
+                                       placeholder="Guest number" />
                             </div>
+                        </div>
 
-                            <div class="col-md-2">
-                                <label class="form-label">Sex</label>
-                                <select class="form-select" @bind="sex">
+                        <div class="col-md-2">
+                            <div class="bcc-form-field">
+                                <label class="bcc-form-label">Sex</label>
+                                <select class="form-select bcc-input" @bind="sex">
                                     <option value="">All</option>
                                     <option value="Male">Male</option>
                                     <option value="Female">Female</option>
                                 </select>
                             </div>
+                        </div>
 
-                            <div class="col-md-3">
-                                <label class="form-label">Guest Type</label>
-                                <select class="form-select" @bind="guestType">
+                        <div class="col-md-3">
+                            <div class="bcc-form-field">
+                                <label class="bcc-form-label">Guest Type</label>
+                                <select class="form-select bcc-input" @bind="guestType">
                                     <option value="">All Guests</option>
                                     <option value="first">First Timers</option>
                                     <option value="second">Second Timers</option>
@@ -75,33 +128,44 @@ else
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="filter-section mb-3">
-                        <div class="filter-section-title">Visit & Follow-up</div>
+                <div class="guest-form-section">
+                    <div class="guest-form-section-header green">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>Visit & Follow-up</span>
+                    </div>
 
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label">From Visit Date</label>
-                                <input type="date" class="form-control" @bind="fromVisitDate" />
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <div class="bcc-form-field">
+                                <label class="bcc-form-label">From Visit Date</label>
+                                <input type="date" class="form-control bcc-input" @bind="fromVisitDate" />
                             </div>
+                        </div>
 
-                            <div class="col-md-3">
-                                <label class="form-label">To Visit Date</label>
-                                <input type="date" class="form-control" @bind="toVisitDate" />
+                        <div class="col-md-3">
+                            <div class="bcc-form-field">
+                                <label class="bcc-form-label">To Visit Date</label>
+                                <input type="date" class="form-control bcc-input" @bind="toVisitDate" />
                             </div>
+                        </div>
 
-                            <div class="col-md-3">
-                                <label class="form-label">Follow-up Status</label>
-                                <select class="form-select" @bind="followupStatus">
+                        <div class="col-md-3">
+                            <div class="bcc-form-field">
+                                <label class="bcc-form-label">Follow-up Status</label>
+                                <select class="form-select bcc-input" @bind="followupStatus">
                                     <option value="">All</option>
                                     <option value="with">With Follow-up</option>
                                     <option value="without">Not Followed Up</option>
                                 </select>
                             </div>
+                        </div>
 
-                            <div class="col-md-3">
-                                <label class="form-label">Needs Visitation</label>
-                                <select class="form-select" @bind="needsVisitation">
+                        <div class="col-md-3">
+                            <div class="bcc-form-field">
+                                <label class="bcc-form-label">Needs Visitation</label>
+                                <select class="form-select bcc-input" @bind="needsVisitation">
                                     <option value="">All</option>
                                     <option value="yes">Yes Only</option>
                                     <option value="no">No Only</option>
@@ -109,14 +173,19 @@ else
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="filter-section">
-                        <div class="filter-section-title">Call Information</div>
+                <div class="guest-form-section mb-0">
+                    <div class="guest-form-section-header purple">
+                        <i class="fas fa-phone-volume"></i>
+                        <span>Call Information</span>
+                    </div>
 
-                        <div class="row g-3">
-                            <div class="col-md-5">
-                                <label class="form-label">Call Outcome</label>
-                                <select class="form-select" @bind="callOutcome">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <div class="bcc-form-field">
+                                <label class="bcc-form-label">Call Outcome</label>
+                                <select class="form-select bcc-input" @bind="callOutcome">
                                     <option value="">All Outcomes</option>
                                     <option value="Answered - Positive">Answered - Positive</option>
                                     <option value="Answered - Needs Prayer">Answered - Needs Prayer</option>
@@ -130,88 +199,96 @@ else
                                     <option value="Call Back Later">Call Back Later</option>
                                 </select>
                             </div>
+                        </div>
 
-                            <div class="col-md-4">
-                                <label class="form-label">Called By</label>
-                                <input class="form-control" @bind="calledBy" placeholder="Officer name" />
+                        <div class="col-md-4">
+                            <div class="bcc-form-field">
+                                <label class="bcc-form-label">Called By</label>
+                                <input class="form-control bcc-input"
+                                       @bind="calledBy"
+                                       placeholder="Officer name" />
                             </div>
+                        </div>
 
-                            <div class="col-md-3 d-flex align-items-end">
-                                <button class="btn btn-primary w-100" @onclick="SearchReport" disabled="@isSearching">
-                                    @if (isSearching)
-                                    {
-                                        <span class="spinner-border spinner-border-sm me-2"></span>
-                                        <span>Searching...</span>
-                                    }
-                                    else
-                                    {
-                                        <i class="fas fa-search me-1"></i>
-                                        <span>Search Report</span>
-                                    }
-                                </button>
-                            </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="bcc-btn bcc-btn-primary w-100"
+                                    @onclick="SearchReport"
+                                    disabled="@isSearching">
+                                @if (isSearching)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Searching...</span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-search me-1"></i>
+                                    <span>Search Report</span>
+                                }
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                @if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    <div class="alert alert-danger">@errorMessage</div>
-                }
+            </div>
+        </div>
 
-                @if (hasSearched)
-                {
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-3">
-                            <div class="summary-card summary-blue">
-                                <div>
-                                    <span>Total Guests</span>
-                                    <strong>@reportRows.Count</strong>
-                                </div>
-                                <i class="fas fa-users"></i>
-                            </div>
-                        </div>
-
-                        <div class="col-md-3">
-                            <div class="summary-card summary-green">
-                                <div>
-                                    <span>With Follow-up</span>
-                                    <strong>@reportRows.Count(x => x.HasFollowUp)</strong>
-                                </div>
-                                <i class="fas fa-phone-volume"></i>
-                            </div>
-                        </div>
-
-                        <div class="col-md-3">
-                            <div class="summary-card summary-amber">
-                                <div>
-                                    <span>Not Followed Up</span>
-                                    <strong>@reportRows.Count(x => !x.HasFollowUp)</strong>
-                                </div>
-                                <i class="fas fa-user-clock"></i>
-                            </div>
-                        </div>
-
-                        <div class="col-md-3">
-                            <div class="summary-card summary-purple">
-                                <div>
-                                    <span>Total Calls</span>
-                                    <strong>@reportRows.Sum(x => x.TotalCalls)</strong>
-                                </div>
-                                <i class="fas fa-headset"></i>
-                            </div>
-                        </div>
+        @if (hasSearched)
+        {
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="team-summary-card">
+                        <span>Total Guests</span>
+                        <strong>@reportRows.Count</strong>
+                        <i class="fas fa-users"></i>
                     </div>
-                }
+                </div>
 
-                @if (reportRows.Any())
-                {
+                <div class="col-md-3">
+                    <div class="team-summary-card active">
+                        <span>With Follow-up</span>
+                        <strong>@reportRows.Count(x => x.HasFollowUp)</strong>
+                        <i class="fas fa-phone-volume"></i>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="team-summary-card inactive">
+                        <span>Not Followed Up</span>
+                        <strong>@reportRows.Count(x => !x.HasFollowUp)</strong>
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="team-summary-card directorate">
+                        <span>Total Calls</span>
+                        <strong>@reportRows.Sum(x => x.TotalCalls)</strong>
+                        <i class="fas fa-headset"></i>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (reportRows.Any())
+        {
+            <div class="bcc-card">
+                <div class="bcc-card-header guest-register-header">
+                    <div>
+                        <div class="bcc-card-title">
+                            <i class="fas fa-table me-2 text-primary"></i>Follow-up Report Results
+                        </div>
+                        <small class="text-muted">
+                            @reportRows.Count guest record(s) matched your search.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="bcc-card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light">
+                        <table class="table table-hover mb-0 bcc-table">
+                            <thead>
                                 <tr>
-                                    <th>Guest Name</th>
-                                    <th>Guest No</th>
+                                    <th>Guest</th>
                                     <th>First Visit</th>
                                     <th>Sex</th>
                                     <th>Total Calls</th>
@@ -221,78 +298,94 @@ else
                                     <th style="width:160px;">Action</th>
                                 </tr>
                             </thead>
+
                             <tbody>
                                 @foreach (var row in reportRows)
                                 {
                                     <tr>
                                         <td>
-                                            <div class="guest-name">
-
-                                                @if (row.Guest.IsSecondTimer)
-                                                {
-                                                    <div class="status-bar second-timer"></div>
-                                                }
-                                                else
-                                                {
-                                                    <div class="status-bar first-timer"></div>
-                                                }
+                                            <div class="d-flex align-items-center gap-3">
+                                                <div class="guest-avatar">
+                                                    @GetGuestInitials(row.Guest)
+                                                </div>
 
                                                 <div>
-                                                    <div class="fw-bold">
+                                                    <div class="fw-bold text-dark">
                                                         @row.Guest.Title @row.Guest.FirstName @row.Guest.Surname
                                                     </div>
 
                                                     <small class="text-muted">
                                                         @row.Guest.GuestNumber
+                                                        @if (row.Guest.IsSecondTimer)
+                                                        {
+                                                            <span> • Second Timer</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span> • First Timer</span>
+                                                        }
                                                     </small>
                                                 </div>
-
                                             </div>
                                         </td>
 
-                                        <td><span class="badge bg-info">@row.Guest.GuestNumber</span></td>
-
-                                        <td>@row.Guest.VisitingDate.ToString("dd-MMM-yyyy")</td>
+                                        <td>
+                                            <span class="fw-bold text-dark">
+                                                @row.Guest.VisitingDate.ToString("dd-MMM-yyyy")
+                                            </span>
+                                        </td>
 
                                         <td>@row.Guest.Sex</td>
 
                                         <td>
                                             @if (row.TotalCalls > 0)
                                             {
-                                                <span class="badge bg-success">@row.TotalCalls call(s)</span>
+                                                <span class="bcc-status bcc-status-success">
+                                                    @row.TotalCalls call(s)
+                                                </span>
                                             }
                                             else
                                             {
-                                                <span class="badge bg-warning text-dark">0 call</span>
+                                                <span class="bcc-status bcc-status-warning">
+                                                    0 call
+                                                </span>
                                             }
                                         </td>
 
-                                        <td>@(row.LatestFollowUp?.CallDate.ToString("dd-MMM-yyyy") ?? "-")</td>
-
-                                        <td>@(row.LatestFollowUp?.CalledByName ?? "-")</td>
+                                        <td>
+                                            @(row.LatestFollowUp?.CallDate.ToString("dd-MMM-yyyy") ?? "-")
+                                        </td>
 
                                         <td>
-                                            @if (row.HasFollowUp)
-                                            {
-                                                <span class="badge bg-primary">@row.LatestFollowUp?.Outcome</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-warning text-dark">No Follow-up</span>
-                                            }
+                                            @(row.LatestFollowUp?.CalledByName ?? "-")
                                         </td>
 
                                         <td>
                                             @if (row.HasFollowUp)
                                             {
-                                                <button class="btn btn-sm btn-outline-primary me-1"
+                                                <span class="bcc-status bcc-status-success">
+                                                    @row.LatestFollowUp?.Outcome
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="bcc-status bcc-status-warning">
+                                                    No Follow-up
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            @if (row.HasFollowUp)
+                                            {
+                                                <button class="team-action-btn"
                                                         @onclick="() => ViewGuestHistory(row)">
                                                     <i class="fas fa-history me-1"></i>History
                                                 </button>
                                             }
                                             else
                                             {
-                                                <button class="btn btn-sm btn-outline-info"
+                                                <button class="team-success-btn"
                                                         @onclick="() => RecordFollowUp(row.Guest.Id)">
                                                     <i class="fas fa-phone me-1"></i>Call
                                                 </button>
@@ -303,211 +396,248 @@ else
                             </tbody>
                         </table>
                     </div>
-                }
-                else if (hasSearched)
-                {
-                    <div class="text-center py-5">
-                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
-                        <h5>No records found</h5>
-                        <p class="text-muted">Try changing your search parameters.</p>
-                    </div>
-                }
-            </div>
-        </div>
-    </div>
-}
-
-<!-- Guest Call History Modal -->
-@if (selectedRow != null && showHistoryModal)
-{
-    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.55);" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable history-modal">
-            <div class="modal-content">
-
-                <div class="modal-header bg-dark-blue text-white py-2">
-                    <div>
-                        <h5 class="modal-title mb-0">
-                            <i class="fas fa-history me-2"></i>Phone Follow-up History
-                        </h5>
-                        <small>
-                            @selectedRow.Guest.Title @selectedRow.Guest.FirstName @selectedRow.Guest.Surname |
-                            @selectedRow.TotalCalls call(s)
-                        </small>
-                    </div>
-
-                    <button type="button" class="btn-close btn-close-white" @onclick="CloseHistoryModal"></button>
                 </div>
 
-                <div class="modal-body">
+                <div class="guest-table-footer">
+                    <small class="text-muted">
+                        Showing @reportRows.Count guest record(s)
+                    </small>
 
-                    <div class="guest-mini-card mb-3">
-                        <h6 class="mb-1">
-                            @selectedRow.Guest.Title @selectedRow.Guest.FirstName @selectedRow.Guest.Surname
-                        </h6>
-                        <div class="small text-muted">
-                            Guest No: <strong>@selectedRow.Guest.GuestNumber</strong> |
-                            First Visit: <strong>@selectedRow.Guest.VisitingDate.ToString("dd-MMM-yyyy")</strong> |
-                            Sex: <strong>@selectedRow.Guest.Sex</strong>
-                        </div>
+                    <small class="text-primary fw-bold">
+                        <i class="fas fa-chart-line me-1"></i>Follow-up report generated
+                    </small>
+                </div>
+            </div>
+        }
+        else if (hasSearched)
+        {
+            <div class="bcc-empty guest-empty-state">
+                <i class="fas fa-search"></i>
+                <h4>No records found</h4>
+                <p>Try changing your search parameters.</p>
+            </div>
+        }
+    </div>
+    @if (selectedRow != null && showHistoryModal)
+    {
+        <div class="team-modal-backdrop">
+            <div class="guest-report-modal">
+                <button class="team-modal-close" @onclick="CloseHistoryModal">
+                    <i class="fas fa-times"></i>
+                </button>
+
+                <div class="guest360-header">
+                    <div class="guest360-avatar">
+                        @GetGuestInitials(selectedRow.Guest)
                     </div>
 
-                    @foreach (var call in selectedRow.FollowUps.OrderByDescending(x => x.CallDate))
-                    {
-                        <div class="call-history-item">
-                            <div class="d-flex justify-content-between flex-wrap gap-2">
-                                <div>
-                                    <strong>@call.CallDate.ToString("dd-MMM-yyyy")</strong>
-                                    <div class="small text-muted">
-                                        Called by @call.CalledByName
+                    <div>
+                        <h4>Phone Follow-up History</h4>
+                        <p>
+                            @selectedRow.Guest.Title @selectedRow.Guest.FirstName @selectedRow.Guest.Surname
+                            • @selectedRow.TotalCalls call(s)
+                        </p>
+
+                        @if (selectedRow.Guest.IsSecondTimer)
+                        {
+                            <span class="bcc-status bcc-status-warning">Second Timer</span>
+                        }
+                        else
+                        {
+                            <span class="bcc-status bcc-status-success">First Timer</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="guest-report-mini-profile">
+                    <div>
+                        <span>Guest No</span>
+                        <strong>@selectedRow.Guest.GuestNumber</strong>
+                    </div>
+
+                    <div>
+                        <span>First Visit</span>
+                        <strong>@selectedRow.Guest.VisitingDate.ToString("dd-MMM-yyyy")</strong>
+                    </div>
+
+                    <div>
+                        <span>Sex</span>
+                        <strong>@DisplayText(selectedRow.Guest.Sex)</strong>
+                    </div>
+                </div>
+
+                <div class="guest360-body">
+                    <div class="guest-call-timeline">
+                        @foreach (var call in selectedRow.FollowUps.OrderByDescending(x => x.CallDate))
+                        {
+                            <div class="guest-call-item">
+                                <div class="guest-call-dot"></div>
+
+                                <div class="guest-call-card">
+                                    <div class="d-flex justify-content-between gap-2 flex-wrap">
+                                        <div>
+                                            <strong>@call.CallDate.ToString("dd-MMM-yyyy")</strong>
+                                            <span>Called by @call.CalledByName</span>
+                                        </div>
+
+                                        @if (call.WasCallAnswered)
+                                        {
+                                            <span class="bcc-status bcc-status-success">Answered</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="bcc-status bcc-status-warning">Not Answered</span>
+                                        }
+                                    </div>
+
+                                    <p>@call.Outcome</p>
+
+                                    <div class="guest-call-footer">
+                                        <small>
+                                            <i class="fas fa-calendar-check me-1"></i>
+                                            Next: @(call.NextFollowUpDate?.ToString("dd-MMM-yyyy") ?? "Not set")
+                                        </small>
+
+                                        <button class="team-action-btn"
+                                                @onclick="() => ViewCallDetail(call)">
+                                            <i class="fas fa-eye me-1"></i>View Detail
+                                        </button>
                                     </div>
                                 </div>
-
-                                <div>
-                                    @if (call.WasCallAnswered)
-                                    {
-                                        <span class="badge bg-success">Answered</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-secondary">Not Answered</span>
-                                    }
-                                </div>
                             </div>
-
-                            <div class="mt-2">
-                                <span class="text-muted">Outcome:</span>
-                                <strong>@call.Outcome</strong>
-                            </div>
-
-                            <div class="mt-2">
-                                <button class="btn btn-sm btn-outline-primary"
-                                        @onclick="() => ViewCallDetail(call)">
-                                    <i class="fas fa-eye me-1"></i>View Detail
-                                </button>
-                            </div>
-                        </div>
-                    }
+                        }
+                    </div>
                 </div>
 
-                <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-outline-info"
+                <div class="guest360-actions">
+                    <button type="button"
+                            class="bcc-btn bcc-btn-primary"
                             @onclick="() => RecordFollowUp(selectedRow.Guest.Id)">
                         <i class="fas fa-phone me-1"></i>Record New Call
                     </button>
 
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CloseHistoryModal">
+                    <button type="button"
+                            class="bcc-btn guest-secondary-btn"
+                            @onclick="CloseHistoryModal">
                         Close
                     </button>
                 </div>
-
             </div>
         </div>
-    </div>
-}
+    }
 
-<!-- Single Call Detail Modal -->
-@if (selectedFollowUp != null && showDetailModal)
-{
-    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.65);" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable followup-detail-modal">
-            <div class="modal-content">
+    @if (selectedFollowUp != null && showDetailModal)
+    {
+        <div class="team-modal-backdrop">
+            <div class="guest-followup-modal">
+                <button class="team-modal-close" @onclick="CloseDetailModal">
+                    <i class="fas fa-times"></i>
+                </button>
 
-                <div class="modal-header bg-dark-blue text-white py-2">
-                    <div>
-                        <h5 class="modal-title mb-0">
-                            <i class="fas fa-phone-alt me-2"></i>Call Detail
-                        </h5>
-                        <small>@selectedFollowUp.CallDate.ToString("dd-MMM-yyyy")</small>
+                <div class="guest360-header">
+                    <div class="guest360-avatar">
+                        <i class="fas fa-phone-alt"></i>
                     </div>
 
-                    <button type="button" class="btn-close btn-close-white" @onclick="CloseDetailModal"></button>
+                    <div>
+                        <h4>Call Detail</h4>
+                        <p>@selectedFollowUp.CallDate.ToString("dd-MMM-yyyy")</p>
+
+                        @if (selectedFollowUp.WasCallAnswered)
+                        {
+                            <span class="bcc-status bcc-status-success">Answered</span>
+                        }
+                        else
+                        {
+                            <span class="bcc-status bcc-status-warning">Not Answered</span>
+                        }
+                    </div>
                 </div>
 
-                <div class="modal-body">
-
-                    <div class="detail-grid">
-                        <div class="detail-item">
+                <div class="guest360-body">
+                    <div class="guest-detail-grid">
+                        <div class="guest-detail-item">
                             <span>Call Date</span>
                             <strong>@selectedFollowUp.CallDate.ToString("dd-MMM-yyyy")</strong>
                         </div>
 
-                        <div class="detail-item">
+                        <div class="guest-detail-item">
                             <span>Called By</span>
                             <strong>@selectedFollowUp.CalledByName</strong>
                         </div>
 
-                        <div class="detail-item">
+                        <div class="guest-detail-item">
                             <span>Call Answered</span>
                             <strong>@(selectedFollowUp.WasCallAnswered ? "Yes" : "No")</strong>
                         </div>
 
-                        <div class="detail-item">
+                        <div class="guest-detail-item">
                             <span>Duration</span>
                             <strong>@(selectedFollowUp.CallDurationMinutes.HasValue ? $"{selectedFollowUp.CallDurationMinutes} mins" : "-")</strong>
                         </div>
 
-                        <div class="detail-item full">
+                        <div class="guest-detail-item full">
                             <span>Outcome</span>
                             <strong>@selectedFollowUp.Outcome</strong>
                         </div>
 
-                        <div class="detail-item">
+                        <div class="guest-detail-item">
                             <span>Will Guest Return?</span>
                             <strong>@FormatNullableBool(selectedFollowUp.WillGuestReturn)</strong>
                         </div>
 
-                        <div class="detail-item">
+                        <div class="guest-detail-item">
                             <span>Needs Visitation?</span>
                             <strong>@FormatNullableBool(selectedFollowUp.NeedsVisitation)</strong>
                         </div>
 
-                        <div class="detail-item">
+                        <div class="guest-detail-item">
                             <span>Wants to Meet Pastor?</span>
                             <strong>@FormatNullableBool(selectedFollowUp.WantsToMeetPastor)</strong>
                         </div>
 
-                        <div class="detail-item">
+                        <div class="guest-detail-item">
                             <span>Join Department?</span>
                             <strong>@FormatNullableBool(selectedFollowUp.WantsToJoinDepartment)</strong>
                         </div>
 
-                        <div class="detail-item full">
+                        <div class="guest-detail-item full">
                             <span>Department Interest</span>
                             <strong>@DisplayText(selectedFollowUp.DepartmentInterest)</strong>
                         </div>
 
-                        <div class="detail-item full">
+                        <div class="guest-detail-item full">
                             <span>Next Follow-up Date</span>
                             <strong>@(selectedFollowUp.NextFollowUpDate?.ToString("dd-MMM-yyyy") ?? "Not set")</strong>
                         </div>
                     </div>
 
-                    <div class="note-section mt-3">
+                    <div class="guest-note-section">
                         <h6><i class="fas fa-praying-hands me-1"></i>Prayer Request</h6>
                         <p>@DisplayText(selectedFollowUp.PrayerRequest)</p>
                     </div>
 
-                    <div class="note-section">
+                    <div class="guest-note-section">
                         <h6><i class="fas fa-comment-dots me-1"></i>Guest Feedback</h6>
                         <p>@DisplayText(selectedFollowUp.GuestFeedback)</p>
                     </div>
 
-                    <div class="note-section">
+                    <div class="guest-note-section">
                         <h6><i class="fas fa-sticky-note me-1"></i>Remarks</h6>
                         <p>@DisplayText(selectedFollowUp.Remarks)</p>
                     </div>
                 </div>
 
-                <div class="modal-footer py-2">
-                    <button type="button" class="btn btn-outline-secondary" @onclick="CloseDetailModal">
+                <div class="guest360-actions">
+                    <button type="button"
+                            class="bcc-btn guest-secondary-btn"
+                            @onclick="CloseDetailModal">
                         Close
                     </button>
                 </div>
-
             </div>
         </div>
-    </div>
-}
+    }
 
 @code {
     private string searchName = "";
@@ -662,6 +792,8 @@ else
     private void ViewGuestHistory(FollowupReportRow row)
     {
         selectedRow = row;
+        selectedFollowUp = null;
+        showDetailModal = false;
         showHistoryModal = true;
     }
 
@@ -700,6 +832,21 @@ else
         return string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
     }
 
+    private string GetGuestInitials(Guest guest)
+    {
+        var first = !string.IsNullOrWhiteSpace(guest.FirstName)
+            ? guest.FirstName.Substring(0, 1).ToUpper()
+            : "";
+
+        var last = !string.IsNullOrWhiteSpace(guest.Surname)
+            ? guest.Surname.Substring(0, 1).ToUpper()
+            : "";
+
+        var initials = $"{first}{last}";
+
+        return string.IsNullOrWhiteSpace(initials) ? "G" : initials;
+    }
+
     private class FollowupReportRow
     {
         public Guest Guest { get; set; } = new();
@@ -709,190 +856,4 @@ else
         public int TotalCalls => FollowUps.Count;
     }
 }
-
-<style>
-    .report-filter-card {
-        background: #ffffff;
-        border: 1px solid #e6e9ef;
-        border-radius: 16px;
-        padding: 18px;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.04);
-    }
-
-    .filter-section {
-        background: #fbfcfe;
-        border: 1px solid #eef1f5;
-        border-radius: 12px;
-        padding: 14px;
-    }
-
-    .filter-section-title {
-        font-size: 0.78rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        color: #6c757d;
-        margin-bottom: 10px;
-        letter-spacing: .04em;
-    }
-
-    .summary-card {
-        min-height: 92px;
-        border-radius: 16px;
-        padding: 16px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border: 1px solid transparent;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.04);
-    }
-
-        .summary-card span {
-            display: block;
-            font-size: 0.82rem;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .summary-card strong {
-            font-size: 1.75rem;
-            line-height: 1;
-        }
-
-        .summary-card i {
-            font-size: 1.8rem;
-            opacity: 0.75;
-        }
-
-    .summary-blue {
-        background: #eef6ff;
-        border-color: #cfe8ff;
-        color: #084298;
-    }
-
-    .summary-green {
-        background: #edf8f1;
-        border-color: #ccebd8;
-        color: #0f5132;
-    }
-
-    .summary-amber {
-        background: #fff7e6;
-        border-color: #ffe3a3;
-        color: #8a5a00;
-    }
-
-    .summary-purple {
-        background: #f5f0ff;
-        border-color: #ded1ff;
-        color: #4b2c83;
-    }
-
-    .guest-mini-card {
-        background: #f8f9fa;
-        border: 1px solid #edf0f3;
-        border-radius: 10px;
-        padding: 12px;
-    }
-
-    .history-modal {
-        max-width: 760px;
-    }
-
-    .call-history-item {
-        border: 1px solid #edf0f3;
-        border-radius: 12px;
-        padding: 14px;
-        margin-bottom: 12px;
-        background: #ffffff;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.03);
-    }
-
-    .followup-detail-modal {
-        max-width: 720px;
-    }
-
-    .detail-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
-
-    .detail-item {
-        background: #f8f9fa;
-        border: 1px solid #edf0f3;
-        border-radius: 10px;
-        padding: 10px 12px;
-    }
-
-        .detail-item.full {
-            grid-column: 1 / -1;
-        }
-
-        .detail-item span {
-            display: block;
-            color: #6c757d;
-            font-size: 0.8rem;
-            margin-bottom: 3px;
-        }
-
-        .detail-item strong {
-            color: #212529;
-            font-size: 0.92rem;
-            word-break: break-word;
-        }
-
-    .note-section {
-        border: 1px solid #edf0f3;
-        border-radius: 10px;
-        padding: 12px;
-        margin-bottom: 10px;
-        background: #ffffff;
-    }
-
-        .note-section h6 {
-            font-size: 0.9rem;
-            color: #0d6efd;
-            margin-bottom: 6px;
-            font-weight: 700;
-        }
-
-        .note-section p {
-            margin-bottom: 0;
-            color: #343a40;
-            white-space: pre-wrap;
-        }
-
-    .guest-name {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .status-bar {
-        width: 6px;
-        height: 38px;
-        border-radius: 8px;
-        flex-shrink: 0;
-    }
-
-        .status-bar.first-timer {
-            background-color: #ffc107;
-        }
-
-        .status-bar.second-timer {
-            background-color: #198754;
-        }
-    @@media (max-width: 576px) {
-        .detail-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .history-modal,
-        .followup-detail-modal {
-            max-width: 95%;
-            margin: 0.75rem auto;
-        }
-
-        
-    }
-</style>
+}

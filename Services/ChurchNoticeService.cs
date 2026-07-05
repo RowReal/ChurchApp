@@ -80,6 +80,19 @@ namespace ChurchApp.Services
             await _context.SaveChangesAsync();
         }
 
+        public async Task<List<ChurchNotice>> GetActiveDashboardNoticesAsync()
+        {
+            var today = DateTime.Today;
+
+            return await _context.ChurchNotices
+                .Where(n => n.IsActive)
+                .Where(n => n.PublishDate.Date <= today)
+                .Where(n => n.ExpiryDate == null || n.ExpiryDate.Value.Date >= today)
+                .OrderByDescending(n => n.IsPinned)
+                .ThenByDescending(n => n.PublishDate)
+                .Take(3)
+                .ToListAsync();
+        }
         public async Task DeleteNoticeAsync(int id)
         {
             var notice = await _context.ChurchNotices.FindAsync(id);
@@ -93,4 +106,5 @@ namespace ChurchApp.Services
             await _context.SaveChangesAsync();
         }
     }
+
 }
