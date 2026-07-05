@@ -899,9 +899,8 @@
                 }
             </div>
 
-            <!-- Announcement -->
-            <div class="church-update-item">
-   <div class="church-update-item">
+           <!-- Announcement -->
+<div class="church-update-item">
     <div class="church-update-title">
         <i class="fas fa-bullhorn"></i>
         Church Updates
@@ -930,29 +929,6 @@
             No church notice available.
         </span>
     }
-</div>
-
-    @if (dashboardNotices.Any())
-{
-    @foreach (var notice in dashboardNotices)
-    {
-        <div class="mb-3">
-            <p class="mb-1 fw-bold">@notice.Title</p>
-
-            <span class="church-update-muted">
-                @notice.Type • @notice.PublishDate.ToString("dd MMM yyyy")
-            </span>
-
-            <div class="mt-2">
-                <small class="text-muted">@notice.Message</small>
-            </div>
-        </div>
-    }
-}
-else
-{
-    <span class="church-update-muted">No church notice available.</span>
-}
 </div>
             <!-- Notifications -->
             <div class="church-update-item">
