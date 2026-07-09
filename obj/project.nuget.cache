@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "5ewwro+BLKE=",
+  "dgSpecHash": "ZWAvK7pMCBA=",
   "success": true,
-  "projectFilePath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
+  "projectFilePath": "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\ChurchApp.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\microsoft.aspnetcore.authorization\\8.0.0\\microsoft.aspnetcore.authorization.8.0.0.nupkg.sha512",
@@ -75,9 +75,9 @@
       "code": "NU1903",
       "level": "Warning",
       "message": "Package 'SixLabors.ImageSharp' 3.1.5 has a known high severity vulnerability, https://github.com/advisories/GHSA-2cmq-823j-5qj8",
-      "projectPath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
+      "projectPath": "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\ChurchApp.csproj",
       "warningLevel": 1,
-      "filePath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
+      "filePath": "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\ChurchApp.csproj",
       "libraryId": "SixLabors.ImageSharp",
       "targetGraphs": [
         "net8.0"
@@ -87,9 +87,9 @@
       "code": "NU1902",
       "level": "Warning",
       "message": "Package 'SixLabors.ImageSharp' 3.1.5 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-rxmq-m78w-7wmc",
-      "projectPath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
+      "projectPath": "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\ChurchApp.csproj",
       "warningLevel": 1,
-      "filePath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
+      "filePath": "C:\\NewChurchProj\\ChurchApp\\churchapp\\churchapp\\ChurchApp.csproj",
       "libraryId": "SixLabors.ImageSharp",
       "targetGraphs": [
         "net8.0"
