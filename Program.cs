@@ -78,12 +78,6 @@ builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
-// creating approval tables
-using (var scope = app.Services.CreateScope())
-{
-    var approvalRequestService = scope.ServiceProvider.GetRequiredService<ApprovalRequestService>();
-    await approvalRequestService.SeedApprovalRequestTypesAndWorkflowsAsync();
-}
 // APPLY EF CORE MIGRATIONS AUTOMATICALLY
 using (var scope = app.Services.CreateScope())
 {
@@ -95,7 +89,17 @@ using (var scope = app.Services.CreateScope())
 
     Console.WriteLine("Database migrations completed.");
 }
+// Seed approval request types and workflows AFTER migration
+using (var scope = app.Services.CreateScope())
+{
+    var approvalRequestService = scope.ServiceProvider.GetRequiredService<ApprovalRequestService>();
 
+    Console.WriteLine("Seeding approval request types and workflows...");
+
+    await approvalRequestService.SeedApprovalRequestTypesAndWorkflowsAsync();
+
+    Console.WriteLine("Approval request types and workflows seeded.");
+}
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
