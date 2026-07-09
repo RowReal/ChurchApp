@@ -3,6 +3,7 @@ using System;
 using ChurchApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChurchApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260709075524_AddApprovalEngine")]
+    partial class AddApprovalEngine
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -164,43 +167,6 @@ namespace ChurchApp.Migrations
                     b.HasIndex("SenderWorkerId");
 
                     b.ToTable("AccountabilityMessages");
-                });
-
-            modelBuilder.Entity("ChurchApp.Models.ApprovalDecision", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ApprovalRequestId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Comment")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("DecisionAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("DecisionByWorkerId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("DecisionType")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("WorkflowStepId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApprovalRequestId");
-
-                    b.HasIndex("DecisionByWorkerId");
-
-                    b.HasIndex("WorkflowStepId");
-
-                    b.ToTable("ApprovalDecisions");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.ApprovalNotificationRecipient", b =>
@@ -435,40 +401,6 @@ namespace ChurchApp.Migrations
                     b.ToTable("ApprovalRequestTypes");
                 });
 
-            modelBuilder.Entity("ChurchApp.Models.ApprovalWorkflowCondition", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("FieldName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Operator")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("TargetStepOrder")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("WorkflowDefinitionId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("WorkflowDefinitionId");
-
-                    b.ToTable("ApprovalWorkflowConditions");
-                });
-
             modelBuilder.Entity("ChurchApp.Models.ApprovalWorkflowDefinition", b =>
                 {
                     b.Property<int>("Id")
@@ -496,42 +428,6 @@ namespace ChurchApp.Migrations
                     b.HasIndex("RequestTypeId");
 
                     b.ToTable("ApprovalWorkflowDefinitions");
-                });
-
-            modelBuilder.Entity("ChurchApp.Models.ApprovalWorkflowRecipient", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("NotificationEvent")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RecipientPrivilegeCode")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RecipientRole")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RecipientType")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("SpecificWorkerId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("WorkflowStepId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("WorkflowStepId");
-
-                    b.ToTable("ApprovalWorkflowRecipients");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.ApprovalWorkflowStep", b =>
@@ -2402,33 +2298,6 @@ namespace ChurchApp.Migrations
                     b.Navigation("SenderWorker");
                 });
 
-            modelBuilder.Entity("ChurchApp.Models.ApprovalDecision", b =>
-                {
-                    b.HasOne("ChurchApp.Models.ApprovalRequest", "ApprovalRequest")
-                        .WithMany()
-                        .HasForeignKey("ApprovalRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ChurchApp.Models.Worker", "DecisionByWorker")
-                        .WithMany()
-                        .HasForeignKey("DecisionByWorkerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ChurchApp.Models.ApprovalWorkflowStep", "WorkflowStep")
-                        .WithMany()
-                        .HasForeignKey("WorkflowStepId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ApprovalRequest");
-
-                    b.Navigation("DecisionByWorker");
-
-                    b.Navigation("WorkflowStep");
-                });
-
             modelBuilder.Entity("ChurchApp.Models.ApprovalNotificationRecipient", b =>
                 {
                     b.HasOne("ChurchApp.Models.ApprovalRequest", "ApprovalRequest")
@@ -2534,17 +2403,6 @@ namespace ChurchApp.Migrations
                     b.Navigation("UploadedByWorker");
                 });
 
-            modelBuilder.Entity("ChurchApp.Models.ApprovalWorkflowCondition", b =>
-                {
-                    b.HasOne("ChurchApp.Models.ApprovalWorkflowDefinition", "WorkflowDefinition")
-                        .WithMany()
-                        .HasForeignKey("WorkflowDefinitionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("WorkflowDefinition");
-                });
-
             modelBuilder.Entity("ChurchApp.Models.ApprovalWorkflowDefinition", b =>
                 {
                     b.HasOne("ChurchApp.Models.ApprovalRequestType", "RequestType")
@@ -2554,17 +2412,6 @@ namespace ChurchApp.Migrations
                         .IsRequired();
 
                     b.Navigation("RequestType");
-                });
-
-            modelBuilder.Entity("ChurchApp.Models.ApprovalWorkflowRecipient", b =>
-                {
-                    b.HasOne("ChurchApp.Models.ApprovalWorkflowStep", "WorkflowStep")
-                        .WithMany()
-                        .HasForeignKey("WorkflowStepId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("WorkflowStep");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.ApprovalWorkflowStep", b =>

@@ -65,6 +65,43 @@
                     }
                 </div>
 
+                @* My Approval Hub *@
+                <div class="bcc-nav-section">
+    <div class="bcc-nav-section-header" @onclick="ToggleApprovalHubMenu">
+        <div class="bcc-nav-icon-container">
+            <i class="fas fa-clipboard-check"></i>
+        </div>
+        <span class="bcc-nav-text">My Desk</span>
+        <span class="bcc-menu-arrow @(showApprovalHubMenu ? "open" : "")"></span>
+    </div>
+
+    @if (showApprovalHubMenu)
+    {
+        <div class="bcc-nav-submenu">
+            <a href="/approvals/new" class="bcc-nav-subitem @GetNavItemClass("/approvals/new")">
+                <div class="bcc-nav-icon-container">
+                    <i class="fas fa-plus-circle"></i>
+                </div>
+                <span class="bcc-nav-text">New Request</span>
+            </a>
+
+            <a href="/approvals/my-requests" class="bcc-nav-subitem @GetNavItemClass("/approvals/my-requests")">
+                <div class="bcc-nav-icon-container">
+                    <i class="fas fa-folder-open"></i>
+                </div>
+                <span class="bcc-nav-text">My Requests</span>
+            </a>
+
+            <a href="/approvals/inbox" class="bcc-nav-subitem @GetNavItemClass("/approvals/inbox")">
+    <div class="bcc-nav-icon-container">
+        <i class="fas fa-inbox"></i>
+    </div>
+    <span class="bcc-nav-text">Approval Inbox</span>
+</a>
+        </div>
+    }
+</div>
+
                 <div class="bcc-nav-section">
                     <div class="bcc-nav-section-header" @onclick="ToggleGrowthHubMenu">
                         <div class="bcc-nav-icon-container">
@@ -431,6 +468,12 @@
     </div>
     <span class="bcc-nav-text">Prayer Focus</span>
 </a>
+<a href="/admin/manage-privileges" class="bcc-nav-subitem @GetNavItemClass("/admin/manage-privileges")">
+    <div class="bcc-nav-icon-container">
+        <i class="fas fa-key"></i>
+    </div>
+    <span class="bcc-nav-text">Access Control</span>
+</a>
                             </div>
                         }
                     </div>
@@ -460,6 +503,7 @@
     private int pendingBreakApprovals = 0;
     private int pendingOfferingCount = 0;
     private int rejectedOfferingsCount = 0;
+    private bool showApprovalHubMenu = false;
 
     private GrowthHubCounts growthHubCounts = new GrowthHubCounts();
 
@@ -476,7 +520,10 @@
             await LoadOfferingCounts();
         }
     }
-
+    private void ToggleApprovalHubMenu()
+{
+    showApprovalHubMenu = !showApprovalHubMenu;
+}
     private bool CanAccessReports()
     {
         return AuthService.IsInRole("Pastor in Charge") ||

@@ -65,7 +65,8 @@ builder.Services.AddScoped<ChurchUpdateService>();
 builder.Services.AddScoped<ChurchNoticeService>();
 builder.Services.AddScoped<VerseOfTheDayService>();
 builder.Services.AddScoped<PrayerFocusService>();
-
+builder.Services.AddScoped<PrivilegeService>();
+builder.Services.AddScoped<ApprovalRequestService>();
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.Configure<EmailConfiguration>(
@@ -77,7 +78,12 @@ builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
-
+// creating approval tables
+using (var scope = app.Services.CreateScope())
+{
+    var approvalRequestService = scope.ServiceProvider.GetRequiredService<ApprovalRequestService>();
+    await approvalRequestService.SeedApprovalRequestTypesAndWorkflowsAsync();
+}
 // APPLY EF CORE MIGRATIONS AUTOMATICALLY
 using (var scope = app.Services.CreateScope())
 {

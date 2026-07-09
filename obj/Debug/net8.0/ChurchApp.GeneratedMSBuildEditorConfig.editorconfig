@@ -84,6 +84,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxEaXJlY3RvcmF0ZVNldHVwLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Admin/ManagePrivileges.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxNYW5hZ2VQcml2aWxlZ2VzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Admin/PrayerFocusManagement.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxQcmF5ZXJGb2N1c01hbmFnZW1lbnQucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -116,8 +120,24 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxXb3JrZXJTZXR1cC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals.razor]
-build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHMucmF6b3I=
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvalsold.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNvbGQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/ApprovalInbox.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcQXBwcm92YWxJbmJveC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/ApprovalRequestDetails.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcQXBwcm92YWxSZXF1ZXN0RGV0YWlscy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/MyApprovalRequests.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcTXlBcHByb3ZhbFJlcXVlc3RzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/NewApprovalRequest.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcTmV3QXBwcm92YWxSZXF1ZXN0LnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Attendance.razor]

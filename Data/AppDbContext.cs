@@ -39,6 +39,20 @@ namespace ChurchApp.Data
         public DbSet<PrayerPoint> PrayerPoints { get; set; }
         public DbSet<VerseOfTheDay> VerseOfTheDays { get; set; }
         public DbSet<ChurchNotice> ChurchNotices { get; set; }
+        public DbSet<Privilege> Privileges { get; set; }
+        public DbSet<UserPrivilege> UserPrivileges { get; set; }
+
+        public DbSet<ApprovalRequestType> ApprovalRequestTypes { get; set; }
+        public DbSet<ApprovalWorkflowDefinition> ApprovalWorkflowDefinitions { get; set; }
+        public DbSet<ApprovalWorkflowStep> ApprovalWorkflowSteps { get; set; }
+        public DbSet<ApprovalRequest> ApprovalRequests { get; set; }
+        public DbSet<ApprovalRequestAction> ApprovalRequestActions { get; set; }
+        public DbSet<ApprovalRequestAttachment> ApprovalRequestAttachments { get; set; }
+        public DbSet<ApprovalNotificationRecipient> ApprovalNotificationRecipients { get; set; }
+
+        public DbSet<ApprovalDecision> ApprovalDecisions { get; set; }
+        public DbSet<ApprovalWorkflowRecipient> ApprovalWorkflowRecipients { get; set; }
+        public DbSet<ApprovalWorkflowCondition> ApprovalWorkflowConditions { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -75,6 +89,26 @@ namespace ChurchApp.Data
                 .WithMany()
                 .HasForeignKey(d => d.AssistantHeadWorkerId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Privilege>()
+    .HasIndex(p => p.Code)
+    .IsUnique();
+
+            modelBuilder.Entity<UserPrivilege>()
+                .HasOne(up => up.Worker)
+                .WithMany()
+                .HasForeignKey(up => up.WorkerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserPrivilege>()
+                .HasOne(up => up.Privilege)
+                .WithMany()
+                .HasForeignKey(up => up.PrivilegeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserPrivilege>()
+                .HasIndex(up => new { up.WorkerId, up.PrivilegeId })
+                .IsUnique();
 
             // Directorate - Department relationship
             modelBuilder.Entity<Directorate>()
@@ -609,6 +643,126 @@ namespace ChurchApp.Data
             });
 
 
+
+            //Approval process
+            modelBuilder.Entity<ApprovalRequestType>()
+    .HasIndex(x => x.Code)
+    .IsUnique();
+
+            modelBuilder.Entity<ApprovalWorkflowDefinition>()
+                .HasOne(x => x.RequestType)
+                .WithMany()
+                .HasForeignKey(x => x.RequestTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalWorkflowStep>()
+                .HasOne(x => x.WorkflowDefinition)
+                .WithMany()
+                .HasForeignKey(x => x.WorkflowDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ApprovalRequest>()
+                .HasOne(x => x.RequestType)
+                .WithMany()
+                .HasForeignKey(x => x.RequestTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalRequest>()
+                .HasOne(x => x.WorkflowDefinition)
+                .WithMany()
+                .HasForeignKey(x => x.WorkflowDefinitionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalRequest>()
+                .HasOne(x => x.RequestedByWorker)
+                .WithMany()
+                .HasForeignKey(x => x.RequestedByWorkerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalRequest>()
+                .HasOne(x => x.CurrentApproverWorker)
+                .WithMany()
+                .HasForeignKey(x => x.CurrentApproverWorkerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalRequest>()
+                .HasOne(x => x.Directorate)
+                .WithMany()
+                .HasForeignKey(x => x.DirectorateId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalRequest>()
+                .HasOne(x => x.Department)
+                .WithMany()
+                .HasForeignKey(x => x.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalRequestAction>()
+                .HasOne(x => x.ApprovalRequest)
+                .WithMany()
+                .HasForeignKey(x => x.ApprovalRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ApprovalRequestAction>()
+                .HasOne(x => x.ActionByWorker)
+                .WithMany()
+                .HasForeignKey(x => x.ActionByWorkerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalRequestAttachment>()
+                .HasOne(x => x.ApprovalRequest)
+                .WithMany()
+                .HasForeignKey(x => x.ApprovalRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ApprovalRequestAttachment>()
+                .HasOne(x => x.UploadedByWorker)
+                .WithMany()
+                .HasForeignKey(x => x.UploadedByWorkerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalNotificationRecipient>()
+                .HasOne(x => x.ApprovalRequest)
+                .WithMany()
+                .HasForeignKey(x => x.ApprovalRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ApprovalNotificationRecipient>()
+                .HasOne(x => x.RecipientWorker)
+                .WithMany()
+                .HasForeignKey(x => x.RecipientWorkerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            modelBuilder.Entity<ApprovalDecision>()
+    .HasOne(x => x.ApprovalRequest)
+    .WithMany()
+    .HasForeignKey(x => x.ApprovalRequestId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ApprovalDecision>()
+                .HasOne(x => x.WorkflowStep)
+                .WithMany()
+                .HasForeignKey(x => x.WorkflowStepId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalDecision>()
+                .HasOne(x => x.DecisionByWorker)
+                .WithMany()
+                .HasForeignKey(x => x.DecisionByWorkerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ApprovalWorkflowRecipient>()
+                .HasOne(x => x.WorkflowStep)
+                .WithMany()
+                .HasForeignKey(x => x.WorkflowStepId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ApprovalWorkflowCondition>()
+                .HasOne(x => x.WorkflowDefinition)
+                .WithMany()
+                .HasForeignKey(x => x.WorkflowDefinitionId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
     }

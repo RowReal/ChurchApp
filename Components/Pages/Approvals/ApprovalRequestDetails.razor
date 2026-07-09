@@ -1,0 +1,348 @@
+﻿@page "/approvals/details/{RequestId:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ApprovalRequestService ApprovalRequestService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Approval Request Details - BCC ServiceHub</PageTitle>
+
+@if (AuthService.IsAuthenticated)
+{
+    <div class="worker360-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
+            </div>
+        }
+
+        @if (request != null)
+        {
+            <div class="bcc-page-header">
+                <div>
+                    <div class="bcc-page-subtitle">
+                        <i class="fas fa-clipboard-list me-2"></i>
+                        Approval Hub
+                    </div>
+                    <div class="bcc-page-title">@request.Subject</div>
+                    <div class="bcc-page-subtitle">
+                        @request.RequestCode • @request.RequestType?.Name • @request.Status
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="bcc-btn profile-form-secondary-btn" @onclick="GoBack">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </button>
+                </div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(successMessage))
+{
+    <div class="alert alert-success">
+        <i class="fas fa-check-circle me-2"></i>@successMessage
+    </div>
+}
+            <div class="bcc-card worker360-hero">
+                <div class="bcc-card-body">
+                    <div class="row g-4 align-items-center">
+                        <div class="col-md-8">
+                            <h3 class="worker360-name">@request.Subject</h3>
+
+                            <div class="worker360-meta">
+                                <span><i class="fas fa-hashtag"></i>@request.RequestCode</span>
+                                <span><i class="fas fa-layer-group"></i>@request.RequestType?.Name</span>
+                                <span><i class="fas fa-user"></i>@request.RequestedByWorker?.FirstName @request.RequestedByWorker?.LastName</span>
+                                <span><i class="fas fa-clock"></i>@request.CreatedAt.ToString("dd MMM yyyy")</span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="worker360-status-box">
+                                <span>Status</span>
+                                <strong>@request.Status</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bcc-card">
+                <div class="profile-form-v2-tabs">
+                    <button type="button" class="@GetTabClass("details")" @onclick='() => SetTab("details")'>
+                        <i class="fas fa-file-alt"></i> Details
+                    </button>
+
+                    <button type="button" class="@GetTabClass("timeline")" @onclick='() => SetTab("timeline")'>
+                        <i class="fas fa-stream"></i> Timeline
+                    </button>
+                </div>
+
+                <div class="bcc-card-body">
+                    @if (activeTab == "details")
+                    {
+                        <div class="worker360-section">
+                            <h5>
+                                <i class="fas fa-info-circle"></i>
+                                Request Information
+                            </h5>
+
+                            <div class="worker360-grid two">
+                                @InfoRow("Request Code", request.RequestCode)
+                                @InfoRow("Request Type", request.RequestType?.Name ?? "-")
+                                @InfoRow("Requested By", $"{request.RequestedByWorker?.FirstName} {request.RequestedByWorker?.LastName}")
+                                @InfoRow("Status", request.Status)
+                                @InfoRow("Directorate", request.Directorate?.Name ?? "Not assigned")
+                                @InfoRow("Department", request.Department?.Name ?? "Not assigned")
+                                @InfoRow("Submitted Date", request.SubmittedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")
+                                @InfoRow("Current Step", request.CurrentStepOrder.ToString())
+                            </div>
+
+                            <div class="worker360-section mt-4">
+                                <h5>
+                                    <i class="fas fa-align-left"></i>
+                                    Details / Background
+                                </h5>
+                                <div class="worker360-note">
+                                    @request.Details
+                                </div>
+                            </div>
+
+                            <div class="worker360-section mt-4">
+                                <h5>
+                                    <i class="fas fa-check-circle"></i>
+                                    Approval Sought
+                                </h5>
+                                <div class="worker360-note">
+                                    @request.ApprovalSought
+                                </div>
+                            </div>
+                            @if (canActOnRequest && request.Status != "Approved" && request.Status != "Rejected")
+{
+    <div class="worker360-section mt-4">
+        <h5>
+            <i class="fas fa-gavel"></i>
+            Approval Action
+        </h5>
+
+        <div class="profile-review-card">
+            <label class="form-label fw-bold">Comment <span class="text-danger">*</span></label>
+
+            <textarea class="form-control"
+                      rows="4"
+                      @bind="decisionComment"
+                      placeholder="Enter your comment. Comment is required for every action."></textarea>
+
+            <div class="mt-3 d-flex flex-wrap gap-2">
+                <button class="bcc-btn bcc-btn-primary" @onclick="ApproveRequest">
+                    <i class="fas fa-check me-2"></i>Approve
+                </button>
+
+                <button class="team-danger-btn" @onclick="RejectRequest">
+                    <i class="fas fa-times me-2"></i>Reject
+                </button>
+
+                <button class="team-action-btn" @onclick="RequestMoreInfo">
+                    <i class="fas fa-question-circle me-2"></i>Request More Information
+                </button>
+            </div>
+        </div>
+    </div>
+}
+                        </div>
+                    }
+
+                    @if (activeTab == "timeline")
+                    {
+                        <div class="worker360-section">
+                            <h5>
+                                <i class="fas fa-stream"></i>
+                                Request Timeline
+                            </h5>
+
+                            @if (actions.Any())
+                            {
+                                <div class="worker360-timeline">
+                                    @foreach (var action in actions)
+                                    {
+                                        <div class="worker360-timeline-item">
+                                            <div class="worker360-timeline-dot"></div>
+                                            <div>
+                                                <span>@action.CreatedAt.ToString("dd MMM yyyy HH:mm")</span>
+                                                <strong>@action.ActionType</strong>
+                                                <p>@action.Comment</p>
+
+                                                <small class="text-muted">
+                                                    By: @action.ActionByWorker?.FirstName @action.ActionByWorker?.LastName
+                                                </small>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="bcc-empty">
+                                    <i class="fas fa-history"></i>
+                                    <h4>No Timeline Yet</h4>
+                                    <p>No action has been recorded for this request.</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="bcc-empty">
+                <i class="fas fa-file-circle-xmark"></i>
+                <h4>Request Not Found</h4>
+                <p>The approval request could not be found.</p>
+                <button class="bcc-btn bcc-btn-primary" @onclick="GoBack">Back</button>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to view approval requests.</p>
+        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+    </div>
+}
+
+@code {
+    [Parameter] public int RequestId { get; set; }
+
+    private ApprovalRequest? request;
+    private List<ApprovalRequestAction> actions = new();
+
+    private string activeTab = "details";
+    private string? errorMessage;
+    private bool canActOnRequest = false;
+private string decisionComment = string.Empty;
+private string? successMessage;
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadRequest();
+    }
+
+   private async Task LoadRequest()
+{
+    try
+    {
+        request = await ApprovalRequestService.GetRequestByIdAsync(RequestId);
+        actions = await ApprovalRequestService.GetRequestActionsAsync(RequestId);
+
+        if (request != null && AuthService.CurrentWorker != null)
+        {
+            canActOnRequest = await ApprovalRequestService.CanWorkerActOnRequestAsync(
+                request.Id,
+                AuthService.CurrentWorker.Id
+            );
+        }
+    }
+    catch (Exception ex)
+    {
+        errorMessage = $"Error loading request: {ex.Message}";
+    }
+}
+
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+    }
+
+    private string GetTabClass(string tab)
+    {
+        return activeTab == tab ? "profile-form-tab active" : "profile-form-tab";
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/approvals/my-requests");
+    }
+
+    private RenderFragment InfoRow(string label, string value) => @<div class="bcc-info-row">
+        <div class="bcc-info-label">@label</div>
+        <div class="bcc-info-value">@value</div>
+    </div>;
+    private async Task ApproveRequest()
+{
+    await ProcessAction("Approve");
+}
+
+private async Task RejectRequest()
+{
+    await ProcessAction("Reject");
+}
+
+private async Task RequestMoreInfo()
+{
+    await ProcessAction("MoreInfo");
+}
+
+private async Task ProcessAction(string action)
+{
+    errorMessage = null;
+    successMessage = null;
+
+    if (AuthService.CurrentWorker == null)
+    {
+        errorMessage = "Unable to identify current worker.";
+        return;
+    }
+
+    if (string.IsNullOrWhiteSpace(decisionComment))
+    {
+        errorMessage = "Comment is required before taking action.";
+        return;
+    }
+
+    try
+    {
+        if (action == "Approve")
+        {
+            await ApprovalRequestService.ApproveRequestAsync(
+                RequestId,
+                AuthService.CurrentWorker.Id,
+                decisionComment
+            );
+
+            successMessage = "Request approved successfully.";
+        }
+        else if (action == "Reject")
+        {
+            await ApprovalRequestService.RejectRequestAsync(
+                RequestId,
+                AuthService.CurrentWorker.Id,
+                decisionComment
+            );
+
+            successMessage = "Request rejected successfully.";
+        }
+        else if (action == "MoreInfo")
+        {
+            await ApprovalRequestService.RequestMoreInfoAsync(
+                RequestId,
+                AuthService.CurrentWorker.Id,
+                decisionComment
+            );
+
+            successMessage = "More information requested successfully.";
+        }
+
+        decisionComment = string.Empty;
+        await LoadRequest();
+    }
+    catch (Exception ex)
+    {
+        errorMessage = $"Error processing action: {ex.Message}";
+    }
+}
+}

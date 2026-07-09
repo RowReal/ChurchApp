@@ -1,0 +1,134 @@
+﻿@page "/approvals/inbox"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ApprovalRequestService ApprovalRequestService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Approval Inbox - BCC ServiceHub</PageTitle>
+
+@if (AuthService.IsAuthenticated)
+{
+    <div class="worker360-page">
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-inbox me-2"></i>
+                    Approval Hub
+                </div>
+                <div class="bcc-page-title">Approval Inbox</div>
+                <div class="bcc-page-subtitle">
+                    Requests currently awaiting your review or action.
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
+            </div>
+        }
+
+        @if (requests.Any())
+        {
+            <div class="bcc-card">
+                <div class="bcc-card-body">
+                    <div class="worker360-section">
+                        <h5>
+                            <i class="fas fa-clipboard-check"></i>
+                            Pending Requests
+                        </h5>
+
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Type</th>
+                                        <th>Subject</th>
+                                        <th>Submitted By</th>
+                                        <th>Status</th>
+                                        <th>Submitted</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in requests)
+                                    {
+                                        <tr>
+                                            <td><strong>@item.RequestCode</strong></td>
+                                            <td>@item.RequestType?.Name</td>
+                                            <td>@item.Subject</td>
+                                            <td>@item.RequestedByWorker?.FirstName @item.RequestedByWorker?.LastName</td>
+                                            <td><span class="badge bg-primary">@item.Status</span></td>
+                                            <td>@(item.SubmittedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")</td>
+                                            <td class="text-end">
+                                                <button class="team-action-btn" @onclick="() => ViewDetails(item.Id)">
+                                                    <i class="fas fa-eye me-1"></i>Review
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="bcc-empty">
+                <i class="fas fa-inbox"></i>
+                <h4>No Pending Approval</h4>
+                <p>There is no request currently waiting for your action.</p>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to view your approval inbox.</p>
+        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+    </div>
+}
+
+@code {
+    private List<ApprovalRequest> requests = new();
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInbox();
+    }
+
+    private async Task LoadInbox()
+    {
+        try
+        {
+            if (AuthService.CurrentWorker == null)
+            {
+                errorMessage = "Unable to identify current worker.";
+                return;
+            }
+
+            requests = await ApprovalRequestService.GetApprovalInboxAsync(AuthService.CurrentWorker.Id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading approval inbox: {ex.Message}";
+        }
+    }
+
+    private void ViewDetails(int requestId)
+    {
+        Navigation.NavigateTo($"/approvals/details/{requestId}");
+    }
+}

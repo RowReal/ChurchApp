@@ -1,0 +1,190 @@
+﻿@page "/approvals/new"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ApprovalRequestService ApprovalRequestService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>New Approval Request - BCC ServiceHub</PageTitle>
+
+@if (AuthService.IsAuthenticated)
+{
+    <div class="worker360-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
+            </div>
+        }
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-clipboard-check me-2"></i>
+                    Approval Hub
+                </div>
+                <div class="bcc-page-title">New Approval Request</div>
+                <div class="bcc-page-subtitle">
+                    Submit leave, off-service, activity, financial, or general approval requests.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="bcc-btn profile-form-secondary-btn" @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>Back
+                </button>
+            </div>
+        </div>
+
+        <div class="bcc-card">
+            <div class="bcc-card-body">
+                <div class="worker360-section">
+                    <h5>
+                        <i class="fas fa-file-signature"></i>
+                        Request Information
+                    </h5>
+
+                    <EditForm Model="@requestModel" OnValidSubmit="SubmitRequest">
+                        <DataAnnotationsValidator />
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Request Type</label>
+                                <select class="form-select" @bind="requestModel.RequestTypeId">
+                                    <option value="0">-- Select Request Type --</option>
+                                    @foreach (var type in requestTypes)
+                                    {
+                                        <option value="@type.Id">@type.Name</option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Subject</label>
+                                <InputText class="form-control"
+                                           @bind-Value="requestModel.Subject"
+                                           placeholder="Brief title of the request" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Details / Background</label>
+                                <InputTextArea class="form-control"
+                                               rows="5"
+                                               @bind-Value="requestModel.Details"
+                                               placeholder="Provide background, justification, and relevant details." />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Approval Sought</label>
+                                <InputTextArea class="form-control"
+                                               rows="4"
+                                               @bind-Value="requestModel.ApprovalSought"
+                                               placeholder="Clearly state the specific approval, decision, authorization, or support being requested." />
+                            </div>
+                        </div>
+
+                        <div class="mt-4 d-flex justify-content-end gap-2">
+                            <button type="button" class="bcc-btn profile-form-secondary-btn" @onclick="ClearForm">
+                                <i class="fas fa-times me-2"></i>Clear
+                            </button>
+
+                            <button type="submit" class="bcc-btn bcc-btn-primary">
+                                <i class="fas fa-paper-plane me-2"></i>Submit Request
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to submit an approval request.</p>
+        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+    </div>
+}
+
+@code {
+    private List<ApprovalRequestType> requestTypes = new();
+    private ApprovalRequestFormModel requestModel = new();
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        requestTypes = await ApprovalRequestService.GetActiveRequestTypesAsync();
+    }
+
+    private async Task SubmitRequest()
+    {
+        errorMessage = null;
+
+        if (AuthService.CurrentWorker == null)
+        {
+            errorMessage = "Unable to identify current worker.";
+            return;
+        }
+
+        if (requestModel.RequestTypeId <= 0)
+        {
+            errorMessage = "Please select request type.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(requestModel.Subject))
+        {
+            errorMessage = "Subject is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(requestModel.Details))
+        {
+            errorMessage = "Details / Background is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(requestModel.ApprovalSought))
+        {
+            errorMessage = "Approval Sought is required.";
+            return;
+        }
+
+        var newRequestId = await ApprovalRequestService.CreateAndSubmitRequestAsync(
+            requestModel.RequestTypeId,
+            requestModel.Subject,
+            requestModel.Details,
+            requestModel.ApprovalSought,
+            AuthService.CurrentWorker.Id
+        );
+
+        Navigation.NavigateTo($"/approvals/details/{newRequestId}");
+    }
+
+    private void ClearForm()
+    {
+        requestModel = new ApprovalRequestFormModel();
+        errorMessage = null;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private class ApprovalRequestFormModel
+    {
+        public int RequestTypeId { get; set; }
+
+        public string Subject { get; set; } = string.Empty;
+
+        public string Details { get; set; } = string.Empty;
+
+        public string ApprovalSought { get; set; } = string.Empty;
+    }
+}
+
