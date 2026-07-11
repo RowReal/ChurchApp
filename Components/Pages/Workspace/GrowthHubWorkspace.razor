@@ -1,0 +1,123 @@
+﻿@page "/workspace/growth-hub"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Services
+@using ChurchApp.Components.Shared
+
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Growth Hub - BCC ServiceHub</PageTitle>
+
+@if (AuthService.IsAuthenticated)
+{
+    <div class="worker360-page">
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-seedling me-2"></i>
+                    Workspace
+                </div>
+
+                <div class="bcc-page-title">
+                    Growth Hub
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Access feedback reports and worker development activities.
+                </div>
+            </div>
+
+            <div>
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Dashboard
+                </button>
+            </div>
+        </div>
+
+        <div class="bcc-card">
+            <div class="bcc-card-body">
+
+                <div class="workspace-section-heading">
+                    <div>
+                        <h5>Growth and Feedback</h5>
+                        <p>
+                            Select an option below to continue.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <WorkspaceActionCard Href="/Workforce/feedback"
+                                             Icon="fas fa-chart-line"
+                                             Title="Feedback Report"
+                                             Description="View feedback reports and monitor growth activities." />
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <WorkspaceActionCard Href="/Workforce/create-feedback"
+                                             Icon="fas fa-comment-medical"
+                                             Title="Create Feedback"
+                                             Description="Create and submit new feedback for a worker." />
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <WorkspaceActionCard Href="/Workforce/assigned"
+                                             Icon="fas fa-user-check"
+                                             Title="My Feedback"
+                                             Description="View feedback records assigned to you." />
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+
+        <h4>Please Log In</h4>
+
+        <p>
+            You need to be logged in to access Growth Hub.
+        </p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+
+@code {
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
+
+<style>
+    .workspace-section-heading {
+        margin-bottom: 18px;
+    }
+
+        .workspace-section-heading h5 {
+            margin: 0 0 4px;
+            color: #0f172a;
+            font-weight: 800;
+        }
+
+        .workspace-section-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.86rem;
+        }
+</style>

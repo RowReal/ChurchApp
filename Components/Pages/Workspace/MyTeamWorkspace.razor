@@ -1,0 +1,149 @@
+﻿@page "/workspace/my-team"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Services
+@using ChurchApp.Components.Shared
+
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>My Team - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+
+        <h4>Please Log In</h4>
+
+        <p>
+            You need to be logged in to access My Team.
+        </p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (!CanAccessMyTeamWorkspace())
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+
+        <h4>Access Denied</h4>
+
+        <p>
+            This workspace is available only to Heads
+            and Assistant Heads of Directorate.
+        </p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Dashboard
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page">
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-users me-2"></i>
+                    Workspace
+                </div>
+
+                <div class="bcc-page-title">
+                    My Team
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    View your team and manage profile update approvals.
+                </div>
+            </div>
+
+            <div>
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Dashboard
+                </button>
+            </div>
+        </div>
+
+        <div class="bcc-card">
+            <div class="bcc-card-body">
+
+                <div class="workspace-section-heading">
+                    <div>
+                        <h5>Team Management</h5>
+                        <p>
+                            Select an option below to continue.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+
+                    <div class="col-12 col-md-6">
+                        <WorkspaceActionCard Href="/workforce/my-team"
+                                             Icon="fas fa-users"
+                                             Title="Team List"
+                                             Description="View the list and details of workers in your team." />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <WorkspaceActionCard Href="/workforce/my-inbox"
+                                             Icon="fas fa-user-check"
+                                             Title="Team Profile Approval"
+                                             Description="Review and approve profile updates submitted by your team members." />
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool CanAccessMyTeamWorkspace()
+    {
+        var role = AuthService.CurrentWorker?.Role?
+            .Trim()
+            .ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(role))
+            return false;
+
+        return role.Contains("head of directorate") ||
+               role.Contains("assistant head of directorate") ||
+               role.Contains("asst head of directorate");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
+
+<style>
+    .workspace-section-heading {
+        margin-bottom: 18px;
+    }
+
+        .workspace-section-heading h5 {
+            margin: 0 0 4px;
+            color: #0f172a;
+            font-weight: 800;
+        }
+
+        .workspace-section-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.86rem;
+        }
+</style>

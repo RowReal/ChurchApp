@@ -388,6 +388,23 @@
                         <span class="action-text">My Profile</span>
                     </a>
                 </div>
+                
+                  @if (CanAccessMyTeamWorkspace())
+{
+    <div class="col-6 col-sm-4 col-lg-3">
+        <a href="/workspace/my-team"
+           class="action-card">
+
+            <div class="action-image">
+                <i class="fas fa-users"></i>
+            </div>
+
+            <span class="action-text">
+                My Team
+            </span>
+        </a>
+    </div>
+}
 
                 <div class="col-6 col-sm-4 col-lg-3">
     <a href="/workspace/my-desk" class="action-card">
@@ -407,23 +424,30 @@
 </div>
 
                 <div class="col-6 col-sm-4 col-lg-3">
-                    <a href="/Workforce/feedback" class="action-card">
-                        <div class="action-image">
-                            <i class="fas fa-comment-dots"></i>
-                        </div>
-                        <span class="action-text">Growth Feedback</span>
+    <a href="/workspace/growth-hub"
+       class="action-card">
 
-                        @if (growthHubCounts.MyFeedback > 0)
-                        {
-                            <span class="pending-badge">@growthHubCounts.MyFeedback</span>
-                        }
-                    </a>
-                </div>
+        <div class="action-image">
+            <i class="fas fa-seedling"></i>
+        </div>
+
+        <span class="action-text">
+            Growth Hub
+        </span>
+
+        @if (growthHubCounts.MyFeedback > 0)
+        {
+            <span class="pending-badge">
+                @growthHubCounts.MyFeedback
+            </span>
+        }
+    </a>
+</div>
             </div>
         </div>
 
         <!-- APPROVALS & SUPERVISION -->
-        @if (CanAccessProfileApproval() || CanAccessMyTeam() || CanApprovePermissionRequests())
+        @* @if (CanAccessProfileApproval() || CanAccessMyTeam() || CanApprovePermissionRequests())
         {
             <div class="menu-section">
                 <div class="menu-section-title">
@@ -445,18 +469,6 @@
                                 {
                                     <span class="pending-badge">@pendingApprovalCount</span>
                                 }
-                            </a>
-                        </div>
-                    }
-
-                    @if (CanAccessMyTeam())
-                    {
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/workforce/my-team" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-users-cog"></i>
-                                </div>
-                                <span class="action-text">My Team</span>
                             </a>
                         </div>
                     }
@@ -495,7 +507,7 @@
             </div>
         }
 
-        <!-- SERVICE RECORDS -->
+        <!-- SERVICE RECORDS --> *@
         @if (CanAccessServiceRecords())
         {
             <div class="menu-section">
@@ -2019,6 +2031,19 @@ todayVerse = await VerseService.GetTodayVerseAsync();
         public string Badge { get; set; } = string.Empty;
         public DateTime SortTime { get; set; } = DateTime.Now;
     }
+    private bool CanAccessMyTeamWorkspace()
+{
+    var role = AuthService.CurrentWorker?.Role?
+        .Trim()
+        .ToLowerInvariant();
+
+    if (string.IsNullOrWhiteSpace(role))
+        return false;
+
+    return role.Contains("head of directorate") ||
+           role.Contains("assistant head of directorate") ||
+           role.Contains("asst head of directorate");
+}
     private async Task LoadTodaysBirthdays()
 {
     try
