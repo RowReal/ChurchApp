@@ -1,10 +1,16 @@
 ﻿@page "/approvals/details/{RequestId:int}"
 @layout Components.Layout.MainLayout
+
+@using Microsoft.AspNetCore.Components.Forms
+@using ChurchApp.Components.Pages.Approvals.Forms
 @using ChurchApp.Models
 @using ChurchApp.Services
+
+@inject LeaveRequestService LeaveService
 @inject ApprovalRequestService ApprovalRequestService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject HtmlCleanService HtmlCleanService
 
 <PageTitle>Approval Request Details - BCC ServiceHub</PageTitle>
 
@@ -19,6 +25,13 @@
             </div>
         }
 
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>@successMessage
+            </div>
+        }
+
         @if (request != null)
         {
             <div class="bcc-page-header">
@@ -27,24 +40,23 @@
                         <i class="fas fa-clipboard-list me-2"></i>
                         Approval Hub
                     </div>
+
                     <div class="bcc-page-title">@request.Subject</div>
+
                     <div class="bcc-page-subtitle">
                         @request.RequestCode • @request.RequestType?.Name • @request.Status
                     </div>
                 </div>
 
                 <div class="d-flex gap-2">
-                    <button class="bcc-btn profile-form-secondary-btn" @onclick="GoBack">
+                    <button type="button"
+                            class="bcc-btn profile-form-secondary-btn"
+                            @onclick="GoBack">
                         <i class="fas fa-arrow-left me-2"></i>Back
                     </button>
                 </div>
             </div>
-            @if (!string.IsNullOrWhiteSpace(successMessage))
-{
-    <div class="alert alert-success">
-        <i class="fas fa-check-circle me-2"></i>@successMessage
-    </div>
-}
+
             <div class="bcc-card worker360-hero">
                 <div class="bcc-card-body">
                     <div class="row g-4 align-items-center">
@@ -52,10 +64,19 @@
                             <h3 class="worker360-name">@request.Subject</h3>
 
                             <div class="worker360-meta">
-                                <span><i class="fas fa-hashtag"></i>@request.RequestCode</span>
-                                <span><i class="fas fa-layer-group"></i>@request.RequestType?.Name</span>
-                                <span><i class="fas fa-user"></i>@request.RequestedByWorker?.FirstName @request.RequestedByWorker?.LastName</span>
-                                <span><i class="fas fa-clock"></i>@request.CreatedAt.ToString("dd MMM yyyy")</span>
+                                <span>
+                                    <i class="fas fa-hashtag"></i>@request.RequestCode
+                                </span>
+                                <span>
+                                    <i class="fas fa-layer-group"></i>@request.RequestType?.Name
+                                </span>
+                                <span>
+                                    <i class="fas fa-user"></i>
+                                    @request.RequestedByWorker?.FirstName @request.RequestedByWorker?.LastName
+                                </span>
+                                <span>
+                                    <i class="fas fa-clock"></i>@request.CreatedAt.ToString("dd MMM yyyy")
+                                </span>
                             </div>
                         </div>
 
@@ -71,11 +92,15 @@
 
             <div class="bcc-card">
                 <div class="profile-form-v2-tabs">
-                    <button type="button" class="@GetTabClass("details")" @onclick='() => SetTab("details")'>
+                    <button type="button"
+                            class="@GetTabClass("details")"
+                            @onclick='() => SetTab("details")'>
                         <i class="fas fa-file-alt"></i> Details
                     </button>
 
-                    <button type="button" class="@GetTabClass("timeline")" @onclick='() => SetTab("timeline")'>
+                    <button type="button"
+                            class="@GetTabClass("timeline")"
+                            @onclick='() => SetTab("timeline")'>
                         <i class="fas fa-stream"></i> Timeline
                     </button>
                 </div>
@@ -98,60 +123,274 @@
                                 @InfoRow("Department", request.Department?.Name ?? "Not assigned")
                                 @InfoRow("Submitted Date", request.SubmittedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")
                                 @InfoRow("Current Step", request.CurrentStepOrder.ToString())
+                                @InfoRow("Pending With", GetPendingWithText())
+                                @InfoRowMarkup("Final Approved By", GetFinalApprovedByMarkup())
                             </div>
+                        </div>
 
+                        @if (financialDetails != null)
+                        {
+                            <div class="worker360-section mt-4">
+                                <h5>
+                                    <i class="fas fa-coins"></i>
+                                    Financial Information
+                                </h5>
+
+                                <div class="worker360-grid two">
+                                    @InfoRow("Amount Requested", $"₦{financialDetails.AmountRequested:N2}")
+                                    @InfoRowMarkup("Amount Approved", GetAmountApprovedMarkup())
+                                    @InfoRow("Budget Line", financialDetails.BudgetLine ?? "Not provided")
+                                    @InfoRow("Financial Purpose", financialDetails.Purpose ?? "Not provided")
+                                    @InfoRow("Payment Details", financialDetails.PaymentDetails ?? "Not provided")
+                                </div>
+                            </div>
+                        }
+
+                        <div class="worker360-section mt-4">
+                            <h5>
+                                <i class="fas fa-route"></i>
+                                Workflow Progress
+                            </h5>
+
+                            @if (workflowSteps.Any())
+                            {
+                                <div class="approval-progress">
+                                    <div class="approval-progress-step completed">
+                                        <div class="approval-progress-icon">
+                                            <i class="fas fa-check"></i>
+                                        </div>
+
+                                        <div class="approval-progress-content">
+                                            <strong>Submitted</strong>
+                                            <span>Request submitted</span>
+                                        </div>
+                                    </div>
+
+                                    @foreach (var step in workflowSteps.OrderBy(x => x.StepOrder))
+                                    {
+                                        var progressStatus = GetWorkflowStepStatus(step);
+
+                                        <div class="approval-progress-step @progressStatus">
+                                            <div class="approval-progress-icon">
+                                                <i class="@GetWorkflowStepIcon(progressStatus)"></i>
+                                            </div>
+
+                                            <div class="approval-progress-content">
+                                                <strong>@step.StepName</strong>
+                                                <span>@GetWorkflowStepDescription(step, progressStatus)</span>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="bcc-empty py-3">
+                                    <i class="fas fa-route"></i>
+                                    <p>No workflow information is available.</p>
+                                </div>
+                            }
+                        </div>
+
+                        @if (IsLeaveRequest && leaveDetails != null)
+                        {
+                          <LeaveRequestDetails Details="@leaveDetails" />
+                         }
+                        @if (!IsLeaveRequest)
+                        {
                             <div class="worker360-section mt-4">
                                 <h5>
                                     <i class="fas fa-align-left"></i>
                                     Details / Background
                                 </h5>
-                                <div class="worker360-note">
-                                    @request.Details
+
+                                <div class="worker360-note approval-rich-content">
+                                    @((MarkupString)HtmlCleanService.Clean(request.Details))
                                 </div>
                             </div>
 
                             <div class="worker360-section mt-4">
                                 <h5>
-                                    <i class="fas fa-check-circle"></i>
-                                    Approval Sought
+                                <i class="fas fa-check-circle"></i>
+                                Approval Sought
+                            </h5>
+
+                            <div class="worker360-note approval-rich-content">
+                                @((MarkupString)HtmlCleanService.Clean(request.ApprovalSought))
+                            </div>
+                        </div>
+                        }
+
+                        <div class="worker360-section mt-4">
+                            <h5>
+                                <i class="fas fa-paperclip"></i>
+                                Supporting Documents
+                            </h5>
+
+                            @if (attachments.Any())
+                            {
+                                <div class="approval-attachment-list">
+                                    @foreach (var attachment in attachments)
+                                    {
+                                        <div class="approval-attachment-card">
+                                            <div class="approval-attachment-info">
+                                                <div class="approval-attachment-icon">
+                                                    <i class="@GetAttachmentIcon(attachment.FileName)"></i>
+                                                </div>
+
+                                                <div>
+                                                    <strong>@attachment.FileName</strong>
+                                                    <span>
+                                                        @FormatAttachmentSize(attachment.FileSize)
+                                                        • Uploaded by
+                                                        @attachment.UploadedByWorker?.FirstName
+                                                        @attachment.UploadedByWorker?.LastName
+                                                        • @attachment.UploadedAt.ToString("dd MMM yyyy HH:mm")
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <a href="/@attachment.FilePath"
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               class="team-action-btn">
+                                                <i class="fas fa-eye me-1"></i>View
+                                            </a>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="bcc-empty py-3">
+                                    <i class="fas fa-paperclip"></i>
+                                    <p>No supporting document was attached.</p>
+                                </div>
+                            }
+                        </div>
+
+                        @if (canActOnRequest && request.Status != "Approved" && request.Status != "Rejected")
+                        {
+                            <div class="worker360-section mt-4">
+                                <h5>
+                                    <i class="fas fa-gavel"></i>
+                                    Approval Action
                                 </h5>
-                                <div class="worker360-note">
-                                    @request.ApprovalSought
+
+                                <div class="profile-review-card">
+                                    @if (IsFinalFinancialApproval)
+                                    {
+                                        <div class="financial-approval-box mb-4">
+                                            <div class="row g-3 align-items-end">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold">
+                                                        Amount Approved
+                                                        <span class="text-danger">*</span>
+                                                    </label>
+
+                                                    <div class="input-group">
+                                                        <span class="input-group-text">₦</span>
+                                                        <InputNumber class="form-control"
+                                                                     @bind-Value="amountApproved" />
+                                                    </div>
+
+                                                    <small class="text-muted">
+                                                        Amount requested: ₦@(financialDetails?.AmountRequested.ToString("N2") ?? "0.00")
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    <label class="form-label fw-bold">
+                                        Comment <span class="text-danger">*</span>
+                                    </label>
+
+                                    <textarea class="form-control"
+                                              rows="4"
+                                              @bind="decisionComment"
+                                              placeholder="Enter your comment. Comment is required for every action."></textarea>
+
+                                    <div class="mt-3 d-flex flex-wrap gap-2">
+                                        <button type="button"
+                                                class="bcc-btn bcc-btn-primary"
+                                                disabled="@isProcessing"
+                                                @onclick="ApproveRequest">
+                                            <i class="fas fa-check me-2"></i>Approve
+                                        </button>
+
+                                        <button type="button"
+                                                class="team-danger-btn"
+                                                disabled="@isProcessing"
+                                                @onclick="RejectRequest">
+                                            <i class="fas fa-times me-2"></i>Reject
+                                        </button>
+
+                                        <button type="button"
+                                                class="team-action-btn"
+                                                disabled="@isProcessing"
+                                                @onclick="RequestMoreInfo">
+                                            <i class="fas fa-question-circle me-2"></i>
+                                            Request More Information
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                            @if (canActOnRequest && request.Status != "Approved" && request.Status != "Rejected")
-{
-    <div class="worker360-section mt-4">
-        <h5>
-            <i class="fas fa-gavel"></i>
-            Approval Action
-        </h5>
+                        }
 
-        <div class="profile-review-card">
-            <label class="form-label fw-bold">Comment <span class="text-danger">*</span></label>
+                        @if (canResubmit)
+                        {
+                            <div class="worker360-section mt-4">
+                                <h5>
+                                    <i class="fas fa-reply"></i>
+                                    Respond to More Information Request
+                                </h5>
 
-            <textarea class="form-control"
-                      rows="4"
-                      @bind="decisionComment"
-                      placeholder="Enter your comment. Comment is required for every action."></textarea>
+                                <div class="profile-review-card">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">
+                                            Response / Clarification
+                                            <span class="text-danger">*</span>
+                                        </label>
 
-            <div class="mt-3 d-flex flex-wrap gap-2">
-                <button class="bcc-btn bcc-btn-primary" @onclick="ApproveRequest">
-                    <i class="fas fa-check me-2"></i>Approve
-                </button>
+                                        <textarea class="form-control"
+                                                  rows="4"
+                                                  @bind="resubmitComment"
+                                                  placeholder="Provide the information requested by the approver."></textarea>
+                                    </div>
 
-                <button class="team-danger-btn" @onclick="RejectRequest">
-                    <i class="fas fa-times me-2"></i>Reject
-                </button>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">
+                                            Updated Details / Background
+                                        </label>
 
-                <button class="team-action-btn" @onclick="RequestMoreInfo">
-                    <i class="fas fa-question-circle me-2"></i>Request More Information
-                </button>
-            </div>
-        </div>
-    </div>
-}
-                        </div>
+                                        <textarea class="form-control"
+                                                  rows="5"
+                                                  @bind="resubmitDetails"></textarea>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">
+                                            Updated Approval Sought
+                                        </label>
+
+                                        <textarea class="form-control"
+                                                  rows="4"
+                                                  @bind="resubmitApprovalSought"></textarea>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <button type="button"
+                                                class="bcc-btn bcc-btn-primary"
+                                                disabled="@isProcessing"
+                                                @onclick="ResubmitRequest">
+                                            <i class="fas fa-paper-plane me-2"></i>
+                                            Resubmit Request
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
                     }
 
                     @if (activeTab == "timeline")
@@ -165,18 +404,45 @@
                             @if (actions.Any())
                             {
                                 <div class="worker360-timeline">
-                                    @foreach (var action in actions)
+                                    @foreach (var action in actions.OrderBy(x => x.CreatedAt))
                                     {
-                                        <div class="worker360-timeline-item">
-                                            <div class="worker360-timeline-dot"></div>
-                                            <div>
-                                                <span>@action.CreatedAt.ToString("dd MMM yyyy HH:mm")</span>
-                                                <strong>@action.ActionType</strong>
-                                                <p>@action.Comment</p>
+                                        <div class="worker360-timeline-item approval-timeline-item">
+                                            <div class="worker360-timeline-dot @GetTimelineDotClass(action.ActionType)">
+                                                <i class="@GetTimelineIcon(action.ActionType)"></i>
+                                            </div>
 
-                                                <small class="text-muted">
-                                                    By: @action.ActionByWorker?.FirstName @action.ActionByWorker?.LastName
-                                                </small>
+                                            <div class="approval-timeline-content">
+                                                <div class="approval-timeline-header">
+                                                    <div>
+                                                        <strong>@GetTimelineActionName(action.ActionType)</strong>
+                                                        <span class="@GetTimelineBadgeClass(action.ActionType)">
+                                                            @GetTimelineActionName(action.ActionType)
+                                                        </span>
+                                                    </div>
+
+                                                    <small>@action.CreatedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                                </div>
+
+                                                <div class="approval-timeline-user">
+                                                    <i class="fas fa-user-circle"></i>
+                                                    @action.ActionByWorker?.FirstName @action.ActionByWorker?.LastName
+                                                </div>
+
+                                                @if (!string.IsNullOrWhiteSpace(action.Comment))
+                                                {
+                                                    <div class="approval-timeline-comment">
+                                                        @action.Comment
+                                                    </div>
+                                                }
+
+                                                @if (action.FromStepOrder.HasValue || action.ToStepOrder.HasValue)
+                                                {
+                                                    <div class="approval-timeline-movement">
+                                                        Level @(action.FromStepOrder ?? 0)
+                                                        <i class="fas fa-arrow-right mx-1"></i>
+                                                        Level @(action.ToStepOrder ?? 0)
+                                                    </div>
+                                                }
                                             </div>
                                         </div>
                                     }
@@ -201,7 +467,11 @@
                 <i class="fas fa-file-circle-xmark"></i>
                 <h4>Request Not Found</h4>
                 <p>The approval request could not be found.</p>
-                <button class="bcc-btn bcc-btn-primary" @onclick="GoBack">Back</button>
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary"
+                        @onclick="GoBack">
+                    Back
+                </button>
             </div>
         }
     </div>
@@ -216,40 +486,164 @@ else
     </div>
 }
 
+@if (showSuccessPopup)
+{
+    <div class="approval-popup-backdrop">
+        <div class="approval-popup-card">
+            <div class="approval-popup-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+
+            <h4>Action Successful</h4>
+            <p>@popupMessage</p>
+
+            <button type="button"
+                    class="bcc-btn bcc-btn-primary"
+                    @onclick="CloseSuccessPopup">
+                OK
+            </button>
+        </div>
+    </div>
+}
+
 @code {
-    [Parameter] public int RequestId { get; set; }
+    [Parameter]
+    public int RequestId { get; set; }
 
     private ApprovalRequest? request;
+    private ApprovalDecision? finalApprovalDecision;
+    private FinancialRequestDetail? financialDetails;
+    private ApprovalWorkflowStep? currentWorkflowStep;
+
     private List<ApprovalRequestAction> actions = new();
+    private List<ApprovalWorkflowStep> workflowSteps = new();
+    private List<ApprovalRequestAttachment> attachments = new();
 
     private string activeTab = "details";
     private string? errorMessage;
-    private bool canActOnRequest = false;
-private string decisionComment = string.Empty;
-private string? successMessage;
+    private string? successMessage;
+    private string decisionComment = string.Empty;
+    private string resubmitComment = string.Empty;
+    private string resubmitDetails = string.Empty;
+    private string resubmitApprovalSought = string.Empty;
+    private string popupMessage = string.Empty;
+
+    private bool canActOnRequest;
+    private bool canResubmit;
+    private bool showSuccessPopup;
+    private bool isProcessing;
+
+    private decimal? amountApproved;
+    private LeaveRequestDetail? leaveDetails;
+
+private bool IsLeaveRequest =>
+    string.Equals(
+        request?.RequestType?.Code,
+        "Leave-Request",
+        StringComparison.OrdinalIgnoreCase);
+
+    private bool IsFinancialRequest =>
+        string.Equals(
+            request?.RequestType?.Code,
+            "Financial-Request",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool IsFinalFinancialApproval =>
+        IsFinancialRequest &&
+        currentWorkflowStep?.IsFinalStep == true &&
+        canActOnRequest;
+
     protected override async Task OnParametersSetAsync()
     {
         await LoadRequest();
     }
 
-   private async Task LoadRequest()
+    private async Task LoadRequest()
 {
     try
     {
-        request = await ApprovalRequestService.GetRequestByIdAsync(RequestId);
-        actions = await ApprovalRequestService.GetRequestActionsAsync(RequestId);
+        errorMessage = null;
 
-        if (request != null && AuthService.CurrentWorker != null)
+        request = await ApprovalRequestService
+            .GetRequestByIdAsync(RequestId);
+
+        actions = await ApprovalRequestService
+            .GetRequestActionsAsync(RequestId);
+
+        finalApprovalDecision = await ApprovalRequestService
+            .GetFinalApprovalDecisionAsync(RequestId);
+
+        attachments = await ApprovalRequestService
+            .GetRequestAttachmentsAsync(RequestId);
+
+        workflowSteps.Clear();
+
+        currentWorkflowStep = null;
+        financialDetails = null;
+        leaveDetails = null;
+
+        amountApproved = null;
+        canActOnRequest = false;
+        canResubmit = false;
+
+        if (request != null)
         {
-            canActOnRequest = await ApprovalRequestService.CanWorkerActOnRequestAsync(
-                request.Id,
-                AuthService.CurrentWorker.Id
-            );
+            workflowSteps = await ApprovalRequestService
+                .GetWorkflowStepsAsync(
+                    request.WorkflowDefinitionId);
+
+            currentWorkflowStep = workflowSteps
+                .FirstOrDefault(x =>
+                    x.StepOrder == request.CurrentStepOrder);
+
+            /*
+             * Financial Request-specific information
+             */
+            if (IsFinancialRequest)
+            {
+                financialDetails = await ApprovalRequestService
+                    .GetFinancialRequestDetailsAsync(RequestId);
+
+                amountApproved =
+                    financialDetails?.AmountApproved
+                    ?? financialDetails?.AmountRequested;
+            }
+
+            /*
+             * Leave Request-specific information
+             */
+            if (IsLeaveRequest)
+            {
+                leaveDetails = await LeaveService
+    .GetLeaveRequestDetailsAsync(RequestId);
+            }
+        }
+
+        if (request != null &&
+            AuthService.CurrentWorker != null)
+        {
+            canActOnRequest = await ApprovalRequestService
+                .CanWorkerActOnRequestAsync(
+                    request.Id,
+                    AuthService.CurrentWorker.Id);
+
+            canResubmit =
+                request.RequestedByWorkerId ==
+                    AuthService.CurrentWorker.Id &&
+                request.Status == "MoreInfoRequested";
+
+            if (canResubmit)
+            {
+                resubmitDetails = request.Details;
+                resubmitApprovalSought =
+                    request.ApprovalSought;
+            }
         }
     }
     catch (Exception ex)
     {
-        errorMessage = $"Error loading request: {ex.Message}";
+        errorMessage =
+            $"Error loading request: {ex.Message}";
     }
 }
 
@@ -260,7 +654,9 @@ private string? successMessage;
 
     private string GetTabClass(string tab)
     {
-        return activeTab == tab ? "profile-form-tab active" : "profile-form-tab";
+        return activeTab == tab
+            ? "profile-form-tab active"
+            : "profile-form-tab";
     }
 
     private void GoBack()
@@ -268,81 +664,681 @@ private string? successMessage;
         Navigation.NavigateTo("/approvals/my-requests");
     }
 
+    private void CloseSuccessPopup()
+    {
+        showSuccessPopup = false;
+        Navigation.NavigateTo("/approvals/inbox");
+    }
+
+    private async Task ApproveRequest()
+    {
+        await ProcessAction("Approve");
+    }
+
+    private async Task RejectRequest()
+    {
+        await ProcessAction("Reject");
+    }
+
+    private async Task RequestMoreInfo()
+    {
+        await ProcessAction("MoreInfo");
+    }
+
+    private async Task ProcessAction(string action)
+    {
+        if (isProcessing)
+            return;
+
+        errorMessage = null;
+        successMessage = null;
+
+        if (AuthService.CurrentWorker == null)
+        {
+            errorMessage = "Unable to identify current worker.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(decisionComment))
+        {
+            errorMessage = "Comment is required before taking action.";
+            return;
+        }
+
+        if (action == "Approve" && IsFinalFinancialApproval)
+        {
+            if (!amountApproved.HasValue || amountApproved.Value <= 0)
+            {
+                errorMessage = "Please enter a valid approved amount.";
+                return;
+            }
+
+            if (financialDetails != null &&
+                amountApproved.Value > financialDetails.AmountRequested)
+            {
+                errorMessage =
+                    "Amount approved cannot be greater than the amount requested.";
+                return;
+            }
+        }
+
+        try
+        {
+            isProcessing = true;
+
+            if (action == "Approve")
+            {
+                await ApprovalRequestService.ApproveRequestAsync(
+                    RequestId,
+                    AuthService.CurrentWorker.Id,
+                    decisionComment,
+                    IsFinalFinancialApproval ? amountApproved : null);
+
+                popupMessage = "Request approved successfully.";
+            }
+            else if (action == "Reject")
+            {
+                await ApprovalRequestService.RejectRequestAsync(
+                    RequestId,
+                    AuthService.CurrentWorker.Id,
+                    decisionComment);
+
+                popupMessage = "Request rejected successfully.";
+            }
+            else if (action == "MoreInfo")
+            {
+                await ApprovalRequestService.RequestMoreInfoAsync(
+                    RequestId,
+                    AuthService.CurrentWorker.Id,
+                    decisionComment);
+
+                popupMessage = "More information requested successfully.";
+            }
+
+            decisionComment = string.Empty;
+            showSuccessPopup = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error processing action: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task ResubmitRequest()
+    {
+        if (isProcessing)
+            return;
+
+        errorMessage = null;
+        successMessage = null;
+
+        if (AuthService.CurrentWorker == null)
+        {
+            errorMessage = "Unable to identify current worker.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(resubmitComment))
+        {
+            errorMessage =
+                "Response / clarification is required before resubmitting.";
+            return;
+        }
+
+        try
+        {
+            isProcessing = true;
+
+            await ApprovalRequestService.ResubmitRequestAsync(
+                RequestId,
+                AuthService.CurrentWorker.Id,
+                resubmitComment,
+                resubmitDetails,
+                resubmitApprovalSought);
+
+            popupMessage = "Request resubmitted successfully.";
+            showSuccessPopup = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error resubmitting request: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private string GetPendingWithText()
+    {
+        if (request == null)
+            return "-";
+
+        if (request.Status == "Approved")
+            return "Completed";
+
+        if (request.Status == "Rejected")
+            return "Rejected";
+
+        if (request.Status == "MoreInfoRequested")
+            return "Returned to Initiator";
+
+        if (request.CurrentApproverWorker != null)
+        {
+            return $"{request.CurrentApproverWorker.FirstName} " +
+                   $"{request.CurrentApproverWorker.LastName}";
+        }
+
+        return FormatApproverType(request.CurrentApproverType ?? "");
+    }
+
+    private MarkupString GetFinalApprovedByMarkup()
+    {
+        if (request?.Status != "Approved")
+        {
+            return new MarkupString(
+                "<span class='text-danger fw-bold'>Not yet approved</span>");
+        }
+
+        if (finalApprovalDecision?.DecisionByWorker != null)
+        {
+            var name =
+                $"{finalApprovalDecision.DecisionByWorker.FirstName} " +
+                $"{finalApprovalDecision.DecisionByWorker.LastName}";
+
+            return new MarkupString(
+                $"<span class='text-success fw-bold'>{System.Net.WebUtility.HtmlEncode(name)}</span>");
+        }
+
+        return new MarkupString(
+            "<span class='text-success fw-bold'>Approved</span>");
+    }
+
+    private MarkupString GetAmountApprovedMarkup()
+    {
+        if (financialDetails?.AmountApproved.HasValue == true)
+        {
+            return new MarkupString(
+                $"<span class='text-success fw-bold'>₦{financialDetails.AmountApproved.Value:N2}</span>");
+        }
+
+        return new MarkupString(
+            "<span class='text-danger fw-bold'>Not yet approved</span>");
+    }
+
+    private string GetWorkflowStepStatus(ApprovalWorkflowStep step)
+    {
+        if (request == null)
+            return "upcoming";
+
+        if (request.Status == "Rejected" &&
+            request.CurrentStepOrder == step.StepOrder)
+        {
+            return "rejected";
+        }
+
+        if (request.Status == "MoreInfoRequested" &&
+            request.CurrentStepOrder == step.StepOrder)
+        {
+            return "returned";
+        }
+
+        if (request.Status == "Approved")
+            return "completed";
+
+        if (step.StepOrder < request.CurrentStepOrder)
+            return "completed";
+
+        if (step.StepOrder == request.CurrentStepOrder)
+            return "current";
+
+        return "upcoming";
+    }
+
+    private string GetWorkflowStepIcon(string status)
+    {
+        return status switch
+        {
+            "completed" => "fas fa-check",
+            "current" => "fas fa-hourglass-half",
+            "rejected" => "fas fa-times",
+            "returned" => "fas fa-reply",
+            _ => "fas fa-circle"
+        };
+    }
+
+    private string GetWorkflowStepDescription(
+        ApprovalWorkflowStep step,
+        string status)
+    {
+        return status switch
+        {
+            "completed" => "Completed",
+            "current" => GetCurrentStepDescription(step),
+            "rejected" => "Request rejected at this level",
+            "returned" => "More information requested",
+            _ => "Pending"
+        };
+    }
+
+    private string GetCurrentStepDescription(ApprovalWorkflowStep step)
+    {
+        if (request?.CurrentApproverWorker != null)
+        {
+            return $"Pending with {request.CurrentApproverWorker.FirstName} " +
+                   $"{request.CurrentApproverWorker.LastName}";
+        }
+
+        return $"Pending with {FormatApproverType(step.ApproverType)}";
+    }
+
+    private string FormatApproverType(string approverType)
+    {
+        return approverType switch
+        {
+            "HeadOfDirectorate" => "Head of Directorate",
+            "HeadOfService" => "Head of Service",
+            "Pastor" => "Pastor",
+            "ChurchAdmin" => "Church Admin",
+            "SpecificWorker" => "Assigned Worker",
+            "PrivilegeBased" => "Authorized Reviewer",
+            _ => string.IsNullOrWhiteSpace(approverType)
+                ? "Not assigned"
+                : approverType
+        };
+    }
+
+    private string GetTimelineActionName(string actionType)
+    {
+        return actionType switch
+        {
+            "MoreInfoRequested" => "More Information Requested",
+            "Resubmitted" => "Request Resubmitted",
+            "Submitted" => "Request Submitted",
+            "Approved" => "Request Approved",
+            "Rejected" => "Request Rejected",
+            "Forwarded" => "Request Forwarded",
+            "Commented" => "Comment Added",
+            _ => actionType
+        };
+    }
+
+    private string GetTimelineIcon(string actionType)
+    {
+        return actionType switch
+        {
+            "Submitted" => "fas fa-paper-plane",
+            "Approved" => "fas fa-check",
+            "Rejected" => "fas fa-times",
+            "MoreInfoRequested" => "fas fa-question",
+            "Resubmitted" => "fas fa-reply",
+            "Forwarded" => "fas fa-share",
+            _ => "fas fa-circle"
+        };
+    }
+
+    private string GetTimelineDotClass(string actionType)
+    {
+        return actionType switch
+        {
+            "Approved" => "timeline-success",
+            "Rejected" => "timeline-danger",
+            "MoreInfoRequested" => "timeline-warning",
+            "Resubmitted" => "timeline-primary",
+            "Submitted" => "timeline-primary",
+            _ => "timeline-secondary"
+        };
+    }
+
+    private string GetTimelineBadgeClass(string actionType)
+    {
+        return actionType switch
+        {
+            "Approved" => "badge bg-success",
+            "Rejected" => "badge bg-danger",
+            "MoreInfoRequested" => "badge bg-warning text-dark",
+            "Resubmitted" => "badge bg-primary",
+            "Submitted" => "badge bg-info text-dark",
+            _ => "badge bg-secondary"
+        };
+    }
+
+    private string GetAttachmentIcon(string fileName)
+    {
+        return Path.GetExtension(fileName).ToLowerInvariant() switch
+        {
+            ".pdf" => "fas fa-file-pdf text-danger",
+            ".doc" or ".docx" => "fas fa-file-word text-primary",
+            ".xls" or ".xlsx" => "fas fa-file-excel text-success",
+            ".jpg" or ".jpeg" or ".png" => "fas fa-file-image text-warning",
+            _ => "fas fa-file text-secondary"
+        };
+    }
+
+    private string FormatAttachmentSize(long bytes)
+    {
+        if (bytes >= 1024 * 1024)
+            return $"{bytes / (1024d * 1024d):0.##} MB";
+
+        if (bytes >= 1024)
+            return $"{bytes / 1024d:0.##} KB";
+
+        return $"{bytes} bytes";
+    }
+
     private RenderFragment InfoRow(string label, string value) => @<div class="bcc-info-row">
         <div class="bcc-info-label">@label</div>
         <div class="bcc-info-value">@value</div>
     </div>;
-    private async Task ApproveRequest()
-{
-    await ProcessAction("Approve");
+
+    private RenderFragment InfoRowMarkup(string label, MarkupString value) => @<div class="bcc-info-row">
+        <div class="bcc-info-label">@label</div>
+        <div class="bcc-info-value">@value</div>
+    </div>;
 }
 
-private async Task RejectRequest()
-{
-    await ProcessAction("Reject");
-}
-
-private async Task RequestMoreInfo()
-{
-    await ProcessAction("MoreInfo");
-}
-
-private async Task ProcessAction(string action)
-{
-    errorMessage = null;
-    successMessage = null;
-
-    if (AuthService.CurrentWorker == null)
-    {
-        errorMessage = "Unable to identify current worker.";
-        return;
+<style>
+    .approval-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.55);
     }
 
-    if (string.IsNullOrWhiteSpace(decisionComment))
-    {
-        errorMessage = "Comment is required before taking action.";
-        return;
+    .approval-popup-card {
+        width: 100%;
+        max-width: 420px;
+        padding: 32px;
+        text-align: center;
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
     }
 
-    try
-    {
-        if (action == "Approve")
-        {
-            await ApprovalRequestService.ApproveRequestAsync(
-                RequestId,
-                AuthService.CurrentWorker.Id,
-                decisionComment
-            );
+    .approval-popup-icon {
+        margin-bottom: 12px;
+        color: #16a34a;
+        font-size: 3rem;
+    }
 
-            successMessage = "Request approved successfully.";
+    .approval-popup-card h4 {
+        margin-bottom: 8px;
+        color: #0f172a;
+        font-weight: 800;
+    }
+
+    .approval-popup-card p {
+        margin-bottom: 24px;
+        color: #64748b;
+    }
+
+    .approval-rich-content {
+        overflow-wrap: anywhere;
+    }
+
+    .approval-rich-content p:last-child {
+        margin-bottom: 0;
+    }
+
+    .financial-approval-box {
+        padding: 16px;
+        border: 1px solid #bbf7d0;
+        border-left: 4px solid #16a34a;
+        border-radius: 12px;
+        background: #f0fdf4;
+    }
+
+    .approval-progress {
+        display: flex;
+        align-items: flex-start;
+        gap: 0;
+        overflow-x: auto;
+        padding: 16px 4px 8px;
+    }
+
+    .approval-progress-step {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        flex: 1;
+        min-width: 180px;
+    }
+
+    .approval-progress-step:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        top: 20px;
+        left: 42px;
+        right: 0;
+        height: 3px;
+        background: #e2e8f0;
+    }
+
+    .approval-progress-step.completed:not(:last-child)::after {
+        background: #16a34a;
+    }
+
+    .approval-progress-icon {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        flex-shrink: 0;
+        color: #64748b;
+        background: #e2e8f0;
+        border: 4px solid #ffffff;
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px #e2e8f0;
+    }
+
+    .approval-progress-content {
+        padding: 3px 14px 0 10px;
+    }
+
+    .approval-progress-content strong {
+        display: block;
+        color: #0f172a;
+        font-size: 0.9rem;
+    }
+
+    .approval-progress-content span {
+        display: block;
+        margin-top: 3px;
+        color: #64748b;
+        font-size: 0.78rem;
+        line-height: 1.35;
+    }
+
+    .approval-progress-step.completed .approval-progress-icon {
+        color: #ffffff;
+        background: #16a34a;
+        box-shadow: 0 0 0 1px #16a34a;
+    }
+
+    .approval-progress-step.current .approval-progress-icon {
+        color: #ffffff;
+        background: #f59e0b;
+        box-shadow: 0 0 0 1px #f59e0b;
+    }
+
+    .approval-progress-step.rejected .approval-progress-icon {
+        color: #ffffff;
+        background: #dc2626;
+        box-shadow: 0 0 0 1px #dc2626;
+    }
+
+    .approval-progress-step.returned .approval-progress-icon {
+        color: #ffffff;
+        background: #f97316;
+        box-shadow: 0 0 0 1px #f97316;
+    }
+
+    .approval-timeline-item {
+        align-items: flex-start;
+    }
+
+    .approval-timeline-item .worker360-timeline-dot {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        color: #ffffff;
+        border-radius: 50%;
+    }
+
+    .timeline-success {
+        background: #16a34a !important;
+    }
+
+    .timeline-danger {
+        background: #dc2626 !important;
+    }
+
+    .timeline-warning {
+        background: #f59e0b !important;
+    }
+
+    .timeline-primary {
+        background: #2563eb !important;
+    }
+
+    .timeline-secondary {
+        background: #64748b !important;
+    }
+
+    .approval-timeline-content {
+        width: 100%;
+        padding-bottom: 12px;
+    }
+
+    .approval-timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .approval-timeline-header > div {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .approval-timeline-header small {
+        color: #64748b;
+        white-space: nowrap;
+    }
+
+    .approval-timeline-user {
+        margin-top: 7px;
+        color: #475569;
+        font-size: 0.85rem;
+    }
+
+    .approval-timeline-comment {
+        margin-top: 10px;
+        padding: 12px 14px;
+        color: #334155;
+        white-space: pre-wrap;
+        background: #f8fafc;
+        border-left: 3px solid #6366f1;
+        border-radius: 8px;
+    }
+
+    .approval-timeline-movement {
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 0.78rem;
+    }
+
+    .approval-attachment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .approval-attachment-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding: 13px 15px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+    }
+
+    .approval-attachment-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .approval-attachment-icon {
+        flex-shrink: 0;
+        font-size: 1.35rem;
+    }
+
+    .approval-attachment-info > div:last-child {
+        min-width: 0;
+    }
+
+    .approval-attachment-info strong {
+        display: block;
+        color: #0f172a;
+        overflow-wrap: anywhere;
+    }
+
+    .approval-attachment-info span {
+        display: block;
+        margin-top: 3px;
+        color: #64748b;
+        font-size: 0.78rem;
+    }
+
+    @@media (max-width: 768px) {
+        .approval-progress {
+            flex-direction: column;
+            gap: 12px;
+            overflow-x: visible;
         }
-        else if (action == "Reject")
-        {
-            await ApprovalRequestService.RejectRequestAsync(
-                RequestId,
-                AuthService.CurrentWorker.Id,
-                decisionComment
-            );
 
-            successMessage = "Request rejected successfully.";
-        }
-        else if (action == "MoreInfo")
-        {
-            await ApprovalRequestService.RequestMoreInfoAsync(
-                RequestId,
-                AuthService.CurrentWorker.Id,
-                decisionComment
-            );
-
-            successMessage = "More information requested successfully.";
+        .approval-progress-step {
+            min-width: 100%;
         }
 
-        decisionComment = string.Empty;
-        await LoadRequest();
+        .approval-progress-step:not(:last-child)::after {
+            top: 42px;
+            bottom: -12px;
+            left: 20px;
+            right: auto;
+            width: 3px;
+            height: auto;
+        }
+
+        .approval-timeline-header {
+            flex-direction: column;
+        }
     }
-    catch (Exception ex)
-    {
-        errorMessage = $"Error processing action: {ex.Message}";
+
+    @@media (max-width: 576px) {
+        .approval-attachment-card {
+            align-items: flex-start;
+            flex-direction: column;
+        }
     }
-}
-}
+</style>

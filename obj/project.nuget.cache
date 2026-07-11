@@ -1,9 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "5ewwro+BLKE=",
+  "dgSpecHash": "Th6De4WLBLo=",
   "success": true,
   "projectFilePath": "C:\\NewChurchProj\\ChurchApp\\ChurchApp\\ChurchApp\\ChurchApp.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\rowland.adeoye\\.nuget\\packages\\anglesharp\\0.17.1\\anglesharp.0.17.1.nupkg.sha512",
+    "C:\\Users\\rowland.adeoye\\.nuget\\packages\\anglesharp.css\\0.17.0\\anglesharp.css.0.17.0.nupkg.sha512",
+    "C:\\Users\\rowland.adeoye\\.nuget\\packages\\htmlsanitizer\\9.0.892\\htmlsanitizer.9.0.892.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\microsoft.aspnetcore.authorization\\8.0.0\\microsoft.aspnetcore.authorization.8.0.0.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\microsoft.aspnetcore.components\\8.0.0\\microsoft.aspnetcore.components.8.0.0.nupkg.sha512",
@@ -53,6 +56,7 @@
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\sqlitepclraw.core\\2.1.6\\sqlitepclraw.core.2.1.6.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\sqlitepclraw.lib.e_sqlite3\\2.1.6\\sqlitepclraw.lib.e_sqlite3.2.1.6.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\sqlitepclraw.provider.e_sqlite3\\2.1.6\\sqlitepclraw.provider.e_sqlite3.2.1.6.nupkg.sha512",
+    "C:\\Users\\rowland.adeoye\\.nuget\\packages\\system.buffers\\4.5.1\\system.buffers.4.5.1.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\system.codedom\\4.4.0\\system.codedom.4.4.0.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\system.collections.immutable\\6.0.0\\system.collections.immutable.6.0.0.nupkg.sha512",
     "C:\\Users\\rowland.adeoye\\.nuget\\packages\\system.composition\\6.0.0\\system.composition.6.0.0.nupkg.sha512",

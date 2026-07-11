@@ -1,10 +1,17 @@
 ﻿@page "/approvals/new"
 @layout Components.Layout.MainLayout
+
+@using Microsoft.AspNetCore.Components.Forms
 @using ChurchApp.Models
 @using ChurchApp.Services
+@using ChurchApp.Components.Pages.Approvals.Forms
+
 @inject ApprovalRequestService ApprovalRequestService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject HtmlCleanService HtmlCleanService
+@inject LeaveRequestService LeaveRequestService
 
 <PageTitle>New Approval Request - BCC ServiceHub</PageTitle>
 
@@ -15,7 +22,8 @@
         @if (!string.IsNullOrWhiteSpace(errorMessage))
         {
             <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
             </div>
         }
 
@@ -25,15 +33,22 @@
                     <i class="fas fa-clipboard-check me-2"></i>
                     Approval Hub
                 </div>
-                <div class="bcc-page-title">New Approval Request</div>
+
+                <div class="bcc-page-title">
+                    New Approval Request
+                </div>
+
                 <div class="bcc-page-subtitle">
                     Submit leave, off-service, activity, financial, or general approval requests.
                 </div>
             </div>
 
             <div class="d-flex gap-2">
-                <button class="bcc-btn profile-form-secondary-btn" @onclick="GoBack">
-                    <i class="fas fa-arrow-left me-2"></i>Back
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
                 </button>
             </div>
         </div>
@@ -46,54 +61,230 @@
                         Request Information
                     </h5>
 
-                    <EditForm Model="@requestModel" OnValidSubmit="SubmitRequest">
+                    <EditForm Model="@requestModel">
+
                         <DataAnnotationsValidator />
 
                         <div class="row g-3">
+
+                            <!-- Request type -->
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Request Type</label>
-                                <select class="form-select" @bind="requestModel.RequestTypeId">
-                                    <option value="0">-- Select Request Type --</option>
+                                <label class="form-label fw-bold">
+                                    Request Type
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <select class="form-select"
+                                        value="@requestModel.RequestTypeId"
+                                        @onchange="OnRequestTypeChanged">
+                                    <option value="0">
+                                        -- Select Request Type --
+                                    </option>
+
                                     @foreach (var type in requestTypes)
                                     {
-                                        <option value="@type.Id">@type.Name</option>
+                                        <option value="@type.Id">
+                                            @type.Name
+                                        </option>
                                     }
                                 </select>
                             </div>
 
+                            <!-- Subject -->
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Subject</label>
+                                <label class="form-label fw-bold">
+                                    Subject
+                                    <span class="text-danger">*</span>
+                                </label>
+
                                 <InputText class="form-control"
                                            @bind-Value="requestModel.Subject"
                                            placeholder="Brief title of the request" />
                             </div>
 
+                            <!-- Rich-text details -->
+                            @if (!IsLeaveRequest)
+{
+    <div class="col-12">
+        <label class="form-label fw-bold">
+            Details / Background
+            <span class="text-danger">*</span>
+        </label>
+
+        <div class="rich-editor-wrapper">
+            <div id="detailsEditor"
+                 class="bcc-rich-editor"></div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <label class="form-label fw-bold">
+            Approval Sought
+            <span class="text-danger">*</span>
+        </label>
+
+        <div class="rich-editor-wrapper">
+            <div id="approvalSoughtEditor"
+                 class="bcc-rich-editor"></div>
+        </div>
+    </div>
+}
+
+                            <!-- Financial request fields -->
+                            @if (IsFinancialRequest)
+                            {
+                                <div class="col-12">
+                                    <div class="profile-review-card financial-request-card">
+                                        <h6 class="mb-3">
+                                            <i class="fas fa-coins me-2"></i>
+                                            Financial Request Information
+                                        </h6>
+
+                                        <div class="row g-3">
+
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">
+                                                    Amount Requested
+                                                    <span class="text-danger">*</span>
+                                                </label>
+
+                                                <div class="input-group">
+                                                    <span class="input-group-text">₦</span>
+
+                                                    <InputNumber class="form-control"
+                                                                 @bind-Value="requestModel.AmountRequested"
+                                                                 placeholder="0.00" />
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">
+                                                    Budget Line
+                                                    <span class="text-muted fw-normal">
+                                                        (Optional)
+                                                    </span>
+                                                </label>
+
+                                                <InputText class="form-control"
+                                                           @bind-Value="requestModel.BudgetLine"
+                                                           placeholder="Example: Directorate programme budget" />
+                                            </div>
+
+                                            <div class="col-12">
+                                                <label class="form-label fw-bold">
+                                                    Financial Purpose
+                                                    <span class="text-danger">*</span>
+                                                </label>
+
+                                                <InputTextArea class="form-control"
+                                                               rows="3"
+                                                               @bind-Value="requestModel.FinancialPurpose"
+                                                               placeholder="Briefly state what the requested funds will be used for." />
+                                            </div>
+
+                                            <div class="col-12">
+                                                <label class="form-label fw-bold">
+                                                    Payment Details
+                                                    <span class="text-muted fw-normal">
+                                                        (Optional)
+                                                    </span>
+                                                </label>
+
+                                                <InputTextArea class="form-control"
+                                                               rows="3"
+                                                               @bind-Value="requestModel.PaymentDetails"
+                                                               placeholder="Provide relevant payment or disbursement instructions, where applicable." />
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            @if (IsLeaveRequest)
+                            {
+                             <div class="col-12">
+                           <LeaveRequestForm
+                              Model="@leaveRequestModel"
+                                 AvailableOfficers="@availableRelieveOfficers" />
+                                </div>
+                             }
+
+                            <!-- Attachments -->
                             <div class="col-12">
-                                <label class="form-label fw-bold">Details / Background</label>
-                                <InputTextArea class="form-control"
-                                               rows="5"
-                                               @bind-Value="requestModel.Details"
-                                               placeholder="Provide background, justification, and relevant details." />
+                                <label class="form-label fw-bold">
+                                    Supporting Documents
+                                    <span class="text-muted fw-normal">
+                                        (Optional)
+                                    </span>
+                                </label>
+
+                                <div class="approval-upload-box">
+                                    <InputFile OnChange="HandleFilesSelected"
+                                               multiple
+                                               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" />
+
+                                    <div class="mt-2 text-muted small">
+                                        Allowed files: PDF, Word, Excel and images.
+                                        Maximum 10 MB per file and 10 files per request.
+                                    </div>
+                                </div>
+
+                                @if (selectedFiles.Any())
+                                {
+                                    <div class="approval-selected-files mt-3">
+                                        @foreach (var file in selectedFiles)
+                                        {
+                                            <div class="approval-selected-file">
+                                                <div class="approval-selected-file-info">
+                                                    <i class="@GetFileIcon(file.Name)"></i>
+
+                                                    <span>
+                                                        <strong>@file.Name</strong>
+                                                        <small>@FormatFileSize(file.Size)</small>
+                                                    </span>
+                                                </div>
+
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        title="Remove file"
+                                                        @onclick="() => RemoveSelectedFile(file)">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                }
                             </div>
 
-                            <div class="col-12">
-                                <label class="form-label fw-bold">Approval Sought</label>
-                                <InputTextArea class="form-control"
-                                               rows="4"
-                                               @bind-Value="requestModel.ApprovalSought"
-                                               placeholder="Clearly state the specific approval, decision, authorization, or support being requested." />
-                            </div>
                         </div>
 
                         <div class="mt-4 d-flex justify-content-end gap-2">
-                            <button type="button" class="bcc-btn profile-form-secondary-btn" @onclick="ClearForm">
-                                <i class="fas fa-times me-2"></i>Clear
+                            <button type="button"
+                                    class="bcc-btn profile-form-secondary-btn"
+                                    disabled="@isSubmitting"
+                                    @onclick="ClearForm">
+                                <i class="fas fa-times me-2"></i>
+                                Clear
                             </button>
 
-                            <button type="submit" class="bcc-btn bcc-btn-primary">
-                                <i class="fas fa-paper-plane me-2"></i>Submit Request
+                            <button type="button"
+                                    class="bcc-btn bcc-btn-primary"
+                                    disabled="@isSubmitting"
+                                    @onclick="SubmitRequest">
+
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Submitting...</span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-paper-plane me-2"></i>
+                                    <span>Submit Request</span>
+                                }
                             </button>
                         </div>
+
                     </EditForm>
                 </div>
             </div>
@@ -106,74 +297,567 @@ else
         <i class="fas fa-lock"></i>
         <h4>Please Log In</h4>
         <p>You need to be logged in to submit an approval request.</p>
-        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+
+@if (showSuccessPopup)
+{
+    <div class="approval-popup-backdrop">
+        <div class="approval-popup-card">
+            <div class="approval-popup-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+
+            <h4>Request Submitted</h4>
+            <p>@popupMessage</p>
+
+            <button type="button"
+                    class="bcc-btn bcc-btn-primary"
+                    @onclick="CloseSuccessPopup">
+                OK
+            </button>
+        </div>
     </div>
 }
 
 @code {
     private List<ApprovalRequestType> requestTypes = new();
+    private List<IBrowserFile> selectedFiles = new();
+
     private ApprovalRequestFormModel requestModel = new();
+    private ApprovalRequestType? selectedRequestType;
+
     private string? errorMessage;
+    private string popupMessage = string.Empty;
+
+    private bool showSuccessPopup;
+    private bool isSubmitting;
+    private bool richTextEditorsInitialized;
+
+    private const long MaximumFileSize = 10 * 1024 * 1024;
+    private const int MaximumFileCount = 10;
+    private LeaveRequestFormModel leaveRequestModel = new();
+
+    private List<Worker> availableRelieveOfficers = new();
+
+    private bool IsLeaveRequest =>
+        string.Equals(
+            selectedRequestType?.Code,
+            "Leave-Request",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool IsFinancialRequest =>
+        string.Equals(
+            selectedRequestType?.Code,
+            "Financial-Request",
+            StringComparison.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {
-        requestTypes = await ApprovalRequestService.GetActiveRequestTypesAsync();
+        try
+        {
+            requestTypes =
+                await ApprovalRequestService
+                    .GetActiveRequestTypesAsync();
+
+            if (AuthService.CurrentWorker != null)
+            {
+                availableRelieveOfficers =
+                    await LeaveRequestService
+                        .GetAvailableRelieveOfficersAsync(
+                            AuthService.CurrentWorker.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load the request page: {ex.Message}";
+        }
     }
 
-    private async Task SubmitRequest()
+   protected override async Task OnAfterRenderAsync(bool firstRender)
+{
+    if (!AuthService.IsAuthenticated ||
+        richTextEditorsInitialized ||
+        IsLeaveRequest)
+    {
+        return;
+    }
+
+    try
+    {
+        await JS.InvokeVoidAsync(
+            "bccQuill.init",
+            "detailsEditor",
+            requestModel.Details);
+
+        await JS.InvokeVoidAsync(
+            "bccQuill.init",
+            "approvalSoughtEditor",
+            requestModel.ApprovalSought);
+
+        richTextEditorsInitialized = true;
+    }
+    catch (Exception ex)
+    {
+        errorMessage =
+            $"Rich text editor could not be initialized: {ex.Message}";
+
+        StateHasChanged();
+    }
+}
+
+ private void OnRequestTypeChanged(ChangeEventArgs e)
+{
+    errorMessage = null;
+
+    if (int.TryParse(
+            e.Value?.ToString(),
+            out var requestTypeId) &&
+        requestTypeId > 0)
+    {
+        requestModel.RequestTypeId = requestTypeId;
+
+        selectedRequestType = requestTypes
+            .FirstOrDefault(x => x.Id == requestTypeId);
+    }
+    else
+    {
+        requestModel.RequestTypeId = 0;
+        selectedRequestType = null;
+    }
+
+    if (!IsFinancialRequest)
+    {
+        ClearFinancialFields();
+    }
+
+    if (!IsLeaveRequest)
+    {
+        leaveRequestModel.Clear();
+    }
+
+    /*
+     * The editor elements may be removed or recreated when
+     * changing between Leave and other request types.
+     */
+    richTextEditorsInitialized = false;
+}
+  
+    private void ClearFinancialFields()
+    {
+        requestModel.AmountRequested = null;
+        requestModel.FinancialPurpose = string.Empty;
+        requestModel.BudgetLine = string.Empty;
+        requestModel.PaymentDetails = string.Empty;
+    }
+
+    private void HandleFilesSelected(InputFileChangeEventArgs e)
     {
         errorMessage = null;
 
-        if (AuthService.CurrentWorker == null)
+        IReadOnlyList<IBrowserFile> newFiles;
+
+        try
         {
-            errorMessage = "Unable to identify current worker.";
+            newFiles = e.GetMultipleFiles(MaximumFileCount);
+        }
+        catch (InvalidOperationException)
+        {
+            errorMessage =
+                $"A maximum of {MaximumFileCount} files can be uploaded.";
+
             return;
         }
 
-        if (requestModel.RequestTypeId <= 0)
+        foreach (var file in newFiles)
         {
-            errorMessage = "Please select request type.";
-            return;
+            if (selectedFiles.Count >= MaximumFileCount)
+            {
+                errorMessage =
+                    $"A maximum of {MaximumFileCount} files can be uploaded.";
+
+                break;
+            }
+
+            if (file.Size <= 0)
+            {
+                errorMessage =
+                    $"{file.Name} is empty and cannot be uploaded.";
+
+                continue;
+            }
+
+            if (file.Size > MaximumFileSize)
+            {
+                errorMessage =
+                    $"{file.Name} is larger than the permitted 10 MB limit.";
+
+                continue;
+            }
+
+            if (!IsAllowedFile(file))
+            {
+                errorMessage =
+                    $"{file.Name} is not an allowed file type.";
+
+                continue;
+            }
+
+            var alreadySelected = selectedFiles.Any(x =>
+                x.Name.Equals(
+                    file.Name,
+                    StringComparison.OrdinalIgnoreCase) &&
+                x.Size == file.Size);
+
+            if (!alreadySelected)
+            {
+                selectedFiles.Add(file);
+            }
         }
-
-        if (string.IsNullOrWhiteSpace(requestModel.Subject))
-        {
-            errorMessage = "Subject is required.";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(requestModel.Details))
-        {
-            errorMessage = "Details / Background is required.";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(requestModel.ApprovalSought))
-        {
-            errorMessage = "Approval Sought is required.";
-            return;
-        }
-
-        var newRequestId = await ApprovalRequestService.CreateAndSubmitRequestAsync(
-            requestModel.RequestTypeId,
-            requestModel.Subject,
-            requestModel.Details,
-            requestModel.ApprovalSought,
-            AuthService.CurrentWorker.Id
-        );
-
-        Navigation.NavigateTo($"/approvals/details/{newRequestId}");
     }
 
-    private void ClearForm()
+    private bool IsAllowedFile(IBrowserFile file)
     {
-        requestModel = new ApprovalRequestFormModel();
-        errorMessage = null;
+        var extension =
+            Path.GetExtension(file.Name).ToLowerInvariant();
+
+        string[] allowedExtensions =
+        {
+            ".pdf",
+            ".doc",
+            ".docx",
+            ".xls",
+            ".xlsx",
+            ".jpg",
+            ".jpeg",
+            ".png"
+        };
+
+        return allowedExtensions.Contains(extension);
+    }
+
+    private void RemoveSelectedFile(IBrowserFile file)
+    {
+        selectedFiles.Remove(file);
+    }
+
+  private async Task SubmitRequest()
+{
+    if (isSubmitting)
+        return;
+
+    errorMessage = null;
+
+    if (AuthService.CurrentWorker == null)
+    {
+        errorMessage =
+            "Unable to identify the current worker.";
+
+        return;
+    }
+
+    if (requestModel.RequestTypeId <= 0)
+    {
+        errorMessage =
+            "Please select a request type.";
+
+        return;
+    }
+
+    if (string.IsNullOrWhiteSpace(requestModel.Subject))
+    {
+        errorMessage =
+            "Subject is required.";
+
+        return;
+    }
+
+    /*
+     * Validate Financial Request-specific fields.
+     */
+    if (IsFinancialRequest)
+    {
+        if (!requestModel.AmountRequested.HasValue ||
+            requestModel.AmountRequested.Value <= 0)
+        {
+            errorMessage =
+                "Please enter a valid amount requested.";
+
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(
+            requestModel.FinancialPurpose))
+        {
+            errorMessage =
+                "Please state the financial purpose.";
+
+            return;
+        }
+    }
+
+    /*
+     * Validate Leave Request-specific fields.
+     */
+    if (IsLeaveRequest)
+    {
+        try
+        {
+            LeaveRequestService.Validate(
+                leaveRequestModel);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            return;
+        }
+    }
+
+    try
+    {
+        isSubmitting = true;
+
+        /*
+         * Leave Request does not display the common
+         * Details and Approval Sought editors.
+         *
+         * Populate the common fields automatically so that
+         * the core ApprovalRequest record remains complete.
+         */
+        if (IsLeaveRequest)
+        {
+            requestModel.Details =
+                HtmlCleanService.Clean(
+                    leaveRequestModel.Purpose.Trim());
+
+            requestModel.ApprovalSought =
+                HtmlCleanService.Clean(
+                    "Kindly approve my leave as requested.");
+        }
+        else
+        {
+            var rawDetails =
+                await JS.InvokeAsync<string>(
+                    "bccQuill.getHtml",
+                    "detailsEditor");
+
+            var rawApprovalSought =
+                await JS.InvokeAsync<string>(
+                    "bccQuill.getHtml",
+                    "approvalSoughtEditor");
+
+            requestModel.Details =
+                HtmlCleanService.Clean(rawDetails);
+
+            requestModel.ApprovalSought =
+                HtmlCleanService.Clean(
+                    rawApprovalSought);
+        }
+
+        /*
+         * Common validation after either:
+         * - reading Quill; or
+         * - generating Leave defaults.
+         */
+        if (IsRichTextEmpty(requestModel.Details))
+        {
+            errorMessage =
+                "Details / Background is required.";
+
+            return;
+        }
+
+        if (IsRichTextEmpty(
+            requestModel.ApprovalSought))
+        {
+            errorMessage =
+                "Approval Sought is required.";
+
+            return;
+        }
+
+        /*
+         * 1. Create the common Approval Request.
+         */
+        var newRequestId =
+            await ApprovalRequestService
+                .CreateAndSubmitRequestAsync(
+                    requestModel.RequestTypeId,
+                    requestModel.Subject,
+                    requestModel.Details,
+                    requestModel.ApprovalSought,
+                    AuthService.CurrentWorker.Id);
+
+        /*
+         * 2. Save Financial Request-specific details.
+         */
+        if (IsFinancialRequest &&
+            requestModel.AmountRequested.HasValue)
+        {
+            await ApprovalRequestService
+                .SaveFinancialRequestDetailsAsync(
+                    newRequestId,
+                    requestModel.AmountRequested.Value,
+                    requestModel.FinancialPurpose,
+                    requestModel.BudgetLine,
+                    requestModel.PaymentDetails);
+        }
+
+        /*
+         * 3. Save Leave Request-specific details.
+         */
+        if (IsLeaveRequest)
+        {
+            await LeaveRequestService
+                .SaveLeaveRequestDetailsAsync(
+                    newRequestId,
+                    leaveRequestModel);
+        }
+
+        /*
+         * 4. Save supporting attachments.
+         */
+        if (selectedFiles.Any())
+        {
+            await ApprovalRequestService
+                .SaveAttachmentsAsync(
+                    newRequestId,
+                    AuthService.CurrentWorker.Id,
+                    selectedFiles);
+        }
+
+        /*
+         * 5. Reload the request to obtain
+         * the actual assigned approver.
+         */
+        var submittedRequest =
+            await ApprovalRequestService
+                .GetRequestByIdAsync(
+                    newRequestId);
+
+        var approverName =
+            submittedRequest?.CurrentApproverWorker != null
+                ? $"{submittedRequest.CurrentApproverWorker.FirstName} " +
+                  $"{submittedRequest.CurrentApproverWorker.LastName}"
+                : FormatApproverType(
+                    submittedRequest?.CurrentApproverType);
+
+        popupMessage =
+            $"Your request has been sent to {approverName} for approval.";
+
+        showSuccessPopup = true;
+    }
+    catch (Exception ex)
+    {
+        errorMessage =
+            $"Error submitting request: {ex.Message}";
+    }
+    finally
+    {
+        isSubmitting = false;
+    }
+}
+
+    private bool IsRichTextEmpty(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return true;
+
+        var text = System.Text.RegularExpressions.Regex.Replace(
+            html,
+            "<.*?>",
+            string.Empty);
+
+        text = System.Net.WebUtility.HtmlDecode(text)
+            .Replace("\u00A0", " ")
+            .Trim();
+
+        return string.IsNullOrWhiteSpace(text);
+    }
+
+    private async Task ClearForm()
+{
+    requestModel = new ApprovalRequestFormModel();
+    selectedRequestType = null;
+    selectedFiles.Clear();
+
+    leaveRequestModel.Clear();
+
+    errorMessage = null;
+    richTextEditorsInitialized = false;
+
+    try
+    {
+        await JS.InvokeVoidAsync(
+            "bccQuill.clear",
+            "detailsEditor");
+
+        await JS.InvokeVoidAsync(
+            "bccQuill.clear",
+            "approvalSoughtEditor");
+    }
+    catch
+    {
+        // Editors may not exist when Leave Request is selected.
+    }
+}
+
+    private void CloseSuccessPopup()
+    {
+        showSuccessPopup = false;
+        Navigation.NavigateTo("/approvals/my-requests");
     }
 
     private void GoBack()
     {
         Navigation.NavigateTo("/");
+    }
+
+    private string FormatApproverType(string? approverType)
+    {
+        return approverType switch
+        {
+            "HeadOfDirectorate" => "the Head of Directorate",
+            "HeadOfService" => "the Head of Service",
+            "Pastor" => "the Pastor",
+            "ChurchAdmin" => "the Church Administrator",
+            "SpecificWorker" => "the assigned reviewer",
+            "PrivilegeBased" => "an authorized reviewer",
+            _ => "the appropriate approver"
+        };
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes >= 1024 * 1024)
+            return $"{bytes / (1024d * 1024d):0.##} MB";
+
+        if (bytes >= 1024)
+            return $"{bytes / 1024d:0.##} KB";
+
+        return $"{bytes} bytes";
+    }
+
+    private string GetFileIcon(string fileName)
+    {
+        return Path.GetExtension(fileName)
+            .ToLowerInvariant() switch
+        {
+            ".pdf" => "fas fa-file-pdf text-danger",
+            ".doc" or ".docx" =>
+                "fas fa-file-word text-primary",
+            ".xls" or ".xlsx" =>
+                "fas fa-file-excel text-success",
+            ".jpg" or ".jpeg" or ".png" =>
+                "fas fa-file-image text-warning",
+            _ => "fas fa-file text-secondary"
+        };
     }
 
     private class ApprovalRequestFormModel
@@ -185,6 +869,149 @@ else
         public string Details { get; set; } = string.Empty;
 
         public string ApprovalSought { get; set; } = string.Empty;
+
+        /*
+         * Financial Request fields
+         */
+        public decimal? AmountRequested { get; set; }
+
+        public string FinancialPurpose { get; set; } =
+            string.Empty;
+
+        public string BudgetLine { get; set; } =
+            string.Empty;
+
+        public string PaymentDetails { get; set; } =
+            string.Empty;
     }
 }
+
+<style>
+    .financial-request-card {
+        border-left: 4px solid #16a34a;
+        background: #f8fffa;
+    }
+
+    .rich-editor-wrapper {
+        margin-bottom: 12px;
+    }
+
+    .bcc-rich-editor {
+        background: #ffffff;
+        border-radius: 10px;
+    }
+
+        .bcc-rich-editor .ql-toolbar {
+            border-radius: 10px 10px 0 0;
+        }
+
+        .bcc-rich-editor .ql-container {
+            min-height: 220px;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .bcc-rich-editor .ql-editor {
+            min-height: 220px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+    .approval-upload-box {
+        padding: 18px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .approval-selected-files {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .approval-selected-file {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding: 13px 15px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #ffffff;
+    }
+
+    .approval-selected-file-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+        .approval-selected-file-info > i {
+            flex-shrink: 0;
+            font-size: 1.35rem;
+        }
+
+        .approval-selected-file-info span {
+            min-width: 0;
+        }
+
+        .approval-selected-file-info strong {
+            display: block;
+            color: #0f172a;
+            overflow-wrap: anywhere;
+        }
+
+        .approval-selected-file-info small {
+            display: block;
+            margin-top: 3px;
+            color: #64748b;
+            font-size: 0.78rem;
+        }
+
+    .approval-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 3000;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.55);
+    }
+
+    .approval-popup-card {
+        width: 100%;
+        max-width: 440px;
+        padding: 32px;
+        text-align: center;
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    }
+
+    .approval-popup-icon {
+        margin-bottom: 12px;
+        color: #16a34a;
+        font-size: 3rem;
+    }
+
+    .approval-popup-card h4 {
+        margin-bottom: 8px;
+        color: #0f172a;
+        font-weight: 800;
+    }
+
+    .approval-popup-card p {
+        margin-bottom: 24px;
+        color: #64748b;
+    }
+
+    @@media (max-width: 576px) {
+        .approval-selected-file {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>
 

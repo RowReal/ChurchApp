@@ -1,0 +1,137 @@
+﻿@using ChurchApp.Models
+
+@if (Details != null)
+{
+    <div class="worker360-section mt-4 leave-details-section">
+        <h5>
+            <i class="fas fa-umbrella-beach"></i>
+            Leave Information
+        </h5>
+
+        <div class="leave-summary-grid">
+
+            <div class="leave-summary-item">
+                <span>Start Date</span>
+                <strong>
+                    @Details.StartDate.ToString("dd MMMM yyyy")
+                </strong>
+            </div>
+
+            <div class="leave-summary-item">
+                <span>End Date</span>
+                <strong>
+                    @Details.EndDate.ToString("dd MMMM yyyy")
+                </strong>
+            </div>
+
+            <div class="leave-summary-item">
+                <span>Duration</span>
+                <strong>
+                    @Details.DurationInDays
+                    @(Details.DurationInDays == 1
+                                    ? "day"
+                                    : "days")
+                                         </strong>
+                                     </div>
+
+            <div class="leave-summary-item">
+                <span>Relieve Officer</span>
+                <strong>
+                    @GetWorkerName(Details.RelieveOfficer)
+                </strong>
+            </div>
+
+            <div class="leave-summary-item leave-summary-wide">
+                <span>Purpose of Leave</span>
+                <strong>
+                    @Details.Purpose
+                </strong>
+            </div>
+
+            <div class="leave-summary-item leave-summary-wide">
+                <span>Pending Assignments or Projects</span>
+                <strong>
+                    @(string.IsNullOrWhiteSpace(
+                                    Details.PendingAssignments)
+                                    ? "None provided"
+                                    : Details.PendingAssignments)
+                                                             </strong>
+                                                         </div>
+
+            <div class="leave-summary-item leave-summary-wide">
+                <span>Assignment Handler</span>
+                <strong>
+                    @(string.IsNullOrWhiteSpace(
+                                    Details.AssignmentHandler)
+                                    ? "Not provided"
+                                    : Details.AssignmentHandler)
+            </strong>
+        </div>
+
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public LeaveRequestDetail? Details { get; set; }
+
+    private static string GetWorkerName(
+        Worker? worker)
+    {
+        if (worker == null)
+            return "Not available";
+
+        return $"{worker.FirstName} {worker.LastName}".Trim();
+    }
+}
+
+<style>
+    .leave-details-section {
+        border-left: 4px solid #0284c7;
+    }
+
+    .leave-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .leave-summary-item {
+        padding: 15px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+        .leave-summary-item span {
+            display: block;
+            margin-bottom: 5px;
+            color: #64748b;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .leave-summary-item strong {
+            display: block;
+            color: #0f172a;
+            font-weight: 700;
+            white-space: pre-wrap;
+        }
+
+    .leave-summary-wide {
+        grid-column: 1 / -1;
+    }
+
+    @@media (max-width: 768px) {
+        .leave-summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .leave-summary-wide {
+            grid-column: auto;
+        }
+    }
+</style>

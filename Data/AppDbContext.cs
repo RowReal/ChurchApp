@@ -53,6 +53,9 @@ namespace ChurchApp.Data
         public DbSet<ApprovalDecision> ApprovalDecisions { get; set; }
         public DbSet<ApprovalWorkflowRecipient> ApprovalWorkflowRecipients { get; set; }
         public DbSet<ApprovalWorkflowCondition> ApprovalWorkflowConditions { get; set; }
+        public DbSet<FinancialRequestDetail> FinancialRequestDetails { get; set; }
+        public DbSet<LeaveRequestDetail> LeaveRequestDetails { get; set; }
+        public DbSet<OffServiceRequestDetail> OffServiceRequestDetails { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -763,6 +766,62 @@ namespace ChurchApp.Data
                 .WithMany()
                 .HasForeignKey(x => x.WorkflowDefinitionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<FinancialRequestDetail>()
+    .HasOne(x => x.ApprovalRequest)
+    .WithOne()
+    .HasForeignKey<FinancialRequestDetail>(x => x.ApprovalRequestId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<FinancialRequestDetail>()
+                .Property(x => x.AmountRequested)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<FinancialRequestDetail>()
+                .HasIndex(x => x.ApprovalRequestId)
+                .IsUnique();
+            modelBuilder.Entity<FinancialRequestDetail>()
+    .Property(x => x.AmountApproved)
+    .HasPrecision(18, 2);
+
+            modelBuilder.Entity<LeaveRequestDetail>()
+    .HasOne(x => x.ApprovalRequest)
+    .WithOne()
+    .HasForeignKey<LeaveRequestDetail>(
+        x => x.ApprovalRequestId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<LeaveRequestDetail>()
+                .HasIndex(x => x.ApprovalRequestId)
+                .IsUnique();
+
+            modelBuilder.Entity<LeaveRequestDetail>()
+                .HasOne(x => x.RelieveOfficer)
+                .WithMany()
+                .HasForeignKey(x => x.RelieveOfficerId)
+                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<OffServiceRequestDetail>()
+    .HasOne(x => x.ApprovalRequest)
+    .WithOne()
+    .HasForeignKey<OffServiceRequestDetail>(
+        x => x.ApprovalRequestId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<OffServiceRequestDetail>()
+                .HasIndex(x => x.ApprovalRequestId)
+                .IsUnique();
+
+            modelBuilder.Entity<OffServiceRequestDetail>()
+                .HasOne(x => x.Service)
+                .WithMany()
+                .HasForeignKey(x => x.ServiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<OffServiceRequestDetail>()
+                .HasOne(x => x.NominatedBackupWorker)
+                .WithMany()
+                .HasForeignKey(x => x.NominatedBackupWorkerId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
 
     }

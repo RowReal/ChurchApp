@@ -11,6 +11,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// for troubleshooting
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.Configure<Microsoft.AspNetCore.Components.Server.CircuitOptions>(options =>
+    {
+        options.DetailedErrors = true;
+    });
+}
+
 
 // 1?? Determine dbPath and optional seed (your existing code)
 string dataFolder;
@@ -66,7 +75,7 @@ builder.Services.AddScoped<ChurchNoticeService>();
 builder.Services.AddScoped<VerseOfTheDayService>();
 builder.Services.AddScoped<PrayerFocusService>();
 builder.Services.AddScoped<PrivilegeService>();
-builder.Services.AddScoped<ApprovalRequestService>();
+
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.Configure<EmailConfiguration>(
@@ -75,6 +84,20 @@ builder.Services.Configure<EmailConfiguration>(
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<ExcuseService>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<HtmlCleanService>();
+// Approval services
+builder.Services.AddScoped<FinancialRequestService>();
+builder.Services.AddScoped<ApprovalAttachmentService>();
+builder.Services.AddScoped<ApprovalNotificationService>();
+builder.Services.AddScoped<ApprovalRoutingService>();
+builder.Services.AddScoped<ApprovalWorkflowService>();
+builder.Services.AddScoped<ApprovalQueryService>();
+builder.Services.AddScoped<ApprovalDecisionService>();
+builder.Services.AddScoped<ApprovalSubmissionService>();
+builder.Services.AddScoped<LeaveRequestService>();
+
+
+builder.Services.AddScoped<ApprovalRequestService>();
 
 var app = builder.Build();
 

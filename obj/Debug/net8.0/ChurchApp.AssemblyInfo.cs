@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ChurchApp")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e4dc3ff2ce17370edb3204596a7a28ac4f8694a6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b353f4778af3323e62013f0fc1dda1efcb7aab0c")]
 [assembly: System.Reflection.AssemblyProductAttribute("ChurchApp")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ChurchApp")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

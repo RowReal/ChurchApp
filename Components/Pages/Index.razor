@@ -16,6 +16,7 @@
 @inject ChurchNoticeService ChurchNoticeService
 @inject VerseOfTheDayService VerseService
 @inject PrayerFocusService PrayerFocusService
+@inject ApprovalRequestService ApprovalRequestService
 
 <PageTitle>BCC ServiceHub - Dashboard</PageTitle>
 
@@ -74,7 +75,7 @@
 
         <!-- Quick Stats with Representative Images -->
         <div class="row mb-4">
-            @if (IsChurchAdmin() || IsHeadOfMeatDirectorate())
+            @if (IsChurchAdmin() || IsHeadOfMeatDirectorate() || IsPastor())
             {
                 <!-- Church Admin & Head of MEAT Stats -->
                 <div class="col-6 col-md-3 mb-3">
@@ -191,8 +192,8 @@
                             </div>
                         </div>
                         <div class="stat-content">
-                            <h3 class="stat-number">@GetFormattedDaysInBCC()</h3>
-                            <p class="stat-label">Time in BCC</p>
+                            <h3 class="stat-label">My Attendance</h3>
+                            <p class="stat-label">Coming Soon...</p>
                         </div>
                     </div>
                 </div>
@@ -270,8 +271,8 @@
                             </div>
                         </div>
                         <div class="stat-content">
-                            <h3 class="stat-number">@GetFormattedDaysInBCC()</h3>
-                            <p class="stat-label">Time in BCC</p>
+                            <h3 class="stat-label">My Attendance</h3>
+                            <p class="stat-label">Coming Soon...</p>
                         </div>
                     </div>
                 </div>
@@ -389,32 +390,21 @@
                 </div>
 
                 <div class="col-6 col-sm-4 col-lg-3">
-                    <a href="/excuse/my-requests" class="action-card">
-                        <div class="action-image">
-                            <i class="fas fa-calendar-times"></i>
-                        </div>
-                        <span class="action-text">Off Service</span>
+    <a href="/workspace/my-desk" class="action-card">
+        <div class="action-image">
+            <i class="fas fa-clipboard-check"></i>
+        </div>
 
-                        @if (myPendingExcuses > 0)
-                        {
-                            <span class="pending-badge">@myPendingExcuses</span>
-                        }
-                    </a>
-                </div>
+        <span class="action-text">My Desk</span>
 
-                <div class="col-6 col-sm-4 col-lg-3">
-                    <a href="/excuse/mybreak-requests" class="action-card">
-                        <div class="action-image">
-                            <i class="fas fa-umbrella-beach"></i>
-                        </div>
-                        <span class="action-text">Break Request</span>
-
-                        @if (pendingBreakCount > 0)
-                        {
-                            <span class="pending-badge">@pendingBreakCount</span>
-                        }
-                    </a>
-                </div>
+        @if (myDeskCount > 0)
+        {
+            <span class="pending-badge">
+                @myDeskCount
+            </span>
+        }
+    </a>
+</div>
 
                 <div class="col-6 col-sm-4 col-lg-3">
                     <a href="/Workforce/feedback" class="action-card">
@@ -1305,6 +1295,9 @@ else
     private int pendingExcuseApprovals = 0;
     private int pendingBreakApprovals = 0;
     private int pendingApprovalCount = 0;
+    
+private int returnedRequestCount;
+private int myDeskCount;
     private List<Worker> birthdayWorkers = new();
    private List<ChurchNotice> dashboardNotices = new();
 
@@ -1322,9 +1315,37 @@ private VerseOfTheDay? todayVerse;
         if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
         {
             await LoadDashboardData();
+            await LoadMyDeskCountsAsync();
         }
     }
+    private async Task LoadMyDeskCountsAsync()
+{
+    try
+    {
+        if (AuthService.CurrentWorker == null)
+            return;
 
+        var workerId =
+            AuthService.CurrentWorker.Id;
+
+        pendingApprovalCount =
+            await ApprovalRequestService
+                .GetPendingApprovalCountAsync(workerId);
+
+        returnedRequestCount =
+            await ApprovalRequestService
+                .GetReturnedRequestCountAsync(workerId);
+
+        myDeskCount =
+            pendingApprovalCount +
+            returnedRequestCount;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"Unable to load My Desk counts: {ex.Message}");
+    }
+}
     private async Task LoadDashboardData()
     {
         try
@@ -1394,7 +1415,7 @@ todayVerse = await VerseService.GetTodayVerseAsync();
             }
 
             // Load admin statistics if applicable
-            if (IsChurchAdmin() || IsHeadOfMeatDirectorate())
+            if (IsChurchAdmin() || IsHeadOfMeatDirectorate() || IsPastor())
             {
                 var workers = await WorkerService.GetAllWorkersAsync();
                 totalWorkers = workers.Count;
@@ -1736,7 +1757,10 @@ todayVerse = await VerseService.GetTodayVerseAsync();
     {
         return AuthService.CurrentWorker?.Role?.Equals("Church Admin", StringComparison.OrdinalIgnoreCase) == true;
     }
-
+     private bool IsPastor()
+    {
+        return AuthService.CurrentWorker?.Role?.Equals("Pastor in Charge", StringComparison.OrdinalIgnoreCase) == true;
+    }
     private bool IsHeadOfMeatDirectorate()
     {
         var worker = AuthService.CurrentWorker;
@@ -3529,4 +3553,7 @@ todayVerse = await VerseService.GetTodayVerseAsync();
         font-size: 1.15rem !important;
     }
 }
+
+
+
 </style>

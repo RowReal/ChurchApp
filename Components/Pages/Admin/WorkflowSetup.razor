@@ -1,0 +1,446 @@
+﻿@page "/admin/workflow-setup"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ApprovalRequestService ApprovalRequestService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Workflow Setup - BCC ServiceHub</PageTitle>
+
+@if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+{
+    <div class="worker360-page">
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>@successMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
+            </div>
+        }
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-project-diagram me-2"></i>
+                    Administration
+                </div>
+                <div class="bcc-page-title">Workflow Setup</div>
+                <div class="bcc-page-subtitle">
+                    Configure approval levels, approver type, and final approval stage for each request workflow.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="bcc-btn profile-form-secondary-btn" @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>Back
+                </button>
+            </div>
+        </div>
+
+        <div class="bcc-card mb-4">
+            <div class="bcc-card-body">
+                <div class="worker360-section">
+                    <h5>
+                        <i class="fas fa-layer-group"></i>
+                        Select Workflow
+                    </h5>
+
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold">Workflow</label>
+                            <select class="form-select" @onchange="OnWorkflowChanged">
+                                <option value="0">-- Select Workflow --</option>
+                                @foreach (var workflow in workflows)
+                                {
+                                    <option value="@workflow.Id">
+                                        @workflow.RequestType?.Name - @workflow.Name
+                                    </option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <button class="bcc-btn bcc-btn-primary w-100"
+                                    disabled="@(selectedWorkflowId <= 0)"
+                                    @onclick="PrepareNewStep">
+                                <i class="fas fa-plus-circle me-2"></i>Add Step
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (selectedWorkflow != null)
+        {
+            <div class="bcc-card mb-4">
+                <div class="bcc-card-body">
+                    <div class="worker360-section">
+                        <h5>
+                            <i class="fas fa-info-circle"></i>
+                            Workflow Information
+                        </h5>
+
+                        <div class="worker360-grid two">
+                            @InfoRow("Request Type", selectedWorkflow.RequestType?.Name ?? "-")
+                            @InfoRow("Workflow Name", selectedWorkflow.Name)
+                            @InfoRow("Description", selectedWorkflow.Description ?? "-")
+                            @InfoRow("Status", selectedWorkflow.IsActive ? "Active" : "Inactive")
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bcc-card">
+                <div class="bcc-card-body">
+                    <div class="worker360-section">
+                        <h5>
+                            <i class="fas fa-route"></i>
+                            Approval Levels
+                        </h5>
+
+                        @if (steps.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>Level</th>
+                                            <th>Step Name</th>
+                                            <th>Approver Type</th>
+                                            <th>Final?</th>
+                                            <th>Actions Allowed</th>
+                                            <th class="text-end">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var step in steps)
+                                        {
+                                            <tr>
+                                                <td><strong>@step.StepOrder</strong></td>
+                                                <td>@step.StepName</td>
+                                                <td>@step.ApproverType</td>
+                                                <td>
+                                                    @if (step.IsFinalStep)
+                                                    {
+                                                        <span class="badge bg-success">Final</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary">No</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <small>
+                                                        Approve: @YesNo(step.CanApprove) |
+                                                        Reject: @YesNo(step.CanReject) |
+                                                        More Info: @YesNo(step.CanRequestMoreInfo)
+                                                    </small>
+                                                </td>
+                                                <td class="text-end">
+                                                    <button class="team-action-btn me-2" @onclick="() => EditStep(step)">
+                                                        <i class="fas fa-edit me-1"></i>Edit
+                                                    </button>
+
+                                                    <button class="team-danger-btn" @onclick="() => DeleteStep(step.Id)">
+                                                        <i class="fas fa-trash me-1"></i>Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="bcc-empty">
+                                <i class="fas fa-route"></i>
+                                <h4>No Workflow Step</h4>
+                                <p>No approval level has been configured for this workflow.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (showStepForm)
+        {
+            <div class="approval-popup-backdrop">
+                <div class="approval-workflow-modal">
+                    <h4>
+                        <i class="fas fa-route me-2"></i>
+                        @(editingStepId > 0 ? "Edit Workflow Step" : "Add Workflow Step")
+                    </h4>
+
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Level</label>
+                            <InputNumber class="form-control" @bind-Value="stepModel.StepOrder" />
+                        </div>
+
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold">Step Name</label>
+                            <InputText class="form-control" @bind-Value="stepModel.StepName" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Approver Type</label>
+                            <select class="form-select" @bind="stepModel.ApproverType">
+                                <option value="">-- Select --</option>
+                                <option value="HeadOfDirectorate">Head of Directorate</option>
+                                <option value="HeadOfService">Head / Assistant Head of Service</option>
+                                <option value="Pastor">Pastor</option>
+                                <option value="ChurchAdmin">Church Admin</option>
+                                <option value="SpecificWorker">Specific Worker</option>
+                                <option value="PrivilegeBased">Privilege Based</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Approver Role</label>
+                            <InputText class="form-control" @bind-Value="stepModel.ApproverRole" placeholder="Optional" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Privilege Code</label>
+                            <InputText class="form-control" @bind-Value="stepModel.ApproverPrivilegeCode" placeholder="Optional" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Specific Worker ID</label>
+                            <InputNumber class="form-control" @bind-Value="stepModel.SpecificApproverWorkerId" />
+                        </div>
+
+                        <div class="col-md-12">
+                            <div class="d-flex flex-wrap gap-3">
+                                <label><InputCheckbox @bind-Value="stepModel.CanApprove" /> Can Approve</label>
+                                <label><InputCheckbox @bind-Value="stepModel.CanReject" /> Can Reject</label>
+                                <label><InputCheckbox @bind-Value="stepModel.CanRequestMoreInfo" /> Can Request More Info</label>
+                                <label><InputCheckbox @bind-Value="stepModel.CanForward" /> Can Forward</label>
+                                <label><InputCheckbox @bind-Value="stepModel.IsFinalStep" /> Final Step</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 d-flex justify-content-end gap-2">
+                        <button class="bcc-btn profile-form-secondary-btn" @onclick="CloseStepForm">
+                            Cancel
+                        </button>
+
+                        <button class="bcc-btn bcc-btn-primary" @onclick="SaveStep">
+                            <i class="fas fa-save me-2"></i>Save Step
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You don't have permission to access workflow setup.</p>
+        <a href="/" class="bcc-btn bcc-btn-primary">Return to Dashboard</a>
+    </div>
+}
+
+@code {
+    private List<ApprovalWorkflowDefinition> workflows = new();
+    private List<ApprovalWorkflowStep> steps = new();
+
+    private int selectedWorkflowId;
+    private ApprovalWorkflowDefinition? selectedWorkflow;
+
+    private bool showStepForm = false;
+    private int editingStepId = 0;
+
+    private ApprovalWorkflowStep stepModel = new();
+
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWorkflows();
+    }
+
+    private async Task LoadWorkflows()
+    {
+        workflows = await ApprovalRequestService.GetWorkflowDefinitionsAsync();
+    }
+
+    private async Task OnWorkflowChanged(ChangeEventArgs e)
+    {
+        successMessage = null;
+        errorMessage = null;
+
+        if (int.TryParse(e.Value?.ToString(), out var workflowId) && workflowId > 0)
+        {
+            selectedWorkflowId = workflowId;
+            selectedWorkflow = workflows.FirstOrDefault(x => x.Id == workflowId);
+            await LoadSteps();
+        }
+        else
+        {
+            selectedWorkflowId = 0;
+            selectedWorkflow = null;
+            steps.Clear();
+        }
+    }
+
+    private async Task LoadSteps()
+    {
+        steps = await ApprovalRequestService.GetWorkflowStepsByWorkflowIdAsync(selectedWorkflowId);
+    }
+
+    private void PrepareNewStep()
+    {
+        editingStepId = 0;
+
+        stepModel = new ApprovalWorkflowStep
+        {
+            WorkflowDefinitionId = selectedWorkflowId,
+            StepOrder = steps.Any() ? steps.Max(x => x.StepOrder) + 1 : 1,
+            CanApprove = true,
+            CanReject = true,
+            CanRequestMoreInfo = true,
+            CanForward = false,
+            IsFinalStep = false
+        };
+
+        showStepForm = true;
+    }
+
+    private void EditStep(ApprovalWorkflowStep step)
+    {
+        editingStepId = step.Id;
+
+        stepModel = new ApprovalWorkflowStep
+        {
+            Id = step.Id,
+            WorkflowDefinitionId = step.WorkflowDefinitionId,
+            StepOrder = step.StepOrder,
+            StepName = step.StepName,
+            ApproverType = step.ApproverType,
+            ApproverRole = step.ApproverRole,
+            ApproverPrivilegeCode = step.ApproverPrivilegeCode,
+            SpecificApproverWorkerId = step.SpecificApproverWorkerId,
+            CanApprove = step.CanApprove,
+            CanReject = step.CanReject,
+            CanRequestMoreInfo = step.CanRequestMoreInfo,
+            CanForward = step.CanForward,
+            IsFinalStep = step.IsFinalStep
+        };
+
+        showStepForm = true;
+    }
+
+    private async Task SaveStep()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (selectedWorkflowId <= 0)
+        {
+            errorMessage = "Please select a workflow.";
+            return;
+        }
+
+        if (stepModel.StepOrder <= 0)
+        {
+            errorMessage = "Level must be greater than zero.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(stepModel.StepName))
+        {
+            errorMessage = "Step name is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(stepModel.ApproverType))
+        {
+            errorMessage = "Approver type is required.";
+            return;
+        }
+
+        stepModel.WorkflowDefinitionId = selectedWorkflowId;
+
+        if (stepModel.IsFinalStep)
+        {
+            foreach (var step in steps.Where(x => x.Id != stepModel.Id))
+            {
+                step.IsFinalStep = false;
+                await ApprovalRequestService.UpdateWorkflowStepAsync(step);
+            }
+        }
+
+        if (editingStepId > 0)
+        {
+            await ApprovalRequestService.UpdateWorkflowStepAsync(stepModel);
+            successMessage = "Workflow step updated successfully.";
+        }
+        else
+        {
+            await ApprovalRequestService.AddWorkflowStepAsync(stepModel);
+            successMessage = "Workflow step added successfully.";
+        }
+
+        showStepForm = false;
+        await LoadSteps();
+    }
+
+  private async Task DeleteStep(int stepId)
+{
+    errorMessage = null;
+    successMessage = null;
+
+    try
+    {
+        await ApprovalRequestService.DeleteWorkflowStepAsync(stepId);
+
+        successMessage = "Workflow step deleted successfully.";
+
+        await LoadWorkflows();
+
+        if (selectedWorkflowId > 0)
+        {
+            selectedWorkflow = workflows.FirstOrDefault(x => x.Id == selectedWorkflowId);
+            await LoadSteps();
+        }
+    }
+    catch (Exception ex)
+    {
+        errorMessage = $"Error deleting workflow step: {ex.Message}";
+    }
+}
+
+    private void CloseStepForm()
+    {
+        showStepForm = false;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private string YesNo(bool value) => value ? "Yes" : "No";
+
+    private RenderFragment InfoRow(string label, string value) => @<div class="bcc-info-row">
+        <div class="bcc-info-label">@label</div>
+        <div class="bcc-info-value">@value</div>
+    </div>;
+}

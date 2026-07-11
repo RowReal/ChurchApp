@@ -1,0 +1,212 @@
+﻿@using ChurchApp.Models
+
+<div class="profile-review-card leave-request-card">
+    <div class="request-specific-heading">
+        <div class="request-specific-icon">
+            <i class="fas fa-umbrella-beach"></i>
+        </div>
+
+        <div>
+            <h6>Leave Request Information</h6>
+            <p>
+                Provide the leave period and the arrangements
+                for covering your responsibilities.
+            </p>
+        </div>
+    </div>
+
+    <div class="row g-3">
+
+        <div class="col-md-4">
+            <label class="form-label fw-bold">
+                Start Date
+                <span class="text-danger">*</span>
+            </label>
+
+            <InputDate class="form-control"
+                       @bind-Value="Model.StartDate" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label fw-bold">
+                End Date
+                <span class="text-danger">*</span>
+            </label>
+
+            <InputDate class="form-control"
+                       @bind-Value="Model.EndDate" />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label fw-bold">
+                Duration
+            </label>
+
+            <div class="form-control leave-duration-display">
+                @if (Model.DurationInDays > 0)
+                {
+                    <span>
+                        @Model.DurationInDays
+                        @(Model.DurationInDays == 1
+                                            ? "day"
+                                            : "days")
+                </span>
+                                }
+                else
+                {
+                    <span class="text-muted">
+                        Select start and end dates
+                    </span>
+                }
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label fw-bold">
+                Relieve Officer
+                <span class="text-danger">*</span>
+            </label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="Model.RelieveOfficerId">
+                <option value="">
+                    -- Select Relieve Officer --
+                </option>
+
+                @foreach (var worker in AvailableOfficers)
+                {
+                    <option value="@worker.Id">
+                        @GetWorkerDisplayName(worker)
+                    </option>
+                }
+            </InputSelect>
+
+            <div class="form-text">
+                Select the worker who will provide cover
+                during your absence.
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label fw-bold">
+                Assignment Handler
+                <span class="text-muted fw-normal">
+                    (Optional)
+                </span>
+            </label>
+
+            <InputText class="form-control"
+                       @bind-Value="Model.AssignmentHandler"
+                       placeholder="Who will handle your pending assignments?" />
+        </div>
+
+        <div class="col-12">
+            <label class="form-label fw-bold">
+                Purpose of Leave
+                <span class="text-danger">*</span>
+            </label>
+
+            <InputTextArea class="form-control"
+                           rows="3"
+                           @bind-Value="Model.Purpose"
+                           placeholder="Clearly state the purpose of your leave request." />
+        </div>
+
+        <div class="col-12">
+            <label class="form-label fw-bold">
+                Pending Assignments or Projects
+                <span class="text-muted fw-normal">
+                    (Optional)
+                </span>
+            </label>
+
+            <InputTextArea class="form-control"
+                           rows="4"
+                           @bind-Value="Model.PendingAssignments"
+                           placeholder="List important assignments, projects or responsibilities that require attention during your absence." />
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public LeaveRequestFormModel Model { get; set; } =
+        default!;
+
+    [Parameter]
+    public IReadOnlyList<Worker> AvailableOfficers
+    { get; set; } = Array.Empty<Worker>();
+
+    private static string GetWorkerDisplayName(
+        Worker worker)
+    {
+        var fullName =
+            $"{worker.FirstName} {worker.LastName}".Trim();
+
+        var department =
+            worker.Department?.Name;
+
+        var directorate =
+            worker.Directorate?.Name;
+
+        if (!string.IsNullOrWhiteSpace(department))
+        {
+            return $"{fullName} — {department}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(directorate))
+        {
+            return $"{fullName} — {directorate}";
+        }
+
+        return fullName;
+    }
+}
+
+<style>
+    .leave-request-card {
+        padding: 20px;
+        border-left: 4px solid #0284c7;
+        background: #f8fcff;
+    }
+
+    .request-specific-heading {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .request-specific-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        color: #0369a1;
+        background: #e0f2fe;
+        border-radius: 12px;
+    }
+
+    .request-specific-heading h6 {
+        margin: 0 0 4px;
+        color: #0f172a;
+        font-weight: 800;
+    }
+
+    .request-specific-heading p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.86rem;
+    }
+
+    .leave-duration-display {
+        display: flex;
+        align-items: center;
+        min-height: 38px;
+        background: #f8fafc;
+        font-weight: 700;
+    }
+</style>

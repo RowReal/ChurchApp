@@ -120,6 +120,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxXb3JrZXJTZXR1cC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Admin/WorkflowSetup.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxXb3JrZmxvd1NldHVwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvalsold.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNvbGQucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
@@ -130,6 +134,14 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/ApprovalRequestDetails.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcQXBwcm92YWxSZXF1ZXN0RGV0YWlscy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/Forms/LeaveRequestDetails.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcRm9ybXNcTGVhdmVSZXF1ZXN0RGV0YWlscy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/Forms/LeaveRequestForm.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcRm9ybXNcTGVhdmVSZXF1ZXN0Rm9ybS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/MyApprovalRequests.razor]
@@ -376,12 +388,20 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xXb3JrZm9yY2VcVmlld1dvcmtlci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Workspace/MyDeskWorkspace.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xXb3Jrc3BhY2VcTXlEZXNrV29ya3NwYWNlLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Routes.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xSb3V0ZXMucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Shared/BccFormField.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcQmNjRm9ybUZpZWxkLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Shared/WorkspaceActionCard.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcV29ya3NwYWNlQWN0aW9uQ2FyZC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/_Imports.razor]
