@@ -1,0 +1,807 @@
+﻿@page "/Offering/amendments/approval"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+
+@inject AuthService AuthService
+@inject ChurchOfferingService OfferingService
+@inject ChurchOfferingAccessService OfferingAccessService
+@inject NavigationManager Navigation
+
+<PageTitle>Offering Amendment Approval - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+
+        <h4>Please Log In</h4>
+
+        <p>
+            You need to be logged in to review offering amendments.
+        </p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-5">
+                <div class="spinner-border text-primary"></div>
+
+                <div class="mt-3 text-muted">
+                    Loading offering amendments...
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (!canDecideAmendments)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+
+        <h4>Access Denied</h4>
+
+        <p>
+            Only the Pastor in Charge can approve or reject
+            offering amendments.
+        </p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Dashboard
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-gavel me-2"></i>
+                    Offering Management
+                </div>
+
+                <div class="bcc-page-title">
+                    Offering Amendment Approval
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Review proposed corrections to approved offering records.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="RefreshPage">
+                    <i class="fas fa-sync-alt me-2"></i>
+                    Refresh
+                </button>
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+            </div>
+        </div>
+
+        <div class="pastor-summary mb-4">
+            <div class="pastor-summary-card">
+                <div class="pastor-summary-icon">
+                    <i class="fas fa-hourglass-half"></i>
+                </div>
+
+                <div>
+                    <span>Pending Amendments</span>
+                    <strong>@pendingAmendments.Count</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="bcc-card">
+            <div class="bcc-card-body">
+
+                @if (!pendingAmendments.Any())
+                {
+                    <div class="bcc-empty py-5">
+                        <i class="fas fa-check-circle"></i>
+
+                        <h4>No Pending Amendments</h4>
+
+                        <p>
+                            There are currently no offering amendments
+                            awaiting your decision.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0 pastor-amendment-table">
+                            <thead>
+                                <tr>
+                                    <th>Requested</th>
+                                    <th>Offering Date</th>
+                                    <th>Service</th>
+                                    <th>Offering Type</th>
+                                    <th>Current Amount</th>
+                                    <th>Proposed Amount</th>
+                                    <th>Requested By</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var amendment in pendingAmendments)
+                                {
+                                    <tr>
+                                        <td>
+                                            @amendment.RequestedAt
+                                            .ToLocalTime()
+                                            .ToString("dd MMM yyyy")
+                                        </td>
+
+                                        <td>
+                                            @(amendment.OfferingRecord?
+                                                                            .OfferingDate
+                                                                            .ToString("dd MMM yyyy")
+                                                                            ?? "Not available")
+                                                                                           </td>
+
+                                        <td>
+                                            @(amendment.OfferingRecord?
+                                                                            .Service?.Name
+                                                                            ?? "Not available")
+                                                                                           </td>
+
+                                        <td>
+                                            @(amendment.OfferingRecord?
+                                                                            .OfferingType?.Name
+                                                                            ?? "Not available")
+                            </td>
+
+                                                                        <td class="fw-bold">
+                                                                            @FormatAmount(
+                                                                            amendment.OfferingRecord?.Amount ?? 0,
+                                                                            amendment.OfferingRecord?.Currency
+                                                                            ?? "NGN")
+                            </td>
+
+                                                                        <td class="fw-bold text-warning">
+                                                                            @FormatAmount(
+                                                                            amendment.ProposedAmount,
+                                                                            amendment.ProposedCurrency)
+                            </td>
+
+                                        <td>
+                                            @GetWorkerName(
+                                                                amendment.RequestedByWorker)
+                            </td>
+
+                            <td class="text-end">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary"
+                                        @onclick="() => OpenReview(amendment)">
+                                    <i class="fas fa-eye me-1"></i>
+                                    Review
+                                </button>
+                            </td>
+                        </tr>
+                                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+}
+
+@if (showReviewPopup && selectedAmendment != null)
+{
+    <div class="offering-popup-backdrop">
+        <div class="offering-popup-card offering-popup-large">
+
+            <div class="offering-popup-header">
+                <div>
+                    <h4>Review Offering Amendment</h4>
+
+                    <p>
+                        Compare the current approved record with the proposed correction.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="ClosePopup">
+                </button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(popupErrorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    @popupErrorMessage
+                </div>
+            }
+
+        <div class="amendment-comparison">
+
+            <div class="comparison-column current">
+                <h6>Current Approved Record</h6>
+
+                <div class="comparison-item">
+                    <span>Service</span>
+                    <strong>
+                        @(selectedAmendment.OfferingRecord?
+                                                .Service?.Name
+                                                ?? "Not available")
+                                                               </strong>
+                                                           </div>
+
+                <div class="comparison-item">
+                    <span>Offering Type</span>
+                    <strong>
+                        @(selectedAmendment.OfferingRecord?
+                                                .OfferingType?.Name
+                                                ?? "Not available")
+                                                               </strong>
+                                                           </div>
+
+                <div class="comparison-item">
+                    <span>Offering Date</span>
+                    <strong>
+                        @(selectedAmendment.OfferingRecord != null
+                                                ? selectedAmendment.OfferingRecord
+                                                .OfferingDate.ToString("dd MMMM yyyy")
+                                                : "Not available")
+                    </strong>
+                </div>
+
+                                        <div class="comparison-item">
+                                            <span>Amount</span>
+                                            <strong>
+                                                @FormatAmount(
+                                                selectedAmendment.OfferingRecord?.Amount ?? 0,
+                                                selectedAmendment.OfferingRecord?.Currency
+                                                ?? "NGN")
+                                                      </strong>
+                                                  </div>
+
+                <div class="comparison-item">
+                    <span>Payment Mode</span>
+                    <strong>
+                        @(selectedAmendment.OfferingRecord?
+                                                .PaymentMode
+                                                ?? "Not available")
+                                                               </strong>
+                                                           </div>
+
+                <div class="comparison-item">
+                    <span>Remarks</span>
+                    <strong>
+                        @(string.IsNullOrWhiteSpace(
+                                                selectedAmendment.OfferingRecord?.Remarks)
+                                                ? "None"
+                                                : selectedAmendment.OfferingRecord!.Remarks)
+                                                                                        </strong>
+                                                                                    </div>
+                                                                                </div>
+
+            <div class="comparison-column proposed">
+                <h6>Proposed Correction</h6>
+
+                <div class="comparison-item">
+                    <span>Service</span>
+                    <strong>
+                        @(selectedAmendment.ProposedService?.Name
+                                                ?? "Not available")
+                                                               </strong>
+                                                           </div>
+
+                <div class="comparison-item">
+                    <span>Offering Type</span>
+                    <strong>
+                        @(selectedAmendment.ProposedOfferingType?.Name
+                                                ?? "Not available")
+                    </strong>
+                </div>
+
+                                        <div class="comparison-item">
+                                            <span>Offering Date</span>
+                                            <strong>
+                                                @selectedAmendment.ProposedOfferingDate
+                                                .ToString("dd MMMM yyyy")
+                                            </strong>
+                                        </div>
+
+                                        <div class="comparison-item">
+                                            <span>Amount</span>
+                                            <strong class="text-warning">
+                                                @FormatAmount(
+                                                selectedAmendment.ProposedAmount,
+                                                selectedAmendment.ProposedCurrency)
+                                                                                </strong>
+                                                                            </div>
+
+                <div class="comparison-item">
+                    <span>Payment Mode</span>
+                    <strong>
+                        @selectedAmendment.ProposedPaymentMode
+                    </strong>
+                </div>
+
+                <div class="comparison-item">
+                    <span>Remarks</span>
+                    <strong>
+                        @(string.IsNullOrWhiteSpace(
+                                                selectedAmendment.ProposedRemarks)
+                                                ? "None"
+                                                : selectedAmendment.ProposedRemarks)
+                    </strong>
+                </div>
+            </div>
+
+                        </div>
+
+                        <div class="amendment-reason mt-4">
+                            <span>Reason for Amendment</span>
+
+                            <strong>
+                                @selectedAmendment.Reason
+                            </strong>
+                        </div>
+
+                        <div class="requested-by mt-3">
+                            Requested by
+                            <strong>
+                                @GetWorkerName(
+                                selectedAmendment.RequestedByWorker)
+            </strong>
+            on
+            <strong>
+                @selectedAmendment.RequestedAt
+                .ToLocalTime()
+                .ToString("dd MMM yyyy, hh:mm tt")
+            </strong>
+        </div>
+
+            <div class="mt-4">
+                <label class="form-label fw-bold">
+                    Decision Comment
+                    <span class="text-danger">*</span>
+                </label>
+
+                <InputTextArea class="form-control"
+                               rows="4"
+                               @bind-Value="decisionComment"
+                               placeholder="Enter the reason for your decision." />
+            </div>
+
+            <div class="mt-4 d-flex justify-content-end gap-2">
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        disabled="@isProcessing"
+                        @onclick="ClosePopup">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="btn btn-outline-danger"
+                        disabled="@isProcessing"
+                        @onclick="RejectAmendment">
+
+                @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-times me-2"></i>
+                    }
+
+                    Reject
+                </button>
+
+                <button type="button"
+                        class="btn btn-success"
+                        disabled="@isProcessing"
+                        @onclick="ApproveAmendment">
+
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-check me-2"></i>
+                    }
+
+                    Approve Amendment
+                </button>
+
+            </div>
+
+        </div>
+    </div>
+}
+
+@code {
+    private List<ChurchOfferingAmendment>
+        pendingAmendments = new();
+
+    private ChurchOfferingAmendment?
+        selectedAmendment;
+
+    private bool isLoading = true;
+    private bool isProcessing;
+    private bool canDecideAmendments;
+    private bool showReviewPopup;
+
+    private string decisionComment = string.Empty;
+
+    private string? errorMessage;
+    private string? successMessage;
+    private string? popupErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            if (AuthService.CurrentWorker == null)
+            {
+                canDecideAmendments = false;
+                return;
+            }
+
+            var workerId =
+                AuthService.CurrentWorker.Id;
+
+            canDecideAmendments =
+                await OfferingAccessService
+                    .CanDecideOfferingAmendmentAsync(
+                        workerId);
+
+            if (!canDecideAmendments)
+                return;
+
+            pendingAmendments =
+                await OfferingService
+                    .GetPendingAmendmentsAsync(
+                        workerId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load offering amendments: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OpenReview(
+        ChurchOfferingAmendment amendment)
+    {
+        selectedAmendment = amendment;
+        decisionComment = string.Empty;
+        popupErrorMessage = null;
+        showReviewPopup = true;
+    }
+
+    private async Task ApproveAmendment()
+    {
+        await ProcessDecision(true);
+    }
+
+    private async Task RejectAmendment()
+    {
+        await ProcessDecision(false);
+    }
+
+    private async Task ProcessDecision(
+        bool approve)
+    {
+        if (selectedAmendment == null ||
+            AuthService.CurrentWorker == null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(
+            decisionComment))
+        {
+            popupErrorMessage =
+                "Please enter a decision comment.";
+
+            return;
+        }
+
+        try
+        {
+            isProcessing = true;
+            popupErrorMessage = null;
+
+            await OfferingService.DecideAmendmentAsync(
+                selectedAmendment.Id,
+                AuthService.CurrentWorker.Id,
+                approve,
+                decisionComment);
+
+            successMessage = approve
+                ? "The offering amendment was approved and the record was updated."
+                : "The offering amendment was rejected. The approved record remains unchanged.";
+
+            ClosePopup();
+            await LoadPageAsync();
+        }
+        catch (Exception ex)
+        {
+            popupErrorMessage =
+                $"Unable to process amendment: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task RefreshPage()
+    {
+        successMessage = null;
+        await LoadPageAsync();
+    }
+
+    private void ClosePopup()
+    {
+        showReviewPopup = false;
+        selectedAmendment = null;
+        decisionComment = string.Empty;
+        popupErrorMessage = null;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private static string GetWorkerName(
+        Worker? worker)
+    {
+        if (worker == null)
+            return "Not available";
+
+        return $"{worker.FirstName} {worker.LastName}"
+            .Trim();
+    }
+
+    private static string FormatAmount(
+        decimal amount,
+        string currency)
+    {
+        var symbol = currency switch
+        {
+            "NGN" => "₦",
+            "USD" => "$",
+            "GBP" => "£",
+            "EUR" => "€",
+            _ => $"{currency} "
+        };
+
+        return $"{symbol}{amount:N2}";
+    }
+}
+
+<style>
+    .pastor-summary {
+        display: grid;
+        grid-template-columns: minmax(0, 320px);
+    }
+
+    .pastor-summary-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 15px;
+    }
+
+    .pastor-summary-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 48px;
+        width: 48px;
+        height: 48px;
+        color: #92400e;
+        background: #fef3c7;
+        border-radius: 14px;
+    }
+
+    .pastor-summary-card span {
+        display: block;
+        margin-bottom: 3px;
+        color: #64748b;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .pastor-summary-card strong {
+        color: #0f172a;
+        font-size: 1.35rem;
+        font-weight: 800;
+    }
+
+    .pastor-amendment-table thead th {
+        padding: 14px;
+        color: #475569;
+        background: #f8fafc;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+
+    .pastor-amendment-table tbody td {
+        padding: 14px;
+    }
+
+    .offering-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 4000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.6);
+    }
+
+    .offering-popup-card {
+        width: 100%;
+        max-width: 720px;
+        max-height: 90vh;
+        padding: 28px;
+        overflow-y: auto;
+        background: #ffffff;
+        border-radius: 20px;
+    }
+
+    .offering-popup-large {
+        max-width: 980px;
+    }
+
+    .offering-popup-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+        .offering-popup-header h4 {
+            margin: 0 0 4px;
+            font-weight: 800;
+        }
+
+        .offering-popup-header p {
+            margin: 0;
+            color: #64748b;
+        }
+
+    .amendment-comparison {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .comparison-column {
+        padding: 18px;
+        border-radius: 14px;
+    }
+
+        .comparison-column.current {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+
+        .comparison-column.proposed {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+        }
+
+        .comparison-column h6 {
+            margin-bottom: 16px;
+            font-weight: 800;
+        }
+
+    .comparison-item {
+        margin-bottom: 13px;
+    }
+
+        .comparison-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .comparison-item span,
+        .amendment-reason span {
+            display: block;
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 0.74rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .comparison-item strong,
+        .amendment-reason strong {
+            display: block;
+            color: #0f172a;
+            white-space: pre-wrap;
+        }
+
+    .amendment-reason {
+        padding: 16px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+    }
+
+    .requested-by {
+        color: #64748b;
+        font-size: 0.86rem;
+    }
+
+        .requested-by strong {
+            color: #0f172a;
+        }
+
+    @@media (max-width: 768px) {
+        .amendment-comparison {
+            grid-template-columns: 1fr;
+        }
+
+        .pastor-summary {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

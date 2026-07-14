@@ -15,6 +15,7 @@ namespace ChurchApp.Data
         public DbSet<Unit> Units { get; set; }
         public DbSet<AuditTrail> AuditTrails { get; set; }
         public DbSet<ProfileUpdateRequest> ProfileUpdateRequests { get; set; }
+        public DbSet<ProfileUpdateApprover> ProfileUpdateApprovers { get; set; }
         public DbSet<RejectionNotification> RejectionNotifications { get; set; }
         public DbSet<Service> Services { get; set; }
         public DbSet<ExcuseRequest> ExcuseRequests { get; set; }
@@ -56,6 +57,12 @@ namespace ChurchApp.Data
         public DbSet<FinancialRequestDetail> FinancialRequestDetails { get; set; }
         public DbSet<LeaveRequestDetail> LeaveRequestDetails { get; set; }
         public DbSet<OffServiceRequestDetail> OffServiceRequestDetails { get; set; }
+        public DbSet<ChurchOfferingTypeN> ChurchOfferingTypes { get; set; }
+
+        public DbSet<ChurchOfferingRecord> ChurchOfferingRecords { get; set; }
+
+        public DbSet<ChurchOfferingAmendment> ChurchOfferingAmendments { get; set; }
+        public DbSet<VehicleRecord> VehicleRecords { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -822,6 +829,142 @@ namespace ChurchApp.Data
                 .WithMany()
                 .HasForeignKey(x => x.NominatedBackupWorkerId)
                 .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ChurchOfferingTypeN>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                entity.HasIndex(x => x.Name)
+                    .IsUnique();
+
+                entity.HasOne(x => x.CreatedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.CreatedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ChurchOfferingRecord>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Amount)
+                    .HasPrecision(18, 2);
+
+                entity.HasOne(x => x.Service)
+                    .WithMany()
+                    .HasForeignKey(x => x.ServiceId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.OfferingType)
+                    .WithMany(x => x.OfferingRecords)
+                    .HasForeignKey(x => x.OfferingTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.RecordedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.RecordedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ApprovedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.ApprovedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ReturnedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.ReturnedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.RemovedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.RemovedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => x.OfferingDate);
+                entity.HasIndex(x => x.OfferingTypeId);
+                entity.HasIndex(x => x.ServiceId);
+                entity.HasIndex(x => x.Status);
+                entity.HasIndex(x => x.RecordedByWorkerId);
+            });
+
+            modelBuilder.Entity<ChurchOfferingAmendment>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.ProposedAmount)
+                    .HasPrecision(18, 2);
+
+                entity.HasOne(x => x.OfferingRecord)
+                    .WithMany(x => x.Amendments)
+                    .HasForeignKey(x => x.OfferingRecordId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.ProposedService)
+                    .WithMany()
+                    .HasForeignKey(x => x.ProposedServiceId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ProposedOfferingType)
+                    .WithMany()
+                    .HasForeignKey(x => x.ProposedOfferingTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.RequestedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.RequestedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.DecidedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.DecidedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => x.Status);
+                entity.HasIndex(x => x.OfferingRecordId);
+
+                modelBuilder.Entity<VehicleRecord>(entity =>
+                {
+                    entity.HasKey(x => x.Id);
+
+                    entity.HasIndex(x => new
+                    {
+                        x.ServiceId,
+                        x.RecordDate
+                    })
+                    .IsUnique();
+
+                    entity.HasIndex(x => x.RecordDate);
+
+                    entity.HasOne(x => x.Service)
+                        .WithMany()
+                        .HasForeignKey(x => x.ServiceId)
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    entity.HasOne(x => x.RecordedBy)
+                        .WithMany()
+                        .HasForeignKey(x => x.RecordedByWorkerId)
+                        .HasPrincipalKey(x => x.WorkerId)
+                        .OnDelete(DeleteBehavior.Restrict);
+                    modelBuilder.Entity<ProfileUpdateApprover>()
+    .HasOne(x => x.ProfileUpdateRequest)
+    .WithMany(x => x.EligibleApprovers)
+    .HasForeignKey(x => x.ProfileUpdateRequestId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+                    modelBuilder.Entity<ProfileUpdateApprover>()
+                        .HasOne(x => x.ApproverWorker)
+                        .WithMany()
+                        .HasForeignKey(x => x.ApproverWorkerId)
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            });
         }
 
     }

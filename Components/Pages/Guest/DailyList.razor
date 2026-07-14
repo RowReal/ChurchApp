@@ -1,463 +1,680 @@
 ﻿@page "/guest/daily-list"
 @layout Components.Layout.MainLayout
-@using ChurchApp.Services
+
 @using ChurchApp.Models
+@using ChurchApp.Services
 
 @inject GuestService GuestService
+@inject ServiceRecordAccessService ServiceRecordAccessService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
 <PageTitle>Daily Guest Register - BCC ServiceHub</PageTitle>
 
-@if (AuthService.IsAuthenticated)
-{
-    @if (!IsFIGDirectorateMember())
-    {
-        <div class="bcc-empty">
-            <i class="fas fa-lock"></i>
-            <h4>Access Restricted</h4>
-            <p>This section is only accessible to authorised FIG Directorate members.</p>
-            <a href="/guest" class="bcc-btn bcc-btn-primary">Back to Guest Management</a>
-        </div>
-    }
-    else
-    {
-        <div class="guest-search-v2-page">
-
-            <div class="bcc-page-header">
-                <div>
-                    <div class="bcc-page-subtitle">
-                        <i class="fas fa-users me-2"></i>
-                        Guest Management
-                    </div>
-                    <div class="bcc-page-title">Daily Guest Register</div>
-                    <div class="bcc-page-subtitle">
-                        Review and manage guests recorded for @selectedDate.ToString("dddd, dd MMMM yyyy").
-                    </div>
-                </div>
-
-                <a href="/guest/first-timer" class="bcc-btn bcc-btn-primary">
-                    <i class="fas fa-user-plus me-2"></i>
-                    Add New Guest
-                </a>
-            </div>
-
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <div class="team-summary-card">
-                        <span>Total Guests</span>
-                        <strong>@guests.Count</strong>
-                        <i class="fas fa-users"></i>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="team-summary-card directorate">
-                        <span>First Timers</span>
-                        <strong>@firstTimerCount</strong>
-                        <i class="fas fa-user-plus"></i>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="team-summary-card active">
-                        <span>Second Timers</span>
-                        <strong>@secondTimerCount</strong>
-                        <i class="fas fa-user-check"></i>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="team-summary-card inactive">
-                        <span>Conversion</span>
-                        <strong>@conversionRate.ToString("0.0")%</strong>
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bcc-card mb-4">
-                <div class="bcc-card-body">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-4">
-                            <label class="profile-form-label">Selected Date</label>
-                            <input type="date"
-                                   class="form-control bcc-input"
-                                   @bind="selectedDate"
-                                   @bind:format="yyyy-MM-dd"
-                                   @bind:after="OnDateChanged" />
-                        </div>
-
-                        <div class="col-md-8">
-                            <div class="d-flex gap-2 flex-wrap">
-                                <button class="bcc-btn profile-form-secondary-btn" @onclick="PreviousDay">
-                                    <i class="fas fa-chevron-left me-2"></i>
-                                    Previous Day
-                                </button>
-
-                                <button class="bcc-btn bcc-btn-primary" @onclick="GoToToday">
-                                    <i class="fas fa-calendar-day me-2"></i>
-                                    Today
-                                </button>
-
-                                <button class="bcc-btn profile-form-secondary-btn" @onclick="NextDay">
-                                    Next Day
-                                    <i class="fas fa-chevron-right ms-2"></i>
-                                </button>
-
-                                <a href="/guest" class="bcc-btn profile-form-secondary-btn ms-auto">
-                                    <i class="fas fa-arrow-left me-2"></i>
-                                    Back
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bcc-card">
-                <div class="bcc-card-header">
-                    <div class="profile-v2-card-icon green">
-                        <i class="fas fa-list-alt"></i>
-                    </div>
-                    <div class="bcc-card-title">
-                        Guest List (@guests.Count)
-                    </div>
-                </div>
-
-                <div class="bcc-card-body p-0">
-                    @if (isLoading)
-                    {
-                        <div class="bcc-empty">
-                            <div class="spinner-border text-primary"></div>
-                            <p class="mt-3">Loading guest list...</p>
-                        </div>
-                    }
-                    else if (guests.Any())
-                    {
-                        <div class="notice-table-wrapper">
-                            <table class="table notice-table align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Guest</th>
-                                        <th>Contact</th>
-                                        <th>Service</th>
-                                        <th>Recorded By</th>
-                                        <th>Status</th>
-                                        <th class="text-end">Actions</th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    @foreach (var guest in guests)
-                                    {
-                                        <tr>
-                                            <td>
-                                                <div class="notice-title-cell">
-                                                    <div class="guest-avatar">
-                                                        @GetInitials(guest)
-                                                    </div>
-
-                                                    <div>
-                                                        <strong>@guest.Title @guest.FirstName @guest.Surname</strong>
-                                                        <span>@guest.GuestNumber • @guest.Sex • @guest.AgeGroup</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(guest.PhoneNumber))
-                                                {
-                                                    <div class="guest-contact-line">
-                                                        <i class="fas fa-phone"></i>
-                                                        @guest.PhoneNumber
-                                                    </div>
-                                                }
-
-                                                @if (!string.IsNullOrEmpty(guest.WhatsAppNumber))
-                                                {
-                                                    <div class="guest-contact-line">
-                                                        <i class="fab fa-whatsapp"></i>
-                                                        @guest.WhatsAppNumber
-                                                    </div>
-                                                }
-                                            </td>
-
-                                            <td>
-                                                <strong>@guest.Service?.Name</strong>
-                                                <div class="church-update-muted">
-                                                    @guest.VisitingDate.ToString("dd MMM yyyy")
-                                                </div>
-                                            </td>
-
-                                            <td>
-                                                <strong>@guest.RecordedByName</strong>
-                                                <div class="church-update-muted">
-                                                    @guest.RecordingDate.ToString("h:mm tt")
-                                                </div>
-                                            </td>
-
-                                            <td>
-                                                @if (guest.IsSecondTimer)
-                                                {
-                                                    <span class="notice-status active">
-                                                        <i class="fas fa-user-check me-1"></i>
-                                                        Second Timer
-                                                    </span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="notice-status notice-prayer">
-                                                        <i class="fas fa-user-plus me-1"></i>
-                                                        First Timer
-                                                    </span>
-                                                }
-                                            </td>
-
-                                            <td class="text-end">
-                                                <button class="notice-action-btn edit"
-                                                        title="View Details"
-                                                        @onclick="() => ViewGuestDetails(guest.Id)">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
-
-                                                <button class="notice-action-btn toggle"
-                                                        title="Phone Follow-up"
-                                                        @onclick="() => RecordPhoneFollowUp(guest.Id)">
-                                                    <i class="fas fa-phone-alt"></i>
-                                                </button>
-
-                                                <a class="notice-action-btn toggle"
-                                                   title="Edit Guest"
-                                                   href="/guest/edit/@guest.Id">
-                                                    <i class="fas fa-pen"></i>
-                                                </a>
-
-                                                @if (!guest.IsSecondTimer)
-                                                {
-                                                    <button class="notice-action-btn delete"
-                                                            title="Record Second Visit"
-                                                            @onclick="() => MarkAsSecondTimer(guest.Id)">
-                                                        <i class="fas fa-user-check"></i>
-                                                    </button>
-                                                }
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="bcc-empty">
-                            <i class="fas fa-users"></i>
-                            <h4>No Guest Recorded Yet</h4>
-                            <p>No guests have been recorded for @selectedDate.ToString("dd MMMM yyyy").</p>
-                            <a href="/guest/first-timer" class="bcc-btn bcc-btn-primary">
-                                <i class="fas fa-user-plus me-2"></i>
-                                Record First Guest
-                            </a>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-    }
-}
-else
+@if (!AuthService.IsAuthenticated)
 {
     <div class="bcc-empty">
         <i class="fas fa-lock"></i>
         <h4>Please Log In</h4>
-        <p>You need to be logged in to access this page.</p>
-        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+        <p>You need to be logged in to access the Daily Guest Register.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isPageLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+
+                <div class="mt-2 text-muted">
+                    Loading Daily Guest Register...
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (!canAccessGuestManagement)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+
+        <p>
+            You must have the Guest Management privilege and either belong
+            to the FIG Directorate, have FIG as your secondary department,
+            or hold an authorised leadership role.
+        </p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Guest Management
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page daily-guest-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        <div class="bcc-page-header daily-guest-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-calendar-day me-2"></i>
+                    Guest Management
+                </div>
+
+                <div class="bcc-page-title">
+                    Daily Guest Register
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Review and manage guests recorded for
+                    @(selectedDate.ToString("dddd, dd MMMM yyyy")).
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <a href="/guest/first-timer"
+                   class="bcc-btn bcc-btn-primary compact-btn">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Add Guest
+                </a>
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+            </div>
+        </div>
+
+        <div class="row g-3">
+
+            <div class="col-12 col-xl-4">
+                <div class="bcc-card h-100">
+                    <div class="bcc-card-body p-3">
+
+                        <div class="compact-section-heading">
+                            <div>
+                                <h6>
+                                    <i class="fas fa-calendar-alt me-2"></i>
+                                    Select Date
+                                </h6>
+
+                                <p>
+                                    Move between daily guest registers.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="date-panel">
+
+                            <label class="form-label compact-label">
+                                Register Date
+                            </label>
+
+                            <InputDate class="form-control form-control-sm"
+                                       @bind-Value="selectedDate"
+                                       @bind-Value:after="OnDateChanged" />
+
+                            <div class="date-navigation mt-2">
+                                <button type="button"
+                                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                                        @onclick="PreviousDay">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+
+                                <button type="button"
+                                        class="bcc-btn bcc-btn-primary compact-btn flex-grow-1"
+                                        @onclick="GoToToday">
+                                    <i class="fas fa-calendar-day me-2"></i>
+                                    Today
+                                </button>
+
+                                <button type="button"
+                                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                                        @onclick="NextDay">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+
+                        </div>
+
+                        <div class="daily-summary-grid mt-3">
+
+                            <div>
+                                <span>Total Guests</span>
+                                <strong>@guests.Count</strong>
+                            </div>
+
+                            <div>
+                                <span>First Timers</span>
+                                <strong>@firstTimerCount</strong>
+                            </div>
+
+                            <div>
+                                <span>Second Timers</span>
+                                <strong>@secondTimerCount</strong>
+                            </div>
+
+                            <div class="conversion">
+                                <span>Conversion</span>
+                                <strong>@conversionRate.ToString("0.0")%</strong>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-8">
+                <div class="bcc-card">
+                    <div class="bcc-card-body p-3">
+
+                        <div class="result-heading">
+                            <div>
+                                <h6>Guest List</h6>
+
+                                <p>
+                                    @guests.Count guest(s) recorded on
+                                    @(selectedDate.ToString("dd MMM yyyy")).
+                                </p>
+                            </div>
+
+                            <span class="result-count-badge">
+                                @guests.Count
+                            </span>
+                        </div>
+
+                        @if (isLoadingGuests)
+                        {
+                            <div class="bcc-empty py-4">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Loading guest list...</p>
+                            </div>
+                        }
+                        else if (!guests.Any())
+                        {
+                            <div class="bcc-empty py-4">
+                                <i class="fas fa-users"></i>
+                                <h4>No Guests Recorded</h4>
+
+                                <p>
+                                    No guest has been recorded for
+                                    @(selectedDate.ToString("dd MMMM yyyy")).
+                                </p>
+
+                                <a href="/guest/first-timer"
+                                   class="bcc-btn bcc-btn-primary compact-btn">
+                                    <i class="fas fa-user-plus me-2"></i>
+                                    Record First Guest
+                                </a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0 daily-guest-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Guest</th>
+                                            <th>Contact</th>
+                                            <th>Service</th>
+                                            <th>Recorded By</th>
+                                            <th>Status</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        @foreach (var guest in guests)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <div class="guest-name-cell">
+                                                        <div class="guest-avatar">
+                                                            @GetInitials(guest)
+                                                        </div>
+
+                                                        <div>
+                                                            <strong>
+                                                                @guest.Title
+                                                                @guest.FirstName
+                                                                @guest.Surname
+                                                            </strong>
+
+                                                            <span>
+                                                                @guest.GuestNumber
+
+                                                                @if (!string.IsNullOrWhiteSpace(guest.Sex))
+                                                                {
+                                                                    <text> · @guest.Sex</text>
+                                                                }
+
+                                                                @if (!string.IsNullOrWhiteSpace(guest.AgeGroup))
+                                                                {
+                                                                    <text> · @guest.AgeGroup</text>
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <td>
+                                                    <div class="contact-stack">
+                                                        @if (!string.IsNullOrWhiteSpace(guest.PhoneNumber))
+                                                        {
+                                                            <span>
+                                                                <i class="fas fa-phone"></i>
+                                                                @guest.PhoneNumber
+                                                            </span>
+                                                        }
+
+                                                        @if (!string.IsNullOrWhiteSpace(guest.WhatsAppNumber))
+                                                        {
+                                                            <span>
+                                                                <i class="fab fa-whatsapp"></i>
+                                                                @guest.WhatsAppNumber
+                                                            </span>
+                                                        }
+
+                                                        @if (string.IsNullOrWhiteSpace(guest.PhoneNumber) &&
+                                                                                                    string.IsNullOrWhiteSpace(guest.WhatsAppNumber))
+                                                        {
+                                                            <span>—</span>
+                                                        }
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                <strong>
+                                                    @(guest.Service?.Name
+                                                                                                ?? "Not available")
+                                                                                                               </strong>
+                                                                                                           </td>
+
+                                            <td>
+                                                <div class="recorded-by-stack">
+                                                    <strong>
+                                                        @DisplayText(guest.RecordedByName)
+                                                    </strong>
+
+                                                    <span>
+                                                        @(guest.RecordingDate
+                                                                                                        .ToLocalTime()
+                                                                                                        .ToString("hh:mm tt"))
+                                                                                                                          </span>
+                                                                                                                      </div>
+                                                                                                                  </td>
+
+                                            <td>
+                                                <span class="guest-type-badge
+                                                                @(guest.IsSecondTimer
+                                                                                                                  ? "second"
+                                                                                                                  : "first")">
+                                                    @(guest.IsSecondTimer
+                                                                                                ? "Second Timer"
+                                                                                                : "First Timer")
+                                        </span>
+                                    </td>
+
+                                                <td class="text-end">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-primary me-1"
+                                                            title="View Details"
+                                                            @onclick="() => ViewGuestDetails(guest.Id)">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-success me-1"
+                                                            title="Phone Follow-up"
+                                                            @onclick="() => RecordPhoneFollowUp(guest.Id)">
+                                                        <i class="fas fa-phone-alt"></i>
+                                                    </button>
+
+                                                    <a href="/guest/edit/@guest.Id"
+                                                       class="btn btn-sm btn-outline-secondary me-1"
+                                                       title="Edit Guest">
+                                                        <i class="fas fa-pen"></i>
+                                                    </a>
+
+                                        @if (!guest.IsSecondTimer)
+                                                    {
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-warning"
+                                                                title="Record Second Visit"
+                                                                @onclick="() => MarkAsSecondTimer(guest.Id)">
+                                                            <i class="fas fa-user-check"></i>
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
 }
 
 @if (selectedGuest != null && showDetailsModal)
 {
-    <div class="team-modal-backdrop" @onclick="CloseDetailsModal">
-        <div class="guest360-modal" @onclick:stopPropagation="true">
+    <div class="guest-popup-backdrop"
+         @onclick="CloseDetailsModal">
 
-            <button class="team-modal-close" @onclick="CloseDetailsModal">
-                <i class="fas fa-times"></i>
-            </button>
+        <div class="guest-popup-card"
+             @onclick:stopPropagation="true">
 
-            <div class="guest360-header">
-                <div class="guest360-avatar">
-                    @GetInitials(selectedGuest)
+            <div class="guest-popup-header">
+                <div class="guest-popup-profile">
+                    <div class="guest-avatar-large">
+                        @GetInitials(selectedGuest)
+                    </div>
+
+                    <div>
+                        <h4>
+                            @selectedGuest.Title
+                            @selectedGuest.FirstName
+                            @selectedGuest.Surname
+                        </h4>
+
+                        <p>@selectedGuest.GuestNumber</p>
+                    </div>
                 </div>
 
-                <div>
-                    <h4>@selectedGuest.Title @selectedGuest.FirstName @selectedGuest.Surname</h4>
-                    <p>Guest No: @selectedGuest.GuestNumber</p>
-
-                    @if (selectedGuest.IsSecondTimer)
-                    {
-                        <span class="notice-status active">Second Timer</span>
-                    }
-                    else
-                    {
-                        <span class="notice-status notice-prayer">First Timer</span>
-                    }
-                </div>
+                <button type="button"
+                        class="btn-close"
+                        @onclick="CloseDetailsModal">
+                </button>
             </div>
 
-            <div class="profile-form-v2-tabs guest360-tabs">
-                <button type="button" class="@GetModalTabClass("overview")" @onclick='() => SetModalTab("overview")'>
-                    <i class="fas fa-user"></i> Overview
+            <div class="guest-popup-tabs">
+
+                <button type="button"
+                        class="@GetModalTabClass("overview")"
+                        @onclick='() => SetModalTab("overview")'>
+                    Overview
                 </button>
 
-                <button type="button" class="@GetModalTabClass("contact")" @onclick='() => SetModalTab("contact")'>
-                    <i class="fas fa-phone"></i> Contact
+                <button type="button"
+                        class="@GetModalTabClass("contact")"
+                        @onclick='() => SetModalTab("contact")'>
+                    Contact
                 </button>
 
-                <button type="button" class="@GetModalTabClass("church")" @onclick='() => SetModalTab("church")'>
-                    <i class="fas fa-church"></i> Church
+                <button type="button"
+                        class="@GetModalTabClass("church")"
+                        @onclick='() => SetModalTab("church")'>
+                    Church
                 </button>
 
                 @if (selectedGuest.IsSecondTimer)
                 {
-                    <button type="button" class="@GetModalTabClass("second")" @onclick='() => SetModalTab("second")'>
-                        <i class="fas fa-user-check"></i> Second Visit
+                    <button type="button"
+                            class="@GetModalTabClass("second")"
+                            @onclick='() => SetModalTab("second")'>
+                        Second Visit
                     </button>
                 }
+
             </div>
 
-            <div class="guest360-body">
+            <div class="guest-detail-grid">
+
                 @if (modalTab == "overview")
                 {
-                    @DetailRow("Full Name", $"{selectedGuest.Title} {selectedGuest.FirstName} {selectedGuest.MiddleName} {selectedGuest.Surname}")
-                    @DetailRow("Sex", selectedGuest.Sex)
-                    @DetailRow("Age Group", selectedGuest.AgeGroup)
-                    @DetailRow("First Visit", selectedGuest.VisitingDate.ToString("dd MMM yyyy"))
-                    @DetailRow("Recorded By", selectedGuest.RecordedByName)
-                }
+                    @DetailItem(
+                    "Full Name",
+                        $"{selectedGuest.Title} {selectedGuest.FirstName} {selectedGuest.MiddleName} {selectedGuest.Surname}")
+
+            @DetailItem("Sex", selectedGuest.Sex)
+            @DetailItem("Age Group", selectedGuest.AgeGroup)
+
+            @DetailItem(
+                        "First Visit",
+                        selectedGuest.VisitingDate.ToString("dd MMM yyyy"))
+
+            @DetailItem(
+                        "Recorded By",
+                        selectedGuest.RecordedByName)
+                        }
 
                 @if (modalTab == "contact")
                 {
-                    @DetailRow("Phone", selectedGuest.PhoneNumber)
-                    @DetailRow("WhatsApp", selectedGuest.WhatsAppNumber)
-                    @DetailRow("Email", selectedGuest.Email)
-                    @DetailRow("Address", selectedGuest.Address)
-                    @DetailRow("Landmark", selectedGuest.Landmark)
+                    @DetailItem("Phone", selectedGuest.PhoneNumber)
+                    @DetailItem("WhatsApp", selectedGuest.WhatsAppNumber)
+                    @DetailItem("Email", selectedGuest.Email)
+                    @DetailItem("Address", selectedGuest.Address)
+                    @DetailItem("Landmark", selectedGuest.Landmark)
                 }
 
                 @if (modalTab == "church")
                 {
-                    @DetailRow("Service Attended", selectedGuest.Service?.Name)
-                    @DetailRow("RCCG Member", selectedGuest.IsRCCGMember ? "Yes" : "No")
-                    @DetailRow("Other Church", selectedGuest.OtherChurch)
-                    @DetailRow("How Found Us", selectedGuest.HowFoundUs)
-                    @DetailRow("Invited By", selectedGuest.InvitedByName)
-                }
+                    @DetailItem(
+                    "Service Attended",
+                        selectedGuest.Service?.Name)
 
-                @if (modalTab == "second" && selectedGuest.IsSecondTimer)
+            @DetailItem(
+                        "RCCG Member",
+                        selectedGuest.IsRCCGMember ? "Yes" : "No")
+
+            @DetailItem(
+                        "Other Church",
+                        selectedGuest.OtherChurch)
+
+            @DetailItem(
+                        "How Found Us",
+                        selectedGuest.HowFoundUs)
+
+            @DetailItem(
+                        "Invited By",
+                        selectedGuest.InvitedByName)
+                        }
+
+                @if (modalTab == "second" &&
+                            selectedGuest.IsSecondTimer)
                 {
-                    @DetailRow("Second Visit Date", selectedGuest.SecondVisitDate?.ToString("dd MMM yyyy"))
-                    @DetailRow("Wants Membership", selectedGuest.WantsToBecomeMember == true ? "Yes" : "No")
-                    @DetailRow("Birth Month", selectedGuest.BirthMonth)
-                    @DetailRow("Baptised by Water", selectedGuest.IsBaptisedByWater == true ? "Yes" : "No")
-                    @DetailRow("Join Workforce", selectedGuest.WantsToJoinWorkforce == true ? "Yes" : "No")
-                    @DetailRow("Recorded By", selectedGuest.SecondVisitRecordedByName)
-                }
+                    @DetailItem(
+                    "Second Visit Date",
+                        selectedGuest.SecondVisitDate?
+                        .ToString("dd MMM yyyy"))
+
+            @DetailItem(
+                        "Wants Membership",
+                        FormatNullableBool(
+                        selectedGuest.WantsToBecomeMember))
+
+            @DetailItem(
+                        "Birth Month",
+                        selectedGuest.BirthMonth)
+
+            @DetailItem(
+                        "Baptised by Water",
+                        FormatNullableBool(
+                        selectedGuest.IsBaptisedByWater))
+
+            @DetailItem(
+                        "Join Workforce",
+                        FormatNullableBool(
+                        selectedGuest.WantsToJoinWorkforce))
+
+            @DetailItem(
+                        "Recorded By",
+                        selectedGuest.SecondVisitRecordedByName)
+                        }
+
             </div>
 
-            <div class="guest360-actions">
-                <button class="team-action-btn" @onclick="() => RecordPhoneFollowUp(selectedGuest.Id)">
-                    <i class="fas fa-phone-alt me-1"></i>
-                    Phone Follow-up
+            <div class="mt-3 d-flex justify-content-end gap-2 flex-wrap">
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="CloseDetailsModal">
+                    Close
                 </button>
 
-                <a class="team-action-btn text-center" href="/guest/edit/@selectedGuest.Id">
+                <a href="/guest/edit/@selectedGuest.Id"
+                   class="btn btn-sm btn-outline-secondary">
                     <i class="fas fa-pen me-1"></i>
                     Edit
                 </a>
 
+                <button type="button"
+                        class="btn btn-sm btn-outline-success"
+                        @onclick="() => RecordPhoneFollowUp(selectedGuest.Id)">
+                    <i class="fas fa-phone-alt me-1"></i>
+                    Phone Follow-up
+                </button>
+
                 @if (!selectedGuest.IsSecondTimer)
                 {
-                    <button class="team-success-btn" @onclick="() => MarkAsSecondTimer(selectedGuest.Id)">
+                    <button type="button"
+                            class="btn btn-sm btn-warning"
+                            @onclick="() => MarkAsSecondTimer(selectedGuest.Id)">
                         <i class="fas fa-user-check me-1"></i>
                         Record Second Visit
                     </button>
                 }
 
-                <button class="team-danger-btn" @onclick="CloseDetailsModal">
-                    Close
-                </button>
             </div>
+
         </div>
     </div>
 }
 
 @code {
     private List<Guest> guests = new();
-    private Guest? selectedGuest = null;
 
-    private DateTime selectedDate = DateTime.Today;
-    private bool isLoading = false;
-    private bool showDetailsModal = false;
-    private string errorMessage = "";
+    private Guest? selectedGuest;
 
+    private DateTime selectedDate =
+        DateTime.Today;
+
+    private bool isPageLoading = true;
+    private bool isLoadingGuests;
+    private bool showDetailsModal;
+    private bool canAccessGuestManagement;
+
+    private string errorMessage = string.Empty;
     private string modalTab = "overview";
 
-    private int firstTimerCount => guests.Count(g => !g.IsSecondTimer);
-    private int secondTimerCount => guests.Count(g => g.IsSecondTimer);
-    private double conversionRate => guests.Count > 0 ? (double)secondTimerCount / guests.Count * 100 : 0;
+    private int firstTimerCount =>
+        guests.Count(g => !g.IsSecondTimer);
+
+    private int secondTimerCount =>
+        guests.Count(g => g.IsSecondTimer);
+
+    private double conversionRate =>
+        guests.Count > 0
+            ? (double)secondTimerCount /
+              guests.Count * 100
+            : 0;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadGuests();
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        try
+        {
+            isPageLoading = true;
+            errorMessage = string.Empty;
+
+            var worker =
+                AuthService.CurrentWorker;
+
+            if (worker == null)
+            {
+                canAccessGuestManagement = false;
+                return;
+            }
+
+            var access =
+                await ServiceRecordAccessService
+                    .GetAccessAsync(worker.Id);
+
+            var hasGuestPrivilege =
+                access.CanAccessGuestManagement;
+
+            var isFigDirectorate =
+                IsFigName(worker.Directorate?.Name);
+
+            var isSecondaryDepartmentFig =
+                IsFigName(worker.SecondaryDepartment?.Name);
+
+            var hasAuthorisedRole =
+                AuthService.IsInRole("Church Admin") ||
+                AuthService.IsInRole("Head of Service") ||
+                AuthService.IsInRole("Pastor in Charge");
+
+            canAccessGuestManagement =
+                hasGuestPrivilege &&
+                (
+                    isFigDirectorate ||
+                    isSecondaryDepartmentFig ||
+                    hasAuthorisedRole
+                );
+
+            if (!canAccessGuestManagement)
+                return;
+
+            await LoadGuests();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load Daily Guest Register: {ex.Message}";
+        }
+        finally
+        {
+            isPageLoading = false;
+        }
     }
 
     private async Task LoadGuests()
     {
-        isLoading = true;
-
         try
         {
-            guests = await GuestService.GetGuestsByDateAsync(selectedDate);
+            isLoadingGuests = true;
+            errorMessage = string.Empty;
+
+            guests =
+                await GuestService
+                    .GetGuestsByDateAsync(selectedDate);
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error loading guests: {ex.Message}";
+            errorMessage =
+                $"Error loading guests: {ex.Message}";
         }
         finally
         {
-            isLoading = false;
-            StateHasChanged();
+            isLoadingGuests = false;
         }
-    }
-
-    private bool IsFIGDirectorateMember()
-    {
-        var worker = AuthService.CurrentWorker;
-        if (worker == null) return false;
-
-        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
-        var departmentName = worker.Department?.Name?.ToLowerInvariant() ?? "";
-        var secondaryDirectorateName = worker.SecondaryDirectorate?.Name?.ToLowerInvariant() ?? "";
-        var secondaryDepartmentName = worker.SecondaryDepartment?.Name?.ToLowerInvariant() ?? "";
-        var role = worker.Role?.ToLowerInvariant() ?? "";
-
-        var isInFIG =
-            directorateName.Contains("fig") ||
-            secondaryDirectorateName.Contains("fig");
-
-        var isMembershipAssimilation =
-            departmentName.Contains("membership assimilation") ||
-            secondaryDepartmentName.Contains("membership assimilation");
-
-        var hasValidRole =
-            role.Contains("head of directorate") ||
-            role.Contains("asst head of directorate") ||
-            role.Contains("directorate member") ||
-            AuthService.IsInRole("Church Admin") ||
-            AuthService.IsInRole("Pastor in Charge") ||
-            (role.Contains("head of department") && isMembershipAssimilation);
-
-        return (isInFIG || isMembershipAssimilation) && hasValidRole;
     }
 
     private async Task OnDateChanged()
@@ -473,21 +690,28 @@ else
 
     private async Task PreviousDay()
     {
-        selectedDate = selectedDate.AddDays(-1);
+        selectedDate =
+            selectedDate.AddDays(-1);
+
         await LoadGuests();
     }
 
     private async Task NextDay()
     {
-        selectedDate = selectedDate.AddDays(1);
+        selectedDate =
+            selectedDate.AddDays(1);
+
         await LoadGuests();
     }
 
-    private async Task ViewGuestDetails(int guestId)
+    private async Task ViewGuestDetails(
+        int guestId)
     {
         try
         {
-            selectedGuest = await GuestService.GetGuestByIdAsync(guestId);
+            selectedGuest =
+                await GuestService
+                    .GetGuestByIdAsync(guestId);
 
             if (selectedGuest != null)
             {
@@ -497,25 +721,37 @@ else
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error loading guest details: {ex.Message}";
+            errorMessage =
+                $"Error loading guest details: {ex.Message}";
         }
     }
 
-    private void SetModalTab(string tab) => modalTab = tab;
-
-    private string GetModalTabClass(string tab)
+    private void SetModalTab(
+        string tab)
     {
-        return modalTab == tab ? "profile-form-tab active" : "profile-form-tab";
+        modalTab = tab;
     }
 
-    private void MarkAsSecondTimer(int guestId)
+    private string GetModalTabClass(
+        string tab)
     {
-        Navigation.NavigateTo($"/guest/second-timer?guestId={guestId}");
+        return modalTab == tab
+            ? "guest-popup-tab active"
+            : "guest-popup-tab";
     }
 
-    private void RecordPhoneFollowUp(int guestId)
+    private void MarkAsSecondTimer(
+        int guestId)
     {
-        Navigation.NavigateTo($"/guest/phone-followup?guestId={guestId}");
+        Navigation.NavigateTo(
+            $"/guest/second-timer?guestId={guestId}");
+    }
+
+    private void RecordPhoneFollowUp(
+        int guestId)
+    {
+        Navigation.NavigateTo(
+            $"/guest/phone-followup?guestId={guestId}");
     }
 
     private void CloseDetailsModal()
@@ -524,16 +760,431 @@ else
         selectedGuest = null;
     }
 
-    private string GetInitials(Guest guest)
+    private void GoBack()
     {
-        var first = string.IsNullOrWhiteSpace(guest.FirstName) ? "" : guest.FirstName[0].ToString();
-        var last = string.IsNullOrWhiteSpace(guest.Surname) ? "" : guest.Surname[0].ToString();
-
-        return $"{first}{last}".ToUpper();
+        Navigation.NavigateTo("/guest");
     }
 
-    private RenderFragment DetailRow(string label, string? value) => @<div class="bcc-info-row">
-        <div class="bcc-info-label">@label</div>
-        <div class="bcc-info-value">@(string.IsNullOrWhiteSpace(value) ? "Not provided" : value)</div>
-    </div>;
+    private static bool IsFigName(
+        string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return string.Equals(
+                   value.Trim(),
+                   "FIG",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               value.Contains(
+                   "FIG",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetInitials(
+        Guest guest)
+    {
+        var first =
+            string.IsNullOrWhiteSpace(guest.FirstName)
+                ? string.Empty
+                : guest.FirstName[..1];
+
+        var last =
+            string.IsNullOrWhiteSpace(guest.Surname)
+                ? string.Empty
+                : guest.Surname[..1];
+
+        var initials =
+            $"{first}{last}".ToUpperInvariant();
+
+        return string.IsNullOrWhiteSpace(initials)
+            ? "G"
+            : initials;
+    }
+
+    private static string DisplayText(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not provided"
+            : value;
+    }
+
+    private static string FormatNullableBool(
+        bool? value)
+    {
+        return value.HasValue
+            ? (value.Value ? "Yes" : "No")
+            : "Not provided";
+    }
+
+    private RenderFragment DetailItem(
+        string label,
+        string? value) => @<div class="guest-detail-item">
+        <span>@label</span>
+
+        <strong>
+            @(string.IsNullOrWhiteSpace(value)
+                ? "Not provided"
+                : value)
+                    </strong>
+                </div>;
 }
+
+<style>
+    .daily-guest-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .daily-guest-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .compact-section-heading,
+    .result-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+        .compact-section-heading h6,
+        .result-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .compact-section-heading p,
+        .result-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.72rem;
+        }
+
+    .result-count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 8px;
+        color: #ffffff;
+        background: #4f46e5;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 800;
+    }
+
+    .date-panel {
+        padding: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+
+    .date-navigation {
+        display: flex;
+        gap: 6px;
+    }
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: 0.68rem;
+        font-weight: 700;
+    }
+
+    .daily-guest-page .form-control {
+        min-height: 32px;
+        font-size: 0.77rem;
+    }
+
+    .daily-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+        .daily-summary-grid > div {
+            padding: 9px 10px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 9px;
+        }
+
+        .daily-summary-grid span {
+            display: block;
+            margin-bottom: 2px;
+            color: #64748b;
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .daily-summary-grid strong {
+            color: #0f172a;
+            font-size: 0.95rem;
+            font-weight: 800;
+        }
+
+        .daily-summary-grid .conversion {
+            background: #eef2ff;
+            border-color: #c7d2fe;
+        }
+
+            .daily-summary-grid .conversion strong {
+                color: #4338ca;
+            }
+
+    .daily-guest-page .col-xl-4 .bcc-card {
+        border-top: 4px solid #4f46e5;
+    }
+
+    .daily-guest-page .col-xl-8 .bcc-card {
+        border-top: 4px solid #7c3aed;
+    }
+
+    .daily-guest-table thead th {
+        padding: 8px 9px;
+        color: #475569;
+        background: #f8fafc;
+        font-size: 0.62rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .daily-guest-table tbody td {
+        padding: 8px 9px;
+        font-size: 0.75rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .guest-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .guest-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 34px;
+        width: 34px;
+        height: 34px;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 800;
+    }
+
+    .guest-name-cell strong,
+    .guest-name-cell span {
+        display: block;
+    }
+
+    .guest-name-cell strong {
+        color: #0f172a;
+        font-size: 0.75rem;
+    }
+
+    .guest-name-cell span {
+        color: #64748b;
+        font-size: 0.65rem;
+    }
+
+    .contact-stack,
+    .recorded-by-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+        .contact-stack span,
+        .recorded-by-stack span {
+            color: #64748b;
+            font-size: 0.66rem;
+        }
+
+        .contact-stack i {
+            width: 14px;
+            color: #4f46e5;
+        }
+
+        .recorded-by-stack strong {
+            color: #334155;
+            font-size: 0.7rem;
+        }
+
+    .guest-type-badge {
+        display: inline-flex;
+        padding: 4px 7px;
+        border-radius: 999px;
+        font-size: 0.64rem;
+        font-weight: 800;
+    }
+
+        .guest-type-badge.first {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .guest-type-badge.second {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+    .guest-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        background: rgba(15, 23, 42, 0.58);
+        backdrop-filter: blur(2px);
+    }
+
+    .guest-popup-card {
+        width: 100%;
+        max-width: 620px;
+        max-height: 86vh;
+        padding: 18px;
+        overflow-y: auto;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.28);
+    }
+
+    .guest-popup-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .guest-popup-profile {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .guest-avatar-large {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 11px;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .guest-popup-profile h4 {
+        margin: 0 0 2px;
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .guest-popup-profile p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.72rem;
+    }
+
+    .guest-popup-tabs {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 12px;
+        padding-bottom: 9px;
+        overflow-x: auto;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .guest-popup-tab {
+        flex-shrink: 0;
+        padding: 6px 9px;
+        color: #64748b;
+        background: transparent;
+        border: 0;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+
+        .guest-popup-tab.active {
+            color: #4338ca;
+            background: #eef2ff;
+        }
+
+    .guest-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .guest-detail-item {
+        padding: 8px 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+        .guest-detail-item span {
+            display: block;
+            margin-bottom: 2px;
+            color: #64748b;
+            font-size: 0.61rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .guest-detail-item strong {
+            color: #0f172a;
+            font-size: 0.77rem;
+            white-space: pre-wrap;
+        }
+
+    @@media (max-width: 768px) {
+        .daily-guest-table thead th,
+        .daily-guest-table tbody td {
+            white-space: normal;
+        }
+
+        .guest-detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .daily-summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .guest-popup-card {
+            max-width: 96vw;
+            padding: 16px;
+        }
+    }
+</style>

@@ -1,0 +1,1154 @@
+﻿@page "/Offering/my-records"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+
+@inject AuthService AuthService
+@inject ChurchOfferingService OfferingService
+@inject NavigationManager Navigation
+
+<PageTitle>My Offering Records - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+
+        <h4>Please Log In</h4>
+
+        <p>
+            You need to be logged in to view your offering records.
+        </p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else
+{
+    <div class="worker360-page compact-my-offerings-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-hand-holding-usd me-2"></i>
+                    Offering Management
+                </div>
+
+                <div class="bcc-page-title">
+                    My Offering Records
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    View, track and correct offering records submitted by you.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <a href="/Offering/record"
+                   class="bcc-btn bcc-btn-primary">
+                    <i class="fas fa-plus me-2"></i>
+                    Record Offering
+                </a>
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+            </div>
+        </div>
+
+        <div class="bcc-card mb-3">
+            <div class="bcc-card-body p-3">
+
+                <div class="row g-2 compact-filter-row">
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small mb-1">
+                            Date From
+                        </label>
+
+                        <InputDate class="form-control form-control-sm"
+                                   @bind-Value="dateFrom" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small mb-1">
+                            Date To
+                        </label>
+
+                        <InputDate class="form-control form-control-sm"
+                                   @bind-Value="dateTo" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small mb-1">
+                            Status
+                        </label>
+
+                        <select class="form-select form-select-sm"
+                                @bind="selectedStatus">
+                            <option value="">All Statuses</option>
+                            <option value="PendingApproval">
+                                Pending Approval
+                            </option>
+                            <option value="Approved">
+                                Approved
+                            </option>
+                            <option value="ReturnedForCorrection">
+                                Returned for Correction
+                            </option>
+                            <option value="Removed">
+                                Removed
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small mb-1">
+                            Search
+                        </label>
+
+                        <InputText class="form-control form-control-sm"
+                                   @bind-Value="searchText"
+                                   placeholder="Service, type or remark" />
+                    </div>
+
+                    <div class="col-12 d-flex justify-content-end gap-2">
+                        <button type="button"
+                                class="bcc-btn profile-form-secondary-btn compact-btn"
+                                @onclick="ClearFilters">
+                            Clear
+                        </button>
+
+                        <button type="button"
+                                class="bcc-btn bcc-btn-primary compact-btn"
+                                @onclick="ApplyFilters">
+                            <i class="fas fa-search me-2"></i>
+                            Search
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="bcc-card">
+                <div class="bcc-card-body text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+
+                    <div class="mt-3 text-muted">
+                        Loading your offering records...
+                    </div>
+                </div>
+            </div>
+        }
+        else if (!filteredRecords.Any())
+        {
+            <div class="bcc-empty">
+                <i class="fas fa-receipt"></i>
+
+                <h4>No Offering Records Found</h4>
+
+                <p>
+                    No offering records match the selected filters.
+                </p>
+
+                <a href="/Offering/record"
+                   class="bcc-btn bcc-btn-primary">
+                    Record Offering
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="offering-summary-grid mb-3">
+
+                <div class="offering-summary-card">
+                    <span>Total Records</span>
+                    <strong>@filteredRecords.Count</strong>
+                </div>
+
+                <div class="offering-summary-card">
+                    <span>Pending Approval</span>
+                    <strong>
+                        @filteredRecords.Count(x =>
+                            x.Status ==
+                            ChurchOfferingService.StatusPendingApproval)
+                    </strong>
+                </div>
+
+                <div class="offering-summary-card">
+                    <span>Returned</span>
+                    <strong>
+                        @filteredRecords.Count(x =>
+                            x.Status ==
+                            ChurchOfferingService.StatusReturnedForCorrection)
+                    </strong>
+                </div>
+
+                <div class="offering-summary-card">
+                    <span>Approved</span>
+                    <strong>
+                        @filteredRecords.Count(x =>
+                            x.Status ==
+                            ChurchOfferingService.StatusApproved)
+                    </strong>
+                </div>
+
+            </div>
+
+            <div class="bcc-card">
+                <div class="bcc-card-body p-0">
+
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0 offering-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Service</th>
+                                    <th>Offering Type</th>
+                                    <th>Amount</th>
+                                    <th>Payment</th>
+                                    <th>Status</th>
+                                    <th>Comment</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var record in filteredRecords)
+                                {
+                                    <tr>
+                                        <td>
+                                            @record.OfferingDate.ToString(
+                                                "dd MMM yyyy")
+                                        </td>
+
+                                        <td>
+                                            @(record.Service?.Name
+                                                ?? "Not available")
+                                        </td>
+
+                                        <td>
+                                            @(record.OfferingType?.Name
+                                                ?? "Not available")
+                                        </td>
+
+                                        <td class="fw-bold">
+                                            @FormatAmount(
+                                                record.Amount,
+                                                record.Currency)
+                                        </td>
+
+                                        <td>
+                                            @record.PaymentMode
+                                        </td>
+
+                                        <td>
+                                            <span class="@GetStatusClass(
+                                                record.Status)">
+                                                @FormatStatus(record.Status)
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(
+                                                record.ReturnComment))
+                                            {
+                                                <span class="text-danger small">
+                                                    @record.ReturnComment
+                                                </span>
+                                            }
+                                            else if (!string.IsNullOrWhiteSpace(
+                                                record.RemovalReason))
+                                            {
+                                                <span class="text-muted small">
+                                                    @record.RemovalReason
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    —
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td class="text-end">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary me-1"
+                                                    @onclick="() => OpenDetails(record)">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+
+                                            @if (record.Status ==
+                                                ChurchOfferingService
+                                                    .StatusReturnedForCorrection &&
+                                                !record.IsRemoved)
+                                            {
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-warning me-1"
+                                                        title="Correct and resubmit"
+                                                        @onclick="() => OpenCorrection(record)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        title="Remove record"
+                                                        @onclick="() => OpenRemoval(record)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (showDetailsPopup && selectedRecord != null)
+{
+    <div class="offering-popup-backdrop">
+        <div class="offering-popup-card">
+
+            <div class="offering-popup-header">
+                <div>
+                    <h4>Offering Details</h4>
+                    <p>
+                        Recorded on
+                        @(selectedRecord.RecordedAt
+                            .ToLocalTime()
+                            .ToString("dd MMM yyyy, hh:mm tt"))
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="CloseAllPopups">
+                </button>
+            </div>
+
+            <div class="offering-detail-grid">
+
+                <div>
+                    <span>Service</span>
+                    <strong>
+                        @(selectedRecord.Service?.Name
+                            ?? "Not available")
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Offering Type</span>
+                    <strong>
+                        @(selectedRecord.OfferingType?.Name
+                            ?? "Not available")
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Offering Date</span>
+                    <strong>
+                        @(selectedRecord.OfferingDate
+                            .ToString("dd MMMM yyyy"))
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Amount</span>
+                    <strong>
+                        @FormatAmount(
+                            selectedRecord.Amount,
+                            selectedRecord.Currency)
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Payment Mode</span>
+                    <strong>
+                        @selectedRecord.PaymentMode
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Status</span>
+                    <strong>
+                        @FormatStatus(selectedRecord.Status)
+                    </strong>
+                </div>
+
+                <div class="detail-wide">
+                    <span>Remarks</span>
+                    <strong>
+                        @(string.IsNullOrWhiteSpace(
+                            selectedRecord.Remarks)
+                            ? "None"
+                            : selectedRecord.Remarks)
+                    </strong>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(
+                    selectedRecord.ReturnComment))
+                {
+                    <div class="detail-wide returned-comment">
+                        <span>Return Comment</span>
+                        <strong>
+                            @selectedRecord.ReturnComment
+                        </strong>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+}
+
+@if (showCorrectionPopup && selectedRecord != null)
+{
+    <div class="offering-popup-backdrop">
+        <div class="offering-popup-card offering-popup-large">
+
+            <div class="offering-popup-header">
+                <div>
+                    <h4>Correct Offering Record</h4>
+                    <p>
+                        Update the returned record and resubmit it for approval.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="CloseAllPopups">
+                </button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(
+                selectedRecord.ReturnComment))
+            {
+                <div class="alert alert-warning">
+                    <strong>Reviewer comment:</strong>
+                    @selectedRecord.ReturnComment
+                </div>
+            }
+
+            <div class="row g-2">
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        Service
+                    </label>
+
+                    <InputSelect class="form-select form-select-sm"
+                                 @bind-Value="correctionModel.ServiceId">
+                        <option value="">
+                            -- Select Service --
+                        </option>
+
+                        @foreach (var service in services)
+                        {
+                            <option value="@service.Id">
+                                @service.Name
+                            </option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        Offering Type
+                    </label>
+
+                    <InputSelect class="form-select form-select-sm"
+                                 @bind-Value="correctionModel.OfferingTypeId">
+                        <option value="">
+                            -- Select Offering Type --
+                        </option>
+
+                        @foreach (var type in offeringTypes)
+                        {
+                            <option value="@type.Id">
+                                @type.Name
+                            </option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        Offering Date
+                    </label>
+
+                    <InputDate class="form-control form-control-sm"
+                               @bind-Value="correctionModel.OfferingDate" />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        Amount
+                    </label>
+
+                    <InputNumber class="form-control form-control-sm"
+                                 @bind-Value="correctionModel.Amount" />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        Currency
+                    </label>
+
+                    <InputSelect class="form-select form-select-sm"
+                                 @bind-Value="correctionModel.Currency">
+                        <option value="NGN">NGN</option>
+                        <option value="USD">USD</option>
+                        <option value="GBP">GBP</option>
+                        <option value="EUR">EUR</option>
+                    </InputSelect>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        Payment Mode
+                    </label>
+
+                    <InputSelect class="form-select form-select-sm"
+                                 @bind-Value="correctionModel.PaymentMode">
+                        <option value="">-- Select --</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Transfer">Bank Transfer</option>
+                        <option value="POS">POS</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Mixed">Mixed Payment</option>
+                    </InputSelect>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-bold">
+                        Remarks
+                    </label>
+
+                    <InputTextArea class="form-control form-control-sm"
+                                   rows="3"
+                                   @bind-Value="correctionModel.Remarks" />
+                </div>
+
+            </div>
+
+            <div class="mt-4 d-flex justify-content-end gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="CloseAllPopups">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary"
+                        disabled="@isProcessing"
+                        @onclick="ResubmitCorrection">
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+
+                    Resubmit
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showRemovalPopup && selectedRecord != null)
+{
+    <div class="offering-popup-backdrop">
+        <div class="offering-popup-card">
+
+            <div class="offering-popup-header">
+                <div>
+                    <h4>Remove Offering Record</h4>
+                    <p>
+                        This will mark the returned record as removed.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="CloseAllPopups">
+                </button>
+            </div>
+
+            <div class="alert alert-danger">
+                The record will remain in the audit trail but will no longer
+                be treated as an active offering entry.
+            </div>
+
+            <label class="form-label fw-bold">
+                Reason for Removal
+            </label>
+
+            <InputTextArea class="form-control form-control-sm"
+                           rows="3"
+                           @bind-Value="removalReason"
+                           placeholder="Explain why this record should be removed." />
+
+            <div class="mt-4 d-flex justify-content-end gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="CloseAllPopups">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="btn btn-danger"
+                        disabled="@isProcessing"
+                        @onclick="RemoveRecord">
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+
+                    Remove Record
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ChurchOfferingRecord> allRecords = new();
+    private List<ChurchOfferingRecord> filteredRecords = new();
+
+    private List<Service> services = new();
+    private List<ChurchOfferingTypeN> offeringTypes = new();
+
+    private ChurchOfferingRecord? selectedRecord;
+    private ChurchOfferingFormModel correctionModel = new();
+
+    private DateTime? dateFrom;
+    private DateTime? dateTo;
+    private string selectedStatus = string.Empty;
+    private string searchText = string.Empty;
+    private string removalReason = string.Empty;
+
+    private bool isLoading = true;
+    private bool isProcessing;
+    private bool showDetailsPopup;
+    private bool showCorrectionPopup;
+    private bool showRemovalPopup;
+
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            if (AuthService.CurrentWorker == null)
+                return;
+
+            services =
+                await OfferingService.GetServicesAsync();
+
+            offeringTypes =
+                await OfferingService.GetActiveOfferingTypesAsync();
+
+            allRecords =
+                await OfferingService.GetMyRecordsAsync(
+                    AuthService.CurrentWorker.Id);
+
+            filteredRecords = allRecords.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load offering records: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        IEnumerable<ChurchOfferingRecord> query =
+            allRecords;
+
+        if (dateFrom.HasValue)
+        {
+            query = query.Where(x =>
+                x.OfferingDate.Date >=
+                dateFrom.Value.Date);
+        }
+
+        if (dateTo.HasValue)
+        {
+            query = query.Where(x =>
+                x.OfferingDate.Date <=
+                dateTo.Value.Date);
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+            selectedStatus))
+        {
+            query = query.Where(x =>
+                x.Status == selectedStatus);
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+            searchText))
+        {
+            var search =
+                searchText.Trim();
+
+            query = query.Where(x =>
+                (x.Service?.Name?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false) ||
+
+                (x.OfferingType?.Name?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false) ||
+
+                (x.PaymentMode?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false) ||
+
+                (x.Remarks?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false));
+        }
+
+        filteredRecords = query
+            .OrderByDescending(x => x.OfferingDate)
+            .ThenByDescending(x => x.RecordedAt)
+            .ToList();
+    }
+
+    private void ClearFilters()
+    {
+        dateFrom = null;
+        dateTo = null;
+        selectedStatus = string.Empty;
+        searchText = string.Empty;
+
+        filteredRecords = allRecords.ToList();
+    }
+
+    private void OpenDetails(
+        ChurchOfferingRecord record)
+    {
+        selectedRecord = record;
+        showDetailsPopup = true;
+    }
+
+    private void OpenCorrection(
+        ChurchOfferingRecord record)
+    {
+        selectedRecord = record;
+
+        correctionModel =
+            new ChurchOfferingFormModel
+            {
+                ServiceId = record.ServiceId,
+                OfferingTypeId =
+                    record.OfferingTypeId,
+                OfferingDate =
+                    record.OfferingDate,
+                Amount = record.Amount,
+                Currency = record.Currency,
+                PaymentMode =
+                    record.PaymentMode,
+                Remarks = record.Remarks
+            };
+
+        showCorrectionPopup = true;
+    }
+
+    private void OpenRemoval(
+        ChurchOfferingRecord record)
+    {
+        selectedRecord = record;
+        removalReason = string.Empty;
+        showRemovalPopup = true;
+    }
+
+    private async Task ResubmitCorrection()
+    {
+        if (selectedRecord == null ||
+            AuthService.CurrentWorker == null)
+        {
+            return;
+        }
+
+        try
+        {
+            isProcessing = true;
+            errorMessage = null;
+
+            await OfferingService
+                .ResubmitReturnedOfferingAsync(
+                    selectedRecord.Id,
+                    correctionModel,
+                    AuthService.CurrentWorker.Id);
+
+            successMessage =
+                "Offering corrected and resubmitted successfully.";
+
+            CloseAllPopups();
+            await LoadPageAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to resubmit offering: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task RemoveRecord()
+    {
+        if (selectedRecord == null ||
+            AuthService.CurrentWorker == null)
+        {
+            return;
+        }
+
+        try
+        {
+            isProcessing = true;
+            errorMessage = null;
+
+            await OfferingService
+                .RemoveReturnedOfferingAsync(
+                    selectedRecord.Id,
+                    AuthService.CurrentWorker.Id,
+                    removalReason);
+
+            successMessage =
+                "Offering record removed successfully.";
+
+            CloseAllPopups();
+            await LoadPageAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to remove offering: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private void CloseAllPopups()
+    {
+        showDetailsPopup = false;
+        showCorrectionPopup = false;
+        showRemovalPopup = false;
+
+        selectedRecord = null;
+        removalReason = string.Empty;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private static string FormatStatus(string status)
+    {
+        return status switch
+        {
+            "PendingApproval" => "Pending Approval",
+            "Approved" => "Approved",
+            "ReturnedForCorrection" =>
+                "Returned for Correction",
+            "Removed" => "Removed",
+            _ => status
+        };
+    }
+
+    private static string GetStatusClass(
+        string status)
+    {
+        return status switch
+        {
+            "Approved" =>
+                "offering-status offering-status-approved",
+
+            "PendingApproval" =>
+                "offering-status offering-status-pending",
+
+            "ReturnedForCorrection" =>
+                "offering-status offering-status-returned",
+
+            "Removed" =>
+                "offering-status offering-status-removed",
+
+            _ => "offering-status"
+        };
+    }
+
+    private static string FormatAmount(
+        decimal amount,
+        string currency)
+    {
+        var symbol = currency switch
+        {
+            "NGN" => "₦",
+            "USD" => "$",
+            "GBP" => "£",
+            "EUR" => "€",
+            _ => $"{currency} "
+        };
+
+        return $"{symbol}{amount:N2}";
+    }
+}
+
+<style>
+    .compact-my-offerings-page {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .compact-filter-row .form-control,
+    .compact-filter-row .form-select {
+        min-height: 34px;
+        font-size: 0.82rem;
+    }
+
+    .compact-btn {
+        min-height: 34px;
+        padding: 7px 12px;
+        font-size: 0.82rem;
+    }
+
+    .offering-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .offering-summary-card {
+        padding: 11px 13px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 11px;
+    }
+
+    .offering-summary-card span {
+        display: block;
+        margin-bottom: 2px;
+        color: #64748b;
+        font-size: 0.68rem;
+        font-weight: 700;
+    }
+
+    .offering-summary-card strong {
+        color: #0f172a;
+        font-size: 1.05rem;
+        font-weight: 800;
+    }
+
+    .offering-table thead th {
+        padding: 9px 10px;
+        color: #475569;
+        background: #f8fafc;
+        font-size: 0.67rem;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .offering-table tbody td {
+        padding: 9px 10px;
+        font-size: 0.8rem;
+        vertical-align: middle;
+    }
+
+    .offering-status {
+        display: inline-flex;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 800;
+    }
+
+    .offering-status-approved {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .offering-status-pending {
+        color: #92400e;
+        background: #fef3c7;
+    }
+
+    .offering-status-returned {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+    .offering-status-removed {
+        color: #475569;
+        background: #e2e8f0;
+    }
+
+    .offering-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 4000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(15, 23, 42, 0.58);
+    }
+
+    .offering-popup-card {
+        width: 100%;
+        max-width: 560px;
+        max-height: 84vh;
+        padding: 20px;
+        overflow-y: auto;
+        background: #ffffff;
+        border-radius: 15px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.24);
+    }
+
+    .offering-popup-large {
+        max-width: 720px;
+    }
+
+    .offering-popup-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 13px;
+    }
+
+    .offering-popup-header h4 {
+        margin: 0 0 2px;
+        font-size: 1.05rem;
+        font-weight: 800;
+    }
+
+    .offering-popup-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.78rem;
+    }
+
+    .offering-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .offering-detail-grid > div {
+        padding: 9px 11px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .offering-detail-grid span {
+        display: block;
+        margin-bottom: 3px;
+        color: #64748b;
+        font-size: 0.66rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .offering-detail-grid strong {
+        color: #0f172a;
+        font-size: 0.82rem;
+        white-space: pre-wrap;
+    }
+
+    .detail-wide {
+        grid-column: 1 / -1;
+    }
+
+    .returned-comment {
+        border-left: 4px solid #dc2626 !important;
+    }
+
+    @@media (max-width: 768px) {
+        .offering-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .offering-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .detail-wide {
+            grid-column: auto;
+        }
+
+        .offering-table thead th,
+        .offering-table tbody td {
+            white-space: normal;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .offering-summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .offering-popup-card,
+        .offering-popup-large {
+            max-width: 96vw;
+            padding: 17px;
+        }
+    }
+</style>

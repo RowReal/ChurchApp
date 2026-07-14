@@ -1,0 +1,1075 @@
+﻿@page "/Offering/amendments"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+
+@inject AuthService AuthService
+@inject ChurchOfferingService OfferingService
+@inject ChurchOfferingAccessService OfferingAccessService
+@inject NavigationManager Navigation
+
+<PageTitle>Offering Amendments - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+
+        <h4>Please Log In</h4>
+
+        <p>
+            You need to be logged in to manage offering amendments.
+        </p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-5">
+                <div class="spinner-border text-primary"></div>
+
+                <div class="mt-3 text-muted">
+                    Loading approved offerings...
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (!canRequestAmendment)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+
+        <h4>Access Denied</h4>
+
+        <p>
+            Only an authorised Church Administrator can request
+            amendments to approved offering records.
+        </p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Dashboard
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-edit me-2"></i>
+                    Offering Management
+                </div>
+
+                <div class="bcc-page-title">
+                    Offering Amendments
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Request corrections to approved offering records.
+                    All amendments require Pastor approval.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="RefreshPage">
+                    <i class="fas fa-sync-alt me-2"></i>
+                    Refresh
+                </button>
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+            </div>
+        </div>
+
+        <div class="alert alert-info">
+            <i class="fas fa-shield-alt me-2"></i>
+
+            The approved offering remains unchanged until the Pastor
+            approves the proposed amendment.
+        </div>
+
+        <div class="bcc-card mb-4">
+            <div class="bcc-card-body">
+
+                <div class="row g-3">
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">
+                            Date From
+                        </label>
+
+                        <InputDate class="form-control"
+                                   @bind-Value="filter.DateFrom" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">
+                            Date To
+                        </label>
+
+                        <InputDate class="form-control"
+                                   @bind-Value="filter.DateTo" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">
+                            Service
+                        </label>
+
+                        <InputSelect class="form-select"
+                                     @bind-Value="filter.ServiceId">
+                            <option value="">
+                                All Services
+                            </option>
+
+                            @foreach (var service in services)
+                            {
+                                <option value="@service.Id">
+                                    @service.Name
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">
+                            Offering Type
+                        </label>
+
+                        <InputSelect class="form-select"
+                                     @bind-Value="filter.OfferingTypeId">
+                            <option value="">
+                                All Offering Types
+                            </option>
+
+                            @foreach (var type in offeringTypes)
+                            {
+                                <option value="@type.Id">
+                                    @type.Name
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="col-md-9">
+                        <label class="form-label fw-bold">
+                            Search
+                        </label>
+
+                        <InputText class="form-control"
+                                   @bind-Value="filter.SearchText"
+                                   placeholder="Search service, offering type, recorder or remarks" />
+                    </div>
+
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="button"
+                                class="bcc-btn bcc-btn-primary w-100"
+                                disabled="@isSearching"
+                                @onclick="SearchApprovedOfferings">
+
+                            @if (isSearching)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-search me-2"></i>
+                            }
+
+                            Search
+                        </button>
+                    </div>
+
+                    <div class="col-12 text-end">
+                        <button type="button"
+                                class="bcc-btn profile-form-secondary-btn"
+                                @onclick="ClearFilters">
+                            Clear Filters
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="bcc-card">
+            <div class="bcc-card-body">
+
+                @if (!records.Any())
+                {
+                    <div class="bcc-empty py-5">
+                        <i class="fas fa-receipt"></i>
+
+                        <h4>No Approved Offerings Found</h4>
+
+                        <p>
+                            No approved records match the selected filters.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0 amendment-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Service</th>
+                                    <th>Offering Type</th>
+                                    <th>Amount</th>
+                                    <th>Payment</th>
+                                    <th>Recorder</th>
+                                    <th>Amendment</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var record in records)
+                                {
+                                    var hasPending =
+                                    recordsWithPendingAmendments
+                                    .Contains(record.Id);
+
+                                    <tr>
+                                        <td>
+                                            @record.OfferingDate
+                                            .ToString("dd MMM yyyy")
+                                        </td>
+
+                                        <td>
+                                            @(record.Service?.Name
+                                                                            ?? "Not available")
+                                                                                           </td>
+
+                                        <td>
+                                            @(record.OfferingType?.Name
+                                                                            ?? "Not available")
+                            </td>
+
+                                                                        <td class="fw-bold">
+                                                                            @FormatAmount(
+                                                                            record.Amount,
+                                                                            record.Currency)
+                            </td>
+
+                                        <td>
+                                            @record.PaymentMode
+                                        </td>
+
+                                        <td>
+                                            @GetWorkerName(
+                                                                record.RecordedByWorker)
+                            </td>
+
+                            <td>
+                                @if (hasPending)
+                                            {
+                                                <span class="amendment-status pending">
+                                                    Awaiting Pastor
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    None
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td class="text-end">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary me-1"
+                                                    @onclick="() => OpenDetails(record)">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-warning"
+                                                    disabled="@hasPending"
+                                                    @onclick="() => OpenAmendment(record)">
+                                                <i class="fas fa-edit me-1"></i>
+                                                Amend
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDetailsPopup && selectedRecord != null)
+{
+    <div class="offering-popup-backdrop">
+        <div class="offering-popup-card">
+
+            <div class="offering-popup-header">
+                <div>
+                    <h4>Approved Offering Details</h4>
+
+                    <p>
+                        Current approved values.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="ClosePopups">
+                </button>
+            </div>
+
+            <div class="offering-detail-grid">
+
+                <div>
+                    <span>Service</span>
+                    <strong>
+                        @(selectedRecord.Service?.Name
+                                            ?? "Not available")
+                                                           </strong>
+                                                       </div>
+
+                <div>
+                    <span>Offering Type</span>
+                    <strong>
+                        @(selectedRecord.OfferingType?.Name
+                                            ?? "Not available")
+                </strong>
+            </div>
+
+                                    <div>
+                                        <span>Offering Date</span>
+                                        <strong>
+                                            @selectedRecord.OfferingDate
+                                            .ToString("dd MMMM yyyy")
+                                        </strong>
+                                    </div>
+
+                                    <div>
+                                        <span>Amount</span>
+                                        <strong class="text-success">
+                                            @FormatAmount(
+                                            selectedRecord.Amount,
+                                            selectedRecord.Currency)
+                </strong>
+            </div>
+
+                <div>
+                    <span>Payment Mode</span>
+                    <strong>
+                        @selectedRecord.PaymentMode
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Approved By</span>
+                    <strong>
+                        @GetWorkerName(
+                                        selectedRecord.ApprovedByWorker)
+                </strong>
+            </div>
+
+            <div class="detail-wide">
+                <span>Remarks</span>
+                <strong>
+                    @(string.IsNullOrWhiteSpace(
+                                        selectedRecord.Remarks)
+                                        ? "None"
+                                        : selectedRecord.Remarks)
+                </strong>
+            </div>
+
+            </div>
+        </div>
+    </div>
+}
+
+@if (showAmendmentPopup && selectedRecord != null)
+{
+    <div class="offering-popup-backdrop">
+        <div class="offering-popup-card offering-popup-large">
+
+            <div class="offering-popup-header">
+                <div>
+                    <h4>Request Offering Amendment</h4>
+
+                    <p>
+                        Enter the corrected values for Pastor approval.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="ClosePopups">
+                </button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(popupErrorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    @popupErrorMessage
+                </div>
+            }
+
+        <div class="amendment-comparison mb-4">
+
+            <div class="comparison-column current">
+                <h6>Current Approved Record</h6>
+
+                <dl>
+                    <dt>Service</dt>
+                    <dd>
+                        @(selectedRecord.Service?.Name
+                                                ?? "Not available")
+                                                               </dd>
+
+                    <dt>Offering Type</dt>
+                    <dd>
+                        @(selectedRecord.OfferingType?.Name
+                                                ?? "Not available")
+                    </dd>
+
+                                            <dt>Date</dt>
+                                            <dd>
+                                                @selectedRecord.OfferingDate
+                                                .ToString("dd MMM yyyy")
+                                            </dd>
+
+                                            <dt>Amount</dt>
+                                            <dd>
+                                                @FormatAmount(
+                                                selectedRecord.Amount,
+                                                selectedRecord.Currency)
+                    </dd>
+
+                        <dt>Payment Mode</dt>
+                        <dd>
+                            @selectedRecord.PaymentMode
+                        </dd>
+                    </dl>
+                </div>
+
+                <div class="comparison-column proposed">
+                    <h6>Proposed Correction</h6>
+
+                    <div class="row g-3">
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold">
+                                Service
+                            </label>
+
+                            <InputSelect class="form-select"
+                                         @bind-Value="amendmentModel.ServiceId">
+                                <option value="">
+                                    -- Select Service --
+                                </option>
+
+                            @foreach (var service in services)
+                                {
+                                    <option value="@service.Id">
+                                        @service.Name
+                                    </option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold">
+                                Offering Type
+                            </label>
+
+                            <InputSelect class="form-select"
+                                         @bind-Value="amendmentModel.OfferingTypeId">
+                                <option value="">
+                                    -- Select Offering Type --
+                                </option>
+
+                                @foreach (var type in offeringTypes)
+                                {
+                                    <option value="@type.Id">
+                                        @type.Name
+                                    </option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">
+                                Offering Date
+                            </label>
+
+                            <InputDate class="form-control"
+                                       @bind-Value="amendmentModel.OfferingDate" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">
+                                Amount
+                            </label>
+
+                            <InputNumber class="form-control"
+                                         @bind-Value="amendmentModel.Amount" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">
+                                Currency
+                            </label>
+
+                            <InputSelect class="form-select"
+                                         @bind-Value="amendmentModel.Currency">
+                                <option value="NGN">NGN</option>
+                                <option value="USD">USD</option>
+                                <option value="GBP">GBP</option>
+                                <option value="EUR">EUR</option>
+                            </InputSelect>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">
+                                Payment Mode
+                            </label>
+
+                            <InputSelect class="form-select"
+                                         @bind-Value="amendmentModel.PaymentMode">
+                                <option value="">
+                                    -- Select --
+                                </option>
+                                <option value="Cash">Cash</option>
+                                <option value="Transfer">
+                                    Bank Transfer
+                                </option>
+                                <option value="POS">POS</option>
+                                <option value="Cheque">Cheque</option>
+                                <option value="Mixed">
+                                    Mixed Payment
+                                </option>
+                            </InputSelect>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold">
+                                Remarks
+                            </label>
+
+                            <InputTextArea class="form-control"
+                                           rows="3"
+                                           @bind-Value="amendmentModel.Remarks" />
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <div>
+                <label class="form-label fw-bold">
+                    Reason for Amendment
+                    <span class="text-danger">*</span>
+                </label>
+
+                <InputTextArea class="form-control"
+                               rows="4"
+                               @bind-Value="amendmentModel.Reason"
+                               placeholder="Explain the error and why this correction is required." />
+            </div>
+
+            <div class="mt-4 d-flex justify-content-end gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        disabled="@isProcessing"
+                        @onclick="ClosePopups">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary"
+                        disabled="@isProcessing"
+                        @onclick="SubmitAmendment">
+
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Submitting...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-paper-plane me-2"></i>
+                        <span>Submit to Pastor</span>
+                    }
+                </button>
+            </div>
+
+        </div>
+    </div>
+}
+
+@code {
+    private ChurchOfferingSearchFilter filter =
+        new()
+        {
+            Status =
+                ChurchOfferingService.StatusApproved
+        };
+
+    private ChurchOfferingAmendmentFormModel amendmentModel =
+        new();
+
+    private List<Service> services = new();
+    private List<ChurchOfferingTypeN> offeringTypes = new();
+    private List<ChurchOfferingRecord> records = new();
+
+    private HashSet<int> recordsWithPendingAmendments =
+        new();
+
+    private ChurchOfferingRecord? selectedRecord;
+
+    private bool isLoading = true;
+    private bool isSearching;
+    private bool isProcessing;
+    private bool canRequestAmendment;
+    private bool showDetailsPopup;
+    private bool showAmendmentPopup;
+
+    private string? errorMessage;
+    private string? successMessage;
+    private string? popupErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            if (AuthService.CurrentWorker == null)
+            {
+                canRequestAmendment = false;
+                return;
+            }
+
+            var workerId =
+                AuthService.CurrentWorker.Id;
+
+            canRequestAmendment =
+                await OfferingAccessService
+                    .CanRequestApprovedOfferingAmendmentAsync(
+                        workerId);
+
+            if (!canRequestAmendment)
+                return;
+
+            services =
+                await OfferingService.GetServicesAsync();
+
+            offeringTypes =
+                await OfferingService
+                    .GetActiveOfferingTypesAsync();
+
+            await LoadApprovedOfferingsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load offering amendments: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadApprovedOfferingsAsync()
+    {
+        if (AuthService.CurrentWorker == null)
+            return;
+
+        filter.Status =
+            ChurchOfferingService.StatusApproved;
+
+        records =
+            await OfferingService.SearchOfferingsAsync(
+                filter,
+                AuthService.CurrentWorker.Id);
+
+        recordsWithPendingAmendments =
+            await OfferingService
+                .GetRecordsWithPendingAmendmentsAsync(
+                    AuthService.CurrentWorker.Id);
+    }
+
+    private async Task SearchApprovedOfferings()
+    {
+        if (AuthService.CurrentWorker == null)
+            return;
+
+        if (filter.DateFrom.HasValue &&
+            filter.DateTo.HasValue &&
+            filter.DateTo.Value.Date <
+            filter.DateFrom.Value.Date)
+        {
+            errorMessage =
+                "Date To cannot be earlier than Date From.";
+
+            return;
+        }
+
+        try
+        {
+            isSearching = true;
+            errorMessage = null;
+
+            await LoadApprovedOfferingsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to search approved offerings: {ex.Message}";
+        }
+        finally
+        {
+            isSearching = false;
+        }
+    }
+
+    private async Task ClearFilters()
+    {
+        filter = new ChurchOfferingSearchFilter
+        {
+            Status =
+                ChurchOfferingService.StatusApproved
+        };
+
+        await SearchApprovedOfferings();
+    }
+
+    private void OpenDetails(
+        ChurchOfferingRecord record)
+    {
+        selectedRecord = record;
+        showDetailsPopup = true;
+    }
+
+    private void OpenAmendment(
+        ChurchOfferingRecord record)
+    {
+        if (recordsWithPendingAmendments.Contains(
+            record.Id))
+        {
+            errorMessage =
+                "This offering already has an amendment awaiting Pastor approval.";
+
+            return;
+        }
+
+        selectedRecord = record;
+
+        amendmentModel =
+            new ChurchOfferingAmendmentFormModel
+            {
+                ServiceId = record.ServiceId,
+                OfferingTypeId =
+                    record.OfferingTypeId,
+                OfferingDate =
+                    record.OfferingDate,
+                Amount = record.Amount,
+                Currency = record.Currency,
+                PaymentMode =
+                    record.PaymentMode,
+                Remarks = record.Remarks,
+                Reason = string.Empty
+            };
+
+        popupErrorMessage = null;
+        showAmendmentPopup = true;
+    }
+
+    private async Task SubmitAmendment()
+    {
+        if (selectedRecord == null ||
+            AuthService.CurrentWorker == null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(
+            amendmentModel.Reason))
+        {
+            popupErrorMessage =
+                "Please provide the reason for the amendment.";
+
+            return;
+        }
+
+        try
+        {
+            isProcessing = true;
+            popupErrorMessage = null;
+
+            await OfferingService
+                .RequestApprovedRecordAmendmentAsync(
+                    selectedRecord.Id,
+                    amendmentModel,
+                    AuthService.CurrentWorker.Id);
+
+            successMessage =
+                "The amendment was submitted to the Pastor for approval.";
+
+            ClosePopups();
+            await LoadApprovedOfferingsAsync();
+        }
+        catch (Exception ex)
+        {
+            popupErrorMessage =
+                $"Unable to submit amendment: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task RefreshPage()
+    {
+        successMessage = null;
+        await LoadPageAsync();
+    }
+
+    private void ClosePopups()
+    {
+        showDetailsPopup = false;
+        showAmendmentPopup = false;
+        selectedRecord = null;
+        popupErrorMessage = null;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private static string GetWorkerName(
+        Worker? worker)
+    {
+        if (worker == null)
+            return "Not available";
+
+        return $"{worker.FirstName} {worker.LastName}"
+            .Trim();
+    }
+
+    private static string FormatAmount(
+        decimal amount,
+        string currency)
+    {
+        var symbol = currency switch
+        {
+            "NGN" => "₦",
+            "USD" => "$",
+            "GBP" => "£",
+            "EUR" => "€",
+            _ => $"{currency} "
+        };
+
+        return $"{symbol}{amount:N2}";
+    }
+}
+
+<style>
+    .amendment-table thead th {
+        padding: 14px;
+        color: #475569;
+        background: #f8fafc;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+
+    .amendment-table tbody td {
+        padding: 14px;
+    }
+
+    .amendment-status {
+        display: inline-flex;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 800;
+    }
+
+        .amendment-status.pending {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+    .offering-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 4000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.6);
+    }
+
+    .offering-popup-card {
+        width: 100%;
+        max-width: 720px;
+        max-height: 90vh;
+        padding: 28px;
+        overflow-y: auto;
+        background: #ffffff;
+        border-radius: 20px;
+    }
+
+    .offering-popup-large {
+        max-width: 980px;
+    }
+
+    .offering-popup-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+        .offering-popup-header h4 {
+            margin: 0 0 4px;
+            font-weight: 800;
+        }
+
+        .offering-popup-header p {
+            margin: 0;
+            color: #64748b;
+        }
+
+    .offering-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+        .offering-detail-grid > div {
+            padding: 14px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+        }
+
+        .offering-detail-grid span {
+            display: block;
+            margin-bottom: 5px;
+            color: #64748b;
+            font-size: 0.74rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .offering-detail-grid strong {
+            color: #0f172a;
+            white-space: pre-wrap;
+        }
+
+    .detail-wide {
+        grid-column: 1 / -1;
+    }
+
+    .amendment-comparison {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .comparison-column {
+        padding: 18px;
+        border-radius: 14px;
+    }
+
+        .comparison-column.current {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+
+        .comparison-column.proposed {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+        }
+
+        .comparison-column h6 {
+            margin-bottom: 16px;
+            font-weight: 800;
+        }
+
+        .comparison-column dl {
+            margin: 0;
+        }
+
+        .comparison-column dt {
+            color: #64748b;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .comparison-column dd {
+            margin-bottom: 12px;
+            color: #0f172a;
+            font-weight: 700;
+        }
+
+    @@media (max-width: 768px) {
+        .offering-detail-grid,
+        .amendment-comparison {
+            grid-template-columns: 1fr;
+        }
+
+        .detail-wide {
+            grid-column: auto;
+        }
+    }
+</style>

@@ -2,7 +2,6 @@
 @layout Components.Layout.MainLayout
 
 @using ChurchApp.Services
-@using ChurchApp.Components.Shared
 
 @inject AuthService AuthService
 @inject ApprovalRequestService ApprovalRequestService
@@ -10,157 +9,167 @@
 
 <PageTitle>My Desk - BCC ServiceHub</PageTitle>
 
-@if (AuthService.IsAuthenticated)
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access My Desk.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
 {
     <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">Loading My Desk...</div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="worker360-page my-desk-page">
 
         @if (!string.IsNullOrWhiteSpace(errorMessage))
         {
-            <div class="alert alert-danger">
+            <div class="alert alert-danger py-2">
                 <i class="fas fa-exclamation-circle me-2"></i>
                 @errorMessage
             </div>
         }
 
-        <div class="bcc-page-header">
+        <div class="bcc-page-header my-desk-header">
             <div>
                 <div class="bcc-page-subtitle">
                     <i class="fas fa-clipboard-check me-2"></i>
                     Workspace
                 </div>
 
-                <div class="bcc-page-title">
-                    My Desk
-                </div>
+                <div class="bcc-page-title">My Desk</div>
 
                 <div class="bcc-page-subtitle">
-                    Create requests, monitor submitted requests
-                    and act on approvals assigned to you.
+                    Create requests, track submissions and act on approvals.
                 </div>
+            </div>
+
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>
+                Dashboard
+            </button>
+        </div>
+
+        <div class="my-desk-summary-strip mb-3">
+            <div>
+                <span>Pending My Action</span>
+                <strong>@pendingApprovalCount</strong>
             </div>
 
             <div>
-                <button type="button"
-                        class="bcc-btn profile-form-secondary-btn"
-                        @onclick="GoBack">
-                    <i class="fas fa-arrow-left me-2"></i>
-                    Dashboard
-                </button>
+                <span>Returned Requests</span>
+                <strong>@returnedRequestCount</strong>
+            </div>
+
+            <div class="attention">
+                <span>Total Attention</span>
+                <strong>@myDeskCount</strong>
             </div>
         </div>
 
-        @if (isLoading)
-        {
-            <div class="bcc-card">
-                <div class="bcc-card-body text-center py-5">
-                    <div class="spinner-border text-primary"></div>
+        <div class="bcc-card my-desk-actions-card">
+            <div class="bcc-card-body p-3">
 
-                    <div class="mt-3 text-muted">
-                        Loading your workspace...
+                <div class="my-desk-section-heading">
+                    <div>
+                        <h6>Approval Workspace</h6>
+                        <p>Select an option to continue.</p>
                     </div>
+                </div>
+
+                <div class="row g-3">
+
+                    <div class="col-12 col-md-4">
+                        <a href="/approvals/new"
+                           class="my-desk-action-card">
+
+                            <div class="my-desk-action-icon new">
+                                <i class="fas fa-plus"></i>
+                            </div>
+
+                            <div class="my-desk-action-content">
+                                <h5>New Request</h5>
+                                <p>Create and submit a new request.</p>
+                            </div>
+
+                            <i class="fas fa-chevron-right my-desk-action-arrow"></i>
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <a href="/approvals/my-requests"
+                           class="my-desk-action-card">
+
+                            <div class="my-desk-action-icon existing">
+                                <i class="fas fa-folder-open"></i>
+                            </div>
+
+                            <div class="my-desk-action-content">
+                                <div class="my-desk-action-title">
+                                    <h5>Existing Requests</h5>
+
+                                    @if (returnedRequestCount > 0)
+                                    {
+                                        <span class="my-desk-badge returned">
+                                            @returnedRequestCount
+                                        </span>
+                                    }
+                                </div>
+
+                                <p>View and track submitted requests.</p>
+                            </div>
+
+                            <i class="fas fa-chevron-right my-desk-action-arrow"></i>
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <a href="/approvals/inbox"
+                           class="my-desk-action-card">
+
+                            <div class="my-desk-action-icon inbox">
+                                <i class="fas fa-inbox"></i>
+                            </div>
+
+                            <div class="my-desk-action-content">
+                                <div class="my-desk-action-title">
+                                    <h5>Approval Inbox</h5>
+
+                                    @if (pendingApprovalCount > 0)
+                                    {
+                                        <span class="my-desk-badge pending">
+                                            @pendingApprovalCount
+                                        </span>
+                                    }
+                                </div>
+
+                                <p>Review requests waiting for your action.</p>
+                            </div>
+
+                            <i class="fas fa-chevron-right my-desk-action-arrow"></i>
+                        </a>
+                    </div>
+
                 </div>
             </div>
-        }
-        else
-        {
-            <div class="my-desk-summary-grid mb-4">
-
-                <div class="my-desk-summary-card">
-                    <div class="my-desk-summary-icon pending">
-                        <i class="fas fa-hourglass-half"></i>
-                    </div>
-
-                    <div>
-                        <span>Pending My Action</span>
-                        <strong>@pendingApprovalCount</strong>
-                    </div>
-                </div>
-
-                <div class="my-desk-summary-card">
-                    <div class="my-desk-summary-icon returned">
-                        <i class="fas fa-reply"></i>
-                    </div>
-
-                    <div>
-                        <span>Returned Requests</span>
-                        <strong>@returnedRequestCount</strong>
-                    </div>
-                </div>
-
-                <div class="my-desk-summary-card">
-                    <div class="my-desk-summary-icon total">
-                        <i class="fas fa-briefcase"></i>
-                    </div>
-
-                    <div>
-                        <span>Total Attention</span>
-                        <strong>@myDeskCount</strong>
-                    </div>
-                </div>
-
-            </div>
-
-            <div class="bcc-card">
-                <div class="bcc-card-body">
-
-                    <div class="workspace-section-heading">
-                        <div>
-                            <h5>Approval Workspace</h5>
-                            <p>
-                                Select an action below to continue.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="row g-3">
-
-                        <div class="col-12 col-md-6 col-xl-4">
-                            <WorkspaceActionCard
-                                Href="/approvals/new"
-                                Icon="fas fa-plus-circle"
-                                Title="New Request"
-                                Description="Create and submit a new leave, off-service, activity, financial or general request." />
-                        </div>
-
-                        <div class="col-12 col-md-6 col-xl-4">
-                            <WorkspaceActionCard
-                                Href="/approvals/my-requests"
-                                Icon="fas fa-folder-open"
-                                Title="Existing Requests"
-                                Description="View and track all requests you have submitted."
-                                BadgeCount="@returnedRequestCount" />
-                        </div>
-
-                        <div class="col-12 col-md-6 col-xl-4">
-                            <WorkspaceActionCard
-                                Href="/approvals/inbox"
-                                Icon="fas fa-inbox"
-                                Title="Approval Inbox"
-                                Description="Review requests currently waiting for your approval or action."
-                                BadgeCount="@pendingApprovalCount" />
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-        }
-    </div>
-}
-else
-{
-    <div class="bcc-empty">
-        <i class="fas fa-lock"></i>
-
-        <h4>Please Log In</h4>
-
-        <p>
-            You need to be logged in to access My Desk.
-        </p>
-
-        <a href="/login"
-           class="bcc-btn bcc-btn-primary">
-            Go to Login
-        </a>
+        </div>
     </div>
 }
 
@@ -185,10 +194,14 @@ else
             errorMessage = null;
 
             if (AuthService.CurrentWorker == null)
+            {
+                pendingApprovalCount = 0;
+                returnedRequestCount = 0;
+                myDeskCount = 0;
                 return;
+            }
 
-            var workerId =
-                AuthService.CurrentWorker.Id;
+            var workerId = AuthService.CurrentWorker.Id;
 
             pendingApprovalCount =
                 await ApprovalRequestService
@@ -206,6 +219,10 @@ else
         {
             errorMessage =
                 $"Unable to load My Desk: {ex.Message}";
+
+            pendingApprovalCount = 0;
+            returnedRequestCount = 0;
+            myDeskCount = 0;
         }
         finally
         {
@@ -220,91 +237,190 @@ else
 }
 
 <style>
-    .my-desk-summary-grid {
+    .my-desk-page {
+        max-width: 1450px;
+        margin: 0 auto;
+    }
+
+    .my-desk-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .my-desk-summary-strip {
         display: grid;
-        grid-template-columns:
-            repeat(3, minmax(0, 1fr));
-        gap: 15px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
     }
 
-    .my-desk-summary-card {
-        display: flex;
+        .my-desk-summary-strip > div {
+            padding: 9px 11px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 9px;
+        }
+
+        .my-desk-summary-strip span,
+        .my-desk-summary-strip strong {
+            display: block;
+        }
+
+        .my-desk-summary-strip span {
+            margin-bottom: 2px;
+            color: #64748b;
+            font-size: 0.62rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .my-desk-summary-strip strong {
+            color: #0f172a;
+            font-size: 0.95rem;
+            font-weight: 800;
+        }
+
+        .my-desk-summary-strip .attention {
+            background: #eef2ff;
+            border-color: #c7d2fe;
+        }
+
+            .my-desk-summary-strip .attention strong {
+                color: #4338ca;
+            }
+
+    .my-desk-actions-card {
+        overflow: hidden;
+        border-top: 4px solid #4f46e5;
+    }
+
+    .my-desk-section-heading {
+        margin-bottom: 12px;
+    }
+
+        .my-desk-section-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.86rem;
+            font-weight: 800;
+        }
+
+        .my-desk-section-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.67rem;
+        }
+
+    .my-desk-action-card {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr) 16px;
         align-items: center;
-        gap: 14px;
-        padding: 18px;
+        gap: 9px;
+        min-height: 88px;
+        padding: 11px;
+        color: inherit;
         background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        box-shadow: 0 5px 18px rgba(15, 23, 42, 0.04);
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        text-decoration: none;
+        transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
     }
 
-    .my-desk-summary-icon {
+        .my-desk-action-card:hover {
+            color: inherit;
+            border-color: #c7d2fe;
+            box-shadow: 0 7px 18px rgba(15, 23, 42, 0.07);
+            transform: translateY(-1px);
+        }
+
+    .my-desk-action-icon {
         display: flex;
         align-items: center;
         justify-content: center;
-        flex: 0 0 48px;
-        width: 48px;
-        height: 48px;
-        border-radius: 14px;
-        font-size: 1.1rem;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        font-size: 0.82rem;
     }
 
-    .my-desk-summary-icon.pending {
-        color: #b45309;
-        background: #fef3c7;
+        .my-desk-action-icon.new {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .my-desk-action-icon.existing {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+        .my-desk-action-icon.inbox {
+            color: #4338ca;
+            background: #eef2ff;
+        }
+
+    .my-desk-action-content {
+        min-width: 0;
     }
 
-    .my-desk-summary-icon.returned {
-        color: #b91c1c;
-        background: #fee2e2;
-    }
-
-    .my-desk-summary-icon.total {
-        color: #4338ca;
-        background: #eef2ff;
-    }
-
-    .my-desk-summary-card span {
-        display: block;
-        margin-bottom: 2px;
-        color: #64748b;
-        font-size: 0.78rem;
-        font-weight: 700;
-    }
-
-    .my-desk-summary-card strong {
-        display: block;
-        color: #0f172a;
-        font-size: 1.45rem;
-        font-weight: 800;
-    }
-
-    .workspace-section-heading {
+    .my-desk-action-title {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 18px;
+        gap: 6px;
     }
 
-    .workspace-section-heading h5 {
-        margin: 0 0 4px;
+    .my-desk-action-content h5 {
+        margin: 0 0 3px;
         color: #0f172a;
+        font-size: 0.76rem;
         font-weight: 800;
     }
 
-    .workspace-section-heading p {
+    .my-desk-action-content p {
         margin: 0;
         color: #64748b;
-        font-size: 0.86rem;
+        font-size: 0.62rem;
+        line-height: 1.35;
     }
 
+    .my-desk-action-arrow {
+        color: #94a3b8;
+        font-size: 0.62rem;
+    }
+
+    .my-desk-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 21px;
+        height: 21px;
+        padding: 0 6px;
+        border-radius: 999px;
+        font-size: 0.59rem;
+        font-weight: 800;
+    }
+
+        .my-desk-badge.pending {
+            color: #ffffff;
+            background: #dc2626;
+        }
+
+        .my-desk-badge.returned {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
     @@media (max-width: 768px) {
-        .my-desk-summary-grid {
+        .my-desk-summary-strip {
             grid-template-columns: 1fr;
         }
 
-        .my-desk-summary-card {
-            padding: 15px;
+        .my-desk-action-card {
+            min-height: 80px;
         }
     }
 </style>

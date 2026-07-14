@@ -1,667 +1,1792 @@
 ﻿@page "/workforce/my-inbox"
 @layout Components.Layout.MainLayout
-@using ChurchApp.Services
+
 @using ChurchApp.Models
+@using ChurchApp.Services
+@using System.Text.Json
+
 @inject WorkforceService WorkforceService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
-@inject IWebHostEnvironment Environment
 
-@if (AuthService.IsAuthenticated)
+<PageTitle>My Inbox - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
 {
-    <PageTitle>My Inbox - Workforce</PageTitle>
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access your profile approval inbox.</p>
 
-    <div class="container-fluid py-4">
-        <!-- Header -->
-        <div class="row mb-4">
-            <div class="col">
-                <h2>My Inbox</h2>
-                <p class="text-muted">Review and approve pending profile update requests</p>
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+
+                <div class="mt-2 text-muted">
+                    Loading profile approval inbox...
+                </div>
             </div>
-            <div class="col-auto">
-                <span class="badge bg-primary fs-6">@pendingRequests.Count Pending</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="worker360-page workforce-inbox-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success py-2">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        <div class="bcc-page-header workforce-inbox-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-inbox me-2"></i>
+                    Team Management
+                </div>
+
+                <div class="bcc-page-title">
+                    Profile Approval Inbox
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Review and decide profile update requests assigned to you.
+                </div>
+            </div>
+
+            <div class="inbox-header-actions">
+                <span class="pending-count-badge">
+                    @pendingRequests.Count Pending
+                </span>
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
             </div>
         </div>
 
-        @if (pendingRequests.Any())
+        @if (!pendingRequests.Any())
         {
-            <div class="row">
-                <div class="col-12">
-                    @foreach (var request in pendingRequests.OrderBy(r => r.SubmittedDate))
-                    {
-                        var proposedChanges = System.Text.Json.JsonSerializer.Deserialize<ProposedChanges>(request.ProposedChanges);
+            <div class="bcc-card">
+                <div class="bcc-card-body">
+                    <div class="bcc-empty py-4">
+                        <i class="fas fa-inbox"></i>
+                        <h4>No Pending Requests</h4>
+                        <p>You do not have any profile update request awaiting review.</p>
 
-                        <div class="card mb-4">
-                            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-user-edit me-2"></i>
-                                    Profile Update Request
-                                </h5>
-                                <div>
-                                    <span class="badge bg-light text-dark">
-                                        Submitted: @request.SubmittedDate.ToString("MMM dd, yyyy HH:mm")
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <!-- Request Info -->
-                                <div class="row mb-4">
-                                    <div class="col-md-6">
-                                        <h6>Worker Information</h6>
-                                        <table class="table table-sm table-borderless">
-                                            <tr>
-                                                <th width="40%">Worker ID:</th>
-                                                <td>@request.Worker.WorkerId</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Name:</th>
-                                                <td>@request.Worker.FirstName @request.Worker.LastName</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Directorate:</th>
-                                                <td>@(request.Worker.Directorate?.Name ?? "Not assigned")</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Department:</th>
-                                                <td>@(request.Worker.Department?.Name ?? "Not assigned")</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Role:</th>
-                                                <td><span class="badge bg-secondary">@request.Worker.Role</span></td>
-                                            </tr>
-                                        </table>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <h6>Request Details</h6>
-                                        <table class="table table-sm table-borderless">
-                                            <tr>
-                                                <th width="40%">Submitted:</th>
-                                                <td>@request.SubmittedDate.ToString("MMM dd, yyyy HH:mm")</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Days Pending:</th>
-                                                <td>@((DateTime.UtcNow - request.SubmittedDate).Days) days</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Status:</th>
-                                                <td><span class="badge bg-warning">Pending Approval</span></td>
-                                            </tr>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                <!-- Changes Preview -->
-                                <div class="mb-4">
-                                    <h6 class="text-primary mb-3">
-                                        <i class="fas fa-exchange-alt me-2"></i>Proposed Changes
-                                    </h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-bordered">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th width="25%">Field</th>
-                                                    <th width="35%">Current Value</th>
-                                                    <th width="35%">Proposed Value</th>
-                                                    <th width="5%">Change</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach (var change in GetChangesForDisplay(request))
-                                                {
-                                                    <tr>
-                                                        <td><strong>@change.FieldName</strong></td>
-                                                        <td>
-                                                            @if (!string.IsNullOrEmpty(change.CurrentValue))
-                                                            {
-                                                                <span class="text-muted">@change.CurrentValue</span>
-                                                            }
-                                                            else
-                                                            {
-                                                                <span class="text-muted fst-italic">Empty</span>
-                                                            }
-                                                        </td>
-                                                        <td>
-                                                            @if (!string.IsNullOrEmpty(change.ProposedValue))
-                                                            {
-                                                                <span class="text-success">@change.ProposedValue</span>
-                                                            }
-                                                            else
-                                                            {
-                                                                <span class="text-success fst-italic">Empty</span>
-                                                            }
-                                                        </td>
-                                                        <td class="text-center">
-                                                            @if (change.HasChange)
-                                                            {
-                                                                <i class="fas fa-arrow-right text-primary"></i>
-                                                            }
-                                                            else
-                                                            {
-                                                                <span class="text-muted">-</span>
-                                                            }
-                                                        </td>
-                                                    </tr>
-                                                }
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                <!-- Uploaded Documents Section -->
-                                @if (HasUploadedDocuments(proposedChanges))
-                                {
-                                    <div class="mb-4">
-                                        <h6 class="text-primary mb-3">
-                                            <i class="fas fa-file-upload me-2"></i>Uploaded Documents
-                                        </h6>
-                                        <div class="row">
-                                            <!-- Passport Photo -->
-                                            @if (!string.IsNullOrEmpty(proposedChanges.PassportPhotoPath))
-                                            {
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="card">
-                                                        <div class="card-header bg-info text-white">
-                                                            <h6 class="mb-0">Passport Photo</h6>
-                                                        </div>
-                                                        <div class="card-body text-center">
-                                                            <img src="/uploads/@proposedChanges.PassportPhotoPath"
-                                                                 alt="New Passport Photo"
-                                                                 class="img-fluid rounded"
-                                                                 style="max-height: 200px;" />
-                                                            <div class="mt-2">
-                                                                <a href="/uploads/@proposedChanges.PassportPhotoPath"
-                                                                   target="_blank"
-                                                                   class="btn btn-sm btn-outline-primary">
-                                                                    <i class="fas fa-expand me-1"></i>View Full Size
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            }
-
-                                            <!-- Certificates -->
-                                            @if (!string.IsNullOrEmpty(proposedChanges.BelieverBaptismCertificatePath))
-                                            {
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="card">
-                                                        <div class="card-header bg-success text-white">
-                                                            <h6 class="mb-0">Believer's Baptism Certificate</h6>
-                                                        </div>
-                                                        <div class="card-body text-center">
-                                                            <i class="fas fa-file-pdf fa-3x text-danger mb-2"></i>
-                                                            <div>
-                                                                <a href="/uploads/@proposedChanges.BelieverBaptismCertificatePath"
-                                                                   target="_blank"
-                                                                   class="btn btn-sm btn-outline-success">
-                                                                    <i class="fas fa-download me-1"></i>View Certificate
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            }
-
-                                            @if (!string.IsNullOrEmpty(proposedChanges.WorkerInTrainingCertificatePath))
-                                            {
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="card">
-                                                        <div class="card-header bg-success text-white">
-                                                            <h6 class="mb-0">Worker in Training Certificate</h6>
-                                                        </div>
-                                                        <div class="card-body text-center">
-                                                            <i class="fas fa-file-pdf fa-3x text-danger mb-2"></i>
-                                                            <div>
-                                                                <a href="/uploads/@proposedChanges.WorkerInTrainingCertificatePath"
-                                                                   target="_blank"
-                                                                   class="btn btn-sm btn-outline-success">
-                                                                    <i class="fas fa-download me-1"></i>View Certificate
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            }
-
-                                            @if (!string.IsNullOrEmpty(proposedChanges.SODCertificatePath))
-                                            {
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="card">
-                                                        <div class="card-header bg-success text-white">
-                                                            <h6 class="mb-0">SOD Certificate</h6>
-                                                        </div>
-                                                        <div class="card-body text-center">
-                                                            <i class="fas fa-file-pdf fa-3x text-danger mb-2"></i>
-                                                            <div>
-                                                                <a href="/uploads/@proposedChanges.SODCertificatePath"
-                                                                   target="_blank"
-                                                                   class="btn btn-sm btn-outline-success">
-                                                                    <i class="fas fa-download me-1"></i>View Certificate
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            }
-
-                                            @if (!string.IsNullOrEmpty(proposedChanges.BibleCollegeCertificatePath))
-                                            {
-                                                <div class="col-md-6 mb-3">
-                                                    <div class="card">
-                                                        <div class="card-header bg-success text-white">
-                                                            <h6 class="mb-0">Bible College Certificate</h6>
-                                                        </div>
-                                                        <div class="card-body text-center">
-                                                            <i class="fas fa-file-pdf fa-3x text-danger mb-2"></i>
-                                                            <div>
-                                                                <a href="/uploads/@proposedChanges.BibleCollegeCertificatePath"
-                                                                   target="_blank"
-                                                                   class="btn btn-sm btn-outline-success">
-                                                                    <i class="fas fa-download me-1"></i>View Certificate
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
-                                }
-
-                                <!-- Approval Actions -->
-                                <div class="row">
-                                    <div class="col-12">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <button class="btn btn-success me-2" @onclick="() => ShowApproveModal(request)">
-                                                    <i class="fas fa-check me-1"></i>Approve
-                                                </button>
-                                                <button class="btn btn-danger me-2" @onclick="() => ShowRejectModal(request)">
-                                                    <i class="fas fa-times me-1"></i>Reject
-                                                </button>
-                                                <button class="btn btn-outline-primary" @onclick="() => ViewWorkerProfile(request.WorkerId)">
-                                                    <i class="fas fa-eye me-1"></i>View Worker Profile
-                                                </button>
-                                            </div>
-                                            <div>
-                                                <small class="text-muted">
-                                                    Request ID: @request.Id
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
+                        <a href="/workforce/my-profile"
+                           class="bcc-btn bcc-btn-primary compact-btn">
+                            <i class="fas fa-user me-2"></i>
+                            Go to My Profile
+                        </a>
+                    </div>
                 </div>
             </div>
         }
         else
         {
-            <div class="text-center py-5">
-                <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
-                <h4>No Pending Requests</h4>
-                <p class="text-muted">You don't have any pending profile update requests to review.</p>
-                <a href="/workforce/my-profile" class="btn btn-primary">
-                    <i class="fas fa-user me-2"></i>Go to My Profile
-                </a>
+            <div class="row g-3">
+
+                <div class="col-12 col-xl-4">
+                    <div class="bcc-card inbox-list-card">
+                        <div class="inbox-panel-header">
+                            <div>
+                                <h6>
+                                    <i class="fas fa-list me-2"></i>
+                                    Pending Requests
+                                </h6>
+
+                                <p>
+                                    Select a request to review.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="inbox-list">
+
+                            @foreach (var request in pendingRequests
+                                .OrderBy(r => r.SubmittedDate))
+                            {
+                                <button type="button"
+                                        class="@GetRequestItemClass(request)"
+                                        @onclick="() => SelectRequest(request)">
+
+                                    <div class="request-avatar">
+                                        @GetWorkerInitials(request.Worker)
+                                    </div>
+
+                                    <div class="request-list-content">
+                                        <strong>
+                                            @request.Worker.FirstName
+                                            @request.Worker.LastName
+                                        </strong>
+
+                                        <span>
+                                            @request.Worker.WorkerId
+                                            ·
+                                            @(request.Worker.Directorate?.Name
+                                                ?? "No Directorate")
+                                        </span>
+
+                                        <small>
+                                            Submitted
+                                            @request.SubmittedDate.ToString("dd MMM yyyy")
+                                        </small>
+                                    </div>
+
+                                    <div class="request-age">
+                                        @GetDaysPending(request)
+                                    </div>
+
+                                </button>
+                            }
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-8">
+
+                    @if (selectedRequest == null)
+                    {
+                        <div class="bcc-card">
+                            <div class="bcc-card-body">
+                                <div class="bcc-empty py-4">
+                                    <i class="fas fa-hand-pointer"></i>
+                                    <h4>Select a Request</h4>
+                                    <p>Choose a pending profile update from the left.</p>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        var proposedChanges =
+                            DeserializeChanges(selectedRequest);
+
+                        var displayChanges =
+                            GetChangesForDisplay(selectedRequest);
+
+                        <div class="bcc-card request-detail-card">
+
+                            <div class="selected-request-header">
+                                <div class="selected-worker-main">
+
+                                    <div class="request-avatar large">
+                                        @GetWorkerInitials(selectedRequest.Worker)
+                                    </div>
+
+                                    <div>
+                                        <h5>
+                                            @selectedRequest.Worker.FirstName
+                                            @selectedRequest.Worker.LastName
+                                        </h5>
+
+                                        <div class="selected-worker-meta">
+                                            <span>
+                                                <i class="fas fa-id-badge"></i>
+                                                @selectedRequest.Worker.WorkerId
+                                            </span>
+
+                                            <span>
+                                                <i class="fas fa-user-tag"></i>
+                                                @selectedRequest.Worker.Role
+                                            </span>
+
+                                            <span>
+                                                <i class="fas fa-building"></i>
+                                                @(selectedRequest.Worker.Directorate?.Name
+                                                    ?? "No Directorate")
+                                            </span>
+
+                                            <span>
+                                                <i class="fas fa-sitemap"></i>
+                                                @(selectedRequest.Worker.Department?.Name
+                                                    ?? "No Department")
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="selected-request-status">
+                                    <span>Pending Approval</span>
+
+                                    <strong>
+                                        @GetDaysPending(selectedRequest)
+                                    </strong>
+
+                                    <small>
+                                        Submitted
+                                        @selectedRequest.SubmittedDate
+                                            .ToString("dd MMM yyyy, hh:mm tt")
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="bcc-card-body p-3">
+
+                                <div class="request-section-heading">
+                                    <div>
+                                        <h6>
+                                            <i class="fas fa-exchange-alt me-2"></i>
+                                            Proposed Changes
+                                        </h6>
+
+                                        <p>
+                                            @displayChanges.Count field(s) changed.
+                                        </p>
+                                    </div>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary"
+                                            @onclick="() => ViewWorkerProfile(selectedRequest.WorkerId)">
+                                        <i class="fas fa-eye me-1"></i>
+                                        View Full Profile
+                                    </button>
+                                </div>
+
+                                @if (!displayChanges.Any())
+                                {
+                                    <div class="empty-changes">
+                                        No changed fields were detected.
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="changes-grid">
+
+                                        @foreach (var change in displayChanges)
+                                        {
+                                            <div class="change-card">
+                                                <div class="change-field">
+                                                    @change.FieldName
+                                                </div>
+
+                                                <div class="change-values">
+
+                                                    <div class="change-current">
+                                                        <span>Current</span>
+                                                        <strong>
+                                                            @DisplayValue(change.CurrentValue)
+                                                        </strong>
+                                                    </div>
+
+                                                    <div class="change-arrow">
+                                                        <i class="fas fa-arrow-right"></i>
+                                                    </div>
+
+                                                    <div class="change-proposed">
+                                                        <span>Proposed</span>
+                                                        <strong>
+                                                            @DisplayValue(change.ProposedValue)
+                                                        </strong>
+                                                    </div>
+
+                                                </div>
+                                            </div>
+                                        }
+
+                                    </div>
+                                }
+
+                                @if (proposedChanges != null &&
+                                     HasUploadedDocuments(proposedChanges))
+                                {
+                                    <div class="request-section-heading documents-heading">
+                                        <div>
+                                            <h6>
+                                                <i class="fas fa-file-upload me-2"></i>
+                                                Uploaded Documents
+                                            </h6>
+
+                                            <p>
+                                                New files submitted with this request.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="document-grid">
+
+                                        @if (!string.IsNullOrWhiteSpace(
+                                            proposedChanges.PassportPhotoPath))
+                                        {
+                                            <div class="document-card passport-document">
+                                                <img src="/uploads/@proposedChanges.PassportPhotoPath"
+                                                     alt="New passport photograph" />
+
+                                                <div>
+                                                    <strong>Passport Photo</strong>
+
+                                                    <a href="/uploads/@proposedChanges.PassportPhotoPath"
+                                                       target="_blank">
+                                                        View Full Size
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        }
+
+                                        @DocumentItem(
+                                            "Believer's Baptism Certificate",
+                                            proposedChanges.BelieverBaptismCertificatePath)
+
+                                        @DocumentItem(
+                                            "Worker in Training Certificate",
+                                            proposedChanges.WorkerInTrainingCertificatePath)
+
+                                        @DocumentItem(
+                                            "School of Discipleship Certificate",
+                                            proposedChanges.SODCertificatePath)
+
+                                        @DocumentItem(
+                                            "Bible College Certificate",
+                                            proposedChanges.BibleCollegeCertificatePath)
+
+                                    </div>
+                                }
+
+                                <div class="request-action-bar">
+
+                                    <span>
+                                        Request ID:
+                                        <strong>@selectedRequest.Id</strong>
+                                    </span>
+
+                                    <div class="d-flex gap-2">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => ShowRejectModal(selectedRequest)">
+                                            <i class="fas fa-times me-1"></i>
+                                            Reject
+                                        </button>
+
+                                        <button type="button"
+                                                class="btn btn-sm btn-success"
+                                                @onclick="() => ShowApproveModal(selectedRequest)">
+                                            <i class="fas fa-check me-1"></i>
+                                            Approve
+                                        </button>
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        </div>
+                    }
+
+                </div>
+
             </div>
         }
     </div>
-
-    <!-- Approve Modal -->
-    @if (showApproveModal)
-    {
-        <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-success text-white">
-                        <h5 class="modal-title">Approve Profile Update</h5>
-                        <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Are you sure you want to approve the profile update for <strong>@selectedRequest?.Worker.FirstName @selectedRequest?.Worker.LastName</strong>?</p>
-                        <div class="form-group">
-                            <label for="approvalNotes" class="form-label">Approval Notes (Optional):</label>
-                            <textarea id="approvalNotes" @bind="approvalNotes" class="form-control" rows="3"
-                                      placeholder="Add any notes about this approval..."></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
-                        <button type="button" class="btn btn-success" @onclick="ApproveRequest" disabled="@isProcessing">
-                            @if (isProcessing)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                <span>Approving...</span>
-                            }
-                            else
-                            {
-                                <i class="fas fa-check me-2"></i>
-                                <span>Approve Changes</span>
-                            }
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
-
-    <!-- Reject Modal -->
-    @if (showRejectModal)
-    {
-        <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-danger text-white">
-                        <h5 class="modal-title">Reject Profile Update</h5>
-                        <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Are you sure you want to reject the profile update for <strong>@selectedRequest?.Worker.FirstName @selectedRequest?.Worker.LastName</strong>?</p>
-                        <div class="form-group">
-                            <label for="rejectionNotes" class="form-label">Rejection Reason (Required):</label>
-                            <textarea id="rejectionNotes" @bind="rejectionNotes" class="form-control" rows="3"
-                                      placeholder="Please provide a reason for rejection..." required></textarea>
-                            @if (string.IsNullOrWhiteSpace(rejectionNotes))
-                            {
-                                <small class="text-danger">Rejection reason is required.</small>
-                            }
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
-                        <button type="button" class="btn btn-danger" @onclick="RejectRequest" disabled="@isProcessing">
-                            @if (isProcessing)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                <span>Rejecting...</span>
-                            }
-                            else
-                            {
-                                <i class="fas fa-times me-2"></i>
-                                <span>Reject Changes</span>
-                            }
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
 }
-else
+
+@if (showApproveModal && selectedRequest != null)
 {
-    <!-- Not authenticated -->
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0">Authentication Required</h5>
-                    </div>
-                    <div class="card-body text-center">
-                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                        <h4>Please Log In</h4>
-                        <p class="text-muted">You need to be logged in to access this page.</p>
-                        <a href="/login" class="btn btn-primary">Go to Login</a>
-                    </div>
+    <div class="inbox-popup-backdrop"
+         @onclick="CloseModal">
+
+        <div class="inbox-popup-card"
+             @onclick:stopPropagation="true">
+
+            <div class="inbox-popup-header approve">
+                <div>
+                    <h4>Approve Profile Update</h4>
+
+                    <p>
+                        @selectedRequest.Worker.FirstName
+                        @selectedRequest.Worker.LastName
+                    </p>
                 </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="CloseModal">
+                </button>
             </div>
+
+            <div class="decision-note approve">
+                <i class="fas fa-check-circle"></i>
+
+                <span>
+                    Approving will apply all proposed changes to the worker’s profile.
+                </span>
+            </div>
+
+            <label class="form-label compact-label">
+                Approval Notes
+                <span class="text-muted fw-normal">(Optional)</span>
+            </label>
+
+            <textarea class="form-control form-control-sm"
+                      rows="3"
+                      @bind="approvalNotes"
+                      placeholder="Add an approval note if required.">
+            </textarea>
+
+            <div class="popup-actions">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        disabled="@isProcessing"
+                        @onclick="CloseModal">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="btn btn-success btn-sm"
+                        disabled="@isProcessing"
+                        @onclick="ApproveRequest">
+
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Approving...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-check me-2"></i>
+                        <span>Approve Changes</span>
+                    }
+
+                </button>
+            </div>
+
+        </div>
+    </div>
+}
+
+@if (showRejectModal && selectedRequest != null)
+{
+    <div class="inbox-popup-backdrop"
+         @onclick="CloseModal">
+
+        <div class="inbox-popup-card"
+             @onclick:stopPropagation="true">
+
+            <div class="inbox-popup-header reject">
+                <div>
+                    <h4>Reject Profile Update</h4>
+
+                    <p>
+                        @selectedRequest.Worker.FirstName
+                        @selectedRequest.Worker.LastName
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="CloseModal">
+                </button>
+            </div>
+
+            <div class="decision-note reject">
+                <i class="fas fa-exclamation-triangle"></i>
+
+                <span>
+                    The worker should receive a clear reason for the rejection.
+                </span>
+            </div>
+
+            <label class="form-label compact-label">
+                Rejection Reason
+                <span class="text-danger">*</span>
+            </label>
+
+            <textarea class="form-control form-control-sm"
+                      rows="3"
+                      @bind="rejectionNotes"
+                      placeholder="Explain what the worker needs to correct.">
+            </textarea>
+
+            @if (showRejectionValidation)
+            {
+                <div class="text-danger small mt-1">
+                    Rejection reason is required.
+                </div>
+            }
+
+            <div class="popup-actions">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        disabled="@isProcessing"
+                        @onclick="CloseModal">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="btn btn-danger btn-sm"
+                        disabled="@isProcessing"
+                        @onclick="RejectRequest">
+
+                    @if (isProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Rejecting...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-times me-2"></i>
+                        <span>Reject Changes</span>
+                    }
+
+                </button>
+            </div>
+
         </div>
     </div>
 }
 
 @code {
     private List<ProfileUpdateRequest> pendingRequests = new();
-    private bool showApproveModal = false;
-    private bool showRejectModal = false;
-    private bool isProcessing = false;
-    private ProfileUpdateRequest? selectedRequest = null;
+
+    private ProfileUpdateRequest? selectedRequest;
+
+    private bool isLoading = true;
+    private bool showApproveModal;
+    private bool showRejectModal;
+    private bool isProcessing;
+    private bool showRejectionValidation;
+
     private string approvalNotes = string.Empty;
     private string rejectionNotes = string.Empty;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
-        {
-            await LoadPendingRequests();
-        }
+        await LoadPendingRequests();
     }
 
-    private async Task LoadPendingRequests()
+    private async Task LoadPendingRequests(
+        int? preferredRequestId = null)
     {
         try
         {
-            var workerId = AuthService.CurrentWorker!.Id;
-            pendingRequests = await WorkforceService.GetPendingApprovalsAsync(workerId);
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            if (!AuthService.IsAuthenticated ||
+                AuthService.CurrentWorker == null)
+            {
+                return;
+            }
+
+            pendingRequests =
+                await WorkforceService
+                    .GetPendingApprovalsAsync(
+                        AuthService.CurrentWorker.Id);
+
+            selectedRequest =
+                preferredRequestId.HasValue
+                    ? pendingRequests.FirstOrDefault(
+                        x => x.Id == preferredRequestId.Value)
+                    : selectedRequest != null
+                        ? pendingRequests.FirstOrDefault(
+                            x => x.Id == selectedRequest.Id)
+                        : pendingRequests
+                            .OrderBy(x => x.SubmittedDate)
+                            .FirstOrDefault();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading pending requests: {ex.Message}");
+            errorMessage =
+                $"Unable to load profile approval requests: {ex.Message}";
         }
-    }
-
-    private bool HasUploadedDocuments(ProposedChanges changes)
-    {
-        return !string.IsNullOrEmpty(changes.PassportPhotoPath) ||
-               !string.IsNullOrEmpty(changes.BelieverBaptismCertificatePath) ||
-               !string.IsNullOrEmpty(changes.WorkerInTrainingCertificatePath) ||
-               !string.IsNullOrEmpty(changes.SODCertificatePath) ||
-               !string.IsNullOrEmpty(changes.BibleCollegeCertificatePath);
-    }
-
-    private List<ChangeDisplay> GetChangesForDisplay(ProfileUpdateRequest request)
-    {
-        var changes = new List<ChangeDisplay>();
-        var proposedChanges = System.Text.Json.JsonSerializer.Deserialize<ProposedChanges>(request.ProposedChanges);
-
-        if (proposedChanges != null)
+        finally
         {
-            // Personal Information Changes
-            AddChangeIfDifferent(changes, "First Name", request.Worker.FirstName, proposedChanges.FirstName);
-            AddChangeIfDifferent(changes, "Last Name", request.Worker.LastName, proposedChanges.LastName);
-            AddChangeIfDifferent(changes, "Middle Name", request.Worker.MiddleName, proposedChanges.MiddleName);
-            AddChangeIfDifferent(changes, "Email", request.Worker.Email, proposedChanges.Email);
-            AddChangeIfDifferent(changes, "Phone", request.Worker.Phone, proposedChanges.Phone);
-            AddChangeIfDifferent(changes, "Marital Status", request.Worker.MaritalStatus, proposedChanges.MaritalStatus);
-            AddChangeIfDifferent(changes, "Address", request.Worker.Address, proposedChanges.Address);
-            AddChangeIfDifferent(changes, "Profession", request.Worker.Profession, proposedChanges.Profession);
-            AddChangeIfDifferent(changes, "Organization", request.Worker.Organization, proposedChanges.Organization);
-
-            // Date Changes
-            AddDateChangeIfDifferent(changes, "Date of Birth", request.Worker.DateOfBirth, proposedChanges.DateOfBirth);
-            AddDateChangeIfDifferent(changes, "Wedding Anniversary", request.Worker.WeddingAnniversary, proposedChanges.WeddingAnniversary);
-
-            // Qualification Changes
-            AddBoolChangeIfDifferent(changes, "Believer's Baptism", request.Worker.HasBelieverBaptism, proposedChanges.HasBelieverBaptism);
-            AddBoolChangeIfDifferent(changes, "Worker in Training", request.Worker.HasWorkerInTraining, proposedChanges.HasWorkerInTraining);
-            AddBoolChangeIfDifferent(changes, "School of Discipleship", request.Worker.HasSOD, proposedChanges.HasSOD);
-            AddBoolChangeIfDifferent(changes, "Bible College", request.Worker.HasBibleCollege, proposedChanges.HasBibleCollege);
-
-            // File Changes
-            AddFileChangeIfDifferent(changes, "Passport Photo", request.Worker.PassportPhotoPath, proposedChanges.PassportPhotoPath);
-            AddFileChangeIfDifferent(changes, "Baptism Certificate", request.Worker.BelieverBaptismCertificatePath, proposedChanges.BelieverBaptismCertificatePath);
-            AddFileChangeIfDifferent(changes, "Training Certificate", request.Worker.WorkerInTrainingCertificatePath, proposedChanges.WorkerInTrainingCertificatePath);
-            AddFileChangeIfDifferent(changes, "SOD Certificate", request.Worker.SODCertificatePath, proposedChanges.SODCertificatePath);
-            AddFileChangeIfDifferent(changes, "Bible College Certificate", request.Worker.BibleCollegeCertificatePath, proposedChanges.BibleCollegeCertificatePath);
-        }
-
-        return changes.Where(c => c.HasChange).ToList();
-    }
-
-    private void AddChangeIfDifferent(List<ChangeDisplay> changes, string fieldName, string currentValue, string proposedValue)
-    {
-        if (currentValue != proposedValue)
-        {
-            changes.Add(new ChangeDisplay
-            {
-                FieldName = fieldName,
-                CurrentValue = currentValue,
-                ProposedValue = proposedValue,
-                HasChange = true
-            });
+            isLoading = false;
         }
     }
 
-    private void AddDateChangeIfDifferent(List<ChangeDisplay> changes, string fieldName, DateTime? currentValue, DateTime? proposedValue)
-    {
-        if (currentValue != proposedValue)
-        {
-            changes.Add(new ChangeDisplay
-            {
-                FieldName = fieldName,
-                CurrentValue = currentValue?.ToString("yyyy-MM-dd") ?? "Not set",
-                ProposedValue = proposedValue?.ToString("yyyy-MM-dd") ?? "Not set",
-                HasChange = true
-            });
-        }
-    }
-
-    private void AddBoolChangeIfDifferent(List<ChangeDisplay> changes, string fieldName, bool currentValue, bool proposedValue)
-    {
-        if (currentValue != proposedValue)
-        {
-            changes.Add(new ChangeDisplay
-            {
-                FieldName = fieldName,
-                CurrentValue = currentValue ? "Yes" : "No",
-                ProposedValue = proposedValue ? "Yes" : "No",
-                HasChange = true
-            });
-        }
-    }
-
-    private void AddFileChangeIfDifferent(List<ChangeDisplay> changes, string fieldName, string currentValue, string proposedValue)
-    {
-        if (currentValue != proposedValue && !string.IsNullOrEmpty(proposedValue))
-        {
-            changes.Add(new ChangeDisplay
-            {
-                FieldName = fieldName,
-                CurrentValue = string.IsNullOrEmpty(currentValue) ? "No file" : "File uploaded",
-                ProposedValue = "New file uploaded",
-                HasChange = true
-            });
-        }
-    }
-
-    private void ShowApproveModal(ProfileUpdateRequest request)
+    private void SelectRequest(
+        ProfileUpdateRequest request)
     {
         selectedRequest = request;
-        showApproveModal = true;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
+
+    private string GetRequestItemClass(
+        ProfileUpdateRequest request)
+    {
+        return selectedRequest?.Id == request.Id
+            ? "inbox-request-item active"
+            : "inbox-request-item";
+    }
+
+    private static ProposedChanges? DeserializeChanges(
+        ProfileUpdateRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(
+            request.ProposedChanges))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer
+                .Deserialize<ProposedChanges>(
+                    request.ProposedChanges);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private bool HasUploadedDocuments(
+        ProposedChanges changes)
+    {
+        return
+            !string.IsNullOrWhiteSpace(
+                changes.PassportPhotoPath) ||
+
+            !string.IsNullOrWhiteSpace(
+                changes.BelieverBaptismCertificatePath) ||
+
+            !string.IsNullOrWhiteSpace(
+                changes.WorkerInTrainingCertificatePath) ||
+
+            !string.IsNullOrWhiteSpace(
+                changes.SODCertificatePath) ||
+
+            !string.IsNullOrWhiteSpace(
+                changes.BibleCollegeCertificatePath);
+    }
+
+    private List<ChangeDisplay> GetChangesForDisplay(
+        ProfileUpdateRequest request)
+    {
+        var changes =
+            new List<ChangeDisplay>();
+
+        var proposedChanges =
+            DeserializeChanges(request);
+
+        if (proposedChanges == null)
+            return changes;
+
+        AddChangeIfDifferent(
+            changes,
+            "First Name",
+            request.Worker.FirstName,
+            proposedChanges.FirstName);
+
+        AddChangeIfDifferent(
+            changes,
+            "Middle Name",
+            request.Worker.MiddleName,
+            proposedChanges.MiddleName);
+
+        AddChangeIfDifferent(
+            changes,
+            "Last Name",
+            request.Worker.LastName,
+            proposedChanges.LastName);
+
+        AddChangeIfDifferent(
+            changes,
+            "Title",
+            request.Worker.Title,
+            proposedChanges.Title);
+
+        AddChangeIfDifferent(
+            changes,
+            "Sex",
+            request.Worker.Sex,
+            proposedChanges.Sex);
+
+        AddChangeIfDifferent(
+            changes,
+            "Email",
+            request.Worker.Email,
+            proposedChanges.Email);
+
+        AddChangeIfDifferent(
+            changes,
+            "Phone",
+            request.Worker.Phone,
+            proposedChanges.Phone);
+
+        AddDateChangeIfDifferent(
+            changes,
+            "Date of Birth",
+            request.Worker.DateOfBirth,
+            proposedChanges.DateOfBirth);
+
+        AddChangeIfDifferent(
+            changes,
+            "Marital Status",
+            request.Worker.MaritalStatus,
+            proposedChanges.MaritalStatus);
+
+        AddDateChangeIfDifferent(
+            changes,
+            "Wedding Anniversary",
+            request.Worker.WeddingAnniversary,
+            proposedChanges.WeddingAnniversary);
+
+        AddChangeIfDifferent(
+            changes,
+            "Address",
+            request.Worker.Address,
+            proposedChanges.Address);
+
+        AddChangeIfDifferent(
+            changes,
+            "Profession",
+            request.Worker.Profession,
+            proposedChanges.Profession);
+
+        AddChangeIfDifferent(
+            changes,
+            "Organisation",
+            request.Worker.Organization,
+            proposedChanges.Organization);
+
+        AddDateChangeIfDifferent(
+            changes,
+            "Date Joined BCC",
+            request.Worker.DateJoinedChurch,
+            proposedChanges.DateJoinedChurch);
+
+        AddChangeIfDifferent(
+            changes,
+            "Worker Status",
+            request.Worker.WorkerStatus,
+            proposedChanges.WorkerStatus);
+
+        AddChangeIfDifferent(
+            changes,
+            "Previous Church",
+            request.Worker.PreviousChurch,
+            proposedChanges.PreviousChurch);
+
+        AddChangeIfDifferent(
+            changes,
+            "Previous Role",
+            request.Worker.PreviousChurchRole,
+            proposedChanges.PreviousChurchRole);
+
+        AddChangeIfDifferent(
+            changes,
+            "Previous Unit",
+            request.Worker.PreviousChurchUnit,
+            proposedChanges.PreviousChurchUnit);
+
+        AddChangeIfDifferent(
+            changes,
+            "Ordination Status",
+            request.Worker.OrdinationStatus,
+            proposedChanges.OrdinationStatus);
+
+        AddChangeIfDifferent(
+            changes,
+            "Ordination Level",
+            request.Worker.OrdinationLevel,
+            proposedChanges.OrdinationLevel);
+
+        AddDateChangeIfDifferent(
+            changes,
+            "Last Ordination Date",
+            request.Worker.LastOrdinationDate,
+            proposedChanges.LastOrdinationDate);
+
+        AddBoolChangeIfDifferent(
+            changes,
+            "Believer's Baptism",
+            request.Worker.HasBelieverBaptism,
+            proposedChanges.HasBelieverBaptism);
+
+        AddBoolChangeIfDifferent(
+            changes,
+            "Worker in Training",
+            request.Worker.HasWorkerInTraining,
+            proposedChanges.HasWorkerInTraining);
+
+        AddBoolChangeIfDifferent(
+            changes,
+            "School of Discipleship",
+            request.Worker.HasSOD,
+            proposedChanges.HasSOD);
+
+        AddBoolChangeIfDifferent(
+            changes,
+            "Bible College",
+            request.Worker.HasBibleCollege,
+            proposedChanges.HasBibleCollege);
+
+        AddFileChangeIfDifferent(
+            changes,
+            "Passport Photo",
+            request.Worker.PassportPhotoPath,
+            proposedChanges.PassportPhotoPath);
+
+        AddFileChangeIfDifferent(
+            changes,
+            "Baptism Certificate",
+            request.Worker.BelieverBaptismCertificatePath,
+            proposedChanges.BelieverBaptismCertificatePath);
+
+        AddFileChangeIfDifferent(
+            changes,
+            "Training Certificate",
+            request.Worker.WorkerInTrainingCertificatePath,
+            proposedChanges.WorkerInTrainingCertificatePath);
+
+        AddFileChangeIfDifferent(
+            changes,
+            "SOD Certificate",
+            request.Worker.SODCertificatePath,
+            proposedChanges.SODCertificatePath);
+
+        AddFileChangeIfDifferent(
+            changes,
+            "Bible College Certificate",
+            request.Worker.BibleCollegeCertificatePath,
+            proposedChanges.BibleCollegeCertificatePath);
+
+        return changes;
+    }
+
+    private static void AddChangeIfDifferent(
+        ICollection<ChangeDisplay> changes,
+        string fieldName,
+        string? currentValue,
+        string? proposedValue)
+    {
+        var current =
+            currentValue?.Trim() ?? string.Empty;
+
+        var proposed =
+            proposedValue?.Trim() ?? string.Empty;
+
+        if (string.Equals(
+            current,
+            proposed,
+            StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        changes.Add(
+            new ChangeDisplay
+            {
+                FieldName = fieldName,
+                CurrentValue = current,
+                ProposedValue = proposed
+            });
+    }
+
+    private static void AddDateChangeIfDifferent(
+        ICollection<ChangeDisplay> changes,
+        string fieldName,
+        DateTime? currentValue,
+        DateTime? proposedValue)
+    {
+        if (currentValue?.Date ==
+            proposedValue?.Date)
+        {
+            return;
+        }
+
+        changes.Add(
+            new ChangeDisplay
+            {
+                FieldName = fieldName,
+                CurrentValue =
+                    currentValue?
+                        .ToString("dd MMM yyyy")
+                    ?? string.Empty,
+
+                ProposedValue =
+                    proposedValue?
+                        .ToString("dd MMM yyyy")
+                    ?? string.Empty
+            });
+    }
+
+    private static void AddBoolChangeIfDifferent(
+        ICollection<ChangeDisplay> changes,
+        string fieldName,
+        bool currentValue,
+        bool proposedValue)
+    {
+        if (currentValue == proposedValue)
+            return;
+
+        changes.Add(
+            new ChangeDisplay
+            {
+                FieldName = fieldName,
+                CurrentValue =
+                    currentValue ? "Yes" : "No",
+
+                ProposedValue =
+                    proposedValue ? "Yes" : "No"
+            });
+    }
+
+    private static void AddFileChangeIfDifferent(
+        ICollection<ChangeDisplay> changes,
+        string fieldName,
+        string? currentValue,
+        string? proposedValue)
+    {
+        if (string.IsNullOrWhiteSpace(
+            proposedValue) ||
+            string.Equals(
+                currentValue,
+                proposedValue,
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        changes.Add(
+            new ChangeDisplay
+            {
+                FieldName = fieldName,
+                CurrentValue =
+                    string.IsNullOrWhiteSpace(currentValue)
+                        ? "No file"
+                        : "Existing file",
+
+                ProposedValue =
+                    "New file uploaded"
+            });
+    }
+
+    private RenderFragment DocumentItem(
+        string title,
+        string? path) => builder =>
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        var sequence = 0;
+
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            "document-card certificate-document");
+
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            "document-file-icon");
+
+        builder.OpenElement(sequence++, "i");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            "fas fa-file-alt");
+        builder.CloseElement();
+
+        builder.CloseElement();
+
+        builder.OpenElement(sequence++, "div");
+
+        builder.OpenElement(sequence++, "strong");
+        builder.AddContent(sequence++, title);
+        builder.CloseElement();
+
+        builder.OpenElement(sequence++, "a");
+        builder.AddAttribute(
+            sequence++,
+            "href",
+            $"/uploads/{path}");
+        builder.AddAttribute(
+            sequence++,
+            "target",
+            "_blank");
+        builder.AddContent(sequence++, "View Document");
+        builder.CloseElement();
+
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private void ShowApproveModal(
+        ProfileUpdateRequest request)
+    {
+        selectedRequest = request;
         approvalNotes = string.Empty;
-        StateHasChanged();
+        showApproveModal = true;
+        showRejectModal = false;
     }
 
-    private void ShowRejectModal(ProfileUpdateRequest request)
+    private void ShowRejectModal(
+        ProfileUpdateRequest request)
     {
         selectedRequest = request;
-        showRejectModal = true;
         rejectionNotes = string.Empty;
-        StateHasChanged();
+        showRejectionValidation = false;
+        showRejectModal = true;
+        showApproveModal = false;
     }
 
     private void CloseModal()
     {
+        if (isProcessing)
+            return;
+
         showApproveModal = false;
         showRejectModal = false;
-        selectedRequest = null;
+        showRejectionValidation = false;
         approvalNotes = string.Empty;
         rejectionNotes = string.Empty;
-        StateHasChanged();
     }
 
     private async Task ApproveRequest()
     {
-        if (selectedRequest == null) return;
-
-        isProcessing = true;
-        StateHasChanged();
+        if (selectedRequest == null ||
+            AuthService.CurrentWorker == null ||
+            isProcessing)
+        {
+            return;
+        }
 
         try
         {
-            var success = await WorkforceService.ProcessProfileUpdateAsync(
-                selectedRequest.Id,
-                AuthService.CurrentWorker!.Id,
-                true,
-                approvalNotes
-            );
+            isProcessing = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
 
-            if (success)
+            var requestId =
+                selectedRequest.Id;
+
+            var success =
+                await WorkforceService
+                    .ProcessProfileUpdateAsync(
+                        requestId,
+                        AuthService.CurrentWorker.Id,
+                        true,
+                        approvalNotes.Trim());
+
+            if (!success)
             {
-                await LoadPendingRequests();
-                CloseModal();
+                throw new Exception(
+                    "The profile update could not be approved.");
             }
+
+            CloseModal();
+
+            successMessage =
+                "The profile update was approved successfully.";
+
+            await LoadPendingRequests();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error approving request: {ex.Message}");
+            errorMessage =
+                $"Unable to approve the request: {ex.Message}";
         }
         finally
         {
             isProcessing = false;
-            StateHasChanged();
+            showApproveModal = false;
         }
     }
 
     private async Task RejectRequest()
     {
-        if (selectedRequest == null || string.IsNullOrWhiteSpace(rejectionNotes))
+        if (selectedRequest == null ||
+            AuthService.CurrentWorker == null ||
+            isProcessing)
         {
-            // Show validation message
             return;
         }
 
-        isProcessing = true;
-        StateHasChanged();
+        if (string.IsNullOrWhiteSpace(
+            rejectionNotes))
+        {
+            showRejectionValidation = true;
+            return;
+        }
 
         try
         {
-            var success = await WorkforceService.ProcessProfileUpdateAsync(
-                selectedRequest.Id,
-                AuthService.CurrentWorker!.Id,
-                false,
-                rejectionNotes.Trim()
-            );
+            isProcessing = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
 
-            if (success)
+            var success =
+                await WorkforceService
+                    .ProcessProfileUpdateAsync(
+                        selectedRequest.Id,
+                        AuthService.CurrentWorker.Id,
+                        false,
+                        rejectionNotes.Trim());
+
+            if (!success)
             {
-                await LoadPendingRequests();
-                CloseModal();
+                throw new Exception(
+                    "The profile update could not be rejected.");
             }
+
+            CloseModal();
+
+            successMessage =
+                "The profile update was rejected successfully.";
+
+            await LoadPendingRequests();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error rejecting request: {ex.Message}");
+            errorMessage =
+                $"Unable to reject the request: {ex.Message}";
         }
         finally
         {
             isProcessing = false;
-            StateHasChanged();
+            showRejectModal = false;
         }
     }
 
-    private void ViewWorkerProfile(int workerId)
+    private void ViewWorkerProfile(
+        int workerId)
     {
-        // Check if the current user has admin access to view the full profile
         if (AuthService.CanAccessAdminPanel())
         {
-            Navigation.NavigateTo($"/admin/worker-details/{workerId}");
+            Navigation.NavigateTo(
+                $"/admin/worker-details/{workerId}");
         }
         else
         {
-            // For non-admin approvers, show a limited view or message
-            Navigation.NavigateTo($"/workforce/view-worker/{workerId}");
+            Navigation.NavigateTo(
+                $"/workforce/view-worker/{workerId}");
         }
     }
 
-    // Helper class for displaying changes
-    private class ChangeDisplay
+    private static string GetWorkerInitials(
+        Worker worker)
     {
-        public string FieldName { get; set; } = string.Empty;
-        public string CurrentValue { get; set; } = string.Empty;
-        public string ProposedValue { get; set; } = string.Empty;
-        public bool HasChange { get; set; }
+        var first =
+            string.IsNullOrWhiteSpace(worker.FirstName)
+                ? string.Empty
+                : worker.FirstName[..1];
+
+        var last =
+            string.IsNullOrWhiteSpace(worker.LastName)
+                ? string.Empty
+                : worker.LastName[..1];
+
+        var initials =
+            $"{first}{last}".ToUpperInvariant();
+
+        return string.IsNullOrWhiteSpace(initials)
+            ? "W"
+            : initials;
+    }
+
+    private static string GetDaysPending(
+        ProfileUpdateRequest request)
+    {
+        var submitted =
+            request.SubmittedDate.Kind ==
+                DateTimeKind.Utc
+                    ? request.SubmittedDate
+                    : request.SubmittedDate
+                        .ToUniversalTime();
+
+        var days =
+            Math.Max(
+                0,
+                (DateTime.UtcNow - submitted).Days);
+
+        return days == 1
+            ? "1 day"
+            : $"{days} days";
+    }
+
+    private static string DisplayValue(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Empty"
+            : value.Trim();
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo(
+            "/workspace/my-team");
+    }
+
+    private sealed class ChangeDisplay
+    {
+        public string FieldName { get; init; } =
+            string.Empty;
+
+        public string CurrentValue { get; init; } =
+            string.Empty;
+
+        public string ProposedValue { get; init; } =
+            string.Empty;
     }
 }
+
+<style>
+    .workforce-inbox-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .workforce-inbox-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .inbox-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pending-count-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 5px 9px;
+        color: #92400e;
+        background: #fef3c7;
+        border: 1px solid #fde68a;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 800;
+    }
+
+    .inbox-list-card,
+    .request-detail-card {
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 13px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
+    }
+
+    .inbox-list-card {
+        border-top: 4px solid #4f46e5;
+    }
+
+    .request-detail-card {
+        border-top: 4px solid #7c3aed;
+    }
+
+    .inbox-panel-header {
+        padding: 10px 12px;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .inbox-panel-header h6,
+    .request-section-heading h6 {
+        margin: 0 0 2px;
+        color: #0f172a;
+        font-size: 0.84rem;
+        font-weight: 800;
+    }
+
+    .inbox-panel-header p,
+    .request-section-heading p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.66rem;
+    }
+
+    .inbox-list {
+        display: flex;
+        flex-direction: column;
+        max-height: 670px;
+        overflow-y: auto;
+    }
+
+    .inbox-request-item {
+        display: grid;
+        grid-template-columns:
+            36px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 9px;
+        width: 100%;
+        padding: 10px 11px;
+        text-align: left;
+        background: #ffffff;
+        border: 0;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .inbox-request-item:hover {
+        background: #f8fafc;
+    }
+
+    .inbox-request-item.active {
+        background: #eef2ff;
+        box-shadow: inset 3px 0 0 #4f46e5;
+    }
+
+    .request-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 10px;
+        font-size: 0.68rem;
+        font-weight: 800;
+    }
+
+    .request-avatar.large {
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        font-size: 0.76rem;
+    }
+
+    .request-list-content {
+        min-width: 0;
+    }
+
+    .request-list-content strong,
+    .request-list-content span,
+    .request-list-content small {
+        display: block;
+    }
+
+    .request-list-content strong {
+        color: #0f172a;
+        font-size: 0.74rem;
+    }
+
+    .request-list-content span {
+        margin-top: 1px;
+        color: #64748b;
+        font-size: 0.62rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .request-list-content small {
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 0.58rem;
+    }
+
+    .request-age {
+        padding: 3px 6px;
+        color: #92400e;
+        background: #fef3c7;
+        border-radius: 999px;
+        font-size: 0.58rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .selected-request-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 12px 14px;
+        background: #ffffff;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .selected-worker-main {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .selected-worker-main h5 {
+        margin: 0 0 3px;
+        color: #0f172a;
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .selected-worker-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px 11px;
+    }
+
+    .selected-worker-meta span {
+        color: #64748b;
+        font-size: 0.62rem;
+    }
+
+    .selected-worker-meta i {
+        margin-right: 3px;
+        color: #4f46e5;
+    }
+
+    .selected-request-status {
+        min-width: 160px;
+        padding: 8px 9px;
+        text-align: right;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 9px;
+    }
+
+    .selected-request-status span,
+    .selected-request-status strong,
+    .selected-request-status small {
+        display: block;
+    }
+
+    .selected-request-status span {
+        color: #92400e;
+        font-size: 0.58rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .selected-request-status strong {
+        margin: 1px 0;
+        color: #78350f;
+        font-size: 0.76rem;
+    }
+
+    .selected-request-status small {
+        color: #a16207;
+        font-size: 0.56rem;
+    }
+
+    .request-section-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .documents-heading {
+        margin-top: 15px;
+    }
+
+    .empty-changes {
+        padding: 12px;
+        color: #64748b;
+        text-align: center;
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 9px;
+        font-size: 0.7rem;
+    }
+
+    .changes-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .change-card {
+        padding: 8px 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .change-field {
+        margin-bottom: 6px;
+        color: #334155;
+        font-size: 0.66rem;
+        font-weight: 800;
+    }
+
+    .change-values {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr) 16px minmax(0, 1fr);
+        align-items: center;
+        gap: 5px;
+    }
+
+    .change-current,
+    .change-proposed {
+        min-width: 0;
+    }
+
+    .change-current span,
+    .change-current strong,
+    .change-proposed span,
+    .change-proposed strong {
+        display: block;
+    }
+
+    .change-current span,
+    .change-proposed span {
+        margin-bottom: 2px;
+        font-size: 0.55rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .change-current span {
+        color: #94a3b8;
+    }
+
+    .change-proposed span {
+        color: #15803d;
+    }
+
+    .change-current strong {
+        color: #64748b;
+        font-size: 0.65rem;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+    }
+
+    .change-proposed strong {
+        color: #166534;
+        font-size: 0.66rem;
+        font-weight: 800;
+        overflow-wrap: anywhere;
+    }
+
+    .change-arrow {
+        color: #4f46e5;
+        font-size: 0.6rem;
+        text-align: center;
+    }
+
+    .document-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .document-card {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 8px 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .passport-document img {
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .document-file-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 9px;
+    }
+
+    .document-card strong,
+    .document-card a {
+        display: block;
+    }
+
+    .document-card strong {
+        color: #0f172a;
+        font-size: 0.66rem;
+    }
+
+    .document-card a {
+        margin-top: 2px;
+        color: #4338ca;
+        font-size: 0.59rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .request-action-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 14px;
+        padding-top: 10px;
+        border-top: 1px solid #eef2f7;
+    }
+
+    .request-action-bar > span {
+        color: #64748b;
+        font-size: 0.62rem;
+    }
+
+    .inbox-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        background: rgba(15, 23, 42, 0.58);
+        backdrop-filter: blur(2px);
+    }
+
+    .inbox-popup-card {
+        width: 100%;
+        max-width: 460px;
+        padding: 17px;
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.28);
+    }
+
+    .inbox-popup-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding-bottom: 9px;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .inbox-popup-header h4 {
+        margin: 0 0 2px;
+        color: #0f172a;
+        font-size: 0.95rem;
+        font-weight: 800;
+    }
+
+    .inbox-popup-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.68rem;
+    }
+
+    .decision-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 10px;
+        padding: 8px 9px;
+        border-radius: 8px;
+        font-size: 0.65rem;
+    }
+
+    .decision-note.approve {
+        color: #166534;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+
+    .decision-note.reject {
+        color: #991b1b;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: 0.68rem;
+        font-weight: 700;
+    }
+
+    .popup-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 7px;
+        margin-top: 12px;
+    }
+
+    @@media (max-width: 992px) {
+        .inbox-list {
+            max-height: 310px;
+        }
+
+        .selected-request-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .selected-request-status {
+            width: 100%;
+            text-align: left;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .changes-grid,
+        .document-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .workforce-inbox-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .inbox-header-actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .selected-worker-main {
+            align-items: flex-start;
+        }
+
+        .request-action-bar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .request-action-bar > div {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .inbox-popup-card {
+            max-width: 96vw;
+            padding: 15px;
+        }
+    }
+</style>

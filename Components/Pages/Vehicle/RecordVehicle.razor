@@ -1,0 +1,625 @@
+﻿@page "/Vehicle/record"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+
+@inject AuthService AuthService
+@inject ServiceService ServiceService
+@inject ServiceRecordAccessService ServiceRecordAccessService
+@inject VehicleRecordService VehicleRecordService
+@inject NavigationManager Navigation
+
+<PageTitle>Vehicle Record - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access vehicle records.</p>
+        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">Loading vehicle records...</div>
+            </div>
+        </div>
+    </div>
+}
+else if (!canRecordVehicle)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You must have the Record Vehicle privilege and either belong to the FIG Directorate or be a Church Administrator.</p>
+        <button type="button" class="bcc-btn bcc-btn-primary" @onclick="GoBack">Return to Service Records</button>
+    </div>
+}
+else
+{
+    <div class="worker360-page vehicle-page">
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2"><i class="fas fa-exclamation-circle me-2"></i>@errorMessage</div>
+        }
+
+        <div class="bcc-page-header vehicle-page-header">
+            <div>
+                <div class="bcc-page-subtitle"><i class="fas fa-car me-2"></i>Service Records</div>
+                <div class="bcc-page-title">Vehicle Record</div>
+                <div class="bcc-page-subtitle">Record and manage vehicles present during church services.</div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" @onclick="ResetForm"><i class="fas fa-redo me-2"></i>Reset</button>
+                <button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" @onclick="GoBack"><i class="fas fa-arrow-left me-2"></i>Back</button>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-12 col-xl-4">
+                <div class="bcc-card h-100">
+                    <div class="bcc-card-body p-3">
+                        <div class="section-heading">
+                            <h6><i class="fas fa-car-side me-2"></i>@(isEditMode ? "Edit Vehicle Record" : "New Vehicle Record")</h6>
+                            <p>@(isEditMode ? "Update the selected record." : "Enter the vehicle count for a service.")</p>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label compact-label">Service <span class="text-danger">*</span></label>
+                            <InputSelect class="form-select form-select-sm" @bind-Value="formModel.ServiceId">
+                                <option value="0">Select Service</option>
+                                @foreach (var service in services)
+                                {
+                                    <option value="@service.Id">@service.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label compact-label">Date <span class="text-danger">*</span></label>
+                            <InputDate class="form-control form-control-sm" @bind-Value="formModel.RecordDate" />
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label compact-label">Number of Vehicles <span class="text-danger">*</span></label>
+                            <InputNumber class="form-control form-control-sm text-center vehicle-count-input" @bind-Value="formModel.NumberOfVehicles" min="0" />
+                        </div>
+
+                        <div class="vehicle-count-panel mt-3"><span>Vehicle Count</span><strong>@formModel.NumberOfVehicles</strong></div>
+
+                        <div class="mt-3 d-flex justify-content-end gap-2">
+                            @if (isEditMode)
+                            {
+                                <button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" disabled="@isSaving" @onclick="CancelEdit">Cancel</button>
+                            }
+                            <button type="button" class="bcc-btn bcc-btn-primary compact-btn" disabled="@isSaving" @onclick="SaveVehicleRecord">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                            
+                                    <span>Saving...</span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-save me-2"></i>
+                            
+                                    <span>@(isEditMode ? "Update" : "Save")</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-8">
+                <div class="bcc-card">
+                    <div class="bcc-card-body p-3">
+                        <div class="register-heading">
+                            <div><h6>Vehicle Register</h6><p>@filteredRecords.Count record(s)</p></div>
+                            <div class="vehicle-search"><i class="fas fa-search"></i><InputText class="form-control form-control-sm" @bind-Value="searchText" @bind-Value:event="oninput" placeholder="Search service or recorder" /></div>
+                        </div>
+
+                        <div class="filter-row mb-3">
+                            <div><label class="form-label compact-label">Date From</label><InputDate class="form-control form-control-sm" @bind-Value="dateFrom" /></div>
+                            <div><label class="form-label compact-label">Date To</label><InputDate class="form-control form-control-sm" @bind-Value="dateTo" /></div>
+                            <div class="filter-actions">
+                                <button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" @onclick="ClearFilters">Clear</button>
+                                <button type="button" class="bcc-btn bcc-btn-primary compact-btn" @onclick="ApplyFilters">Search</button>
+                            </div>
+                        </div>
+
+                        @if (!FilteredRecords.Any())
+                        {
+                            <div class="bcc-empty py-4"><i class="fas fa-car"></i><h4>No Vehicle Records</h4><p>No records match the current search.</p></div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0 vehicle-table">
+                                    <thead><tr><th>Date</th><th>Service</th><th>Vehicles</th><th>Recorded By</th><th>Recorded At</th><th class="text-end">Actions</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var record in FilteredRecords)
+                                        {
+                                            <tr>
+                                                <td>@(record.RecordDate.ToString("dd MMM yyyy"))</td>
+                                                <td>@(record.Service?.Name ?? "Not available")</td>
+                                                <td><span class="vehicle-count-badge">@record.NumberOfVehicles</span></td>
+                                                <td>@GetWorkerName(record.RecordedBy)</td>
+                                                <td>@(record.RecordedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt"))</td>
+                                                <td class="text-end">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" title="View" @onclick="() => OpenDetails(record)"><i class="fas fa-eye"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-warning me-1" title="Edit" @onclick="() => StartEdit(record)"><i class="fas fa-edit"></i></button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Remove" @onclick="() => OpenRemovePopup(record)"><i class="fas fa-trash"></i></button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDetailsPopup && selectedRecord != null)
+{
+    <div class="vehicle-popup-backdrop">
+        <div class="vehicle-popup-card">
+            <div class="popup-header"><div><h4>Vehicle Record Details</h4><p>@(selectedRecord.RecordDate.ToString("dd MMMM yyyy"))</p></div><button type="button" class="btn-close" @onclick="ClosePopups"></button></div>
+            <div class="detail-grid">
+                <div><span>Service</span><strong>@(selectedRecord.Service?.Name ?? "Not available")</strong></div>
+                <div><span>Number of Vehicles</span><strong class="text-success">@selectedRecord.NumberOfVehicles</strong></div>
+                <div><span>Recorded By</span><strong>@GetWorkerName(selectedRecord.RecordedBy)</strong></div>
+                <div><span>Recorded At</span><strong>@(selectedRecord.RecordedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt"))</strong></div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showRemovePopup && selectedRecord != null)
+{
+    <div class="vehicle-popup-backdrop">
+        <div class="vehicle-popup-card remove-popup">
+            <div class="remove-icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <h4>Remove Vehicle Record?</h4>
+            <p>This will permanently remove the record for <strong>@(selectedRecord.Service?.Name ?? "this service")</strong> on <strong>@(selectedRecord.RecordDate.ToString("dd MMM yyyy"))</strong>.</p>
+            <div class="mt-3 d-flex justify-content-center gap-2">
+                <button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" disabled="@isRemoving" @onclick="ClosePopups">Cancel</button>
+                <button type="button" class="btn btn-danger btn-sm" disabled="@isRemoving" @onclick="RemoveVehicleRecord">
+                    @if (isRemoving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Removing...</span>
+     }
+                    else
+                    {
+                        <i class="fas fa-trash me-2"></i>
+                        <span>Remove</span>
+     }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showResultPopup)
+{
+    <div class="vehicle-popup-backdrop">
+        <div class="result-popup-card">
+            <div class="result-icon @(resultPopupSuccess ? "success" : "error")"><i class="fas @(resultPopupSuccess ? "fa-check-circle" : "fa-exclamation-circle")"></i></div>
+            <h4>@resultPopupTitle</h4><p>@resultPopupMessage</p>
+            <button type="button" class="bcc-btn bcc-btn-primary compact-btn" @onclick="CloseResultPopup">OK</button>
+        </div>
+    </div>
+}
+
+@code {
+    private VehicleRecord formModel = NewVehicleRecord();
+    private List<Service> services = new();
+    private List<VehicleRecord> allRecords = new();
+    private VehicleRecord? selectedRecord;
+    private bool isLoading = true, isSaving, isRemoving, isEditMode, canRecordVehicle;
+    private bool showDetailsPopup, showRemovePopup, showResultPopup, resultPopupSuccess;
+    private int editingRecordId;
+    private DateTime? dateFrom, dateTo;
+    private string searchText = string.Empty;
+    private string? errorMessage;
+    private string resultPopupTitle = string.Empty, resultPopupMessage = string.Empty;
+    private List<VehicleRecord> filteredRecords = new();
+
+    private IEnumerable<VehicleRecord> FilteredRecords
+    {
+        get
+        {
+            IEnumerable<VehicleRecord> query = allRecords;
+            if (dateFrom.HasValue) query = query.Where(x => x.RecordDate.Date >= dateFrom.Value.Date);
+            if (dateTo.HasValue) query = query.Where(x => x.RecordDate.Date <= dateTo.Value.Date);
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var search = searchText.Trim();
+                query = query.Where(x =>
+                    (x.Service?.Name?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (x.RecordedBy?.FirstName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (x.RecordedBy?.LastName?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+            return query.OrderByDescending(x => x.RecordDate).ThenByDescending(x => x.RecordedAt);
+        }
+    }
+
+    protected override async Task OnInitializedAsync() => await LoadPageAsync();
+
+    private async Task LoadPageAsync()
+    {
+        try
+        {
+            isLoading = true; errorMessage = null;
+            if (AuthService.CurrentWorker == null) { canRecordVehicle = false; return; }
+            var access = await ServiceRecordAccessService.GetAccessAsync(AuthService.CurrentWorker.Id);
+            canRecordVehicle = access.CanRecordVehicle;
+            if (!canRecordVehicle) return;
+            services = await ServiceService.GetActiveServicesAsync();
+            await ReloadRecordsAsync();
+        }
+        catch (Exception ex) { errorMessage = $"Unable to load vehicle records: {ex.Message}"; }
+        finally { isLoading = false; }
+    }
+
+    private async Task SaveVehicleRecord()
+    {
+        if (isSaving || !ValidateForm()) return;
+        if (AuthService.CurrentWorker == null) { errorMessage = "Unable to identify the current worker."; return; }
+        try
+        {
+            isSaving = true; errorMessage = null;
+            if (isEditMode)
+            {
+                formModel.Id = editingRecordId;
+                await VehicleRecordService.UpdateVehicleRecordAsync(formModel);
+                ShowResultPopup(true, "Vehicle Record Updated", "The vehicle record was updated successfully.");
+            }
+            else
+            {
+                formModel.RecordedByWorkerId = AuthService.CurrentWorker.WorkerId;
+                await VehicleRecordService.CreateVehicleRecordAsync(formModel);
+                ShowResultPopup(true, "Vehicle Record Saved", $"The record was saved successfully. Vehicles: {formModel.NumberOfVehicles}.");
+            }
+            ResetForm(); await ReloadRecordsAsync();
+        }
+        catch (Exception ex) { ShowResultPopup(false, "Unable to Save Vehicle Record", ex.Message); }
+        finally { isSaving = false; }
+    }
+
+    private void StartEdit(VehicleRecord record)
+    {
+        editingRecordId = record.Id; isEditMode = true;
+        formModel = new VehicleRecord { Id = record.Id, ServiceId = record.ServiceId, RecordDate = record.RecordDate.Date, NumberOfVehicles = record.NumberOfVehicles, RecordedByWorkerId = record.RecordedByWorkerId, RecordedAt = record.RecordedAt };
+        errorMessage = null;
+    }
+
+    private void CancelEdit() => ResetForm();
+    private void OpenDetails(VehicleRecord record) { selectedRecord = record; showDetailsPopup = true; }
+    private void OpenRemovePopup(VehicleRecord record) { selectedRecord = record; showRemovePopup = true; }
+
+    private async Task RemoveVehicleRecord()
+    {
+        if (selectedRecord == null || isRemoving) return;
+        try
+        {
+            isRemoving = true;
+            await VehicleRecordService.DeleteVehicleRecordAsync(selectedRecord.Id);
+            ClosePopups(); await ReloadRecordsAsync();
+            ShowResultPopup(true, "Vehicle Record Removed", "The vehicle record was removed successfully.");
+        }
+        catch (Exception ex) { ClosePopups(); ShowResultPopup(false, "Unable to Remove Vehicle Record", ex.Message); }
+        finally { isRemoving = false; }
+    }
+    
+
+    private async Task ReloadRecordsAsync() => allRecords = await VehicleRecordService.GetAllVehicleRecordsAsync();
+    private void ApplyFilters() => StateHasChanged();
+    private void ClearFilters() { dateFrom = null; dateTo = null; searchText = string.Empty; }
+
+    private bool ValidateForm()
+    {
+        if (formModel.ServiceId <= 0) { errorMessage = "Please select a service."; return false; }
+        if (formModel.RecordDate.Date > DateTime.Today) { errorMessage = "Record date cannot be in the future."; return false; }
+        if (formModel.NumberOfVehicles < 0) { errorMessage = "Number of vehicles cannot be negative."; return false; }
+        return true;
+    }
+
+    private void ResetForm() { formModel = NewVehicleRecord(); editingRecordId = 0; isEditMode = false; errorMessage = null; }
+    private static VehicleRecord NewVehicleRecord() => new() { RecordDate = DateTime.Today };
+    private void ClosePopups() { showDetailsPopup = false; showRemovePopup = false; selectedRecord = null; }
+    private void ShowResultPopup(bool success, string title, string message) { resultPopupSuccess = success; resultPopupTitle = title; resultPopupMessage = message; showResultPopup = true; }
+    private void CloseResultPopup() { showResultPopup = false; resultPopupTitle = string.Empty; resultPopupMessage = string.Empty; }
+    private void GoBack() => Navigation.NavigateTo("/workspace/service-records");
+    private static string GetWorkerName(Worker? worker) => worker == null ? "Not available" : $"{worker.FirstName} {worker.LastName}".Trim();
+}
+
+<style>
+    .vehicle-page {
+        max-width: 1450px;
+        margin: 0 auto
+    }
+
+    .vehicle-page-header {
+        margin-bottom: 14px
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: .78rem
+    }
+
+    .section-heading, .register-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px
+    }
+
+        .section-heading h6, .register-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: .9rem;
+            font-weight: 800
+        }
+
+        .section-heading p, .register-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: .72rem
+        }
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: .69rem;
+        font-weight: 700
+    }
+
+    .vehicle-page .form-control, .vehicle-page .form-select {
+        min-height: 32px;
+        font-size: .78rem
+    }
+
+    .vehicle-count-input {
+        font-size: 1rem !important;
+        font-weight: 800
+    }
+
+    .vehicle-count-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        color: #fff;
+        background: #0f172a;
+        border-radius: 9px
+    }
+
+        .vehicle-count-panel span {
+            font-size: .72rem;
+            font-weight: 700
+        }
+
+        .vehicle-count-panel strong {
+            font-size: 1.15rem
+        }
+
+    .vehicle-search {
+        position: relative;
+        width: 100%;
+        max-width: 280px
+    }
+
+        .vehicle-search > i {
+            position: absolute;
+            top: 50%;
+            left: 11px;
+            z-index: 2;
+            color: #94a3b8;
+            transform: translateY(-50%)
+        }
+
+        .vehicle-search .form-control {
+            padding-left: 32px
+        }
+
+    .filter-row {
+        display: grid;
+        grid-template-columns: minmax(130px,180px) minmax(130px,180px) auto;
+        align-items: end;
+        gap: 8px
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end
+    }
+
+    .vehicle-table thead th {
+        padding: 8px 9px;
+        color: #475569;
+        background: #f8fafc;
+        font-size: .63rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        white-space: nowrap
+    }
+
+    .vehicle-table tbody td {
+        padding: 8px 9px;
+        font-size: .76rem;
+        vertical-align: middle
+    }
+
+    .vehicle-count-badge {
+        display: inline-flex;
+        min-width: 34px;
+        justify-content: center;
+        padding: 3px 8px;
+        color: #166534;
+        background: #dcfce7;
+        border-radius: 999px;
+        font-size: .7rem;
+        font-weight: 800
+    }
+
+    .vehicle-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        background: rgba(15,23,42,.58)
+    }
+
+    .vehicle-popup-card, .result-popup-card {
+        width: 100%;
+        max-width: 500px;
+        max-height: 84vh;
+        padding: 19px;
+        overflow-y: auto;
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 18px 45px rgba(15,23,42,.24)
+    }
+
+    .popup-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px
+    }
+
+        .popup-header h4, .remove-popup h4, .result-popup-card h4 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 1rem;
+            font-weight: 800
+        }
+
+        .popup-header p, .remove-popup p, .result-popup-card p {
+            margin: 0;
+            color: #64748b;
+            font-size: .76rem
+        }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 7px
+    }
+
+        .detail-grid > div {
+            padding: 8px 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px
+        }
+
+        .detail-grid span {
+            display: block;
+            margin-bottom: 2px;
+            color: #64748b;
+            font-size: .62rem;
+            font-weight: 700;
+            text-transform: uppercase
+        }
+
+        .detail-grid strong {
+            color: #0f172a;
+            font-size: .79rem
+        }
+
+    .remove-popup, .result-popup-card {
+        max-width: 430px;
+        text-align: center
+    }
+
+    .remove-icon, .result-icon {
+        margin-bottom: 10px;
+        font-size: 2.6rem
+    }
+
+        .remove-icon, .result-icon.error {
+            color: #dc2626
+        }
+
+        .result-icon.success {
+            color: #16a34a
+        }
+
+    .result-popup-card p, .remove-popup p {
+        margin-bottom: 16px
+    }
+   @@media(max - width:992px)
+
+    {
+        .filter-row
+
+    {
+        grid-template-columns: 1fr 1fr
+    }
+
+    .filter-actions {
+        grid-column: 1/-1
+    }
+
+    } @@media(max - width:768px)
+
+    {
+        .register-heading
+
+    {
+        align-items: stretch;
+        flex-direction: column
+    }
+
+    .vehicle-search {
+        max-width: none
+    }
+
+    .detail-grid {
+        grid-template-columns: 1fr
+    }
+
+    .vehicle-table thead th, .vehicle-table tbody td {
+        white-space: normal
+    }
+
+    } @@media(max - width:576px)
+
+    {
+        .filter-row
+
+    {
+        grid-template-columns: 1fr
+    }
+
+    .filter-actions {
+        grid-column: auto
+    }
+
+    .vehicle-popup-card, .result-popup-card {
+        max-width: 96vw;
+        padding: 16px
+    }
+
+    }
+</style>

@@ -942,6 +942,232 @@ namespace ChurchApp.Migrations
                     b.ToTable("ChurchNotices");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.ChurchOfferingAmendment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DecidedByWorkerId")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DecisionComment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("OfferingRecordId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("ProposedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProposedCurrency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ProposedOfferingDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProposedOfferingTypeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProposedPaymentMode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProposedRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProposedServiceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedByWorkerId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecidedByWorkerId");
+
+                    b.HasIndex("OfferingRecordId");
+
+                    b.HasIndex("ProposedOfferingTypeId");
+
+                    b.HasIndex("ProposedServiceId");
+
+                    b.HasIndex("RequestedByWorkerId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("ChurchOfferingAmendments");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.ChurchOfferingRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApprovedByWorkerId")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsRemoved")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("OfferingDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("OfferingTypeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PaymentMode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecordedByWorkerId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemovalReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemovedByWorkerId")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ResubmittedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReturnComment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ReturnedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReturnedByWorkerId")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ServiceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByWorkerId");
+
+                    b.HasIndex("OfferingDate");
+
+                    b.HasIndex("OfferingTypeId");
+
+                    b.HasIndex("RecordedByWorkerId");
+
+                    b.HasIndex("RemovedByWorkerId");
+
+                    b.HasIndex("ReturnedByWorkerId");
+
+                    b.HasIndex("ServiceId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("ChurchOfferingRecords");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.ChurchOfferingTypeN", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedByWorkerId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByWorkerId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("ChurchOfferingTypes");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Department", b =>
                 {
                     b.Property<int>("Id")
@@ -1761,6 +1987,37 @@ namespace ChurchApp.Migrations
                     b.ToTable("Privileges");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.ProfileUpdateApprover", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ApproverWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Decision")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DecisionDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("HasActed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ProfileUpdateRequestId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApproverWorkerId");
+
+                    b.HasIndex("ProfileUpdateRequestId");
+
+                    b.ToTable("ProfileUpdateApprovers");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.ProfileUpdateRequest", b =>
                 {
                     b.Property<int>("Id")
@@ -2178,6 +2435,44 @@ namespace ChurchApp.Migrations
                         .IsUnique();
 
                     b.ToTable("UserPrivileges");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.VehicleRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("NumberOfVehicles")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("RecordDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecordedByWorkerId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ServiceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordDate");
+
+                    b.HasIndex("RecordedByWorkerId");
+
+                    b.HasIndex("ServiceId", "RecordDate")
+                        .IsUnique();
+
+                    b.ToTable("VehicleRecords");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.VerseOfTheDay", b =>
@@ -2821,6 +3116,114 @@ namespace ChurchApp.Migrations
                     b.Navigation("PerformedByWorker");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.ChurchOfferingAmendment", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Worker", "DecidedByWorker")
+                        .WithMany()
+                        .HasForeignKey("DecidedByWorkerId")
+                        .HasPrincipalKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.ChurchOfferingRecord", "OfferingRecord")
+                        .WithMany("Amendments")
+                        .HasForeignKey("OfferingRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.ChurchOfferingTypeN", "ProposedOfferingType")
+                        .WithMany()
+                        .HasForeignKey("ProposedOfferingTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Service", "ProposedService")
+                        .WithMany()
+                        .HasForeignKey("ProposedServiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Worker", "RequestedByWorker")
+                        .WithMany()
+                        .HasForeignKey("RequestedByWorkerId")
+                        .HasPrincipalKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DecidedByWorker");
+
+                    b.Navigation("OfferingRecord");
+
+                    b.Navigation("ProposedOfferingType");
+
+                    b.Navigation("ProposedService");
+
+                    b.Navigation("RequestedByWorker");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.ChurchOfferingRecord", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Worker", "ApprovedByWorker")
+                        .WithMany()
+                        .HasForeignKey("ApprovedByWorkerId")
+                        .HasPrincipalKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.ChurchOfferingTypeN", "OfferingType")
+                        .WithMany("OfferingRecords")
+                        .HasForeignKey("OfferingTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Worker", "RecordedByWorker")
+                        .WithMany()
+                        .HasForeignKey("RecordedByWorkerId")
+                        .HasPrincipalKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Worker", "RemovedByWorker")
+                        .WithMany()
+                        .HasForeignKey("RemovedByWorkerId")
+                        .HasPrincipalKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.Worker", "ReturnedByWorker")
+                        .WithMany()
+                        .HasForeignKey("ReturnedByWorkerId")
+                        .HasPrincipalKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ApprovedByWorker");
+
+                    b.Navigation("OfferingType");
+
+                    b.Navigation("RecordedByWorker");
+
+                    b.Navigation("RemovedByWorker");
+
+                    b.Navigation("ReturnedByWorker");
+
+                    b.Navigation("Service");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.ChurchOfferingTypeN", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Worker", "CreatedByWorker")
+                        .WithMany()
+                        .HasForeignKey("CreatedByWorkerId")
+                        .HasPrincipalKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByWorker");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Department", b =>
                 {
                     b.HasOne("ChurchApp.Models.Worker", "AssistantHeadWorker")
@@ -3066,6 +3469,25 @@ namespace ChurchApp.Migrations
                     b.Navigation("PrayerFocus");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.ProfileUpdateApprover", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Worker", "ApproverWorker")
+                        .WithMany()
+                        .HasForeignKey("ApproverWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.ProfileUpdateRequest", "ProfileUpdateRequest")
+                        .WithMany("EligibleApprovers")
+                        .HasForeignKey("ProfileUpdateRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApproverWorker");
+
+                    b.Navigation("ProfileUpdateRequest");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.ProfileUpdateRequest", b =>
                 {
                     b.HasOne("ChurchApp.Models.Worker", "ApprovedByWorker")
@@ -3185,6 +3607,26 @@ namespace ChurchApp.Migrations
                     b.Navigation("Worker");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.VehicleRecord", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Worker", "RecordedBy")
+                        .WithMany()
+                        .HasForeignKey("RecordedByWorkerId")
+                        .HasPrincipalKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RecordedBy");
+
+                    b.Navigation("Service");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Worker", b =>
                 {
                     b.HasOne("ChurchApp.Models.Department", "Department")
@@ -3264,6 +3706,16 @@ namespace ChurchApp.Migrations
                     b.Navigation("History");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.ChurchOfferingRecord", b =>
+                {
+                    b.Navigation("Amendments");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.ChurchOfferingTypeN", b =>
+                {
+                    b.Navigation("OfferingRecords");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Department", b =>
                 {
                     b.Navigation("Units");
@@ -3296,6 +3748,11 @@ namespace ChurchApp.Migrations
             modelBuilder.Entity("ChurchApp.Models.PrayerFocus", b =>
                 {
                     b.Navigation("PrayerPoints");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.ProfileUpdateRequest", b =>
+                {
+                    b.Navigation("EligibleApprovers");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.Service", b =>

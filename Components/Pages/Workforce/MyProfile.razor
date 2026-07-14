@@ -1,430 +1,871 @@
 ﻿@page "/workforce/my-profile"
 @layout Components.Layout.MainLayout
-@using ChurchApp.Services
+
 @using ChurchApp.Models
+@using ChurchApp.Services
+
 @inject WorkforceService WorkforceService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
-@if (AuthService.IsAuthenticated)
-{
-    <PageTitle>My Profile - BCC ServiceHub</PageTitle>
+<PageTitle>My Profile - BCC ServiceHub</PageTitle>
 
-    @if (worker != null)
-    {
-        <div class="profile-v2-page">
-
-            <div class="bcc-page-header">
-                <div>
-                    <div class="bcc-page-subtitle">
-                        <i class="fas fa-user-circle me-2"></i>
-                        Workforce Profile
-                    </div>
-                    <div class="bcc-page-title">My Profile</div>
-                    <div class="bcc-page-subtitle">
-                        View your personal, church, qualification and service information.
-                    </div>
-                </div>
-
-                <button class="bcc-btn bcc-btn-primary" @onclick="NavigateToUpdate" disabled="@hasPendingUpdate">
-                    <i class="fas fa-edit me-2"></i>
-                    @(hasPendingUpdate ? "Update Pending" : "Update Profile")
-                </button>
-            </div>
-
-            @if (hasPendingUpdate)
-            {
-                <div class="alert alert-warning profile-v2-alert">
-                    <i class="fas fa-clock me-2"></i>
-                    <strong>Update Pending Approval</strong>
-                    <div>Your profile changes are waiting for approval from @approverName.</div>
-                </div>
-            }
-
-            <div class="bcc-card profile-v2-hero">
-                <div class="bcc-card-body">
-                    <div class="row align-items-center g-4">
-                        <div class="col-md-auto text-center">
-                            @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
-                            {
-                                <img src="/uploads/@worker.PassportPhotoPath" alt="Profile Photo" class="profile-v2-photo" />
-                            }
-                            else
-                            {
-                                <div class="profile-v2-photo-placeholder">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                            }
-                        </div>
-
-                        <div class="col">
-                            <h3 class="profile-v2-name">
-                                @worker.Title @worker.FirstName @worker.MiddleName @worker.LastName
-                            </h3>
-
-                            <div class="profile-v2-meta">
-                                <span><i class="fas fa-id-badge"></i> @worker.WorkerId</span>
-                                <span><i class="fas fa-user-tag"></i> @worker.Role</span>
-
-                                @if (worker.Directorate != null)
-                                {
-                                    <span><i class="fas fa-building"></i> @worker.Directorate.Name</span>
-                                }
-
-                                @if (worker.Department != null)
-                                {
-                                    <span><i class="fas fa-sitemap"></i> @worker.Department.Name</span>
-                                }
-                            </div>
-
-                            @{
-                                var completeness = CalculateCompleteness(worker);
-                            }
-
-                            <div class="profile-v2-progress mt-3">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>Profile Completion</span>
-                                    <strong>@completeness%</strong>
-                                </div>
-
-                                <div class="progress">
-                                    <div class="progress-bar @GetCompletenessClass(completeness)" style="width:@completeness%"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-auto">
-                            <div class="profile-v2-status-box">
-                                <span>Status</span>
-                                <strong class="@(worker.IsActive ? "text-success" : "text-secondary")">
-                                    @(worker.IsActive ? "Active" : "Inactive")
-                                </strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-4">
-                <div class="col-lg-8">
-
-                    <div class="bcc-card">
-                        <div class="bcc-card-header">
-                            <i class="fas fa-user text-primary"></i>
-                            <div class="bcc-card-title">Personal Information</div>
-                        </div>
-
-                        <div class="bcc-card-body">
-                            <div class="profile-v2-grid">
-                                @InfoRow("Worker ID", worker.WorkerId)
-                                @InfoRow("Title", worker.Title, proposedChanges?.Title)
-                                @InfoRow("Full Name", $"{worker.FirstName} {worker.MiddleName} {worker.LastName}", proposedChanges?.FirstName != null ? $"{proposedChanges.FirstName} {proposedChanges.MiddleName} {proposedChanges.LastName}" : null)
-                                @InfoRow("Sex", worker.Sex, proposedChanges?.Sex)
-                                @InfoRow("Email", worker.Email, proposedChanges?.Email)
-                                @InfoRow("Phone", worker.Phone, proposedChanges?.Phone)
-                                @InfoRow("Date of Birth", worker.DateOfBirth?.ToString("dd MMMM yyyy"), proposedChanges?.DateOfBirth?.ToString("dd MMMM yyyy"))
-                                @InfoRow("Marital Status", worker.MaritalStatus, proposedChanges?.MaritalStatus)
-                                @InfoRow("Wedding Anniversary", worker.WeddingAnniversary?.ToString("dd MMMM yyyy"), proposedChanges?.WeddingAnniversary?.ToString("dd MMMM yyyy"))
-                                @InfoRow("Profession", worker.Profession, proposedChanges?.Profession)
-                                @InfoRow("Organization", worker.Organization, proposedChanges?.Organization)
-                                @InfoRow("Address", worker.Address, proposedChanges?.Address)
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bcc-card">
-                        <div class="bcc-card-header">
-                            <i class="fas fa-church text-success"></i>
-                            <div class="bcc-card-title">Church Information</div>
-                        </div>
-
-                        <div class="bcc-card-body">
-                            <div class="profile-v2-grid">
-                                @InfoRow("Directorate", worker.Directorate?.Name)
-                                @InfoRow("Department", worker.Department?.Name)
-                                @InfoRow("Unit", worker.Unit?.Name)
-                                @InfoRow("Role", worker.Role)
-                                @InfoRow("Worker Status", worker.WorkerStatus)
-                                @InfoRow("Ordination Status", worker.OrdinationStatus)
-                                @InfoRow("Ordination Level", worker.OrdinationLevel)
-                                @InfoRow("Last Ordination", worker.LastOrdinationDate?.ToString("dd MMMM yyyy"))
-                                @InfoRow("Date Joined BCC", worker.DateJoinedChurch?.ToString("dd MMMM yyyy"))
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bcc-card">
-                        <div class="bcc-card-header">
-                            <i class="fas fa-award text-warning"></i>
-                            <div class="bcc-card-title">Qualifications & Certificates</div>
-                        </div>
-
-                        <div class="bcc-card-body">
-                            <div class="row g-3">
-                                @QualificationCard("Believer's Baptism", worker.HasBelieverBaptism, worker.BelieverBaptismCertificatePath)
-                                @QualificationCard("Worker in Training", worker.HasWorkerInTraining, worker.WorkerInTrainingCertificatePath)
-                                @QualificationCard("School of Discipleship", worker.HasSOD, worker.SODCertificatePath)
-                                @QualificationCard("Bible College", worker.HasBibleCollege, worker.BibleCollegeCertificatePath)
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bcc-card">
-                        <div class="bcc-card-header">
-                            <i class="fas fa-history text-info"></i>
-                            <div class="bcc-card-title">Previous Church Experience</div>
-                        </div>
-
-                        <div class="bcc-card-body">
-                            <div class="profile-v2-grid">
-                                @InfoRow("Previous Church", worker.PreviousChurch, proposedChanges?.PreviousChurch)
-                                @InfoRow("Previous Role", worker.PreviousChurchRole, proposedChanges?.PreviousChurchRole)
-                                @InfoRow("Previous Unit", worker.PreviousChurchUnit, proposedChanges?.PreviousChurchUnit)
-                                @InfoRow("Experience", HasPreviousChurchExperience() ? "Has Previous Experience" : "No previous experience recorded")
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="col-lg-4">
-
-                    <div class="bcc-card">
-                        <div class="bcc-card-header">
-                            <i class="fas fa-chart-pie text-primary"></i>
-                            <div class="bcc-card-title">My Summary</div>
-                        </div>
-
-                        <div class="bcc-card-body">
-                            @InfoRow("Supervisor", worker.Supervisor != null ? $"{worker.Supervisor.FirstName} {worker.Supervisor.LastName}" : "Not assigned")
-                            @InfoRow("Years in BCC", $"{CalculateYearsInBCC()} years")
-                            @InfoRow("Last Login", worker.LastLoginDate?.ToString("dd MMM yyyy") ?? "Never")
-                            @InfoRow("Previous Experience", HasPreviousChurchExperience() ? "Yes" : "No")
-                        </div>
-                    </div>
-
-                    @if (hasPendingUpdate)
-                    {
-                        <div class="bcc-card">
-                            <div class="bcc-card-header">
-                                <i class="fas fa-clock text-warning"></i>
-                                <div class="bcc-card-title">Update Status</div>
-                            </div>
-
-                            <div class="bcc-card-body">
-                                @InfoRow("Submitted", pendingRequest?.SubmittedDate.ToString("MMM dd, yyyy"))
-                                @InfoRow("Waiting For", approverName)
-
-                                <button class="btn btn-outline-danger btn-sm mt-3 w-100" @onclick="CancelUpdateRequest">
-                                    <i class="fas fa-times me-1"></i>
-                                    Cancel Request
-                                </button>
-                            </div>
-                        </div>
-                    }
-
-                </div>
-            </div>
-        </div>
-    }
-}
-else
+@if (!AuthService.IsAuthenticated)
 {
     <div class="bcc-empty">
         <i class="fas fa-lock"></i>
         <h4>Please Log In</h4>
-        <p>You need to be logged in to access this page.</p>
-        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+        <p>You need to be logged in to access your profile.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">
+                    Loading your profile...
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (worker == null)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-user-slash"></i>
+        <h4>Profile Not Found</h4>
+        <p>Your worker profile could not be loaded.</p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Dashboard
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page my-profile-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        <div class="bcc-page-header my-profile-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-user-circle me-2"></i>
+                    Workforce Profile
+                </div>
+
+                <div class="bcc-page-title">
+                    My Profile
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Personal, church, qualification and service information.
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bcc-btn bcc-btn-primary compact-btn"
+                    disabled="@hasPendingUpdate"
+                    @onclick="NavigateToUpdate">
+                <i class="fas fa-edit me-2"></i>
+                @(hasPendingUpdate ? "Update Pending" : "Update Profile")
+            </button>
+        </div>
+
+        @if (hasPendingUpdate)
+        {
+            <div class="pending-update-banner mb-3">
+                <div>
+                    <i class="fas fa-clock"></i>
+                </div>
+
+                <div class="flex-grow-1">
+                    <strong>Profile Update Pending Approval</strong>
+
+                    <span>
+                        Your proposed changes are waiting for
+                        @(string.IsNullOrWhiteSpace(approverNames)
+                                        ? "the assigned approver"
+                                        : approverNames).
+            </span>
+        </div>
+
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        disabled="@isCancelling"
+                        @onclick="CancelUpdateRequest">
+            @if (isCancelling)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        <span>Cancelling...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-times me-1"></i>
+                        <span>Cancel Request</span>
+                    }
+                </button>
+            </div>
+        }
+
+        <div class="profile-identity-card mb-3">
+
+            <div class="profile-identity-main">
+
+                @if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath))
+                {
+                    <img src="/uploads/@worker.PassportPhotoPath"
+                         alt="Profile photograph"
+                         class="profile-photo" />
+                }
+                else
+                {
+                    <div class="profile-photo-placeholder">
+                        <i class="fas fa-user"></i>
+                    </div>
+                }
+
+                <div class="profile-identity-content">
+                    <h2>
+                        @BuildFullName(worker)
+                    </h2>
+
+                    <div class="profile-meta">
+                        <span>
+                            <i class="fas fa-id-badge"></i>
+                            @DisplayValue(worker.WorkerId)
+                        </span>
+
+                        <span>
+                            <i class="fas fa-user-tag"></i>
+                            @DisplayValue(worker.Role)
+                        </span>
+
+                        <span>
+                            <i class="fas fa-building"></i>
+                            @DisplayValue(worker.Directorate?.Name)
+                        </span>
+
+                        <span>
+                            <i class="fas fa-sitemap"></i>
+                            @DisplayValue(worker.Department?.Name)
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="profile-completion-panel">
+                @{
+                    var completeness = CalculateCompleteness(worker);
+                }
+
+                <div class="profile-completion-top">
+                    <span>Profile Completion</span>
+                    <strong>@completeness%</strong>
+                </div>
+
+                <div class="progress profile-progress">
+                    <div class="progress-bar @GetCompletenessClass(completeness)"
+                         style="width: @completeness%">
+                    </div>
+                </div>
+
+                <div class="profile-status-line">
+                    <span>Status</span>
+
+                    <strong class="@(worker.IsActive
+                                                    ? "text-success"
+                                                    : "text-secondary")">
+                    @(worker.IsActive ? "Active" : "Inactive")
+                </strong>
+            </div>
+        </div>
+
+        </div>
+
+        <div class="row g-3 align-items-start">
+
+            <div class="col-12 col-xl-6">
+
+                <div class="bcc-card profile-section-card">
+                    <div class="profile-section-header">
+                        <div class="profile-section-icon personal">
+                            <i class="fas fa-user"></i>
+                        </div>
+
+                        <div>
+                            <h6>Personal Information</h6>
+                            <p>Identity, contact and personal details.</p>
+                        </div>
+                    </div>
+
+                    <div class="bcc-card-body p-3">
+                        <div class="profile-info-grid">
+                            @InfoItem("Worker ID", worker.WorkerId)
+                            @InfoItem("Title", worker.Title, proposedChanges?.Title)
+
+                            @InfoItem(
+                                                "Full Name",
+                                                BuildFullName(worker),
+                                                BuildPendingFullName())
+
+                        @InfoItem("Sex", worker.Sex, proposedChanges?.Sex)
+                        @InfoItem("Email", worker.Email, proposedChanges?.Email)
+                        @InfoItem("Phone", worker.Phone, proposedChanges?.Phone)
+
+                        @InfoItem(
+                                                "Date of Birth",
+                                                FormatDate(worker.DateOfBirth),
+                                                FormatDate(proposedChanges?.DateOfBirth))
+
+                        @InfoItem(
+                                                "Marital Status",
+                                                worker.MaritalStatus,
+                                                proposedChanges?.MaritalStatus)
+
+                        @InfoItem(
+                                                "Wedding Anniversary",
+                                                FormatDate(worker.WeddingAnniversary),
+                                                FormatDate(proposedChanges?.WeddingAnniversary))
+
+                        @InfoItem(
+                                                "Profession",
+                                                worker.Profession,
+                                                proposedChanges?.Profession)
+
+                        @InfoItem(
+                                                "Organisation",
+                                                worker.Organization,
+                                                proposedChanges?.Organization)
+
+                        @InfoItem(
+                                                "Address",
+                                                worker.Address,
+                                                proposedChanges?.Address,
+                                                true)
+                    </div>
+                </div>
+            </div>
+
+            <div class="bcc-card profile-section-card">
+                <div class="profile-section-header">
+                    <div class="profile-section-icon experience">
+                        <i class="fas fa-history"></i>
+                    </div>
+
+                    <div>
+                        <h6>Previous Church Experience</h6>
+                        <p>Service experience before joining BCC.</p>
+                    </div>
+                </div>
+
+                <div class="bcc-card-body p-3">
+                    <div class="profile-info-grid">
+                        @InfoItem(
+                                                "Previous Church",
+                                                worker.PreviousChurch,
+                                                proposedChanges?.PreviousChurch)
+
+                        @InfoItem(
+                                                "Previous Role",
+                                                worker.PreviousChurchRole,
+                                                proposedChanges?.PreviousChurchRole)
+
+                        @InfoItem(
+                                                "Previous Unit",
+                                                worker.PreviousChurchUnit,
+                                                proposedChanges?.PreviousChurchUnit)
+
+                        @InfoItem(
+                                                "Experience Status",
+                                                HasPreviousChurchExperience()
+                                                ? "Previous experience recorded"
+                                                : "No previous experience recorded",
+                                                null,
+                                                true)
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="col-12 col-xl-6">
+
+            <div class="bcc-card profile-section-card">
+                <div class="profile-section-header">
+                    <div class="profile-section-icon church">
+                        <i class="fas fa-church"></i>
+                    </div>
+
+                    <div>
+                        <h6>Church & Service Information</h6>
+                        <p>Current assignment, status and service history.</p>
+                    </div>
+                </div>
+
+                <div class="bcc-card-body p-3">
+                    <div class="profile-info-grid">
+                        @InfoItem("Directorate", worker.Directorate?.Name)
+                        @InfoItem("Department", worker.Department?.Name)
+                        @InfoItem("Unit", worker.Unit?.Name)
+                        @InfoItem("Role", worker.Role)
+                        @InfoItem("Worker Status", worker.WorkerStatus)
+                        @InfoItem("Supervisor", GetSupervisorName())
+
+                        @InfoItem(
+                                                "Date Joined BCC",
+                                                FormatDate(worker.DateJoinedChurch))
+
+                        @InfoItem(
+                                                "Years in BCC",
+                                                $"{CalculateYearsInBCC()} year(s)")
+
+                        @InfoItem(
+                                                "Ordination Status",
+                                                worker.OrdinationStatus)
+
+                        @InfoItem(
+                                                "Ordination Level",
+                                                worker.OrdinationLevel)
+
+                        @InfoItem(
+                                                "Last Ordination",
+                                                FormatDate(worker.LastOrdinationDate))
+
+                        @InfoItem(
+                                                "Last Login",
+                                                worker.LastLoginDate?.ToString(
+                                                "dd MMM yyyy, hh:mm tt"),
+                                                null,
+                                                true)
+                    </div>
+                </div>
+            </div>
+
+            <div class="bcc-card profile-section-card">
+                <div class="profile-section-header">
+                    <div class="profile-section-icon qualification">
+                        <i class="fas fa-award"></i>
+                    </div>
+
+                    <div>
+                        <h6>Qualifications & Certificates</h6>
+                        <p>Church training and uploaded certificates.</p>
+                    </div>
+                </div>
+
+                <div class="bcc-card-body p-3">
+                    <div class="qualification-grid">
+                        @QualificationItem(
+                                                "Believer's Baptism",
+                                                worker.HasBelieverBaptism,
+                                                worker.BelieverBaptismCertificatePath)
+
+                        @QualificationItem(
+                                                "Worker in Training",
+                                                worker.HasWorkerInTraining,
+                                                worker.WorkerInTrainingCertificatePath)
+
+                        @QualificationItem(
+                                                "School of Discipleship",
+                                                worker.HasSOD,
+                                                worker.SODCertificatePath)
+
+                        @QualificationItem(
+                                                "Bible College",
+                                                worker.HasBibleCollege,
+                                                worker.BibleCollegeCertificatePath)
+                    </div>
+                </div>
+            </div>
+
+            @if (hasPendingUpdate)
+                {
+                    <div class="bcc-card profile-section-card">
+                        <div class="profile-section-header">
+                            <div class="profile-section-icon pending">
+                                <i class="fas fa-clock"></i>
+                            </div>
+
+                            <div>
+                                <h6>Update Request</h6>
+                                <p>Current profile-change approval status.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+                            <div class="profile-info-grid">
+                                @InfoItem(
+                                "Submitted",
+                                                pendingRequest?.SubmittedDate
+                                                .ToString("dd MMM yyyy, hh:mm tt"))
+
+                        @InfoItem(
+                                                "Waiting For",
+                                                approverNames,
+                                                null,
+                                                true)
+                    </div>
+                </div>
+            </div>
+                        }
+
+            </div>
+
+        </div>
     </div>
 }
 
 @code {
-    private Worker? worker = null;
-    private ProposedChanges? proposedChanges = null;
-    private ProfileUpdateRequest? pendingRequest = null;
-    private bool hasPendingUpdate = false;
-    private string approverName = string.Empty;
+    private Worker? worker;
+    private ProposedChanges? proposedChanges;
+    private ProfileUpdateRequest? pendingRequest;
+
+    private bool isLoading = true;
+    private bool hasPendingUpdate;
+    private bool isCancelling;
+
+    private string approverNames = string.Empty;
+    private string errorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
-        {
-            await LoadProfileData();
-        }
+        await LoadProfileData();
     }
 
     private async Task LoadProfileData()
     {
         try
         {
-            var workerId = AuthService.CurrentWorker!.Id;
-            var (workerData, changes) = await WorkforceService.GetWorkerWithProposedChangesAsync(workerId);
+            isLoading = true;
+            errorMessage = string.Empty;
 
-            worker = workerData;
-            proposedChanges = changes;
-
-            pendingRequest = await WorkforceService.GetPendingUpdateRequestAsync(workerId);
-            hasPendingUpdate = pendingRequest != null;
-
-            if (hasPendingUpdate && pendingRequest.ApproverWorker != null)
+            if (!AuthService.IsAuthenticated ||
+                AuthService.CurrentWorker == null)
             {
-                approverName = $"{pendingRequest.ApproverWorker.FirstName} {pendingRequest.ApproverWorker.LastName}";
+                return;
+            }
+
+            var workerId =
+                AuthService.CurrentWorker.Id;
+
+            var result =
+                await WorkforceService
+                    .GetWorkerWithProposedChangesAsync(workerId);
+
+            worker = result.Item1;
+            proposedChanges = result.Item2;
+
+            pendingRequest =
+                await WorkforceService
+                    .GetPendingUpdateRequestAsync(workerId);
+
+            hasPendingUpdate =
+                pendingRequest != null;
+
+            if (pendingRequest.EligibleApprovers.Any())
+            {
+                approverNames =
+                    string.Join(
+                        " or ",
+                        pendingRequest
+                            .EligibleApprovers
+                            .Select(x =>
+                                $"{x.ApproverWorker.FirstName} {x.ApproverWorker.LastName}"));
+            }
+            else
+            {
+                approverNames =
+                    pendingRequest.ApproverWorker == null
+                        ? ""
+                        : $"{pendingRequest.ApproverWorker.FirstName} {pendingRequest.ApproverWorker.LastName}";
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading profile: {ex.Message}");
+            errorMessage =
+                $"Unable to load your profile: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
     private void NavigateToUpdate()
     {
-        if (hasPendingUpdate) return;
-        Navigation.NavigateTo("/workforce/update-profile");
+        if (hasPendingUpdate)
+            return;
+
+        Navigation.NavigateTo(
+            "/workforce/update-profile");
     }
 
     private async Task CancelUpdateRequest()
     {
-        if (pendingRequest != null)
+        if (pendingRequest == null ||
+            isCancelling)
         {
-            try
+            return;
+        }
+
+        try
+        {
+            isCancelling = true;
+            errorMessage = string.Empty;
+
+            var success =
+                await WorkforceService
+                    .CancelUpdateRequestAsync(
+                        pendingRequest.Id);
+
+            if (!success)
             {
-                var success = await WorkforceService.CancelUpdateRequestAsync(pendingRequest.Id);
-                if (success)
-                {
-                    await LoadProfileData();
-                    StateHasChanged();
-                }
+                throw new Exception(
+                    "The update request could not be cancelled.");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error canceling request: {ex.Message}");
-            }
+
+            await LoadProfileData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to cancel the update request: {ex.Message}";
+        }
+        finally
+        {
+            isCancelling = false;
         }
     }
 
-    private RenderFragment InfoRow(string label, string? value, string? pendingValue = null) => builder =>
+    private RenderFragment InfoItem(
+        string label,
+        string? value,
+        string? pendingValue = null,
+        bool fullWidth = false) => builder =>
     {
-        builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "class", "bcc-info-row");
+        var sequence = 0;
 
-        builder.OpenElement(2, "div");
-        builder.AddAttribute(3, "class", "bcc-info-label");
-        builder.AddContent(4, label);
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            fullWidth
+                ? "profile-info-item full-width"
+                : "profile-info-item");
+
+        builder.OpenElement(sequence++, "span");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            "profile-info-label");
+        builder.AddContent(sequence++, label);
         builder.CloseElement();
 
-        builder.OpenElement(5, "div");
-        builder.AddAttribute(6, "class", "bcc-info-value");
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            "profile-info-value");
 
-        if (!string.IsNullOrWhiteSpace(pendingValue))
+        if (!string.IsNullOrWhiteSpace(pendingValue) &&
+            !string.Equals(
+                value?.Trim(),
+                pendingValue.Trim(),
+                StringComparison.OrdinalIgnoreCase))
         {
-            builder.OpenElement(7, "div");
-            builder.AddAttribute(8, "class", "profile-v2-old-value");
-            builder.OpenElement(9, "s");
-            builder.AddContent(10, string.IsNullOrWhiteSpace(value) ? "Not provided" : value);
+            builder.OpenElement(sequence++, "div");
+            builder.AddAttribute(
+                sequence++,
+                "class",
+                "profile-current-value");
+            builder.OpenElement(sequence++, "s");
+            builder.AddContent(
+                sequence++,
+                DisplayValue(value));
             builder.CloseElement();
             builder.CloseElement();
 
-            builder.OpenElement(11, "div");
-            builder.AddAttribute(12, "class", "profile-v2-pending-value");
-            builder.AddContent(13, pendingValue);
-            builder.OpenElement(14, "span");
-            builder.AddAttribute(15, "class", "profile-v2-pending-badge");
-            builder.AddContent(16, "Pending");
+            builder.OpenElement(sequence++, "div");
+            builder.AddAttribute(
+                sequence++,
+                "class",
+                "profile-pending-value");
+
+            builder.OpenElement(sequence++, "span");
+            builder.AddContent(
+                sequence++,
+                pendingValue);
             builder.CloseElement();
+
+            builder.OpenElement(sequence++, "small");
+            builder.AddAttribute(
+                sequence++,
+                "class",
+                "profile-pending-badge");
+            builder.AddContent(sequence++, "Pending");
+            builder.CloseElement();
+
             builder.CloseElement();
         }
         else
         {
-            builder.AddContent(17, string.IsNullOrWhiteSpace(value) ? "Not provided" : value);
+            builder.AddContent(
+                sequence++,
+                DisplayValue(value));
         }
 
         builder.CloseElement();
         builder.CloseElement();
     };
 
-    private RenderFragment QualificationCard(string title, bool hasQualification, string? certificatePath) => builder =>
+    private RenderFragment QualificationItem(
+        string title,
+        bool hasQualification,
+        string? certificatePath) => builder =>
     {
-        builder.OpenElement(0, "div");
-        builder.AddAttribute(1, "class", "col-md-6");
+        var sequence = 0;
 
-        builder.OpenElement(2, "div");
-        builder.AddAttribute(3, "class", "profile-v2-qualification-card");
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            "qualification-item");
 
-        builder.OpenElement(4, "div");
-        builder.AddAttribute(5, "class", hasQualification ? "profile-v2-qual-icon active" : "profile-v2-qual-icon inactive");
-        builder.OpenElement(6, "i");
-        builder.AddAttribute(7, "class", hasQualification ? "fas fa-check" : "fas fa-times");
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            hasQualification
+                ? "qualification-icon active"
+                : "qualification-icon inactive");
+
+        builder.OpenElement(sequence++, "i");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            hasQualification
+                ? "fas fa-check"
+                : "fas fa-times");
         builder.CloseElement();
         builder.CloseElement();
 
-        builder.OpenElement(8, "div");
-        builder.OpenElement(9, "strong");
-        builder.AddContent(10, title);
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            "qualification-content");
+
+        builder.OpenElement(sequence++, "strong");
+        builder.AddContent(sequence++, title);
         builder.CloseElement();
 
-        if (!string.IsNullOrEmpty(certificatePath))
+        builder.OpenElement(sequence++, "span");
+        builder.AddContent(
+            sequence++,
+            hasQualification
+                ? "Completed"
+                : "Not completed");
+        builder.CloseElement();
+
+        builder.CloseElement();
+
+        if (!string.IsNullOrWhiteSpace(
+            certificatePath))
         {
-            builder.OpenElement(11, "a");
-            builder.AddAttribute(12, "href", $"/uploads/{certificatePath}");
-            builder.AddAttribute(13, "target", "_blank");
-            builder.AddAttribute(14, "class", "profile-v2-cert-link");
-            builder.AddContent(15, "View Certificate");
+            builder.OpenElement(sequence++, "a");
+            builder.AddAttribute(
+                sequence++,
+                "href",
+                $"/uploads/{certificatePath}");
+            builder.AddAttribute(
+                sequence++,
+                "target",
+                "_blank");
+            builder.AddAttribute(
+                sequence++,
+                "class",
+                "certificate-link");
+            builder.AddAttribute(
+                sequence++,
+                "title",
+                "View certificate");
+
+            builder.OpenElement(sequence++, "i");
+            builder.AddAttribute(
+                sequence++,
+                "class",
+                "fas fa-file-alt");
+            builder.CloseElement();
+
             builder.CloseElement();
         }
         else
         {
-            builder.OpenElement(16, "span");
-            builder.AddAttribute(17, "class", "text-muted small");
-            builder.AddContent(18, "No certificate");
+            builder.OpenElement(sequence++, "span");
+            builder.AddAttribute(
+                sequence++,
+                "class",
+                "certificate-missing");
+            builder.AddAttribute(
+                sequence++,
+                "title",
+                "No certificate uploaded");
+
+            builder.OpenElement(sequence++, "i");
+            builder.AddAttribute(
+                sequence++,
+                "class",
+                "fas fa-minus");
+            builder.CloseElement();
+
             builder.CloseElement();
         }
 
         builder.CloseElement();
-        builder.CloseElement();
-        builder.CloseElement();
     };
 
-    private int CalculateCompleteness(Worker worker)
+    private static string BuildFullName(
+        Worker worker)
+    {
+        return string.Join(
+            " ",
+            new[]
+            {
+                worker.Title,
+                worker.FirstName,
+                worker.MiddleName,
+                worker.LastName
+            }
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private string? BuildPendingFullName()
+    {
+        if (proposedChanges == null)
+            return null;
+
+        var hasNameChange =
+            !string.IsNullOrWhiteSpace(
+                proposedChanges.FirstName) ||
+            !string.IsNullOrWhiteSpace(
+                proposedChanges.MiddleName) ||
+            !string.IsNullOrWhiteSpace(
+                proposedChanges.LastName);
+
+        if (!hasNameChange)
+            return null;
+
+        return string.Join(
+            " ",
+            new[]
+            {
+                proposedChanges.FirstName,
+                proposedChanges.MiddleName,
+                proposedChanges.LastName
+            }
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private string GetSupervisorName()
+    {
+        if (worker?.Supervisor == null)
+            return "Not assigned";
+
+        return $"{worker.Supervisor.FirstName} " +
+               $"{worker.Supervisor.LastName}".Trim();
+    }
+
+    private static string FormatDate(
+        DateTime? value)
+    {
+        return value?.ToString(
+            "dd MMMM yyyy") ?? string.Empty;
+    }
+
+    private static string DisplayValue(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not provided"
+            : value.Trim();
+    }
+
+    private int CalculateCompleteness(
+        Worker worker)
     {
         var filledFields = 0;
-        var totalFields = 27;
+        const int totalFields = 27;
 
-        if (!string.IsNullOrEmpty(worker.Sex)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Title)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.FirstName)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.MiddleName)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.LastName)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Email)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Phone)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Sex)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Title)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.FirstName)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.MiddleName)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.LastName)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Email)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Phone)) filledFields++;
         if (worker.DateOfBirth.HasValue) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Address)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Profession)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Organization)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.MaritalStatus)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.PassportPhotoPath)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Address)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Profession)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Organization)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.MaritalStatus)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath)) filledFields++;
         if (worker.DirectorateId.HasValue) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Role)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.Role)) filledFields++;
         if (worker.DateJoinedChurch.HasValue) filledFields++;
-        if (!string.IsNullOrEmpty(worker.OrdinationStatus)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.OrdinationLevel)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.WorkerStatus)) filledFields++;
-        if (worker.LastOrdinationDate.HasValue && worker.OrdinationLevel != "Not Ordained") filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.OrdinationStatus)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.OrdinationLevel)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.WorkerStatus)) filledFields++;
+
+        if (worker.LastOrdinationDate.HasValue &&
+            !string.Equals(
+                worker.OrdinationLevel,
+                "Not Ordained",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            filledFields++;
+        }
+
         if (worker.HasBelieverBaptism) filledFields++;
         if (worker.HasWorkerInTraining) filledFields++;
         if (worker.HasSOD) filledFields++;
         if (worker.HasBibleCollege) filledFields++;
-        if (!string.IsNullOrEmpty(worker.PreviousChurch)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.PreviousChurchRole)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.PreviousChurchUnit)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.PreviousChurch)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.PreviousChurchRole)) filledFields++;
+        if (!string.IsNullOrWhiteSpace(worker.PreviousChurchUnit)) filledFields++;
 
-        return totalFields > 0 ? (int)Math.Round((double)filledFields / totalFields * 100) : 0;
+        return (int)Math.Round(
+            (double)filledFields /
+            totalFields * 100);
     }
 
-    private string GetCompletenessClass(int percentage)
+    private static string GetCompletenessClass(
+        int percentage)
     {
-        if (percentage < 50) return "bg-danger";
-        if (percentage < 80) return "bg-warning";
+        if (percentage < 50)
+            return "bg-danger";
+
+        if (percentage < 80)
+            return "bg-warning";
+
         return "bg-success";
     }
 
@@ -433,17 +874,439 @@ else
         if (worker?.DateJoinedChurch.HasValue != true)
             return 0;
 
-        var years = DateTime.Now.Year - worker.DateJoinedChurch.Value.Year;
-        if (worker.DateJoinedChurch.Value.Date > DateTime.Now.AddYears(-years))
+        var joined =
+            worker.DateJoinedChurch.Value;
+
+        var years =
+            DateTime.Today.Year -
+            joined.Year;
+
+        if (joined.Date >
+            DateTime.Today.AddYears(-years))
+        {
             years--;
+        }
 
         return Math.Max(0, years);
     }
 
     private bool HasPreviousChurchExperience()
     {
-        return !string.IsNullOrEmpty(worker?.PreviousChurch) ||
-               !string.IsNullOrEmpty(worker?.PreviousChurchRole) ||
-               !string.IsNullOrEmpty(worker?.PreviousChurchUnit);
+        return
+            !string.IsNullOrWhiteSpace(
+                worker?.PreviousChurch) ||
+            !string.IsNullOrWhiteSpace(
+                worker?.PreviousChurchRole) ||
+            !string.IsNullOrWhiteSpace(
+                worker?.PreviousChurchUnit);
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
     }
 }
+
+<style>
+    .my-profile-page {
+        max-width: 1450px;
+        margin: 0 auto;
+    }
+
+    .my-profile-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .pending-update-banner {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 10px 12px;
+        color: #92400e;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 10px;
+    }
+
+        .pending-update-banner > div:first-child {
+            font-size: 1.2rem;
+        }
+
+        .pending-update-banner strong,
+        .pending-update-banner span {
+            display: block;
+        }
+
+        .pending-update-banner strong {
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+
+        .pending-update-banner span {
+            margin-top: 1px;
+            font-size: 0.68rem;
+        }
+
+    .profile-identity-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 14px 16px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        box-shadow: 0 5px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    .profile-identity-main {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        min-width: 0;
+    }
+
+    .profile-photo,
+    .profile-photo-placeholder {
+        flex: 0 0 66px;
+        width: 66px;
+        height: 66px;
+        border-radius: 16px;
+    }
+
+    .profile-photo {
+        object-fit: cover;
+        border: 2px solid #e0e7ff;
+    }
+
+    .profile-photo-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 2px solid #c7d2fe;
+        font-size: 1.5rem;
+    }
+
+    .profile-identity-content {
+        min-width: 0;
+    }
+
+        .profile-identity-content h2 {
+            margin: 0 0 5px;
+            color: #0f172a;
+            font-size: 1.15rem;
+            font-weight: 800;
+        }
+
+    .profile-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 12px;
+    }
+
+        .profile-meta span {
+            color: #64748b;
+            font-size: 0.68rem;
+        }
+
+        .profile-meta i {
+            margin-right: 4px;
+            color: #4f46e5;
+        }
+
+    .profile-completion-panel {
+        flex: 0 0 260px;
+        padding: 10px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+
+    .profile-completion-top,
+    .profile-status-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+        .profile-completion-top span,
+        .profile-status-line span {
+            color: #64748b;
+            font-size: 0.66rem;
+            font-weight: 700;
+        }
+
+        .profile-completion-top strong {
+            color: #0f172a;
+            font-size: 0.82rem;
+        }
+
+    .profile-progress {
+        height: 7px;
+        margin: 6px 0 8px;
+        background: #e2e8f0;
+    }
+
+    .profile-status-line {
+        padding-top: 7px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+        .profile-status-line strong {
+            font-size: 0.7rem;
+        }
+
+    .profile-section-card {
+        margin-bottom: 12px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 13px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
+    }
+
+    .profile-section-header {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 10px 12px;
+        background: #ffffff;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+        .profile-section-header h6 {
+            margin: 0 0 1px;
+            color: #0f172a;
+            font-size: 0.82rem;
+            font-weight: 800;
+        }
+
+        .profile-section-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.65rem;
+        }
+
+    .profile-section-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 34px;
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        font-size: 0.8rem;
+    }
+
+        .profile-section-icon.personal {
+            color: #4338ca;
+            background: #eef2ff;
+        }
+
+        .profile-section-icon.church {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .profile-section-icon.qualification {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+        .profile-section-icon.experience {
+            color: #0369a1;
+            background: #e0f2fe;
+        }
+
+        .profile-section-icon.pending {
+            color: #b45309;
+            background: #fef3c7;
+        }
+
+    .profile-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .profile-info-item {
+        min-width: 0;
+        padding: 8px 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+        .profile-info-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+    .profile-info-label {
+        display: block;
+        margin-bottom: 2px;
+        color: #64748b;
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 0.025em;
+        text-transform: uppercase;
+    }
+
+    .profile-info-value {
+        color: #0f172a;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+    }
+
+    .profile-current-value {
+        margin-bottom: 3px;
+        color: #94a3b8;
+        font-size: 0.68rem;
+        font-weight: 500;
+    }
+
+    .profile-pending-value {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 5px;
+        color: #92400e;
+    }
+
+    .profile-pending-badge {
+        padding: 2px 5px;
+        color: #92400e;
+        background: #fef3c7;
+        border-radius: 999px;
+        font-size: 0.56rem;
+        font-weight: 800;
+    }
+
+    .qualification-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .qualification-item {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr) 25px;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .qualification-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        font-size: 0.7rem;
+    }
+
+        .qualification-icon.active {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .qualification-icon.inactive {
+            color: #991b1b;
+            background: #fee2e2;
+        }
+
+    .qualification-content strong,
+    .qualification-content span {
+        display: block;
+    }
+
+    .qualification-content strong {
+        color: #0f172a;
+        font-size: 0.72rem;
+    }
+
+    .qualification-content span {
+        color: #64748b;
+        font-size: 0.61rem;
+    }
+
+    .certificate-link,
+    .certificate-missing {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 25px;
+        height: 25px;
+        border-radius: 7px;
+        font-size: 0.65rem;
+    }
+
+    .certificate-link {
+        color: #4338ca;
+        background: #eef2ff;
+        text-decoration: none;
+    }
+
+        .certificate-link:hover {
+            color: #3730a3;
+            background: #e0e7ff;
+        }
+
+    .certificate-missing {
+        color: #94a3b8;
+        background: #e2e8f0;
+    }
+
+    @@media (max-width: 992px) {
+        .profile-identity-card {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .profile-completion-panel {
+            flex-basis: auto;
+            width: 100%;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .pending-update-banner {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .profile-identity-main {
+            align-items: flex-start;
+        }
+
+        .profile-info-grid,
+        .qualification-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-info-item.full-width {
+            grid-column: auto;
+        }
+
+        .profile-photo,
+        .profile-photo-placeholder {
+            flex-basis: 54px;
+            width: 54px;
+            height: 54px;
+            border-radius: 13px;
+        }
+    }
+</style>

@@ -1,320 +1,544 @@
 ﻿@page "/guest"
 @layout Components.Layout.MainLayout
-@using ChurchApp.Services
+
 @using ChurchApp.Models
+@using ChurchApp.Services
+
 @inject GuestService GuestService
 @inject AuthService AuthService
+@inject ServiceRecordAccessService ServiceRecordAccessService
 @inject NavigationManager Navigation
 
 <PageTitle>Guest Management - BCC ServiceHub</PageTitle>
 
-@if (AuthService.IsAuthenticated)
+@if (!AuthService.IsAuthenticated)
 {
-    <div class="container-fluid py-4">
-        <!-- Authorization Check -->
-        @if (!IsFIGDirectorateMember())
-        {
-            <div class="row justify-content-center">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-header bg-warning text-dark">
-                            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Access Restricted</h5>
-                        </div>
-                        <div class="card-body text-center">
-                            <i class="fas fa-lock fa-3x text-warning mb-3"></i>
-                            <h4>Access Denied</h4>
-                            <p class="text-muted">This section is only accessible to FIG Directorate members.</p>
-                            <a href="/" class="btn btn-primary">
-                                <i class="fas fa-home me-1"></i>Return to Dashboard
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="row">
-                <div class="col-lg-10 mx-auto">
-                    <div class="card">
-                        <div class="card-header bg-dark-blue text-white">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-users me-2"></i>Guest Management Dashboard
-                                </h5>
-                                <span class="badge bg-info">FIG Directorate Only</span>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <!-- Quick Stats Row -->
-                            <div class="row mb-5">
-                                <div class="col-md-3">
-                                    <div class="card text-white bg-primary">
-                                        <div class="card-body text-center py-3">
-                                            <h3>@stats?.TotalGuests ?? 0</h3>
-                                            <p class="mb-0">Total Guests</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card text-white bg-info">
-                                        <div class="card-body text-center py-3">
-                                            <h3>@stats?.FirstTimers ?? 0</h3>
-                                            <p class="mb-0">First Timers</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card text-white bg-success">
-                                        <div class="card-body text-center py-3">
-                                            <h3>@stats?.SecondTimers ?? 0</h3>
-                                            <p class="mb-0">Second Timers</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card text-white bg-warning">
-                                        <div class="card-body text-center py-3">
-                                            <h3>@(stats?.ConversionRate.ToString("0.0") ?? "0.0")%</h3>
-                                            <p class="mb-0">Conversion Rate</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access Guest Management.</p>
 
-                            <!-- Main Action Cards -->
-                            <div class="row g-4">
-                                <!-- Record First Timer Card -->
-                                <div class="col-md-6">
-                                    <div class="card h-100 border-primary hover-shadow">
-                                        <div class="card-body text-center">
-                                            <div class="mb-3">
-                                                <i class="fas fa-user-plus fa-3x text-primary"></i>
-                                            </div>
-                                            <h5 class="card-title">Record First Timer</h5>
-                                            <p class="card-text text-muted">
-                                                Capture information for new guests visiting for the first time.
-                                            </p>
-                                            <div class="mt-3">
-                                                <a href="/guest/first-timer" class="btn btn-primary w-100">
-                                                    <i class="fas fa-plus-circle me-2"></i>Start Recording
-                                                </a>
-                                            </div>
-                                        </div>
-                                        <div class="card-footer bg-light">
-                                            <small class="text-muted">
-                                                <i class="fas fa-info-circle me-1"></i>
-                                                Records 14 information points for new guests
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Record Second Timer Card -->
-                                <div class="col-md-6">
-                                    <div class="card h-100 border-success hover-shadow">
-                                        <div class="card-body text-center">
-                                            <div class="mb-3">
-                                                <i class="fas fa-user-check fa-3x text-success"></i>
-                                            </div>
-                                            <h5 class="card-title">Record Second Timer</h5>
-                                            <p class="card-text text-muted">
-                                                Update information for guests visiting for the second time.
-                                            </p>
-                                            <div class="mt-3">
-                                                <a href="/guest/second-timer" class="btn btn-success w-100">
-                                                    <i class="fas fa-sync-alt me-2"></i>Search & Update
-                                                </a>
-                                            </div>
-                                        </div>
-                                        <div class="card-footer bg-light">
-                                            <small class="text-muted">
-                                                <i class="fas fa-info-circle me-1"></i>
-                                                Search first timers and mark as second visit
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                
-                                <!-- Search Guests Card -->
-                                <div class="col-md-6">
-                                    <div class="card h-100 border-warning hover-shadow">
-                                        <div class="card-body text-center">
-                                            <div class="mb-3">
-                                                <i class="fas fa-search fa-3x text-warning"></i>
-                                            </div>
-                                            <h5 class="card-title">Search All Guests</h5>
-                                            <p class="card-text text-muted">
-                                                Search through all guest records with advanced filters.
-                                            </p>
-                                            <div class="mt-3">
-                                                <a href="/guest/search" class="btn btn-warning w-100">
-                                                    <i class="fas fa-search me-2"></i>Advanced Search
-                                                </a>
-                                            </div>
-                                        </div>
-                                        <div class="card-footer bg-light">
-                                            <small class="text-muted">
-                                                <i class="fas fa-info-circle me-1"></i>
-                                                Search by date, guest number, name, or phone
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- View Phone Follow Up Card -->
-                                <div class="col-md-6">
-                                    <div class="card h-100 border-info hover-shadow">
-                                        <div class="card-body text-center">
-                                            <div class="mb-3">
-                                                <i class="fas fa-list-alt fa-3x text-info"></i>
-                                            </div>
-                                            <h5 class="card-title">Guest Follow Up Report</h5>
-                                            <p class="card-text text-muted">
-                                               Search for Guest follow up Record.
-                                            </p>
-                                            <div class="mt-3">
-                                                <a href="/guest/Followup-Report" class="btn btn-info w-100">
-                                                    <i class="fas fa-eye me-2"></i>View Guest Follow-Up Record
-                                                </a>
-                                            </div>
-                                        </div>
-                                        <div class="card-footer bg-light">
-                                            <small class="text-muted">
-                                                <i class="fas fa-info-circle me-1"></i>
-                                                Filter by date and see recording statistics
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-
-
-                            </div>
-
-                            <!-- Quick Links Section -->
-                            <div class="row mt-5">
-                                <div class="col-12">
-                                    <div class="card">
-                                        <div class="card-header bg-light">
-                                            <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row g-2">
-                                                <div class="col-md-3">
-                                                    <a href="/guest/first-timer" class="btn btn-outline-primary w-100">
-                                                        <i class="fas fa-user-plus me-1"></i>New Guest
-                                                    </a>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <a href="/guest/daily-list" class="btn btn-outline-info w-100">
-                                                        <i class="fas fa-calendar-day me-1"></i>Today's List
-                                                    </a>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <a href="/guest/second-timer" class="btn btn-outline-success w-100">
-                                                        <i class="fas fa-user-check me-1"></i>Second Timer
-                                                    </a>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <a href="/" class="btn btn-outline-secondary w-100">
-                                                        <i class="fas fa-home me-1"></i>Dashboard
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <small class="text-muted">
-                                        <i class="fas fa-clock me-1"></i>
-                                        Last updated: @DateTime.Now.ToString("h:mm tt")
-                                    </small>
-                                </div>
-                                <div>
-                                    <small class="text-muted">
-                                        <i class="fas fa-user-shield me-1"></i>
-                                        Logged in as: @AuthService.CurrentWorker?.FirstName @AuthService.CurrentWorker?.LastName
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
     </div>
 }
-else
+else if (isLoading)
 {
-    <!-- Authentication Required -->
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0">Authentication Required</h5>
-                    </div>
-                    <div class="card-body text-center">
-                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                        <h4>Please Log In</h4>
-                        <p class="text-muted">You need to be logged in to access this page.</p>
-                        <a href="/login" class="btn btn-primary">Go to Login</a>
-                    </div>
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">
+                    Loading Guest Management...
                 </div>
             </div>
         </div>
     </div>
 }
+else if (!canAccessGuestManagement)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+
+        <p>
+            You must have the Guest Management privilege and meet at least
+            one of these conditions: belong to the FIG Directorate, have FIG
+            as your secondary department, or hold an authorised leadership role.
+        </p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Dashboard
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page guest-dashboard-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        <div class="bcc-page-header guest-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-user-friends me-2"></i>
+                    Service Records
+                </div>
+
+                <div class="bcc-page-title">
+                    Guest Management
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Record guests, manage repeat visits and review follow-up activity.
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back
+            </button>
+        </div>
+
+        <div class="guest-summary-strip mb-3">
+
+            <div class="guest-summary-item">
+                <span>Total Guests</span>
+                <strong>@(stats?.TotalGuests ?? 0)</strong>
+            </div>
+
+            <div class="guest-summary-item">
+                <span>First Timers</span>
+                <strong>@(stats?.FirstTimers ?? 0)</strong>
+            </div>
+
+            <div class="guest-summary-item">
+                <span>Second Timers</span>
+                <strong>@(stats?.SecondTimers ?? 0)</strong>
+            </div>
+
+            <div class="guest-summary-item conversion">
+                <span>Conversion Rate</span>
+                <strong>
+                    @(stats?.ConversionRate.ToString("0.0") ?? "0.0")%
+                </strong>
+            </div>
+
+        </div>
+
+        <div class="bcc-card">
+            <div class="bcc-card-body p-3">
+
+                <div class="guest-actions-heading">
+                    <div>
+                        <h6>Guest Management Functions</h6>
+                        <p>Select the function you want to open.</p>
+                    </div>
+                </div>
+
+                <div class="row g-2">
+
+                    <div class="col-12 col-md-6">
+                        <a href="/guest/first-timer"
+                           class="guest-action-card">
+
+                            <div class="guest-action-icon first-timer">
+                                <i class="fas fa-user-plus"></i>
+                            </div>
+
+                            <div class="guest-action-content">
+                                <h6>Record First Timer</h6>
+                                <p>
+                                    Capture information for a guest visiting for the first time.
+                                </p>
+                            </div>
+
+                            <i class="fas fa-chevron-right guest-action-arrow"></i>
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <a href="/guest/second-timer"
+                           class="guest-action-card">
+
+                            <div class="guest-action-icon second-timer">
+                                <i class="fas fa-user-check"></i>
+                            </div>
+
+                            <div class="guest-action-content">
+                                <h6>Record Second Timer</h6>
+                                <p>
+                                    Find an existing guest and record a second visit.
+                                </p>
+                            </div>
+
+                            <i class="fas fa-chevron-right guest-action-arrow"></i>
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <a href="/guest/search"
+                           class="guest-action-card">
+
+                            <div class="guest-action-icon search">
+                                <i class="fas fa-search"></i>
+                            </div>
+
+                            <div class="guest-action-content">
+                                <h6>Search All Guests</h6>
+                                <p>
+                                    Search guest records by name, phone, date or guest number.
+                                </p>
+                            </div>
+
+                            <i class="fas fa-chevron-right guest-action-arrow"></i>
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <a href="/guest/Followup-Report"
+                           class="guest-action-card">
+
+                            <div class="guest-action-icon follow-up">
+                                <i class="fas fa-clipboard-check"></i>
+                            </div>
+
+                            <div class="guest-action-content">
+                                <h6>Guest Follow-Up Report</h6>
+                                <p>
+                                    Review guest follow-up records and activity.
+                                </p>
+                            </div>
+
+                            <i class="fas fa-chevron-right guest-action-arrow"></i>
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <a href="/guest/daily-list"
+                           class="guest-action-card">
+
+                            <div class="guest-action-icon daily">
+                                <i class="fas fa-calendar-day"></i>
+                            </div>
+
+                            <div class="guest-action-content">
+                                <h6>Today's Guest List</h6>
+                                <p>
+                                    View guests recorded for the current day.
+                                </p>
+                            </div>
+
+                            <i class="fas fa-chevron-right guest-action-arrow"></i>
+                        </a>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <div class="guest-footer-note mt-3">
+            <span>
+                <i class="fas fa-user-shield me-1"></i>
+                Signed in as
+                <strong>
+                    @AuthService.CurrentWorker?.FirstName
+                    @AuthService.CurrentWorker?.LastName
+                </strong>
+            </span>
+
+            <span>
+                <i class="fas fa-clock me-1"></i>
+                Updated
+                <strong>
+                    @(DateTime.Now.ToString("dd MMM yyyy, hh:mm tt"))
+                </strong>
+            </span>
+        </div>
+
+    </div>
+}
 
 @code {
-    private GuestStatistics stats;
+    private GuestStatistics? stats;
+
+    private bool isLoading = true;
+    private bool canAccessGuestManagement;
+
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        if (IsFIGDirectorateMember())
-        {
-            await LoadStatistics();
-        }
+        await LoadPageAsync();
     }
 
-    private async Task LoadStatistics()
+    private async Task LoadPageAsync()
     {
         try
         {
-            stats = await GuestService.GetGuestStatisticsAsync();
+            isLoading = true;
+            errorMessage = null;
+
+            var worker = AuthService.CurrentWorker;
+
+            if (worker == null)
+            {
+                canAccessGuestManagement = false;
+                return;
+            }
+
+            var access =
+                await ServiceRecordAccessService
+                    .GetAccessAsync(worker.Id);
+
+            var hasGuestPrivilege =
+                access.CanAccessGuestManagement;
+
+            var isFigDirectorate =
+                IsFigName(worker.Directorate?.Name);
+
+            var isSecondaryDepartmentFig =
+                IsFigName(worker.SecondaryDepartment?.Name);
+
+            var hasAuthorisedRole =
+                AuthService.IsInRole("Church Admin") ||
+                AuthService.IsInRole("Head of Service") ||
+                AuthService.IsInRole("Pastor in Charge");
+
+            canAccessGuestManagement =
+                hasGuestPrivilege &&
+                (
+                    isFigDirectorate ||
+                    isSecondaryDepartmentFig ||
+                    hasAuthorisedRole
+                );
+
+            if (!canAccessGuestManagement)
+                return;
+
+            stats =
+                await GuestService
+                    .GetGuestStatisticsAsync();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading statistics: {ex.Message}");
+            errorMessage =
+                $"Unable to load Guest Management: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
-    private bool IsFIGDirectorateMember()
+    private static bool IsFigName(
+        string? value)
     {
-        var worker = AuthService.CurrentWorker;
-        if (worker == null) return false;
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
 
-        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
-        var role = worker.Role?.ToLowerInvariant() ?? "";
-        var SecondaryDirectorateName = worker.SecondaryDirectorate?.Name?.ToLowerInvariant() ?? "";
-        var SecondaryDepartmentName = worker.SecondaryDepartment?.Name?.ToLowerInvariant() ?? "";
+        return string.Equals(
+                   value.Trim(),
+                   "FIG",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               value.Contains(
+                   "FIG",
+                   StringComparison.OrdinalIgnoreCase);
+    }
 
-        // Check if worker is in FIG Directorate
-        var isInFIG = directorateName.Contains("fig") || SecondaryDirectorateName.Contains("fig"); 
-
-        // Check if worker has appropriate role
-        var hasValidRole = AuthService.IsInRole("Church Admin") ||
-                            AuthService.IsInRole("Head of Service")||
-                          AuthService.IsInRole("Pastor in Charge");
-
-        return isInFIG || hasValidRole;
+    private void GoBack()
+    {
+        Navigation.NavigateTo(
+            "/workspace/service-records");
     }
 }
+
+<style>
+    .guest-dashboard-page {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .guest-page-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .guest-summary-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .guest-summary-item {
+        padding: 10px 12px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+    }
+
+        .guest-summary-item span {
+            display: block;
+            margin-bottom: 2px;
+            color: #64748b;
+            font-size: 0.67rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .guest-summary-item strong {
+            color: #0f172a;
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        .guest-summary-item.conversion {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+            .guest-summary-item.conversion strong {
+                color: #166534;
+            }
+
+    .guest-actions-heading {
+        margin-bottom: 12px;
+    }
+
+        .guest-actions-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .guest-actions-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.72rem;
+        }
+
+    .guest-action-card {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        min-height: 88px;
+        height: 100%;
+        padding: 12px 14px;
+        color: inherit;
+        text-decoration: none;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+        .guest-action-card:hover {
+            color: inherit;
+            text-decoration: none;
+            border-color: #c7d2fe;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+            transform: translateY(-2px);
+        }
+
+    .guest-action-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        border-radius: 11px;
+        font-size: 1rem;
+    }
+
+        .guest-action-icon.first-timer {
+            color: #4338ca;
+            background: #eef2ff;
+        }
+
+        .guest-action-icon.second-timer {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .guest-action-icon.search {
+            color: #b45309;
+            background: #fef3c7;
+        }
+
+        .guest-action-icon.follow-up {
+            color: #0369a1;
+            background: #e0f2fe;
+        }
+
+        .guest-action-icon.daily {
+            color: #7e22ce;
+            background: #f3e8ff;
+        }
+
+    .guest-action-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+        .guest-action-content h6 {
+            margin: 0 0 3px;
+            color: #0f172a;
+            font-size: 0.85rem;
+            font-weight: 800;
+        }
+
+        .guest-action-content p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.72rem;
+            line-height: 1.4;
+        }
+
+    .guest-action-arrow {
+        flex-shrink: 0;
+        color: #94a3b8;
+        font-size: 0.75rem;
+    }
+
+    .guest-footer-note {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 9px 12px;
+        color: #64748b;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        font-size: 0.7rem;
+    }
+
+        .guest-footer-note strong {
+            color: #334155;
+        }
+
+    @@media (max-width: 768px) {
+        .guest-summary-strip {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .guest-footer-note {
+            flex-direction: column;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .guest-summary-strip {
+            grid-template-columns: 1fr;
+        }
+
+        .guest-action-card {
+            min-height: 82px;
+            padding: 11px 12px;
+        }
+    }
+</style>
+
 
 <style>
     .hover-shadow:hover {

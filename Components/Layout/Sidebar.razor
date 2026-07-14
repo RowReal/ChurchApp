@@ -6,6 +6,7 @@
 @inject OfferingService OfferingService
 @inject AttendanceService AttendanceService
 @inject ApprovalRequestService ApprovalRequestService
+@inject ServiceRecordAccessService ServiceRecordAccessService
 
 @if (AuthService.IsAuthenticated)
 {
@@ -20,106 +21,83 @@
                     <span class="bcc-nav-text">Dashboard</span>
                 </a>
 
-                <div class="bcc-nav-section">
-                    <div class="bcc-nav-section-header" @onclick="ToggleWorkforceMenu">
-                        <div class="bcc-nav-icon-container">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <span class="bcc-nav-text">Worker Profile</span>
-                        <span class="bcc-menu-arrow @(showWorkforceMenu ? "open" : "")"></span>
-                    </div>
+               <!-- MY PROFILE -->
+<div class="bcc-nav-section">
+    <a href="/workforce/my-profile"
+       class="bcc-nav-item @GetNavItemClass("/workforce/my-profile")">
 
-                    @if (showWorkforceMenu)
-                    {
-                        <div class="bcc-nav-submenu">
-                            <a href="/workforce/my-profile" class="bcc-nav-subitem @GetNavItemClass("/workforce/my-profile")">
-                                <div class="bcc-nav-icon-container">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <span class="bcc-nav-text">My Profile</span>
-                            </a>
+        <div class="bcc-nav-icon-container">
+            <i class="fas fa-user"></i>
+        </div>
 
-                            @if (CanAccessProfileApproval())
-                            {
-                                <a href="/workforce/my-inbox" class="bcc-nav-subitem @GetNavItemClass("/workforce/my-inbox")">
-                                    <div class="bcc-nav-icon-container">
-                                        <i class="fas fa-inbox"></i>
-                                    </div>
-                                    <span class="bcc-nav-text">Profile Approval</span>
-                                    @if (pendingApprovalCount > 0)
-                                    {
-                                        <span class="bcc-nav-badge">@pendingApprovalCount</span>
-                                    }
-                                </a>
-                            }
-
-                            @if (CanAccessMyTeam())
-                            {
-                                <a href="/workforce/my-team" class="bcc-nav-subitem @GetNavItemClass("/workforce/my-team")">
-                                    <div class="bcc-nav-icon-container">
-                                        <i class="fas fa-users-cog"></i>
-                                    </div>
-                                    <span class="bcc-nav-text">My Team</span>
-                                </a>
-                            }
-                        </div>
-                    }
-                </div>
-
-                @* My Approval Hub *@
-                <div class="bcc-nav-section">
-    <div class="bcc-nav-section-header" @onclick="ToggleApprovalHubMenu">
-    <div class="bcc-nav-icon-container">
-        <i class="fas fa-clipboard-check"></i>
-    </div>
-
-    <span class="bcc-nav-text">My Desk</span>
-
-    @if (myDeskCount > 0)
-    {
-        <span class="bcc-nav-badge">@myDeskCount</span>
-    }
-
-    <span class="bcc-menu-arrow @(showApprovalHubMenu ? "open" : "")"></span>
+        <span class="bcc-nav-text">My Profile</span>
+    </a>
 </div>
 
-    @if (showApprovalHubMenu)
-    {
-        <div class="bcc-nav-submenu">
-            <a href="/approvals/new" class="bcc-nav-subitem @GetNavItemClass("/approvals/new")">
-                <div class="bcc-nav-icon-container">
-                    <i class="fas fa-plus-circle"></i>
-                </div>
-                <span class="bcc-nav-text">New Request</span>
-            </a>
+@if (CanAccessMyTeam())
+{
+    <div class="bcc-nav-section">
+        <a href="/workforce/my-team"
+           class="bcc-nav-item @GetNavItemClass("/workforce/my-team")">
 
-            <a href="/approvals/my-requests" class="bcc-nav-subitem @GetNavItemClass("/approvals/my-requests")">
-    <div class="bcc-nav-icon-container">
-        <i class="fas fa-folder-open"></i>
+            <div class="bcc-nav-icon-container">
+                <i class="fas fa-users-cog"></i>
+            </div>
+
+            <span class="bcc-nav-text">My Team</span>
+        </a>
     </div>
+}
 
-    <span class="bcc-nav-text">Existing Request </span>
+                @* My Approval Hub *@
+  
+<!-- PROFILE APPROVAL -->
+<!-- PROFILE APPROVAL -->
+@if (CanAccessProfileApproval())
+{
+    <div class="bcc-nav-section">
+        <a href="/workforce/my-inbox"
+           class="bcc-nav-item @GetNavItemClass("/workforce/my-inbox")">
 
-    @if (returnedRequestCount > 0)
-    {
-        <span class="bcc-nav-badge">@returnedRequestCount</span>
-    }
-</a>
+            <div class="bcc-nav-icon-container">
+                <i class="fas fa-inbox"></i>
+            </div>
 
-           <a href="/approvals/inbox" class="bcc-nav-subitem @GetNavItemClass("/approvals/inbox")">
-    <div class="bcc-nav-icon-container">
-        <i class="fas fa-inbox"></i>
+            <span class="bcc-nav-text">
+                Profile Approval
+            </span>
+
+            @if (pendingApprovalCount > 0)
+            {
+                <span class="bcc-nav-badge">
+                    @pendingApprovalCount
+                </span>
+            }
+        </a>
     </div>
+}
+<!-- MY TEAM -->
 
-    <span class="bcc-nav-text">Approval Inbox</span>
+<!-- APPROVAL REQUEST -->
+<div class="bcc-nav-section">
+    <a href="/workspace/my-desk"
+       class="bcc-nav-item @GetNavItemClass("/workspace/my-desk")">
 
-    @if (pendingApprovalInboxCount > 0)
-    {
-        <span class="bcc-nav-badge">@pendingApprovalInboxCount</span>
-    }
-</a>
+        <div class="bcc-nav-icon-container">
+            <i class="fas fa-clipboard-check"></i>
         </div>
-    }
+
+        <span class="bcc-nav-text">
+            Approval Request
+        </span>
+
+        @if (myDeskCount > 0)
+        {
+            <span class="bcc-nav-badge">
+                @myDeskCount
+            </span>
+        }
+    </a>
 </div>
 
                 <div class="bcc-nav-section">
@@ -184,103 +162,32 @@
 
               
 
-                @if (CanAccessServiceRecords())
-                {
-                    <div class="bcc-nav-section">
-                        <div class="bcc-nav-section-header" @onclick="ToggleUsheringMenu">
-                            <div class="bcc-nav-icon-container">
-                                <i class="fas fa-church"></i>
-                            </div>
-                            <span class="bcc-nav-text">Service Records</span>
+@if (serviceRecordAccess.HasAnyAccess)
+{
+    var pendingCount =
+        serviceRecordAccess.PendingOfferingApprovalCount +
+        serviceRecordAccess.PendingOfferingAmendmentCount;
 
-                            @if (rejectedOfferingsCount > 0 || pendingOfferingCount > 0)
-                            {
-                                <span class="bcc-nav-badge">@(rejectedOfferingsCount + pendingOfferingCount)</span>
-                            }
+    <a href="/workspace/service-records"
+       class="bcc-nav-item @GetNavItemClass("/workspace/service-records")">
 
-                            <span class="bcc-menu-arrow @(showUsheringMenu ? "open" : "")"></span>
-                        </div>
+        <div class="bcc-nav-icon-container">
+            <i class="fas fa-clipboard-list"></i>
+        </div>
 
-                        @if (showUsheringMenu)
-                        {
-                            <div class="bcc-nav-submenu">
-                                @if (CanAccessRecordNomination())
-                                {
-                                    <a href="/Offering/record-nomination" class="bcc-nav-subitem @GetNavItemClass("/Offering/record-nomination")">
-                                        <div class="bcc-nav-icon-container">
-                                            <i class="fas fa-vote-yea"></i>
-                                        </div>
-                                        <span class="bcc-nav-text">Record Nomination</span>
-                                    </a>
-                                }
+        <span class="bcc-nav-text">
+            Service Records
+        </span>
 
-                                @if (CanAccessServiceNotes())
-                                {
-                                    <a href="/Offering/NoteList" class="bcc-nav-subitem @GetNavItemClass("/Offering/NoteList")">
-                                        <div class="bcc-nav-icon-container">
-                                            <i class="fas fa-sticky-note"></i>
-                                        </div>
-                                        <span class="bcc-nav-text">Service Notes</span>
-                                    </a>
-                                }
-
-                                @if (CanApproveOfferings())
-                                {
-                                    <a href="/offering/approvals" class="bcc-nav-subitem @GetNavItemClass("/offering/approvals")">
-                                        <div class="bcc-nav-icon-container">
-                                            <i class="fas fa-stamp"></i>
-                                        </div>
-                                        <span class="bcc-nav-text">Approve Offerings</span>
-                                        @if (pendingOfferingCount > 0)
-                                        {
-                                            <span class="bcc-nav-badge">@pendingOfferingCount</span>
-                                        }
-                                    </a>
-                                }
-
-                                @if (CanRecordOfferings())
-                                {
-                                    <a href="/offering/record" class="bcc-nav-subitem @GetNavItemClass("/offering/record")">
-                                        <div class="bcc-nav-icon-container">
-                                            <i class="fas fa-hand-holding-usd"></i>
-                                        </div>
-                                        <span class="bcc-nav-text">Record Offering</span>
-                                        @if (rejectedOfferingsCount > 0)
-                                        {
-                                            <span class="bcc-nav-badge">@rejectedOfferingsCount</span>
-                                        }
-                                    </a>
-
-                                    <a href="/Offering/Attendance-record" class="bcc-nav-subitem @GetNavItemClass("/Offering/Attendance-record")">
-                                        <div class="bcc-nav-icon-container">
-                                            <i class="fas fa-clipboard-check"></i>
-                                        </div>
-                                        <span class="bcc-nav-text">Record Attendance</span>
-                                    </a>
-
-                                    <a href="/Offering/Attendance-list" class="bcc-nav-subitem @GetNavItemClass("/Offering/Attendance-list")">
-                                        <div class="bcc-nav-icon-container">
-                                            <i class="fas fa-list-ol"></i>
-                                        </div>
-                                        <span class="bcc-nav-text">View Attendance</span>
-                                    </a>
-                                }
-
-                                @if (IsFIGDirectorateMember())
-                                {
-                                    <a href="/guest" class="bcc-nav-subitem @GetNavItemClass("/guest")">
-                                        <div class="bcc-nav-icon-container">
-                                            <i class="fas fa-user-friends"></i>
-                                        </div>
-                                        <span class="bcc-nav-text">Guest Management</span>
-                                    </a>
-                                }
-                            </div>
-                        }
-                    </div>
-                }
-
-                @if (CanAccessReports())
+        @if (pendingCount > 0)
+        {
+            <span class="bcc-nav-badge">
+                @pendingCount
+            </span>
+        }
+    </a>
+}
+@if (CanAccessReports())
                 {
                     <div class="bcc-nav-section">
                         <div class="bcc-nav-section-header" @onclick="ToggleReportsMenu">
@@ -486,13 +393,40 @@ private int returnedRequestCount = 0;
 private int myDeskCount = 0;
 
     private GrowthHubCounts growthHubCounts = new GrowthHubCounts();
+    private ServiceRecordAccessModel serviceRecordAccess = new();
 
     protected override async Task OnInitializedAsync()
     {
         await LoadNotificationCounts();
         await LoadGrowthHubCounts();
         await LoadApprovalHubCounts();
+         await LoadServiceRecordAccess();
     }
+    private async Task LoadServiceRecordAccess()
+{
+    if (AuthService.IsAuthenticated &&
+        AuthService.CurrentWorker != null)
+    {
+        try
+        {
+            serviceRecordAccess =
+                await ServiceRecordAccessService.GetAccessAsync(AuthService.CurrentWorker.Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Error loading Service Records access: {ex.Message}");
+
+            serviceRecordAccess =
+                new ServiceRecordAccessModel();
+        }
+    }
+    else
+    {
+        serviceRecordAccess =
+            new ServiceRecordAccessModel();
+    }
+}
     private async Task LoadApprovalHubCounts()
 {
     if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)

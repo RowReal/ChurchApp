@@ -1,648 +1,956 @@
 ﻿@page "/admin/worker-details/{workerId:int}"
 @layout Components.Layout.MainLayout
-@using ChurchApp.Services
+
 @using ChurchApp.Models
+@using ChurchApp.Services
 @using ChurchApp.Components
+
 @inject WorkerService WorkerService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
-<PageTitle>Admin Worker 360 - BCC ServiceHub</PageTitle>
+<PageTitle>Admin Worker Details - BCC ServiceHub</PageTitle>
 
-@if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
-{
-    <div class="worker360-page">
-
-        @if (!string.IsNullOrEmpty(successMessage))
-        {
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle me-2"></i>@successMessage
-            </div>
-        }
-
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
-            </div>
-        }
-
-        @if (worker != null)
-        {
-            <div class="bcc-page-header">
-                <div>
-                    <div class="bcc-page-subtitle">
-                        <i class="fas fa-user-shield me-2"></i>
-                        Admin Worker 360°
-                    </div>
-                    <div class="bcc-page-title">Worker Profile</div>
-                    <div class="bcc-page-subtitle">
-                        Full administrative view of worker information, documents, history and actions.
-                    </div>
-                </div>
-
-                <div class="d-flex gap-2">
-                    <button class="bcc-btn profile-form-secondary-btn" @onclick="NavigateBack">
-                        <i class="fas fa-arrow-left me-2"></i>Back
-                    </button>
-
-                    <button class="bcc-btn bcc-btn-primary" @onclick="NavigateToUpdate">
-                        <i class="fas fa-edit me-2"></i>Update Profile
-                    </button>
-                </div>
-            </div>
-
-            <div class="bcc-card worker360-hero">
-                <div class="bcc-card-body">
-                    <div class="row align-items-center g-4">
-
-                        <div class="col-md-auto text-center">
-                            @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
-                            {
-                                <img src="/uploads/@(worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath)"
-                                     alt="@worker.FirstName"
-                                     class="worker360-photo" />
-                            }
-                            else
-                            {
-                                <div class="worker360-photo-placeholder">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                            }
-                        </div>
-
-                        <div class="col">
-                            <h3 class="worker360-name">
-                                @worker.FirstName @worker.MiddleName @worker.LastName
-                            </h3>
-
-                            <div class="worker360-meta">
-                                <span><i class="fas fa-id-badge"></i>@worker.WorkerId</span>
-                                <span><i class="fas fa-user-tag"></i>@worker.Role</span>
-                                <span><i class="fas fa-sitemap"></i>@(worker.Directorate?.Name ?? "No Directorate")</span>
-                                <span><i class="fas fa-users"></i>@(worker.Department?.Name ?? "No Department")</span>
-                            </div>
-
-                            <div class="worker360-progress mt-3">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span>Compliance</span>
-                                    <strong>@worker.CompliancePercentage% - @GetComplianceText(worker.CompliancePercentage)</strong>
-                                </div>
-                                <div class="progress">
-                                    <div class="progress-bar @GetComplianceClass(worker.CompliancePercentage)"
-                                         style="width:@worker.CompliancePercentage%">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-auto">
-                            <div class="worker360-status-box">
-                                <span>Status</span>
-                                <strong class="@(worker.IsActive ? "text-success" : "text-secondary")">
-                                    @(worker.IsActive ? "Active" : "Inactive")
-                                </strong>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <div class="team-summary-card">
-                        <span>Years in BCC</span>
-                        <strong>@CalculateYearsInBCC()</strong>
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="team-summary-card active">
-                        <span>Qualifications</span>
-                        <strong>@GetTotalQualifications()/4</strong>
-                        <i class="fas fa-award"></i>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="team-summary-card directorate">
-                        <span>Approval</span>
-                        <strong>@GetApprovalStatus()</strong>
-                        <i class="fas fa-check-double"></i>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="team-summary-card inactive">
-                        <span>First Login</span>
-                        <strong>@(worker.IsFirstLogin ? "Pending" : "Done")</strong>
-                        <i class="fas fa-key"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bcc-card">
-                <div class="profile-form-v2-tabs">
-                    <button type="button" class="@GetTabClass("overview")" @onclick='() => SetTab("overview")'>
-                        <i class="fas fa-user"></i> Overview
-                    </button>
-
-                    <button type="button" class="@GetTabClass("ministry")" @onclick='() => SetTab("ministry")'>
-                        <i class="fas fa-church"></i> Ministry
-                    </button>
-
-                    <button type="button" class="@GetTabClass("qualifications")" @onclick='() => SetTab("qualifications")'>
-                        <i class="fas fa-award"></i> Qualifications
-                    </button>
-
-                    <button type="button" class="@GetTabClass("documents")" @onclick='() => SetTab("documents")'>
-                        <i class="fas fa-folder-open"></i> Documents
-                    </button>
-
-                    <button type="button" class="@GetTabClass("timeline")" @onclick='() => SetTab("timeline")'>
-                        <i class="fas fa-stream"></i> Timeline
-                    </button>
-
-                    <button type="button" class="@GetTabClass("system")" @onclick='() => SetTab("system")'>
-                        <i class="fas fa-cog"></i> System
-                    </button>
-
-                    <button type="button" class="@GetTabClass("actions")" @onclick='() => SetTab("actions")'>
-                        <i class="fas fa-bolt"></i> Admin Actions
-                    </button>
-                </div>
-
-                <div class="bcc-card-body">
-
-                    @if (activeTab == "overview")
-                    {
-                        <div class="row g-4">
-                            <div class="col-lg-8">
-                                <div class="worker360-section">
-                                    <h5><i class="fas fa-address-card"></i> Personal Information</h5>
-
-                                    <div class="worker360-grid">
-                                        @InfoRow("Worker ID", worker.WorkerId)
-                                        @InfoRow("Full Name", $"{worker.FirstName} {worker.MiddleName} {worker.LastName}")
-                                        @InfoRow("Sex", worker.Sex ?? "Not provided")
-                                        @InfoRow("Email", worker.Email ?? "Not provided")
-                                        @InfoRow("Phone", worker.Phone ?? "Not provided")
-                                        @InfoRow("Date of Birth", worker.DateOfBirth?.ToString("dd MMMM yyyy") ?? "Not provided")
-                                        @InfoRow("Age", CalculateAge(worker.DateOfBirth) == 0 ? "-" : $"{CalculateAge(worker.DateOfBirth)} years")
-                                        @InfoRow("Marital Status", worker.MaritalStatus)
-                                        @InfoRow("Wedding Anniversary", worker.WeddingAnniversary?.ToString("dd MMMM yyyy") ?? "Not applicable")
-                                        @InfoRow("Profession", worker.Profession ?? "Not provided")
-                                        @InfoRow("Organization", worker.Organization ?? "Not provided")
-                                        @InfoRow("Address", worker.Address ?? "Not provided")
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-lg-4">
-                                <div class="worker360-side-card">
-                                    <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
-
-                                    <button class="worker360-action" @onclick="NavigateToUpdate">
-                                        <i class="fas fa-edit"></i>
-                                        Update Profile
-                                    </button>
-
-                                    <button class="worker360-action" @onclick="ResetPassword">
-                                        <i class="fas fa-key"></i>
-                                        Reset Password
-                                    </button>
-
-                                    <button class="worker360-action" @onclick="SendReminder">
-                                        <i class="fas fa-envelope"></i>
-                                        Send Profile Reminder
-                                    </button>
-
-                                    <button class="worker360-action" @onclick="PrintProfile">
-                                        <i class="fas fa-print"></i>
-                                        Print Profile
-                                    </button>
-
-                                    <button class="worker360-action" @onclick="ViewFullHistory">
-                                        <i class="fas fa-history"></i>
-                                        View Full History
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    }
-
-                    @if (activeTab == "ministry")
-                    {
-                        <div class="row g-4">
-                            <div class="col-lg-6">
-                                <div class="worker360-section">
-                                    <h5><i class="fas fa-church"></i> Current Ministry Assignment</h5>
-
-                                    <div class="worker360-grid">
-                                        @InfoRow("Primary Directorate", worker.Directorate?.Name ?? "Not assigned")
-                                        @InfoRow("Primary Department", worker.Department?.Name ?? "Not assigned")
-                                        @InfoRow("Unit", worker.Unit?.Name ?? "Not assigned")
-                                        @InfoRow("Secondary Directorate", worker.SecondaryDirectorate?.Name ?? "None")
-                                        @InfoRow("Secondary Department", worker.SecondaryDepartment?.Name ?? "None")
-                                        @InfoRow("Role", worker.Role)
-                                        @InfoRow("Worker Status", worker.WorkerStatus)
-                                        @InfoRow("Supervisor", worker.Supervisor != null ? $"{worker.Supervisor.FirstName} {worker.Supervisor.LastName}" : "Not assigned")
-                                        @InfoRow("Date Joined BCC", worker.DateJoinedChurch?.ToString("dd MMMM yyyy") ?? "Not provided")
-                                        @InfoRow("Years in BCC", $"{CalculateYearsInBCC()} years")
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-lg-6">
-                                <div class="worker360-section">
-                                    <h5><i class="fas fa-history"></i> Previous Church Experience</h5>
-
-                                    <div class="worker360-grid">
-                                        @InfoRow("Previous Church", worker.PreviousChurch ?? "Not provided")
-                                        @InfoRow("Previous Role", worker.PreviousChurchRole ?? "Not provided")
-                                        @InfoRow("Previous Unit", worker.PreviousChurchUnit ?? "Not provided")
-                                        @InfoRow("Experience", HasPreviousChurchExperience() ? "Has Previous Experience" : "No previous experience recorded")
-                                    </div>
-
-                                    @if (HasPreviousChurchExperience())
-                                    {
-                                        <div class="worker360-note mt-3">
-                                            <i class="fas fa-info-circle"></i>
-                                            This worker has previous church experience that may support current ministry responsibilities.
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-
-                            <div class="col-lg-12">
-                                <div class="worker360-section">
-                                    <h5><i class="fas fa-hands-praying"></i> Ordination</h5>
-
-                                    <div class="worker360-grid two">
-                                        @InfoRow("Ordination Status", worker.OrdinationStatus)
-                                        @InfoRow("Ordination Level", worker.OrdinationLevel)
-                                        @InfoRow("Last Ordination", worker.LastOrdinationDate?.ToString("dd MMMM yyyy") ?? "N/A")
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-
-                    @if (activeTab == "qualifications")
-                    {
-                        <div class="worker360-section">
-                            <h5><i class="fas fa-award"></i> Qualifications & Certificates</h5>
-
-                            <div class="row g-3">
-                                @QualificationCard("Believer's Baptism", worker.HasBelieverBaptism, worker.BelieverBaptismCertificatePath)
-                                @QualificationCard("Worker in Training", worker.HasWorkerInTraining, worker.WorkerInTrainingCertificatePath)
-                                @QualificationCard("School of Discipleship", worker.HasSOD, worker.SODCertificatePath)
-                                @QualificationCard("Bible College", worker.HasBibleCollege, worker.BibleCollegeCertificatePath)
-                            </div>
-
-                            <div class="worker360-note mt-3">
-                                <i class="fas fa-certificate"></i>
-                                Total Qualifications: <strong>@GetTotalQualifications() out of 4</strong>
-                            </div>
-                        </div>
-                    }
-
-                    @if (activeTab == "documents")
-                    {
-                        <div class="row g-4">
-                            <div class="col-lg-5">
-                                <div class="worker360-section text-center">
-                                    <h5><i class="fas fa-image"></i> Passport Photo</h5>
-
-                                    @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
-                                    {
-                                        <img src="/uploads/@worker.PassportPhotoPath"
-                                             class="worker360-document-photo" />
-
-                                        <div class="mt-3">
-                                            <a href="/uploads/@worker.PassportPhotoPath"
-                                               target="_blank"
-                                               class="team-action-btn">
-                                                <i class="fas fa-expand me-1"></i>
-                                                View Full Size
-                                            </a>
-
-                                            <button class="team-success-btn ms-2" @onclick="DownloadPhoto">
-                                                <i class="fas fa-download me-1"></i>
-                                                Download
-                                            </button>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <div class="bcc-empty py-4">
-                                            <i class="fas fa-user-circle"></i>
-                                            <p>No passport photo uploaded.</p>
-                                            <button class="bcc-btn bcc-btn-primary" @onclick="NavigateToUpdate">
-                                                Upload Photo
-                                            </button>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-
-                            <div class="col-lg-7">
-                                <div class="worker360-section">
-                                    <h5><i class="fas fa-file-alt"></i> Certificate Documents</h5>
-
-                                    <div class="worker360-doc-list">
-                                        @DocumentRow("Believer Baptism Certificate", worker.BelieverBaptismCertificatePath)
-                                        @DocumentRow("Worker in Training Certificate", worker.WorkerInTrainingCertificatePath)
-                                        @DocumentRow("SOD Certificate", worker.SODCertificatePath)
-                                        @DocumentRow("Bible College Certificate", worker.BibleCollegeCertificatePath)
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-
-                    @if (activeTab == "timeline")
-                    {
-                        <div class="worker360-section">
-                            <h5><i class="fas fa-stream"></i> Ministry Journey Timeline</h5>
-
-                            <div class="worker360-timeline">
-                                @TimelineItem(worker.CreatedDate, "Worker profile created", "System record was created.")
-
-                                @if (worker.DateJoinedChurch.HasValue)
-                                {
-                                    @TimelineItem(worker.DateJoinedChurch.Value, "Joined BCC", "Worker joined the church.")
-                                }
-
-                                @if (worker.HasBelieverBaptism)
-                                {
-                                    @TimelineItem(worker.CreatedDate, "Believer's Baptism", "Baptism qualification recorded.")
-                                }
-
-                                @if (worker.HasWorkerInTraining)
-                                {
-                                    @TimelineItem(worker.CreatedDate, "Worker in Training", "Worker training qualification recorded.")
-                                }
-
-                                @if (worker.HasSOD)
-                                {
-                                    @TimelineItem(worker.CreatedDate, "School of Discipleship", "SOD qualification recorded.")
-                                }
-
-                                @if (worker.HasBibleCollege)
-                                {
-                                    @TimelineItem(worker.CreatedDate, "Bible College", "Bible College qualification recorded.")
-                                }
-
-                                @if (worker.LastOrdinationDate.HasValue)
-                                {
-                                    @TimelineItem(worker.LastOrdinationDate.Value, "Ordination", $"{worker.OrdinationLevel} recorded.")
-                                }
-
-                                @if (worker.LastUpdated.HasValue)
-                                {
-                                    @TimelineItem(worker.LastUpdated.Value, "Profile Updated", "Worker profile was last updated.")
-                                }
-                            </div>
-                        </div>
-                    }
-
-                    @if (activeTab == "system")
-                    {
-                        <div class="worker360-section">
-                            <h5><i class="fas fa-cog"></i> System Information</h5>
-
-                            <div class="worker360-grid two">
-                                @InfoRow("Created Date", worker.CreatedDate.ToString("dd MMMM yyyy HH:mm"))
-                                @InfoRow("Last Updated", worker.LastUpdated?.ToString("dd MMMM yyyy HH:mm") ?? "Never")
-                                @InfoRow("Last Login", worker.LastLoginDate?.ToString("dd MMMM yyyy HH:mm") ?? "Never")
-                                @InfoRow("First Login", worker.IsFirstLogin ? "Pending" : "Completed")
-                                @InfoRow("Profile Submitted", worker.ProfileSubmitted ? "Yes" : "No")
-                                @InfoRow("Approval Status", GetApprovalStatus())
-                                @InfoRow("Compliance", $"{worker.CompliancePercentage}% - {GetComplianceText(worker.CompliancePercentage)}")
-                            </div>
-
-                            <div class="mt-4">
-                                <h5><i class="fas fa-clipboard-list"></i> Audit Trail</h5>
-                                <AuditTrailView WorkerId="worker.Id" />
-                            </div>
-                        </div>
-                    }
-
-                    @if (activeTab == "actions")
-                    {
-                        <div class="worker360-section">
-                            <h5><i class="fas fa-bolt"></i> Admin Actions</h5>
-
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <div class="profile-review-card">
-                                        <h6>Profile Management</h6>
-
-                                        <div class="d-grid gap-2">
-                                            <button class="team-action-btn" @onclick="NavigateToUpdate">
-                                                <i class="fas fa-edit me-1"></i>Update Profile
-                                            </button>
-
-                                            <button class="team-action-btn" @onclick="ResetPassword">
-                                                <i class="fas fa-key me-1"></i>Reset Password
-                                            </button>
-
-                                            <button class="team-action-btn" @onclick="SendReminder">
-                                                <i class="fas fa-envelope me-1"></i>Send Profile Reminder
-                                            </button>
-
-                                            <button class="team-action-btn" @onclick="PrintProfile">
-                                                <i class="fas fa-print me-1"></i>Print Profile
-                                            </button>
-
-                                            <button class="team-action-btn" @onclick="ViewFullHistory">
-                                                <i class="fas fa-history me-1"></i>View Full History
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="profile-review-card">
-                                        <h6>Worker Status</h6>
-
-                                        <p>
-                                            Current status:
-                                            <strong class="@(worker.IsActive ? "text-success" : "text-danger")">
-                                                @(worker.IsActive ? "Active" : "Inactive")
-                                            </strong>
-                                        </p>
-
-                                        <button class="@(worker.IsActive ? "team-danger-btn" : "team-success-btn") w-100"
-                                                @onclick="ToggleActiveStatus">
-                                            @if (worker.IsActive)
-                                            {
-                                                <i class="fas fa-user-slash me-1"></i>
-                                                <span>Deactivate Worker</span>
-                                            }
-                                            else
-                                            {
-                                                <i class="fas fa-user-check me-1"></i>
-                                                <span>Activate Worker</span>
-                                            }
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="bcc-empty">
-                <i class="fas fa-user-slash"></i>
-                <h4>Worker Not Found</h4>
-                <p>The requested worker profile could not be found.</p>
-                <button class="bcc-btn bcc-btn-primary" @onclick="NavigateBack">
-                    Back to Worker List
-                </button>
-            </div>
-        }
-
-    </div>
-}
-else if (AuthService.IsAuthenticated && !AuthService.CanAccessAdminPanel())
-{
-    <div class="bcc-empty">
-        <i class="fas fa-ban"></i>
-        <h4>Access Denied</h4>
-        <p>You don't have permission to access this page.</p>
-        <a href="/" class="bcc-btn bcc-btn-primary">Return to Dashboard</a>
-    </div>
-}
-else
+@if (!AuthService.IsAuthenticated)
 {
     <div class="bcc-empty">
         <i class="fas fa-lock"></i>
         <h4>Please Log In</h4>
         <p>You need to be logged in to access this page.</p>
-        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (!AuthService.CanAccessAdminPanel())
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You do not have permission to access the administrative worker profile.</p>
+
+        <a href="/"
+           class="bcc-btn bcc-btn-primary">
+            Return to Dashboard
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+
+                <div class="mt-2 text-muted">
+                    Loading worker profile...
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (worker == null)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-user-slash"></i>
+        <h4>Worker Not Found</h4>
+        <p>The requested worker profile could not be found.</p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="NavigateBack">
+            Back to Worker List
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page admin-worker-page">
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success py-2">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        <div class="bcc-page-header admin-worker-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-user-shield me-2"></i>
+                    Admin Worker 360
+                </div>
+
+                <div class="bcc-page-title">
+                    Worker Profile
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Administrative view of worker information, ministry history and system records.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="NavigateBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary compact-btn"
+                        @onclick="NavigateToUpdate">
+                    <i class="fas fa-edit me-2"></i>
+                    Update Profile
+                </button>
+            </div>
+        </div>
+
+        <div class="worker-identity-card mb-3">
+
+            <div class="worker-identity-main">
+
+                @if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath))
+                {
+                    <img src="/uploads/@(worker.PassportPhotoThumbPath ?? worker.PassportPhotoPath)"
+                         alt="@worker.FirstName"
+                         class="worker-profile-photo" />
+                }
+                else
+                {
+                    <div class="worker-profile-placeholder">
+                        <i class="fas fa-user"></i>
+                    </div>
+                }
+
+                <div>
+                    <h2>
+                        @BuildFullName()
+                    </h2>
+
+                    <div class="worker-identity-meta">
+                        <span>
+                            <i class="fas fa-id-badge"></i>
+                            @worker.WorkerId
+                        </span>
+
+                        <span>
+                            <i class="fas fa-user-tag"></i>
+                            @DisplayValue(worker.Role)
+                        </span>
+
+                        <span>
+                            <i class="fas fa-building"></i>
+                            @(worker.Directorate?.Name ?? "No Directorate")
+                        </span>
+
+                        <span>
+                            <i class="fas fa-sitemap"></i>
+                            @(worker.Department?.Name ?? "No Department")
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="worker-identity-stats">
+
+                <div>
+                    <span>Compliance</span>
+                    <strong>@worker.CompliancePercentage%</strong>
+                    <small>@GetComplianceText(worker.CompliancePercentage)</small>
+                </div>
+
+                <div>
+                    <span>Qualifications</span>
+                    <strong>@GetTotalQualifications()/4</strong>
+                    <small>Completed</small>
+                </div>
+
+                <div>
+                    <span>Years in BCC</span>
+                    <strong>@CalculateYearsInBCC()</strong>
+                    <small>Years</small>
+                </div>
+
+                <div class="status">
+                    <span>Status</span>
+                    <strong class="@(worker.IsActive ? "text-success" : "text-secondary")">
+                        @(worker.IsActive ? "Active" : "Inactive")
+                    </strong>
+                    <small>@GetApprovalStatus()</small>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="admin-profile-tabs mb-3">
+
+            <button type="button"
+                    class="@GetTabClass("profile")"
+                    @onclick='() => SetTab("profile")'>
+                <i class="fas fa-address-card"></i>
+                Profile
+            </button>
+
+            <button type="button"
+                    class="@GetTabClass("ministry")"
+                    @onclick='() => SetTab("ministry")'>
+                <i class="fas fa-church"></i>
+                Ministry & Qualifications
+            </button>
+
+            <button type="button"
+                    class="@GetTabClass("documents")"
+                    @onclick='() => SetTab("documents")'>
+                <i class="fas fa-folder-open"></i>
+                Documents & History
+            </button>
+
+            <button type="button"
+                    class="@GetTabClass("system")"
+                    @onclick='() => SetTab("system")'>
+                <i class="fas fa-cog"></i>
+                System & Actions
+            </button>
+
+        </div>
+
+        @if (activeTab == "profile")
+        {
+            <div class="row g-3">
+
+                <div class="col-12 col-xl-6">
+                    <div class="bcc-card admin-section-card h-100">
+                        <div class="admin-section-header">
+                            <div class="admin-section-icon personal">
+                                <i class="fas fa-user"></i>
+                            </div>
+
+                            <div>
+                                <h6>Personal Information</h6>
+                                <p>Identity and personal details.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+                            <div class="admin-info-grid">
+                                @InfoItem("Worker ID", worker.WorkerId)
+                                @InfoItem("Full Name", BuildFullName(), true)
+                                @InfoItem("Sex", worker.Sex)
+                                @InfoItem("Date of Birth", FormatDate(worker.DateOfBirth))
+                                @InfoItem("Age", CalculateAge(worker.DateOfBirth) == 0 ? "Not provided" : $"{CalculateAge(worker.DateOfBirth)} years")
+                                @InfoItem("Marital Status", worker.MaritalStatus)
+                                @InfoItem("Wedding Anniversary", FormatDate(worker.WeddingAnniversary))
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-6">
+                    <div class="bcc-card admin-section-card h-100">
+                        <div class="admin-section-header">
+                            <div class="admin-section-icon contact">
+                                <i class="fas fa-address-book"></i>
+                            </div>
+
+                            <div>
+                                <h6>Contact & Professional</h6>
+                                <p>Communication, profession and address.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+                            <div class="admin-info-grid">
+                                @InfoItem("Email", worker.Email)
+                                @InfoItem("Phone", worker.Phone)
+                                @InfoItem("Profession", worker.Profession)
+                                @InfoItem("Organisation", worker.Organization)
+                                @InfoItem("Address", worker.Address, true)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+
+        @if (activeTab == "ministry")
+        {
+            <div class="row g-3">
+
+                <div class="col-12 col-xl-6">
+                    <div class="bcc-card admin-section-card">
+                        <div class="admin-section-header">
+                            <div class="admin-section-icon church">
+                                <i class="fas fa-church"></i>
+                            </div>
+
+                            <div>
+                                <h6>Current Ministry Assignment</h6>
+                                <p>Primary and secondary assignments.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+                            <div class="admin-info-grid">
+                                @InfoItem("Primary Directorate", worker.Directorate?.Name)
+                                @InfoItem("Primary Department", worker.Department?.Name)
+                                @InfoItem("Unit", worker.Unit?.Name)
+                                @InfoItem("Secondary Directorate", worker.SecondaryDirectorate?.Name)
+                                @InfoItem("Secondary Department", worker.SecondaryDepartment?.Name)
+                                @InfoItem("Role", worker.Role)
+                                @InfoItem("Worker Status", worker.WorkerStatus)
+                                @InfoItem("Supervisor", GetSupervisorName())
+                                @InfoItem("Date Joined BCC", FormatDate(worker.DateJoinedChurch))
+                                @InfoItem("Years in BCC", $"{CalculateYearsInBCC()} year(s)")
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bcc-card admin-section-card">
+                        <div class="admin-section-header">
+                            <div class="admin-section-icon experience">
+                                <i class="fas fa-history"></i>
+                            </div>
+
+                            <div>
+                                <h6>Previous Church Experience</h6>
+                                <p>Service experience before BCC.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+                            <div class="admin-info-grid">
+                                @InfoItem("Previous Church", worker.PreviousChurch)
+                                @InfoItem("Previous Role", worker.PreviousChurchRole)
+                                @InfoItem("Previous Unit", worker.PreviousChurchUnit)
+                                @InfoItem(
+                                "Experience Status",
+                                                HasPreviousChurchExperience()
+                                                ? "Previous experience recorded"
+                                                : "No previous experience recorded",
+                                                true)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-6">
+            <div class="bcc-card admin-section-card">
+                <div class="admin-section-header">
+                    <div class="admin-section-icon ordination">
+                        <i class="fas fa-hands-praying"></i>
+                    </div>
+
+                    <div>
+                        <h6>Ordination</h6>
+                        <p>Ordination status and latest record.</p>
+                    </div>
+                </div>
+
+                <div class="bcc-card-body p-3">
+                    <div class="admin-info-grid">
+                        @InfoItem("Ordination Status", worker.OrdinationStatus)
+                        @InfoItem("Ordination Level", worker.OrdinationLevel)
+                        @InfoItem("Last Ordination", FormatDate(worker.LastOrdinationDate), true)
+                    </div>
+                </div>
+            </div>
+
+            <div class="bcc-card admin-section-card">
+                <div class="admin-section-header">
+                    <div class="admin-section-icon qualification">
+                        <i class="fas fa-award"></i>
+                    </div>
+
+                    <div>
+                        <h6>Qualifications & Certificates</h6>
+                        <p>@GetTotalQualifications() of 4 completed.</p>
+                    </div>
+                </div>
+
+                <div class="bcc-card-body p-3">
+                    <div class="qualification-grid">
+                        @QualificationItem(
+                                                "Believer's Baptism",
+                                                worker.HasBelieverBaptism,
+                                                worker.BelieverBaptismCertificatePath)
+
+                        @QualificationItem(
+                                                "Worker in Training",
+                                                worker.HasWorkerInTraining,
+                                                worker.WorkerInTrainingCertificatePath)
+
+                        @QualificationItem(
+                                                "School of Discipleship",
+                                                worker.HasSOD,
+                                                worker.SODCertificatePath)
+
+                        @QualificationItem(
+                                                "Bible College",
+                                                worker.HasBibleCollege,
+                                                worker.BibleCollegeCertificatePath)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+        }
+
+        @if (activeTab == "documents")
+        {
+            <div class="row g-3">
+
+                <div class="col-12 col-xl-5">
+                    <div class="bcc-card admin-section-card">
+                        <div class="admin-section-header">
+                            <div class="admin-section-icon document">
+                                <i class="fas fa-image"></i>
+                            </div>
+
+                            <div>
+                                <h6>Passport Photo</h6>
+                                <p>Current profile photograph.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+
+                            @if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath))
+                            {
+                                <div class="passport-document-panel">
+                                    <img src="/uploads/@worker.PassportPhotoPath"
+                                         alt="Passport photograph" />
+
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <a href="/uploads/@worker.PassportPhotoPath"
+                                           target="_blank"
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-expand me-1"></i>
+                                            View Full Size
+                                        </a>
+
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-success"
+                                                @onclick="DownloadPhoto">
+                                            <i class="fas fa-download me-1"></i>
+                                            Download
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="bcc-empty py-4">
+                                    <i class="fas fa-user-circle"></i>
+                                    <p>No passport photo uploaded.</p>
+
+                                    <button type="button"
+                                            class="bcc-btn bcc-btn-primary compact-btn"
+                                            @onclick="NavigateToUpdate">
+                                        Upload Photo
+                                    </button>
+                                </div>
+                            }
+
+                        </div>
+                    </div>
+
+                    <div class="bcc-card admin-section-card">
+                        <div class="admin-section-header">
+                            <div class="admin-section-icon document">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+
+                            <div>
+                                <h6>Certificate Documents</h6>
+                                <p>Uploaded qualification documents.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+                            <div class="document-list">
+                                @DocumentItem(
+                                "Believer Baptism Certificate",
+                                                worker.BelieverBaptismCertificatePath)
+
+                        @DocumentItem(
+                                                "Worker in Training Certificate",
+                                                worker.WorkerInTrainingCertificatePath)
+
+                        @DocumentItem(
+                                                "SOD Certificate",
+                                                worker.SODCertificatePath)
+
+                        @DocumentItem(
+                                                "Bible College Certificate",
+                                                worker.BibleCollegeCertificatePath)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-7">
+            <div class="bcc-card admin-section-card h-100">
+                <div class="admin-section-header">
+                    <div class="admin-section-icon timeline">
+                        <i class="fas fa-stream"></i>
+                    </div>
+
+                    <div>
+                        <h6>Ministry Journey Timeline</h6>
+                        <p>Important dates and profile milestones.</p>
+                    </div>
+                </div>
+
+                <div class="bcc-card-body p-3">
+                    <div class="compact-timeline">
+
+                        @TimelineItem(
+                                                worker.CreatedDate,
+                                                "Worker profile created",
+                                                "The worker record was created.")
+
+                        @if (worker.DateJoinedChurch.HasValue)
+                                {
+                                    @TimelineItem(
+                                    worker.DateJoinedChurch.Value,
+                                                "Joined BCC",
+                                                "The worker joined the church.")
+                                                }
+
+                                @if (worker.HasBelieverBaptism)
+                                {
+                                    @TimelineItem(
+                                    worker.CreatedDate,
+                                                "Believer's Baptism",
+                                                "Baptism qualification recorded.")
+                                                }
+
+                                @if (worker.HasWorkerInTraining)
+                                {
+                                    @TimelineItem(
+                                    worker.CreatedDate,
+                                                "Worker in Training",
+                                                "Worker training qualification recorded.")
+                                                }
+
+                                @if (worker.HasSOD)
+                                {
+                                    @TimelineItem(
+                                    worker.CreatedDate,
+                                                "School of Discipleship",
+                                                "SOD qualification recorded.")
+                                                }
+
+                                @if (worker.HasBibleCollege)
+                                {
+                                    @TimelineItem(
+                                    worker.CreatedDate,
+                                                "Bible College",
+                                                "Bible College qualification recorded.")
+                                                }
+
+                                @if (worker.LastOrdinationDate.HasValue)
+                                {
+                                    @TimelineItem(
+                                    worker.LastOrdinationDate.Value,
+                                                "Ordination",
+                                                $"{worker.OrdinationLevel} recorded.")
+                                                }
+
+                                @if (worker.LastUpdated.HasValue)
+                                {
+                                    @TimelineItem(
+                                    worker.LastUpdated.Value,
+                                                "Profile Updated",
+                                                "The profile was last updated.")
+                                                }
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+
+        @if (activeTab == "system")
+        {
+            <div class="row g-3">
+
+                <div class="col-12 col-xl-7">
+                    <div class="bcc-card admin-section-card">
+                        <div class="admin-section-header">
+                            <div class="admin-section-icon system">
+                                <i class="fas fa-cog"></i>
+                            </div>
+
+                            <div>
+                                <h6>System Information</h6>
+                                <p>Account, approval and profile status.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+                            <div class="admin-info-grid">
+                                @InfoItem("Created Date", worker.CreatedDate.ToString("dd MMM yyyy, hh:mm tt"))
+                                @InfoItem("Last Updated", worker.LastUpdated?.ToString("dd MMM yyyy, hh:mm tt"))
+                                @InfoItem("Last Login", worker.LastLoginDate?.ToString("dd MMM yyyy, hh:mm tt"))
+                                @InfoItem("First Login", worker.IsFirstLogin ? "Pending" : "Completed")
+                                @InfoItem("Profile Submitted", worker.ProfileSubmitted ? "Yes" : "No")
+                                @InfoItem("Approval Status", GetApprovalStatus())
+                                @InfoItem("Compliance", $"{worker.CompliancePercentage}% - {GetComplianceText(worker.CompliancePercentage)}", true)
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bcc-card admin-section-card">
+                        <div class="admin-section-header">
+                            <div class="admin-section-icon audit">
+                                <i class="fas fa-clipboard-list"></i>
+                            </div>
+
+                            <div>
+                                <h6>Audit Trail</h6>
+                                <p>Recent administrative and profile activity.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+                            <AuditTrailView WorkerId="worker.Id" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-5">
+                    <div class="bcc-card admin-section-card">
+                        <div class="admin-section-header">
+                            <div class="admin-section-icon action">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+
+                            <div>
+                                <h6>Administrative Actions</h6>
+                                <p>Manage profile and account activities.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+                            <div class="admin-action-grid">
+
+                                <button type="button"
+                                        @onclick="NavigateToUpdate">
+                                    <i class="fas fa-edit"></i>
+                                    <span>Update Profile</span>
+                                </button>
+
+                                <button type="button"
+                                        @onclick="ResetPassword">
+                                    <i class="fas fa-key"></i>
+                                    <span>Reset Password</span>
+                                </button>
+
+                                <button type="button"
+                                        @onclick="SendReminder">
+                                    <i class="fas fa-envelope"></i>
+                                    <span>Send Reminder</span>
+                                </button>
+
+                                <button type="button"
+                                        @onclick="PrintProfile">
+                                    <i class="fas fa-print"></i>
+                                    <span>Print Profile</span>
+                                </button>
+
+                                <button type="button"
+                                        @onclick="ViewFullHistory">
+                                    <i class="fas fa-history"></i>
+                                    <span>Full History</span>
+                                </button>
+
+                                <button type="button"
+                                        class="@(worker.IsActive ? "danger" : "success")"
+                                        @onclick="ToggleActiveStatus">
+                                    <i class="fas @(worker.IsActive ? "fa-user-slash" : "fa-user-check")"></i>
+
+                                    <span>
+                                        @(worker.IsActive
+                                                                        ? "Deactivate Worker"
+                                                                        : "Activate Worker")
+                            </span>
+                        </button>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bcc-card admin-section-card">
+                        <div class="admin-section-header">
+                            <div class="admin-section-icon status">
+                                <i class="fas fa-user-check"></i>
+                            </div>
+
+                            <div>
+                                <h6>Worker Status</h6>
+                                <p>Current account and approval condition.</p>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body p-3">
+                            <div class="status-summary-grid">
+
+                                <div>
+                                    <span>Account</span>
+                                    <strong class="@(worker.IsActive ? "text-success" : "text-danger")">
+                                        @(worker.IsActive ? "Active" : "Inactive")
+                                    </strong>
+                                </div>
+
+                                <div>
+                                    <span>Approval</span>
+                                    <strong>@GetApprovalStatus()</strong>
+                                </div>
+
+                                <div>
+                                    <span>First Login</span>
+                                    <strong>
+                                        @(worker.IsFirstLogin ? "Pending" : "Completed")
+                                    </strong>
+                                </div>
+
+                                <div>
+                                    <span>Profile</span>
+                                    <strong>
+                                        @(worker.ProfileSubmitted ? "Submitted" : "Not Submitted")
+                                    </strong>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+
     </div>
 }
 
 @code {
-    [Parameter] public int workerId { get; set; }
+    [Parameter]
+    public int workerId { get; set; }
 
-    private Worker? worker = null;
-    private string? errorMessage = null;
-    private string? successMessage = null;
-    private string activeTab = "overview";
+    private Worker? worker;
+
+    private bool isLoading = true;
+
+    private string? errorMessage;
+    private string? successMessage;
+
+    private string activeTab = "profile";
 
     protected override async Task OnParametersSetAsync()
     {
         await LoadWorkerData();
     }
 
-    private void SetTab(string tab) => activeTab = tab;
-
-    private string GetTabClass(string tab)
-    {
-        return activeTab == tab ? "profile-form-tab active" : "profile-form-tab";
-    }
-
     private async Task LoadWorkerData()
     {
         try
         {
-            worker = await WorkerService.GetWorkerByIdAsync(workerId);
+            isLoading = true;
             errorMessage = null;
+
+            worker =
+                await WorkerService
+                    .GetWorkerByIdAsync(workerId);
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error loading worker: {ex.Message}";
+            errorMessage =
+                $"Error loading worker: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
-    private RenderFragment InfoRow(string label, string value) => @<div class="bcc-info-row">
-        <div class="bcc-info-label">@label</div>
-        <div class="bcc-info-value">@value</div>
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private string GetTabClass(string tab)
+    {
+        return activeTab == tab
+            ? "admin-profile-tab active"
+            : "admin-profile-tab";
+    }
+
+    private RenderFragment InfoItem(
+        string label,
+        string? value,
+        bool fullWidth = false) => @<div class="admin-info-item @(fullWidth ? "full-width" : "")">
+        <span>@label</span>
+        <strong>@DisplayValue(value)</strong>
     </div>;
 
-    private RenderFragment QualificationCard(string title, bool completed, string? path) => @<div class="col-md-6">
-        <div class="worker360-qualification-card">
-            <div class="worker360-qualification-icon @(completed ? "done" : "missing")">
-                <i class="fas @(completed ? "fa-check" : "fa-times")"></i>
-            </div>
+    private RenderFragment QualificationItem(
+        string title,
+        bool completed,
+        string? path) => @<div class="qualification-item">
 
-            <div>
-                <strong>@title</strong>
-                <span>@(completed ? "Completed" : "Not completed")</span>
+    <div class="qualification-icon @(completed ? "completed" : "missing")">
+        <i class="fas @(completed ? "fa-check" : "fa-times")"></i>
+    </div>
 
-                @if (!string.IsNullOrEmpty(path))
-                {
-                    <a href="/uploads/@path" target="_blank">
-                        <i class="fas fa-download me-1"></i>
-                        View Certificate
-                    </a>
-                }
-                else
-                {
-                    <small>No certificate uploaded</small>
-                }
-            </div>
-        </div>
-    </div>;
+    <div class="qualification-content">
+        <strong>@title</strong>
+        <span>@(completed ? "Completed" : "Not completed")</span>
+    </div>
 
-    private RenderFragment DocumentRow(string title, string? path) => @<div class="worker360-document-row">
-        <div>
-            <i class="fas fa-file-alt"></i>
-            <span>@title</span>
-        </div>
+@if (!string.IsNullOrWhiteSpace(path))
+    {
+    <a href="/uploads/@path"
+       target="_blank"
+       title="View certificate">
+        <i class="fas fa-file-alt"></i>
+    </a>
+    }
+    else
+    {
+    <span class="document-missing"
+          title="No certificate uploaded">
+        <i class="fas fa-minus"></i>
+    </span>
+    }
 
-        @if (!string.IsNullOrEmpty(path))
-        {
-            <a href="/uploads/@path" target="_blank">View</a>
-        }
-        else
-        {
-            <small>Not uploaded</small>
-        }
-    </div>;
+</div>;
 
-    private RenderFragment TimelineItem(DateTime date, string title, string description) => @<div class="worker360-timeline-item">
-        <div class="worker360-timeline-dot"></div>
+    private RenderFragment DocumentItem(
+        string title,
+        string? path) => @<div class="document-item">
+
+    <div>
+        <i class="fas fa-file-alt"></i>
+
+        <span>@title</span>
+    </div>
+
+@if (!string.IsNullOrWhiteSpace(path))
+    {
+    <a href="/uploads/@path"
+       target="_blank">
+        View
+    </a>
+    }
+    else
+    {
+    <small>Not uploaded</small>
+    }
+
+</div>;
+
+    private RenderFragment TimelineItem(
+        DateTime date,
+        string title,
+        string description) => @<div class="timeline-item">
+
+        <div class="timeline-dot"></div>
+
         <div>
             <span>@date.ToString("dd MMM yyyy")</span>
             <strong>@title</strong>
             <p>@description</p>
         </div>
+
     </div>;
+
+    private string BuildFullName()
+    {
+        if (worker == null)
+            return "Worker";
+
+        return string.Join(
+            " ",
+            new[]
+            {
+                worker.Title,
+                worker.FirstName,
+                worker.MiddleName,
+                worker.LastName
+            }
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private string GetSupervisorName()
+    {
+        if (worker?.Supervisor == null)
+            return "Not assigned";
+
+        return string.Join(
+            " ",
+            new[]
+            {
+                worker.Supervisor.FirstName,
+                worker.Supervisor.LastName
+            }
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private static string DisplayValue(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not provided"
+            : value.Trim();
+    }
+
+    private static string FormatDate(
+        DateTime? value)
+    {
+        return value?.ToString(
+            "dd MMMM yyyy") ?? "Not provided";
+    }
 
     private void NavigateToUpdate()
     {
-        if (worker != null)
-        {
-            Navigation.NavigateTo($"/admin/worker-update-form/{worker.Id}");
-        }
+        if (worker == null)
+            return;
+
+        Navigation.NavigateTo(
+            $"/admin/worker-update-form/{worker.Id}");
     }
 
     private void NavigateBack()
     {
-        Navigation.NavigateTo("/admin/worker-update");
+        Navigation.NavigateTo(
+            "/admin/worker-update");
     }
 
-    private string GetComplianceClass(int percentage)
-    {
-        return percentage switch
-        {
-            >= 80 => "bg-success",
-            >= 50 => "bg-warning",
-            _ => "bg-danger"
-        };
-    }
-
-    private string GetComplianceText(int percentage)
+    private static string GetComplianceText(
+        int percentage)
     {
         return percentage switch
         {
@@ -658,135 +966,799 @@ else
         if (worker?.DateJoinedChurch.HasValue != true)
             return 0;
 
-        var years = DateTime.Now.Year - worker.DateJoinedChurch.Value.Year;
+        var joined =
+            worker.DateJoinedChurch.Value;
 
-        if (worker.DateJoinedChurch.Value.Date > DateTime.Now.AddYears(-years))
+        var years =
+            DateTime.Today.Year -
+            joined.Year;
+
+        if (joined.Date >
+            DateTime.Today.AddYears(-years))
+        {
             years--;
+        }
 
         return Math.Max(0, years);
     }
 
     private bool HasPreviousChurchExperience()
     {
-        return !string.IsNullOrEmpty(worker?.PreviousChurch) ||
-               !string.IsNullOrEmpty(worker?.PreviousChurchRole) ||
-               !string.IsNullOrEmpty(worker?.PreviousChurchUnit);
+        return
+            !string.IsNullOrWhiteSpace(
+                worker?.PreviousChurch) ||
+
+            !string.IsNullOrWhiteSpace(
+                worker?.PreviousChurchRole) ||
+
+            !string.IsNullOrWhiteSpace(
+                worker?.PreviousChurchUnit);
     }
 
     private int GetTotalQualifications()
     {
-        if (worker == null) return 0;
+        if (worker == null)
+            return 0;
 
-        int total = 0;
-        if (worker.HasBelieverBaptism) total++;
-        if (worker.HasWorkerInTraining) total++;
-        if (worker.HasSOD) total++;
-        if (worker.HasBibleCollege) total++;
+        var total = 0;
+
+        if (worker.HasBelieverBaptism)
+            total++;
+
+        if (worker.HasWorkerInTraining)
+            total++;
+
+        if (worker.HasSOD)
+            total++;
+
+        if (worker.HasBibleCollege)
+            total++;
 
         return total;
     }
 
     private string GetApprovalStatus()
     {
-        if (worker == null) return "Unknown";
+        if (worker == null)
+            return "Unknown";
 
-        if (worker.Stage1Approved && worker.Stage2Approved) return "Fully Approved";
-        if (worker.Stage1Approved) return "Stage 1 Approved";
-        if (worker.ProfileSubmitted) return "Pending";
+        if (worker.Stage1Approved &&
+            worker.Stage2Approved)
+        {
+            return "Fully Approved";
+        }
+
+        if (worker.Stage1Approved)
+            return "Stage 1 Approved";
+
+        if (worker.ProfileSubmitted)
+            return "Pending";
+
         return "Not Submitted";
     }
 
     private async Task DownloadPhoto()
     {
-        if (!string.IsNullOrEmpty(worker?.PassportPhotoPath))
+        if (string.IsNullOrWhiteSpace(
+            worker?.PassportPhotoPath))
         {
-            var fileName = $"{worker.FirstName}_{worker.LastName}_Passport{Path.GetExtension(worker.PassportPhotoPath)}";
-            Navigation.NavigateTo($"/download-file/{worker.PassportPhotoPath}/{fileName}", true);
+            return;
         }
+
+        var fileName =
+            $"{worker.FirstName}_{worker.LastName}_Passport" +
+            $"{Path.GetExtension(worker.PassportPhotoPath)}";
+
+        Navigation.NavigateTo(
+            $"/download-file/{worker.PassportPhotoPath}/{fileName}",
+            true);
+
+        await Task.CompletedTask;
     }
 
     private void ViewFullHistory()
     {
-        if (worker != null)
-        {
-            Navigation.NavigateTo($"/admin/worker-history/{worker.Id}");
-        }
+        if (worker == null)
+            return;
+
+        Navigation.NavigateTo(
+            $"/admin/worker-history/{worker.Id}");
     }
 
     private async Task ResetPassword()
     {
-        if (worker == null) return;
+        if (worker == null)
+            return;
 
         try
         {
-            bool success = await WorkerService.ResetPasswordAsync(worker.Id);
-            successMessage = success
-                ? "Password reset successfully. The worker has been assigned a temporary password."
-                : "Unable to reset password. Worker not found.";
+            successMessage = null;
+            errorMessage = null;
+
+            var success =
+                await WorkerService
+                    .ResetPasswordAsync(worker.Id);
+
+            successMessage =
+                success
+                    ? "Password reset successfully. A temporary password was assigned."
+                    : "Unable to reset the password.";
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error resetting password: {ex.Message}";
+            errorMessage =
+                $"Error resetting password: {ex.Message}";
         }
     }
 
     private async Task SendReminder()
     {
-        if (worker == null) return;
+        if (worker == null)
+            return;
 
         try
         {
-            bool success = await WorkerService.SendProfileReminderAsync(worker.Id);
-            successMessage = success
-                ? "Profile reminder sent successfully."
-                : "Unable to send reminder. Worker may not have an email address.";
+            successMessage = null;
+            errorMessage = null;
+
+            var success =
+                await WorkerService
+                    .SendProfileReminderAsync(worker.Id);
+
+            successMessage =
+                success
+                    ? "Profile reminder sent successfully."
+                    : "Unable to send the reminder.";
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error sending reminder: {ex.Message}";
+            errorMessage =
+                $"Error sending reminder: {ex.Message}";
         }
     }
 
     private async Task ToggleActiveStatus()
     {
-        if (worker == null) return;
+        if (worker == null)
+            return;
+
+        var previousStatus =
+            worker.IsActive;
 
         try
         {
-            worker.IsActive = !worker.IsActive;
-            worker.LastUpdated = DateTime.UtcNow;
+            successMessage = null;
+            errorMessage = null;
 
-            await WorkerService.UpdateWorkerAsync(worker);
+            worker.IsActive =
+                !worker.IsActive;
 
-            successMessage = worker.IsActive
-                ? "Worker activated successfully."
-                : "Worker deactivated successfully.";
+            worker.LastUpdated =
+                DateTime.UtcNow;
+
+            await WorkerService
+                .UpdateWorkerAsync(worker);
+
+            successMessage =
+                worker.IsActive
+                    ? "Worker activated successfully."
+                    : "Worker deactivated successfully.";
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error updating worker status: {ex.Message}";
-            worker.IsActive = !worker.IsActive;
+            worker.IsActive =
+                previousStatus;
+
+            errorMessage =
+                $"Error updating worker status: {ex.Message}";
         }
     }
 
     private void PrintProfile()
     {
-        if (worker != null)
+        if (worker == null)
+            return;
+
+        Navigation.NavigateTo(
+            $"/admin/worker-print/{worker.Id}",
+            true);
+    }
+
+    private static int CalculateAge(
+        DateTime? birthDate)
+    {
+        if (!birthDate.HasValue)
+            return 0;
+
+        var today =
+            DateTime.Today;
+
+        var age =
+            today.Year -
+            birthDate.Value.Year;
+
+        if (birthDate.Value.Date >
+            today.AddYears(-age))
         {
-            Navigation.NavigateTo($"/admin/worker-print/{worker.Id}", true);
+            age--;
+        }
+
+        return Math.Max(0, age);
+    }
+}
+
+<style>
+    .admin-worker-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .admin-worker-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .worker-identity-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 13px 15px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        box-shadow: 0 5px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    .worker-identity-main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .worker-profile-photo,
+    .worker-profile-placeholder {
+        flex: 0 0 62px;
+        width: 62px;
+        height: 62px;
+        border-radius: 15px;
+    }
+
+    .worker-profile-photo {
+        object-fit: cover;
+        border: 2px solid #e0e7ff;
+    }
+
+    .worker-profile-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 2px solid #c7d2fe;
+        font-size: 1.35rem;
+    }
+
+    .worker-identity-main h2 {
+        margin: 0 0 4px;
+        color: #0f172a;
+        font-size: 1.1rem;
+        font-weight: 800;
+    }
+
+    .worker-identity-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px 12px;
+    }
+
+        .worker-identity-meta span {
+            color: #64748b;
+            font-size: 0.66rem;
+        }
+
+        .worker-identity-meta i {
+            margin-right: 4px;
+            color: #4f46e5;
+        }
+
+    .worker-identity-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(82px, 1fr));
+        gap: 7px;
+    }
+
+        .worker-identity-stats > div {
+            padding: 7px 9px;
+            text-align: center;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+        }
+
+        .worker-identity-stats span,
+        .worker-identity-stats strong,
+        .worker-identity-stats small {
+            display: block;
+        }
+
+        .worker-identity-stats span {
+            color: #64748b;
+            font-size: 0.56rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .worker-identity-stats strong {
+            margin: 1px 0;
+            color: #0f172a;
+            font-size: 0.8rem;
+        }
+
+        .worker-identity-stats small {
+            color: #94a3b8;
+            font-size: 0.54rem;
+        }
+
+        .worker-identity-stats .status {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+    .admin-profile-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .admin-profile-tab {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 40px;
+        padding: 7px 9px;
+        color: #64748b;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 800;
+    }
+
+        .admin-profile-tab.active {
+            color: #4338ca;
+            background: #eef2ff;
+            border-color: #c7d2fe;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+        }
+
+    .admin-section-card {
+        margin-bottom: 12px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 13px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
+    }
+
+    .admin-section-header {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 11px;
+        background: #ffffff;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+        .admin-section-header h6 {
+            margin: 0 0 1px;
+            color: #0f172a;
+            font-size: 0.81rem;
+            font-weight: 800;
+        }
+
+        .admin-section-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.63rem;
+        }
+
+    .admin-section-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 32px;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        font-size: 0.74rem;
+    }
+
+        .admin-section-icon.personal,
+        .admin-section-icon.system {
+            color: #4338ca;
+            background: #eef2ff;
+        }
+
+        .admin-section-icon.contact,
+        .admin-section-icon.document {
+            color: #0369a1;
+            background: #e0f2fe;
+        }
+
+        .admin-section-icon.church,
+        .admin-section-icon.status {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .admin-section-icon.experience,
+        .admin-section-icon.timeline {
+            color: #0f766e;
+            background: #ccfbf1;
+        }
+
+        .admin-section-icon.ordination,
+        .admin-section-icon.audit {
+            color: #7e22ce;
+            background: #f3e8ff;
+        }
+
+        .admin-section-icon.qualification,
+        .admin-section-icon.action {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+    .admin-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .admin-info-item {
+        min-width: 0;
+        padding: 8px 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+        .admin-info-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .admin-info-item span {
+            display: block;
+            margin-bottom: 2px;
+            color: #64748b;
+            font-size: 0.59rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .admin-info-item strong {
+            display: block;
+            color: #0f172a;
+            font-size: 0.73rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+    .qualification-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .qualification-item {
+        display: grid;
+        grid-template-columns: 31px minmax(0, 1fr) 25px;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .qualification-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 31px;
+        height: 31px;
+        border-radius: 8px;
+        font-size: 0.66rem;
+    }
+
+        .qualification-icon.completed {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .qualification-icon.missing {
+            color: #991b1b;
+            background: #fee2e2;
+        }
+
+    .qualification-content strong,
+    .qualification-content span {
+        display: block;
+    }
+
+    .qualification-content strong {
+        color: #0f172a;
+        font-size: 0.68rem;
+    }
+
+    .qualification-content span {
+        color: #64748b;
+        font-size: 0.58rem;
+    }
+
+    .qualification-item > a,
+    .document-missing {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 25px;
+        height: 25px;
+        border-radius: 7px;
+        font-size: 0.62rem;
+    }
+
+    .qualification-item > a {
+        color: #4338ca;
+        background: #eef2ff;
+        text-decoration: none;
+    }
+
+    .document-missing {
+        color: #94a3b8;
+        background: #e2e8f0;
+    }
+
+    .passport-document-panel {
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+        .passport-document-panel img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border: 2px solid #e0e7ff;
+            border-radius: 14px;
+        }
+
+    .document-list {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .document-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 9px;
+        padding: 8px 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+        .document-item > div {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .document-item i {
+            color: #4f46e5;
+        }
+
+        .document-item span {
+            color: #334155;
+            font-size: 0.67rem;
+            font-weight: 700;
+        }
+
+        .document-item a,
+        .document-item small {
+            font-size: 0.6rem;
+            font-weight: 700;
+        }
+
+        .document-item a {
+            color: #4338ca;
+            text-decoration: none;
+        }
+
+        .document-item small {
+            color: #94a3b8;
+        }
+
+    .compact-timeline {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding-left: 16px;
+    }
+
+        .compact-timeline::before {
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 5px;
+            width: 2px;
+            content: "";
+            background: #e2e8f0;
+        }
+
+    .timeline-item {
+        position: relative;
+        display: flex;
+        gap: 9px;
+    }
+
+    .timeline-dot {
+        position: absolute;
+        top: 5px;
+        left: -15px;
+        width: 10px;
+        height: 10px;
+        background: #4f46e5;
+        border: 2px solid #eef2ff;
+        border-radius: 50%;
+    }
+
+    .timeline-item span,
+    .timeline-item strong,
+    .timeline-item p {
+        display: block;
+    }
+
+    .timeline-item span {
+        color: #94a3b8;
+        font-size: 0.57rem;
+    }
+
+    .timeline-item strong {
+        margin: 1px 0;
+        color: #0f172a;
+        font-size: 0.69rem;
+    }
+
+    .timeline-item p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.62rem;
+    }
+
+    .admin-action-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+        .admin-action-grid button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 46px;
+            padding: 8px 9px;
+            color: #334155;
+            text-align: left;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+            font-size: 0.67rem;
+            font-weight: 800;
+        }
+
+            .admin-action-grid button i {
+                color: #4f46e5;
+            }
+
+            .admin-action-grid button.danger {
+                color: #991b1b;
+                background: #fef2f2;
+                border-color: #fecaca;
+            }
+
+                .admin-action-grid button.danger i {
+                    color: #dc2626;
+                }
+
+            .admin-action-grid button.success {
+                color: #166534;
+                background: #f0fdf4;
+                border-color: #bbf7d0;
+            }
+
+                .admin-action-grid button.success i {
+                    color: #16a34a;
+                }
+
+    .status-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+        .status-summary-grid > div {
+            padding: 8px 9px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .status-summary-grid span,
+        .status-summary-grid strong {
+            display: block;
+        }
+
+        .status-summary-grid span {
+            color: #64748b;
+            font-size: 0.58rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-summary-grid strong {
+            margin-top: 2px;
+            color: #0f172a;
+            font-size: 0.69rem;
+        }
+
+    @@media (max-width: 1100px) {
+        .worker-identity-card {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .worker-identity-stats {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
         }
     }
 
-    private int CalculateAge(DateTime? birthDate)
-    {
-        if (!birthDate.HasValue) return 0;
+    @@media (max-width: 768px) {
+        .admin-profile-tabs {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
 
-        var today = DateTime.Today;
-        var age = today.Year - birthDate.Value.Year;
-
-        if (birthDate.Value.Date > today.AddYears(-age))
-            age--;
-
-        return age;
+        .worker-identity-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
-}
+
+    @@media (max-width: 576px) {
+        .worker-identity-main {
+            align-items: flex-start;
+        }
+
+        .admin-profile-tabs,
+        .admin-info-grid,
+        .qualification-grid,
+        .admin-action-grid,
+        .status-summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .admin-info-item.full-width {
+            grid-column: auto;
+        }
+    }
+</style>

@@ -1,0 +1,425 @@
+﻿@page "/workspace/service-records"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+
+@inject AuthService AuthService
+@inject ServiceRecordAccessService ServiceRecordAccessService
+@inject NavigationManager Navigation
+
+<PageTitle>Service Records - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access Service Records.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page compact-workspace-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">
+                    Loading Service Records...
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (!access.HasAnyAccess)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You do not currently have access to any Service Record function.</p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Dashboard
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page compact-workspace-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2 mb-3">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        <div class="bcc-page-header service-records-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    Workspace
+                </div>
+
+                <div class="bcc-page-title">
+                    Service Records
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Church operational records, reports and approvals.
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>
+                Dashboard
+            </button>
+        </div>
+
+        <div class="workspace-tile-grid">
+
+            @RenderTile(
+            "/Offering/record",
+                "fas fa-hand-holding-usd",
+                "Record Offering",
+                access.CanRecordOffering,
+                0)
+
+        @RenderTile(
+                "/Offering/my-records",
+                "fas fa-folder-open",
+                "My Offering Records",
+                access.CanRecordOffering,
+                0)
+
+        @RenderTile(
+                "/Offering/approvals",
+                "fas fa-check-double",
+                "Offering Approval",
+                access.CanApproveOffering,
+                access.PendingOfferingApprovalCount)
+
+        @RenderTile(
+                "/Offering/report",
+                "fas fa-chart-bar",
+                "Offering Report",
+                access.CanViewOfferingReport,
+                0)
+
+        @RenderTile(
+                "/Offering/amendments",
+                "fas fa-edit",
+                "Offering Amendment",
+                access.CanRequestOfferingAmendment,
+                0)
+
+        @RenderTile(
+                "/Offering/amendments/approval",
+                "fas fa-gavel",
+                "Amendment Approval",
+                access.CanApproveOfferingAmendment,
+                access.PendingOfferingAmendmentCount)
+
+        @RenderTile(
+                "/Offering/Attendance-record",
+                "fas fa-users",
+                "Attendance Record",
+                access.CanRecordAttendance,
+                0)
+
+        @RenderTile(
+                "/Vehicle/record",
+                "fas fa-car",
+                "Vehicle Record",
+                access.CanRecordVehicle,
+                0)
+
+        @RenderTile(
+                "/Offering/NoteList",
+                "fas fa-sticky-note",
+                "Service Notes",
+                access.CanAccessServiceNotes,
+                0)
+
+        @RenderTile(
+                "/guest",
+                "fas fa-user-plus",
+                "Guest Management",
+                access.CanAccessGuestManagement,
+                0)
+
+    </div>
+</div>
+}
+
+@code {
+    private ServiceRecordAccessModel access = new();
+
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccessAsync();
+    }
+
+    private async Task LoadAccessAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            if (AuthService.CurrentWorker == null)
+            {
+                access = new ServiceRecordAccessModel();
+                return;
+            }
+
+            access =
+                await ServiceRecordAccessService.GetAccessAsync(
+                    AuthService.CurrentWorker.Id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load Service Records: {ex.Message}";
+
+            access = new ServiceRecordAccessModel();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private RenderFragment RenderTile(
+        string href,
+        string icon,
+        string title,
+        bool isEnabled,
+        int badgeCount) => builder =>
+    {
+        var sequence = 0;
+
+        if (isEnabled)
+        {
+            builder.OpenElement(sequence++, "a");
+            builder.AddAttribute(sequence++, "href", href);
+            builder.AddAttribute(
+                sequence++,
+                "class",
+                "compact-workspace-tile");
+        }
+        else
+        {
+            builder.OpenElement(sequence++, "div");
+            builder.AddAttribute(
+                sequence++,
+                "class",
+                "compact-workspace-tile disabled");
+            builder.AddAttribute(
+                sequence++,
+                "title",
+                "You do not have access to this function.");
+            builder.AddAttribute(
+                sequence++,
+                "aria-disabled",
+                "true");
+        }
+
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            "compact-tile-icon");
+
+        builder.OpenElement(sequence++, "i");
+        builder.AddAttribute(sequence++, "class", icon);
+        builder.CloseElement();
+
+        builder.CloseElement();
+
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            "compact-tile-title");
+        builder.AddContent(sequence++, title);
+        builder.CloseElement();
+
+        if (badgeCount > 0)
+        {
+            builder.OpenElement(sequence++, "span");
+            builder.AddAttribute(
+                sequence++,
+                "class",
+                "compact-tile-badge");
+            builder.AddContent(
+                sequence++,
+                badgeCount > 99
+                    ? "99+"
+                    : badgeCount.ToString());
+            builder.CloseElement();
+        }
+
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            "compact-tile-arrow");
+
+        builder.OpenElement(sequence++, "i");
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            isEnabled
+                ? "fas fa-chevron-right"
+                : "fas fa-lock");
+        builder.CloseElement();
+
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
+
+<style>
+    .compact-workspace-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding-top: 6px;
+    }
+
+    .service-records-page-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .workspace-tile-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 9px;
+    }
+
+    .compact-workspace-tile {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr) auto 16px;
+        align-items: center;
+        gap: 9px;
+        min-height: 58px;
+        padding: 9px 11px;
+        color: inherit;
+        text-decoration: none;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 11px;
+        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+        transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+        .compact-workspace-tile:hover {
+            color: inherit;
+            text-decoration: none;
+            border-color: #c7d2fe;
+            box-shadow: 0 7px 18px rgba(15, 23, 42, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .compact-workspace-tile.disabled {
+            cursor: not-allowed;
+            opacity: 0.48;
+            background: #f8fafc;
+            box-shadow: none;
+        }
+
+            .compact-workspace-tile.disabled:hover {
+                border-color: #e5e7eb;
+                box-shadow: none;
+                transform: none;
+            }
+
+    .compact-tile-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 9px;
+        font-size: 0.9rem;
+    }
+
+    .compact-workspace-tile.disabled
+    .compact-tile-icon {
+        color: #64748b;
+        background: #e2e8f0;
+    }
+
+    .compact-tile-title {
+        min-width: 0;
+        color: #0f172a;
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .compact-tile-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        color: #ffffff;
+        background: #dc2626;
+        border-radius: 999px;
+        font-size: 0.67rem;
+        font-weight: 800;
+    }
+
+    .compact-tile-arrow {
+        color: #94a3b8;
+        font-size: 0.68rem;
+    }
+
+    @@media (max-width: 1100px) {
+        .workspace-tile-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 800px) {
+        .workspace-tile-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 520px) {
+        .workspace-tile-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+

@@ -1,575 +1,891 @@
 ﻿@page "/admin/worker-update-form/{WorkerId:int}"
 @layout Components.Layout.MainLayout
-@using ChurchApp.Services
+
 @using ChurchApp.Models
-@using ChurchApp.Components.Shared
+@using ChurchApp.Services
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Components.Forms
 @using SixLabors.ImageSharp
 @using SixLabors.ImageSharp.Processing
 @using SixLabors.ImageSharp.Formats.Jpeg
+
 @inject WorkerService WorkerService
 @inject RoleService RoleService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject IWebHostEnvironment Environment
-@inject ImageOptimizationService imageOptimizationService
+@inject ImageOptimizationService ImageOptimizationService
 
 <PageTitle>Update Worker - BCC ServiceHub</PageTitle>
 
-@if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+@if (!AuthService.IsAuthenticated)
 {
-    @if (isLoading)
-    {
-        <div class="bcc-empty">
-            <div class="spinner-border text-primary"></div>
-            <p class="mt-3">Loading worker data...</p>
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access this page.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (!AuthService.CanAccessAdminPanel())
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You do not have permission to update worker records.</p>
+
+        <a href="/"
+           class="bcc-btn bcc-btn-primary">
+            Return to Dashboard
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+
+                <div class="mt-2 text-muted">
+                    Loading worker data...
+                </div>
+            </div>
         </div>
-    }
-    else if (worker != null)
-    {
-        <EditForm Model="@workerModel" OnValidSubmit="@UpdateWorker">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+    </div>
+}
+else if (worker == null)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-user-slash"></i>
+        <h4>Worker Not Found</h4>
+        <p>The worker record could not be found.</p>
 
-            <div class="profile-form-v2-page admin-worker-update">
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="NavigateBack">
+            Back to Worker Details
+        </button>
+    </div>
+}
+else
+{
+    <EditForm Model="@workerModel"
+              OnValidSubmit="@UpdateWorker">
 
-                <div class="bcc-page-header">
-                    <div>
-                        <div class="bcc-page-subtitle">
-                            <i class="fas fa-user-edit me-2"></i>
-                            Administration
-                        </div>
-                        <div class="bcc-page-title">Update Worker</div>
-                        <div class="bcc-page-subtitle">
-                            Direct admin update for @worker.FirstName @worker.LastName (@worker.WorkerId).
-                        </div>
+        <DataAnnotationsValidator />
+
+        <div class="worker360-page admin-update-page">
+
+            @if (!string.IsNullOrWhiteSpace(successMessage))
+            {
+                <div class="alert alert-success py-2">
+                    <i class="fas fa-check-circle me-2"></i>
+                    @successMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="alert alert-danger py-2">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    @errorMessage
+                </div>
+            }
+
+            <div class="bcc-page-header admin-update-header">
+                <div>
+                    <div class="bcc-page-subtitle">
+                        <i class="fas fa-user-edit me-2"></i>
+                        Administration
                     </div>
 
-                    <div class="d-flex gap-2">
-                        <button class="bcc-btn profile-form-secondary-btn" type="button" @onclick="NavigateBack">
-                            <i class="fas fa-arrow-left me-2"></i>Back
-                        </button>
+                    <div class="bcc-page-title">
+                        Update Worker
+                    </div>
 
-                        <button class="bcc-btn bcc-btn-primary" type="submit" disabled="@isUpdating">
-                            @if (isUpdating)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                                <span>Saving...</span>
-                            }
-                            else
-                            {
-                                <i class="fas fa-save me-2"></i>
-                                <span>Save Changes</span>
-                            }
-                        </button>
+                    <div class="bcc-page-subtitle">
+                        Direct administrative update for
+                        @worker.FirstName @worker.LastName
+                        (@worker.WorkerId).
                     </div>
                 </div>
 
-                @if (!string.IsNullOrEmpty(successMessage))
-                {
-                    <div class="alert alert-success">
-                        <i class="fas fa-check-circle me-2"></i>@successMessage
-                    </div>
-                }
+                <div class="d-flex gap-2">
+                    <button type="button"
+                            class="bcc-btn profile-form-secondary-btn compact-btn"
+                            @onclick="NavigateBack">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back
+                    </button>
 
-                @if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
-                    </div>
-                }
+                    <button type="submit"
+                            class="bcc-btn bcc-btn-primary compact-btn"
+                            disabled="@isUpdating">
 
-                <div class="bcc-card profile-form-v2-hero">
-                    <div class="bcc-card-body">
-                        <div class="row align-items-center g-4">
-                            <div class="col-md-auto text-center">
-                                @if (!string.IsNullOrEmpty(workerModel.PassportPhotoPath))
-                                {
-                                    <img src="/uploads/@(workerModel.PassportPhotoThumbPath ?? workerModel.PassportPhotoPath)"
-                                         class="profile-form-v2-photo"
-                                         loading="lazy" />
-                                }
-                                else
-                                {
-                                    <div class="profile-form-v2-photo-placeholder">
-                                        <i class="fas fa-user"></i>
-                                    </div>
-                                }
-                            </div>
-
-                            <div class="col">
-                                <h3 class="profile-v2-name">@workerModel.FirstName @workerModel.LastName</h3>
-
-                                <div class="profile-v2-meta">
-                                    <span><i class="fas fa-id-badge"></i>@worker.WorkerId</span>
-                                    <span><i class="fas fa-user-tag"></i>@workerModel.Role</span>
-                                    <span><i class="fas fa-sitemap"></i>@(worker.Directorate?.Name ?? "No Directorate")</span>
-                                    <span><i class="fas fa-users"></i>@(worker.Department?.Name ?? "No Department")</span>
-                                </div>
-                            </div>
-
-                            <div class="col-md-auto">
-                                <div class="profile-v2-status-box">
-                                    <span>Status</span>
-                                    <strong class="@(workerModel.IsActive ? "text-success" : "text-secondary")">
-                                        @(workerModel.IsActive ? "Active" : "Inactive")
-                                    </strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bcc-card">
-                    <div class="profile-form-v2-tabs">
-                        <button type="button" class="@GetTabClass("personal")" @onclick='() => SetTab("personal")'>
-                            <i class="fas fa-user"></i> Personal
-                        </button>
-
-                        <button type="button" class="@GetTabClass("church")" @onclick='() => SetTab("church")'>
-                            <i class="fas fa-church"></i> Church
-                        </button>
-
-                        <button type="button" class="@GetTabClass("professional")" @onclick='() => SetTab("professional")'>
-                            <i class="fas fa-briefcase"></i> Professional
-                        </button>
-
-                        <button type="button" class="@GetTabClass("ordination")" @onclick='() => SetTab("ordination")'>
-                            <i class="fas fa-hands-praying"></i> Ordination
-                        </button>
-
-                        <button type="button" class="@GetTabClass("qualifications")" @onclick='() => SetTab("qualifications")'>
-                            <i class="fas fa-certificate"></i> Qualifications
-                        </button>
-
-                        <button type="button" class="@GetTabClass("documents")" @onclick='() => SetTab("documents")'>
-                            <i class="fas fa-camera"></i> Documents
-                        </button>
-
-                        <button type="button" class="@GetTabClass("actions")" @onclick='() => SetTab("actions")'>
-                            <i class="fas fa-bolt"></i> Actions
-                        </button>
-                    </div>
-
-                    <div class="bcc-card-body">
-
-                        @if (activeTab == "personal")
+                        @if (isUpdating)
                         {
-                            <div class="profile-form-v2-section">
-                                <h5><i class="fas fa-user"></i> Personal Information</h5>
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Saving...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-save me-2"></i>
+                            <span>Save Changes</span>
+                        }
 
-                                <div class="row g-3">
-                                    <BccFormField Label="First Name" CurrentValue="@worker.FirstName">
-                                        <InputText @bind-Value="workerModel.FirstName" class="form-control bcc-input" />
-                                        <ValidationMessage For="@(() => workerModel.FirstName)" />
-                                    </BccFormField>
+                    </button>
+                </div>
+            </div>
 
-                                    <BccFormField Label="Middle Name" CurrentValue="@(worker.MiddleName ?? "Not provided")">
-                                        <InputText @bind-Value="workerModel.MiddleName" class="form-control bcc-input" />
-                                    </BccFormField>
+            <div class="worker-update-summary mb-3">
 
-                                    <BccFormField Label="Last Name" CurrentValue="@worker.LastName">
-                                        <InputText @bind-Value="workerModel.LastName" class="form-control bcc-input" />
-                                        <ValidationMessage For="@(() => workerModel.LastName)" />
-                                    </BccFormField>
+                <div class="worker-update-person">
 
-                                    <BccFormField Label="Sex" CurrentValue="@(worker.Sex ?? "Not provided")">
-                                        <select @bind="workerModel.Sex" class="form-select bcc-input">
+                    @if (!string.IsNullOrWhiteSpace(workerModel.PassportPhotoPath))
+                    {
+                        <img src="/uploads/@(workerModel.PassportPhotoThumbPath ?? workerModel.PassportPhotoPath)"
+                             class="worker-update-photo"
+                             alt="Worker photograph"
+                             loading="lazy" />
+                    }
+                    else
+                    {
+                        <div class="worker-update-photo-placeholder">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    }
+
+                    <div>
+                        <h5>
+                            @workerModel.FirstName @workerModel.LastName
+                        </h5>
+
+                        <div class="worker-update-meta">
+                            <span>
+                                <i class="fas fa-id-badge"></i>
+                                @worker.WorkerId
+                            </span>
+
+                            <span>
+                                <i class="fas fa-user-tag"></i>
+                                @DisplayValue(workerModel.Role)
+                            </span>
+
+                            <span>
+                                <i class="fas fa-building"></i>
+                                @(worker.Directorate?.Name ?? "No Directorate")
+                            </span>
+
+                            <span>
+                                <i class="fas fa-sitemap"></i>
+                                @(worker.Department?.Name ?? "No Department")
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="worker-update-status-grid">
+
+                    <div>
+                        <span>Status</span>
+                        <strong class="@(workerModel.IsActive ? "text-success" : "text-secondary")">
+                            @(workerModel.IsActive ? "Active" : "Inactive")
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>Compliance</span>
+                        <strong>@workerModel.CompliancePercentage%</strong>
+                    </div>
+
+                    <div>
+                        <span>Role</span>
+                        <strong>@DisplayValue(workerModel.Role)</strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="admin-update-tabs mb-3">
+
+                <button type="button"
+                        class="@GetTabClass("personal-professional")"
+                        @onclick='() => SetTab("personal-professional")'>
+                    <i class="fas fa-user"></i>
+                    Personal & Professional
+                </button>
+
+                <button type="button"
+                        class="@GetTabClass("church-assignment")"
+                        @onclick='() => SetTab("church-assignment")'>
+                    <i class="fas fa-church"></i>
+                    Church & Assignment
+                </button>
+
+                <button type="button"
+                        class="@GetTabClass("qualification-documents")"
+                        @onclick='() => SetTab("qualification-documents")'>
+                    <i class="fas fa-award"></i>
+                    Qualifications & Documents
+                </button>
+
+                <button type="button"
+                        class="@GetTabClass("status-actions")"
+                        @onclick='() => SetTab("status-actions")'>
+                    <i class="fas fa-bolt"></i>
+                    Status & Actions
+                </button>
+
+            </div>
+
+            @if (activeTab == "personal-professional")
+            {
+                <div class="row g-3">
+
+                    <div class="col-12 col-xl-6">
+                        <div class="bcc-card update-section-card h-100">
+                            <div class="update-section-header">
+                                <div class="update-section-icon personal">
+                                    <i class="fas fa-user"></i>
+                                </div>
+
+                                <div>
+                                    <h6>Personal Information</h6>
+                                    <p>Identity and contact information.</p>
+                                </div>
+                            </div>
+
+                            <div class="bcc-card-body p-3">
+                                <div class="compact-form-grid">
+
+                                    @Field(
+                                        "First Name",
+                                        worker.FirstName,
+                                        @<InputText @bind-Value="workerModel.FirstName"
+                                                    class="form-control form-control-sm" />,
+                                        true)
+
+                                    @Field(
+                                        "Middle Name",
+                                        worker.MiddleName,
+                                        @<InputText @bind-Value="workerModel.MiddleName"
+                                                    class="form-control form-control-sm" />)
+
+                                    @Field(
+                                        "Last Name",
+                                        worker.LastName,
+                                        @<InputText @bind-Value="workerModel.LastName"
+                                                    class="form-control form-control-sm" />,
+                                        true)
+
+                                    @Field(
+                                        "Sex",
+                                        worker.Sex,
+                                        @<select @bind="workerModel.Sex"
+                                                 class="form-select form-select-sm">
                                             <option value="">Select</option>
                                             <option value="Male">Male</option>
                                             <option value="Female">Female</option>
                                             <option value="Other">Other</option>
-                                        </select>
-                                    </BccFormField>
+                                        </select>)
 
-                                    <BccFormField Label="Date of Birth" CurrentValue="@(worker.DateOfBirth?.ToString("dd MMM yyyy") ?? "Not provided")">
-                                        <InputDate @bind-Value="workerModel.DateOfBirth" class="form-control bcc-input" />
-                                    </BccFormField>
+                                    @Field(
+                                        "Date of Birth",
+                                        FormatDate(worker.DateOfBirth),
+                                        @<InputDate @bind-Value="workerModel.DateOfBirth"
+                                                    class="form-control form-control-sm" />)
 
-                                    <BccFormField Label="Marital Status" CurrentValue="@worker.MaritalStatus">
-                                        <select @bind="workerModel.MaritalStatus" class="form-select bcc-input">
+                                    @Field(
+                                        "Marital Status",
+                                        worker.MaritalStatus,
+                                        @<select @bind="workerModel.MaritalStatus"
+                                                 class="form-select form-select-sm">
                                             <option value="Single">Single</option>
                                             <option value="Married">Married</option>
                                             <option value="Divorced">Divorced</option>
                                             <option value="Widowed">Widowed</option>
-                                        </select>
-                                    </BccFormField>
+                                        </select>)
 
-                                    <BccFormField Label="Wedding Anniversary" CurrentValue="@(worker.WeddingAnniversary?.ToString("dd MMM yyyy") ?? "Not applicable")">
-                                        <InputDate @bind-Value="workerModel.WeddingAnniversary"
-                                                   class="form-control bcc-input"
-                                                   disabled="@(workerModel.MaritalStatus == "Single")" />
-                                    </BccFormField>
+                                    @Field(
+                                        "Wedding Anniversary",
+                                        FormatDate(worker.WeddingAnniversary),
+                                        @<InputDate @bind-Value="workerModel.WeddingAnniversary"
+                                                    class="form-control form-control-sm"
+                                                    disabled="@(workerModel.MaritalStatus == "Single")" />)
 
-                                    <BccFormField Label="Email" CurrentValue="@(worker.Email ?? "Not provided")">
-                                        <InputText @bind-Value="workerModel.Email" class="form-control bcc-input" />
-                                        <ValidationMessage For="@(() => workerModel.Email)" />
-                                    </BccFormField>
+                                    @Field(
+                                        "Email",
+                                        worker.Email,
+                                        @<InputText @bind-Value="workerModel.Email"
+                                                    class="form-control form-control-sm" />)
 
-                                    <BccFormField Label="Phone" CurrentValue="@(worker.Phone ?? "Not provided")">
-                                        <InputText @bind-Value="workerModel.Phone" class="form-control bcc-input" />
-                                    </BccFormField>
+                                    @Field(
+                                        "Phone",
+                                        worker.Phone,
+                                        @<InputText @bind-Value="workerModel.Phone"
+                                                    class="form-control form-control-sm" />)
 
-                                    <BccFormField Label="Address" CurrentValue="@(worker.Address ?? "Not provided")">
-                                        <InputTextArea @bind-Value="workerModel.Address" class="form-control bcc-input" rows="3" />
-                                    </BccFormField>
+                                    @Field(
+                                        "Address",
+                                        worker.Address,
+                                        @<InputTextArea @bind-Value="workerModel.Address"
+                                                        class="form-control form-control-sm"
+                                                        rows="2" />,
+                                        false,
+                                        true)
+
                                 </div>
                             </div>
-                        }
+                        </div>
+                    </div>
 
-                        @if (activeTab == "church")
-                        {
-                            <div class="profile-form-v2-section">
-                                <h5><i class="fas fa-church"></i> Church Information</h5>
+                    <div class="col-12 col-xl-6">
+                        <div class="bcc-card update-section-card h-100">
+                            <div class="update-section-header">
+                                <div class="update-section-icon professional">
+                                    <i class="fas fa-briefcase"></i>
+                                </div>
 
-                                <div class="row g-3">
-                                    <BccFormField Label="Primary Directorate" CurrentValue="@(worker.Directorate?.Name ?? "Not assigned")">
-                                        <select @bind="workerModel.DirectorateId"
-                                                @bind:after="OnDirectorateChanged"
-                                                class="form-select bcc-input">
+                                <div>
+                                    <h6>Professional & Previous Church</h6>
+                                    <p>Employment and prior ministry experience.</p>
+                                </div>
+                            </div>
+
+                            <div class="bcc-card-body p-3">
+                                <div class="compact-form-grid">
+
+                                    @Field(
+                                        "Profession",
+                                        worker.Profession,
+                                        @<InputText @bind-Value="workerModel.Profession"
+                                                    class="form-control form-control-sm" />)
+
+                                    @Field(
+                                        "Organisation",
+                                        worker.Organization,
+                                        @<InputText @bind-Value="workerModel.Organization"
+                                                    class="form-control form-control-sm" />)
+
+                                    @Field(
+                                        "Previous Church",
+                                        worker.PreviousChurch,
+                                        @<InputText @bind-Value="workerModel.PreviousChurch"
+                                                    class="form-control form-control-sm" />)
+
+                                    @Field(
+                                        "Previous Role",
+                                        worker.PreviousChurchRole,
+                                        @<InputText @bind-Value="workerModel.PreviousChurchRole"
+                                                    class="form-control form-control-sm" />)
+
+                                    @Field(
+                                        "Previous Unit/Department",
+                                        worker.PreviousChurchUnit,
+                                        @<InputText @bind-Value="workerModel.PreviousChurchUnit"
+                                                    class="form-control form-control-sm" />,
+                                        false,
+                                        true)
+
+                                </div>
+
+                                <div class="tab-footer">
+                                    <span>
+                                        Continue to church assignment.
+                                    </span>
+
+                                    <button type="button"
+                                            class="bcc-btn bcc-btn-primary compact-btn"
+                                            @onclick='() => SetTab("church-assignment")'>
+                                        Next
+                                        <i class="fas fa-arrow-right ms-2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            }
+
+            @if (activeTab == "church-assignment")
+            {
+                <div class="row g-3">
+
+                    <div class="col-12 col-xl-7">
+                        <div class="bcc-card update-section-card h-100">
+                            <div class="update-section-header">
+                                <div class="update-section-icon church">
+                                    <i class="fas fa-sitemap"></i>
+                                </div>
+
+                                <div>
+                                    <h6>Current Assignment</h6>
+                                    <p>Primary, secondary and supervisory assignment.</p>
+                                </div>
+                            </div>
+
+                            <div class="bcc-card-body p-3">
+                                <div class="compact-form-grid">
+
+                                    @Field(
+                                        "Primary Directorate",
+                                        worker.Directorate?.Name,
+                                        @<select @bind="workerModel.DirectorateId"
+                                                 @bind:after="OnDirectorateChanged"
+                                                 class="form-select form-select-sm">
                                             <option value="">Select</option>
+
                                             @foreach (var directorate in directorates)
                                             {
-                                                <option value="@directorate.Id">@directorate.Name</option>
+                                                <option value="@directorate.Id">
+                                                    @directorate.Name
+                                                </option>
                                             }
-                                        </select>
-                                    </BccFormField>
+                                        </select>)
 
-                                    <BccFormField Label="Primary Department" CurrentValue="@(worker.Department?.Name ?? "Not assigned")">
-                                        <select @bind="workerModel.DepartmentId"
-                                                @bind:after="OnDepartmentChanged"
-                                                class="form-select bcc-input"
-                                                disabled="@(filteredDepartments.Count == 0 || IsDirectorateLeadershipRole())">
+                                    @Field(
+                                        "Primary Department",
+                                        worker.Department?.Name,
+                                        @<select @bind="workerModel.DepartmentId"
+                                                 @bind:after="OnDepartmentChanged"
+                                                 class="form-select form-select-sm"
+                                                 disabled="@(filteredDepartments.Count == 0 || IsDirectorateLeadershipRole())">
                                             <option value="">Select</option>
+
                                             @foreach (var department in filteredDepartments)
                                             {
-                                                <option value="@department.Id">@department.Name</option>
+                                                <option value="@department.Id">
+                                                    @department.Name
+                                                </option>
                                             }
-                                        </select>
-                                    </BccFormField>
+                                        </select>)
 
-                                    <BccFormField Label="Unit" CurrentValue="@(worker.Unit?.Name ?? "Not assigned")">
-                                        <select @bind="workerModel.UnitId"
-                                                class="form-select bcc-input"
-                                                disabled="@(filteredUnits.Count == 0)">
+                                    @Field(
+                                        "Unit",
+                                        worker.Unit?.Name,
+                                        @<select @bind="workerModel.UnitId"
+                                                 class="form-select form-select-sm"
+                                                 disabled="@(filteredUnits.Count == 0)">
                                             <option value="">Select</option>
+
                                             @foreach (var unit in filteredUnits)
                                             {
-                                                <option value="@unit.Id">@unit.Name</option>
+                                                <option value="@unit.Id">
+                                                    @unit.Name
+                                                </option>
                                             }
-                                        </select>
-                                    </BccFormField>
+                                        </select>)
 
-                                    <BccFormField Label="Secondary Directorate" CurrentValue="@(worker.SecondaryDirectorate?.Name ?? "None")">
-                                        <select @bind="workerModel.SecondaryDirectorateId"
-                                                @bind:after="OnSecondaryDirectorateChanged"
-                                                class="form-select bcc-input">
+                                    @Field(
+                                        "Secondary Directorate",
+                                        worker.SecondaryDirectorate?.Name,
+                                        @<select @bind="workerModel.SecondaryDirectorateId"
+                                                 @bind:after="OnSecondaryDirectorateChanged"
+                                                 class="form-select form-select-sm">
                                             <option value="">None</option>
+
                                             @foreach (var directorate in directorates)
                                             {
-                                                <option value="@directorate.Id">@directorate.Name</option>
+                                                <option value="@directorate.Id">
+                                                    @directorate.Name
+                                                </option>
                                             }
-                                        </select>
-                                    </BccFormField>
+                                        </select>)
 
-                                    <BccFormField Label="Secondary Department" CurrentValue="@(worker.SecondaryDepartment?.Name ?? "None")">
-                                        <select @bind="workerModel.SecondaryDepartmentId"
-                                                class="form-select bcc-input"
-                                                disabled="@(filteredSecondaryDepartments.Count == 0)">
+                                    @Field(
+                                        "Secondary Department",
+                                        worker.SecondaryDepartment?.Name,
+                                        @<select @bind="workerModel.SecondaryDepartmentId"
+                                                 class="form-select form-select-sm"
+                                                 disabled="@(filteredSecondaryDepartments.Count == 0)">
                                             <option value="">None</option>
+
                                             @foreach (var department in filteredSecondaryDepartments)
                                             {
-                                                <option value="@department.Id">@department.Name</option>
+                                                <option value="@department.Id">
+                                                    @department.Name
+                                                </option>
                                             }
-                                        </select>
-                                    </BccFormField>
+                                        </select>)
 
-                                    <BccFormField Label="Role" CurrentValue="@worker.Role">
-                                        <select @bind="workerModel.Role"
-                                                @bind:after="OnRoleChanged"
-                                                class="form-select bcc-input">
+                                    @Field(
+                                        "Role",
+                                        worker.Role,
+                                        @<select @bind="workerModel.Role"
+                                                 @bind:after="OnRoleChanged"
+                                                 class="form-select form-select-sm">
                                             <option value="">Select Role</option>
+
                                             @foreach (var role in rolesFromDb)
                                             {
-                                                <option value="@role.Name">@role.Name</option>
+                                                <option value="@role.Name">
+                                                    @role.Name
+                                                </option>
                                             }
-                                        </select>
-                                        <ValidationMessage For="@(() => workerModel.Role)" />
-                                    </BccFormField>
+                                        </select>,
+                                        true)
 
-                                    <BccFormField Label="Supervisor" CurrentValue="@(worker.Supervisor != null ? $"{worker.Supervisor.FirstName} {worker.Supervisor.LastName}" : "Not assigned")">
-                                        <select @bind="workerModel.SupervisorId" class="form-select bcc-input">
+                                    @Field(
+                                        "Supervisor",
+                                        GetSupervisorName(worker),
+                                        @<select @bind="workerModel.SupervisorId"
+                                                 class="form-select form-select-sm">
                                             <option value="">Select Supervisor</option>
-                                            @foreach (var w in workers.Where(w =>
-                                                                            w.Id != WorkerId &&
-                                                                            w.DirectorateId == workerModel.DirectorateId &&
-                                                                            (
-                                                                            w.Role == "Head of Directorate" ||
-                                                                            w.Role == "Asst Head of Directorate" ||
-                                                                            w.Role == "Head of Department"
-                                                                            ) &&
-                                                                            w.IsActive))
+
+                                            @foreach (var candidate in GetSupervisorCandidates())
                                             {
-                                                <option value="@w.Id">@w.FirstName @w.LastName - @w.Role</option>
+                                                <option value="@candidate.Id">
+                                                    @candidate.FirstName
+                                                    @candidate.LastName
+                                                    - @candidate.Role
+                                                </option>
                                             }
-                                        </select>
-                                    </BccFormField>
+                                        </select>)
 
-                                    <BccFormField Label="Date Joined Church" CurrentValue="@(worker.DateJoinedChurch?.ToString("dd MMM yyyy") ?? "Not provided")">
-                                        <InputDate @bind-Value="workerModel.DateJoinedChurch" class="form-control bcc-input" />
-                                    </BccFormField>
+                                    @Field(
+                                        "Date Joined Church",
+                                        FormatDate(worker.DateJoinedChurch),
+                                        @<InputDate @bind-Value="workerModel.DateJoinedChurch"
+                                                    class="form-control form-control-sm" />)
 
-                                    <BccFormField Label="Worker Status" CurrentValue="@worker.WorkerStatus">
-                                        <select @bind="workerModel.WorkerStatus" class="form-select bcc-input">
+                                    @Field(
+                                        "Worker Status",
+                                        worker.WorkerStatus,
+                                        @<select @bind="workerModel.WorkerStatus"
+                                                 class="form-select form-select-sm">
                                             <option value="Temp Worker">Temp Worker</option>
                                             <option value="Full Worker">Full Worker</option>
                                             <option value="On Leave">On Leave</option>
                                             <option value="Inactive">Inactive</option>
-                                        </select>
-                                    </BccFormField>
+                                        </select>)
+
                                 </div>
                             </div>
-                        }
+                        </div>
+                    </div>
 
-                        @if (activeTab == "professional")
-                        {
-                            <div class="profile-form-v2-section">
-                                <h5><i class="fas fa-briefcase"></i> Professional & Previous Church</h5>
+                    <div class="col-12 col-xl-5">
+                        <div class="bcc-card update-section-card h-100">
+                            <div class="update-section-header">
+                                <div class="update-section-icon ordination">
+                                    <i class="fas fa-hands-praying"></i>
+                                </div>
 
-                                <div class="row g-3">
-                                    <BccFormField Label="Profession" CurrentValue="@(worker.Profession ?? "Not provided")">
-                                        <InputText @bind-Value="workerModel.Profession" class="form-control bcc-input" />
-                                    </BccFormField>
-
-                                    <BccFormField Label="Organization" CurrentValue="@(worker.Organization ?? "Not provided")">
-                                        <InputText @bind-Value="workerModel.Organization" class="form-control bcc-input" />
-                                    </BccFormField>
-
-                                    <BccFormField Label="Previous Church" CurrentValue="@(worker.PreviousChurch ?? "Not provided")">
-                                        <InputText @bind-Value="workerModel.PreviousChurch" class="form-control bcc-input" />
-                                    </BccFormField>
-
-                                    <BccFormField Label="Previous Role" CurrentValue="@(worker.PreviousChurchRole ?? "Not provided")">
-                                        <InputText @bind-Value="workerModel.PreviousChurchRole" class="form-control bcc-input" />
-                                    </BccFormField>
-
-                                    <BccFormField Label="Previous Unit/Department" CurrentValue="@(worker.PreviousChurchUnit ?? "Not provided")">
-                                        <InputText @bind-Value="workerModel.PreviousChurchUnit" class="form-control bcc-input" />
-                                    </BccFormField>
+                                <div>
+                                    <h6>Ordination Information</h6>
+                                    <p>Ordination level and latest date.</p>
                                 </div>
                             </div>
-                        }
 
-                        @if (activeTab == "ordination")
-                        {
-                            <div class="profile-form-v2-section">
-                                <h5><i class="fas fa-hands-praying"></i> Ordination Information</h5>
+                            <div class="bcc-card-body p-3">
+                                <div class="compact-form-grid one-column">
 
-                                <div class="row g-3">
-                                    <BccFormField Label="Ordination Level" CurrentValue="@(worker.OrdinationLevel ?? "Not Ordained")">
-                                        <select @bind="workerModel.OrdinationLevel" class="form-select bcc-input">
+                                    @Field(
+                                        "Ordination Level",
+                                        worker.OrdinationLevel,
+                                        @<select @bind="workerModel.OrdinationLevel"
+                                                 class="form-select form-select-sm">
                                             <option value="Not Ordained">Not Ordained</option>
                                             <option value="Deacon">Deacon</option>
                                             <option value="Deaconess">Deaconess</option>
                                             <option value="Asst Pastor">Asst Pastor</option>
                                             <option value="Pastor">Pastor</option>
-                                        </select>
-                                    </BccFormField>
+                                        </select>)
 
-                                    <BccFormField Label="Last Ordination Date" CurrentValue="@(worker.LastOrdinationDate?.ToString("dd MMM yyyy") ?? "Not applicable")">
-                                        <InputDate @bind-Value="workerModel.LastOrdinationDate" class="form-control bcc-input" />
-                                    </BccFormField>
+                                    @Field(
+                                        "Last Ordination Date",
+                                        FormatDate(worker.LastOrdinationDate),
+                                        @<InputDate @bind-Value="workerModel.LastOrdinationDate"
+                                                    class="form-control form-control-sm" />)
+
+                                </div>
+
+                                <div class="assignment-note">
+                                    <i class="fas fa-info-circle"></i>
+
+                                    <span>
+                                        Department is automatically cleared for Head of Directorate
+                                        and Assistant Head of Directorate roles.
+                                    </span>
+                                </div>
+
+                                <div class="tab-footer">
+                                    <button type="button"
+                                            class="bcc-btn profile-form-secondary-btn compact-btn"
+                                            @onclick='() => SetTab("personal-professional")'>
+                                        <i class="fas fa-arrow-left me-2"></i>
+                                        Previous
+                                    </button>
+
+                                    <button type="button"
+                                            class="bcc-btn bcc-btn-primary compact-btn"
+                                            @onclick='() => SetTab("qualification-documents")'>
+                                        Next
+                                        <i class="fas fa-arrow-right ms-2"></i>
+                                    </button>
                                 </div>
                             </div>
-                        }
+                        </div>
+                    </div>
 
-                        @if (activeTab == "qualifications")
-                        {
-                            <div class="profile-form-v2-section">
-                                <h5><i class="fas fa-certificate"></i> Qualifications</h5>
+                </div>
+            }
 
-                                <div class="row g-3">
+            @if (activeTab == "qualification-documents")
+            {
+                <div class="row g-3">
 
-                                    <div class="col-md-6">
-                                        <div class="profile-form-qualification-card">
-                                            <div class="form-check mb-3">
-                                                <InputCheckbox @bind-Value="workerModel.HasBelieverBaptism" class="form-check-input" />
-                                                <label class="form-check-label fw-bold">Believer's Baptism</label>
-                                            </div>
+                    <div class="col-12 col-xl-7">
+                        <div class="bcc-card update-section-card h-100">
+                            <div class="update-section-header">
+                                <div class="update-section-icon qualification">
+                                    <i class="fas fa-certificate"></i>
+                                </div>
 
-                                            <InputFile OnChange="@(e => OnCertificateChanged(e, "believerBaptism"))"
-                                                       class="form-control bcc-input"
-                                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                                       disabled="@(!workerModel.HasBelieverBaptism)" />
+                                <div>
+                                    <h6>Qualifications & Certificates</h6>
+                                    <p>Select completed programmes and upload certificates.</p>
+                                </div>
+                            </div>
 
-                                            @if (!string.IsNullOrEmpty(believerBaptismPath))
-                                            {
-                                                <a href="@GetUploadUrl(believerBaptismPath)" target="_blank" class="profile-form-file-link mt-2">
-                                                    View Current Certificate
-                                                </a>
-                                            }
-                                        </div>
-                                    </div>
+                            <div class="bcc-card-body p-3">
+                                <div class="qualification-update-grid">
 
-                                    <div class="col-md-6">
-                                        <div class="profile-form-qualification-card">
-                                            <div class="form-check mb-3">
-                                                <InputCheckbox @bind-Value="workerModel.HasWorkerInTraining" class="form-check-input" />
-                                                <label class="form-check-label fw-bold">Worker in Training</label>
-                                            </div>
+                                    @QualificationUpload(
+                                        "Believer's Baptism",
+                                        workerModel.HasBelieverBaptism,
+                                        "HasBelieverBaptism",
+                                        believerBaptismPath,
+                                        "believerBaptism")
 
-                                            <InputFile OnChange="@(e => OnCertificateChanged(e, "workerInTraining"))"
-                                                       class="form-control bcc-input"
-                                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                                       disabled="@(!workerModel.HasWorkerInTraining)" />
+                                    @QualificationUpload(
+                                        "Worker in Training",
+                                        workerModel.HasWorkerInTraining,
+                                        "HasWorkerInTraining",
+                                        workerInTrainingPath,
+                                        "workerInTraining")
 
-                                            @if (!string.IsNullOrEmpty(workerInTrainingPath))
-                                            {
-                                                <a href="@GetUploadUrl(workerInTrainingPath)" target="_blank" class="profile-form-file-link mt-2">
-                                                    View Current Certificate
-                                                </a>
-                                            }
-                                        </div>
-                                    </div>
+                                    @QualificationUpload(
+                                        "School of Discipleship",
+                                        workerModel.HasSOD,
+                                        "HasSOD",
+                                        sodPath,
+                                        "sod")
 
-                                    <div class="col-md-6">
-                                        <div class="profile-form-qualification-card">
-                                            <div class="form-check mb-3">
-                                                <InputCheckbox @bind-Value="workerModel.HasSOD" class="form-check-input" />
-                                                <label class="form-check-label fw-bold">School of Discipleship</label>
-                                            </div>
-
-                                            <InputFile OnChange="@(e => OnCertificateChanged(e, "sod"))"
-                                                       class="form-control bcc-input"
-                                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                                       disabled="@(!workerModel.HasSOD)" />
-
-                                            @if (!string.IsNullOrEmpty(sodPath))
-                                            {
-                                                <a href="@GetUploadUrl(sodPath)" target="_blank" class="profile-form-file-link mt-2">
-                                                    View Current Certificate
-                                                </a>
-                                            }
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <div class="profile-form-qualification-card">
-                                            <div class="form-check mb-3">
-                                                <InputCheckbox @bind-Value="workerModel.HasBibleCollege" class="form-check-input" />
-                                                <label class="form-check-label fw-bold">Bible College</label>
-                                            </div>
-
-                                            <InputFile OnChange="@(e => OnCertificateChanged(e, "bibleCollege"))"
-                                                       class="form-control bcc-input"
-                                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                                       disabled="@(!workerModel.HasBibleCollege)" />
-
-                                            @if (!string.IsNullOrEmpty(bibleCollegePath))
-                                            {
-                                                <a href="@GetUploadUrl(bibleCollegePath)" target="_blank" class="profile-form-file-link mt-2">
-                                                    View Current Certificate
-                                                </a>
-                                            }
-                                        </div>
-                                    </div>
+                                    @QualificationUpload(
+                                        "Bible College",
+                                        workerModel.HasBibleCollege,
+                                        "HasBibleCollege",
+                                        bibleCollegePath,
+                                        "bibleCollege")
 
                                 </div>
                             </div>
-                        }
+                        </div>
+                    </div>
 
-                        @if (activeTab == "documents")
-                        {
-                            <div class="profile-form-v2-section">
-                                <h5><i class="fas fa-camera"></i> Passport Photo</h5>
+                    <div class="col-12 col-xl-5">
+                        <div class="bcc-card update-section-card h-100">
+                            <div class="update-section-header">
+                                <div class="update-section-icon document">
+                                    <i class="fas fa-camera"></i>
+                                </div>
 
-                                <div class="row g-4 align-items-center">
-                                    <div class="col-md-4 text-center">
-                                        @if (!string.IsNullOrEmpty(workerModel.PassportPhotoPath))
-                                        {
-                                            <img src="/uploads/@(workerModel.PassportPhotoThumbPath ?? workerModel.PassportPhotoPath)"
-                                                 class="profile-form-v2-preview" />
-                                        }
-                                        else
-                                        {
-                                            <div class="profile-form-v2-photo-placeholder">
-                                                <i class="fas fa-user"></i>
-                                            </div>
-                                        }
-                                    </div>
+                                <div>
+                                    <h6>Passport Photo</h6>
+                                    <p>Upload or replace the worker photograph.</p>
+                                </div>
+                            </div>
 
-                                    <div class="col-md-8">
-                                        <label class="profile-form-label">Upload Passport Photo</label>
+                            <div class="bcc-card-body p-3">
+                                <div class="passport-upload-panel">
+
+                                    @if (!string.IsNullOrWhiteSpace(workerModel.PassportPhotoPath))
+                                    {
+                                        <img src="/uploads/@(workerModel.PassportPhotoThumbPath ?? workerModel.PassportPhotoPath)"
+                                             class="passport-preview"
+                                             alt="Passport photograph" />
+                                    }
+                                    else
+                                    {
+                                        <div class="passport-preview-placeholder">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                    }
+
+                                    <div class="passport-upload-content">
+                                        <label class="form-label compact-label">
+                                            Upload Passport Photo
+                                        </label>
+
                                         <InputFile OnChange="@OnPassportPhotoChanged"
-                                                   class="form-control bcc-input"
-                                                   accept=".jpg,.jpeg,.png,.gif" />
-                                        <small class="profile-form-current">Max 2MB, JPG/PNG/GIF</small>
+                                                   class="form-control form-control-sm"
+                                                   accept=".jpg,.jpeg,.png" />
+
+                                        <small>
+                                            JPG or PNG. Maximum 5MB.
+                                        </small>
 
                                         @if (isUploading)
                                         {
-                                            <div class="mt-3">
-                                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                            <div class="uploading-line">
+                                                <span class="spinner-border spinner-border-sm"></span>
                                                 Uploading...
                                             </div>
                                         }
                                     </div>
-                                </div>
-                            </div>
-                        }
 
-                        @if (activeTab == "actions")
-                        {
-                            <div class="profile-form-v2-section">
-                                <h5><i class="fas fa-bolt"></i> Status & Quick Actions</h5>
-
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <div class="profile-review-card">
-                                            <h6>Status</h6>
-
-                                            <div class="form-check form-switch mb-3">
-                                                <InputCheckbox @bind-Value="workerModel.IsActive" class="form-check-input" />
-                                                <label class="form-check-label">Worker is active</label>
-                                            </div>
-
-                                            <label class="profile-form-label">Compliance Percentage</label>
-                                            <div class="progress" style="height: 22px;">
-                                                <div class="progress-bar bg-success"
-                                                     style="width:@workerModel.CompliancePercentage%;">
-                                                    @workerModel.CompliancePercentage%
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <div class="profile-review-card">
-                                            <h6>Quick Actions</h6>
-
-                                            <div class="d-grid gap-2">
-                                                <button class="team-action-btn" type="button" @onclick="NavigateToDetails">
-                                                    <i class="fas fa-eye me-1"></i>View Details
-                                                </button>
-
-                                                <button class="team-action-btn" type="button" @onclick="NavigateToResetPassword">
-                                                    <i class="fas fa-key me-1"></i>Reset Password
-                                                </button>
-
-                                                <button class="team-danger-btn" type="button" @onclick="NavigateToDeactivate" disabled="@(!workerModel.IsActive)">
-                                                    <i class="fas fa-user-slash me-1"></i>Deactivate Worker
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
 
-                                <div class="profile-form-v2-actions mt-4">
-                                    <button class="bcc-btn profile-form-secondary-btn" type="button" @onclick="NavigateBack">
-                                        Back
+                                <div class="tab-footer">
+                                    <button type="button"
+                                            class="bcc-btn profile-form-secondary-btn compact-btn"
+                                            @onclick='() => SetTab("church-assignment")'>
+                                        <i class="fas fa-arrow-left me-2"></i>
+                                        Previous
                                     </button>
 
-                                    <button class="bcc-btn bcc-btn-primary" type="submit" disabled="@isUpdating">
+                                    <button type="button"
+                                            class="bcc-btn bcc-btn-primary compact-btn"
+                                            @onclick='() => SetTab("status-actions")'>
+                                        Next
+                                        <i class="fas fa-arrow-right ms-2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            }
+
+            @if (activeTab == "status-actions")
+            {
+                <div class="row g-3">
+
+                    <div class="col-12 col-xl-6">
+                        <div class="bcc-card update-section-card h-100">
+                            <div class="update-section-header">
+                                <div class="update-section-icon status">
+                                    <i class="fas fa-user-check"></i>
+                                </div>
+
+                                <div>
+                                    <h6>Status & Compliance</h6>
+                                    <p>Worker account state and calculated completeness.</p>
+                                </div>
+                            </div>
+
+                            <div class="bcc-card-body p-3">
+
+                                <div class="status-control-card">
+
+                                    <div>
+                                        <span>Worker Status</span>
+
+                                        <strong class="@(workerModel.IsActive ? "text-success" : "text-danger")">
+                                            @(workerModel.IsActive ? "Active" : "Inactive")
+                                        </strong>
+                                    </div>
+
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox @bind-Value="workerModel.IsActive"
+                                                       class="form-check-input" />
+
+                                        <label class="form-check-label">
+                                            Active
+                                        </label>
+                                    </div>
+
+                                </div>
+
+                                @{
+                                    var recalculatedCompliance =
+                                        CalculateCompliance(workerModel);
+                                }
+
+                                <div class="compliance-panel">
+                                    <div class="compliance-top">
+                                        <span>Calculated Compliance</span>
+                                        <strong>@recalculatedCompliance%</strong>
+                                    </div>
+
+                                    <div class="progress">
+                                        <div class="progress-bar @GetComplianceClass(recalculatedCompliance)"
+                                             style="width:@recalculatedCompliance%">
+                                        </div>
+                                    </div>
+
+                                    <small>
+                                        The saved compliance percentage will be recalculated when changes are saved.
+                                    </small>
+                                </div>
+
+                                <ValidationSummary class="compact-validation-summary" />
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-xl-6">
+                        <div class="bcc-card update-section-card h-100">
+                            <div class="update-section-header">
+                                <div class="update-section-icon action">
+                                    <i class="fas fa-bolt"></i>
+                                </div>
+
+                                <div>
+                                    <h6>Quick Actions</h6>
+                                    <p>Additional worker administration options.</p>
+                                </div>
+                            </div>
+
+                            <div class="bcc-card-body p-3">
+                                <div class="admin-action-grid">
+
+                                    <button type="button"
+                                            @onclick="NavigateToDetails">
+                                        <i class="fas fa-eye"></i>
+                                        <span>View Details</span>
+                                    </button>
+
+                                    <button type="button"
+                                            @onclick="NavigateToResetPassword">
+                                        <i class="fas fa-key"></i>
+                                        <span>Reset Password</span>
+                                    </button>
+
+                                    <button type="button"
+                                            class="danger"
+                                            disabled="@(!workerModel.IsActive)"
+                                            @onclick="NavigateToDeactivate">
+                                        <i class="fas fa-user-slash"></i>
+                                        <span>Deactivate Worker</span>
+                                    </button>
+
+                                </div>
+
+                                <div class="final-submit-panel">
+                                    <div>
+                                        <strong>Ready to Save?</strong>
+
+                                        <span>
+                                            Review all tabs before applying the administrative update.
+                                        </span>
+                                    </div>
+
+                                    <button type="submit"
+                                            class="bcc-btn bcc-btn-primary compact-btn"
+                                            disabled="@isUpdating">
+
                                         @if (isUpdating)
                                         {
                                             <span class="spinner-border spinner-border-sm me-2"></span>
@@ -580,38 +896,41 @@
                                             <i class="fas fa-save me-2"></i>
                                             <span>Save Changes</span>
                                         }
+
                                     </button>
                                 </div>
-                            </div>
-                        }
 
+                                <div class="tab-footer">
+                                    <button type="button"
+                                            class="bcc-btn profile-form-secondary-btn compact-btn"
+                                            @onclick='() => SetTab("qualification-documents")'>
+                                        <i class="fas fa-arrow-left me-2"></i>
+                                        Previous
+                                    </button>
+
+                                    <button type="button"
+                                            class="bcc-btn profile-form-secondary-btn compact-btn"
+                                            @onclick="NavigateBack">
+                                        Cancel
+                                    </button>
+                                </div>
+
+                            </div>
+                        </div>
                     </div>
+
                 </div>
-            </div>
-        </EditForm>
-    }
-    else
-    {
-        <div class="bcc-empty">
-            <i class="fas fa-user-slash"></i>
-            <h4>Worker Not Found</h4>
-            <p>The worker record could not be found.</p>
+            }
+
         </div>
-    }
-}
-else
-{
-    <div class="bcc-empty">
-        <i class="fas fa-lock"></i>
-        <h4>Access Denied</h4>
-        <p>You do not have permission to access this page.</p>
-    </div>
+    </EditForm>
 }
 
 @code {
-    [Parameter] public int WorkerId { get; set; }
+    [Parameter]
+    public int WorkerId { get; set; }
 
-    private Worker? worker = null;
+    private Worker? worker;
     private WorkerUpdateModel workerModel = new();
 
     private List<Directorate> directorates = new();
@@ -623,115 +942,279 @@ else
     private List<Worker> workers = new();
     private List<Role> rolesFromDb = new();
 
-    private bool isUpdating = false;
-    private bool isUploading = false;
+    private bool isUpdating;
+    private bool isUploading;
     private bool isLoading = true;
 
     private string successMessage = string.Empty;
     private string errorMessage = string.Empty;
-    private string activeTab = "personal";
+    private string activeTab = "personal-professional";
 
     private string believerBaptismPath = string.Empty;
     private string workerInTrainingPath = string.Empty;
     private string sodPath = string.Empty;
     private string bibleCollegePath = string.Empty;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
     {
         try
         {
-            if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
-            {
-                await LoadData();
+            isLoading = true;
+            errorMessage = string.Empty;
 
-                if (WorkerId > 0)
-                {
-                    await LoadWorkerData(WorkerId);
-                }
+            if (!AuthService.IsAuthenticated ||
+                !AuthService.CanAccessAdminPanel())
+            {
+                return;
             }
+
+            await LoadData();
+            await LoadWorkerData(WorkerId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load worker update form: {ex.Message}";
         }
         finally
         {
             isLoading = false;
-            StateHasChanged();
         }
     }
 
-    private void SetTab(string tab) => activeTab = tab;
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
 
     private string GetTabClass(string tab)
     {
-        return activeTab == tab ? "profile-form-tab active" : "profile-form-tab";
+        return activeTab == tab
+            ? "admin-update-tab active"
+            : "admin-update-tab";
     }
+
+    private RenderFragment Field(
+        string label,
+        string? currentValue,
+        RenderFragment control,
+        bool required = false,
+        bool fullWidth = false) => @<div class="compact-field @(fullWidth ? "full-width" : "")">
+
+            <div class="compact-field-top">
+                <label>
+                    @label
+
+                    @if (required)
+                    {
+                        <span class="text-danger">*</span>
+                    }
+                </label>
+
+                <small>
+                    Current:
+                    <strong>@DisplayValue(currentValue)</strong>
+                </small>
+            </div>
+
+            @control
+
+        </div>;
+
+    private RenderFragment QualificationUpload(
+        string title,
+        bool isChecked,
+        string propertyName,
+        string certificatePath,
+        string certificateType) => @<div class="qualification-update-card">
+
+            <div class="qualification-check-line">
+
+                @if (propertyName == "HasBelieverBaptism")
+                {
+                    <InputCheckbox @bind-Value="workerModel.HasBelieverBaptism"
+                                   class="form-check-input" />
+                }
+                else if (propertyName == "HasWorkerInTraining")
+                {
+                    <InputCheckbox @bind-Value="workerModel.HasWorkerInTraining"
+                                   class="form-check-input" />
+                }
+                else if (propertyName == "HasSOD")
+                {
+                    <InputCheckbox @bind-Value="workerModel.HasSOD"
+                                   class="form-check-input" />
+                }
+                else if (propertyName == "HasBibleCollege")
+                {
+                    <InputCheckbox @bind-Value="workerModel.HasBibleCollege"
+                                   class="form-check-input" />
+                }
+
+                <strong>@title</strong>
+            </div>
+
+            @if (isChecked)
+            {
+                <InputFile OnChange="@(e => OnCertificateChanged(e, certificateType))"
+                           class="form-control form-control-sm"
+                           accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+
+                <small>
+                    Maximum 5MB. PDF, JPG, PNG, DOC or DOCX.
+                </small>
+
+                @if (!string.IsNullOrWhiteSpace(certificatePath))
+                {
+                    <a href="@GetUploadUrl(certificatePath)"
+                       target="_blank"
+                       class="certificate-current-link">
+                        <i class="fas fa-file-alt me-1"></i>
+                        View Current Certificate
+                    </a>
+                }
+            }
+            else
+            {
+                <span class="qualification-disabled-text">
+                    Mark as completed to upload a certificate.
+                </span>
+            }
+
+        </div>;
 
     private async Task LoadData()
     {
-        workers = await WorkerService.GetAllWorkersAsync();
-        directorates = await WorkerService.GetDirectoratesAsync();
-        departments = await WorkerService.GetDepartmentsAsync();
-        units = await WorkerService.GetUnitsAsync();
-        rolesFromDb = await RoleService.GetRolesAsync();
+        workers =
+            await WorkerService
+                .GetAllWorkersAsync();
+
+        directorates =
+            await WorkerService
+                .GetDirectoratesAsync();
+
+        departments =
+            await WorkerService
+                .GetDepartmentsAsync();
+
+        units =
+            await WorkerService
+                .GetUnitsAsync();
+
+        rolesFromDb =
+            await RoleService
+                .GetRolesAsync();
     }
 
-    private async Task LoadWorkerData(int workerId)
+    private async Task LoadWorkerData(
+        int workerId)
     {
-        worker = await WorkerService.GetWorkerByIdAsync(workerId);
+        worker =
+            await WorkerService
+                .GetWorkerByIdAsync(workerId);
 
         if (worker == null)
             return;
 
-        workerModel = new WorkerUpdateModel
-        {
-            FirstName = worker.FirstName,
-            MiddleName = worker.MiddleName,
-            LastName = worker.LastName,
-            Sex = worker.Sex,
-            Email = worker.Email,
-            Phone = worker.Phone,
-            DateOfBirth = worker.DateOfBirth,
-            MaritalStatus = worker.MaritalStatus,
-            WeddingAnniversary = worker.WeddingAnniversary,
-            Address = worker.Address,
-            Profession = worker.Profession,
-            Organization = worker.Organization,
-            PreviousChurch = worker.PreviousChurch ?? string.Empty,
-            PreviousChurchRole = worker.PreviousChurchRole ?? string.Empty,
-            PreviousChurchUnit = worker.PreviousChurchUnit ?? string.Empty,
+        workerModel =
+            new WorkerUpdateModel
+            {
+                FirstName = worker.FirstName,
+                MiddleName = worker.MiddleName ?? string.Empty,
+                LastName = worker.LastName,
+                Sex = worker.Sex ?? string.Empty,
+                Email = worker.Email ?? string.Empty,
+                Phone = worker.Phone ?? string.Empty,
+                DateOfBirth = worker.DateOfBirth,
+                MaritalStatus = worker.MaritalStatus ?? "Single",
+                WeddingAnniversary = worker.WeddingAnniversary,
+                Address = worker.Address ?? string.Empty,
+                Profession = worker.Profession ?? string.Empty,
+                Organization = worker.Organization ?? string.Empty,
+                PreviousChurch = worker.PreviousChurch ?? string.Empty,
+                PreviousChurchRole = worker.PreviousChurchRole ?? string.Empty,
+                PreviousChurchUnit = worker.PreviousChurchUnit ?? string.Empty,
 
-            DirectorateId = worker.DirectorateId,
-            DepartmentId = worker.DepartmentId,
-            UnitId = worker.UnitId,
-            SecondaryDirectorateId = worker.SecondaryDirectorateId,
-            SecondaryDepartmentId = worker.SecondaryDepartmentId,
+                DirectorateId = worker.DirectorateId,
+                DepartmentId = worker.DepartmentId,
+                UnitId = worker.UnitId,
+                SecondaryDirectorateId = worker.SecondaryDirectorateId,
+                SecondaryDepartmentId = worker.SecondaryDepartmentId,
 
-            Role = worker.Role,
-            SupervisorId = worker.SupervisorId,
-            DateJoinedChurch = worker.DateJoinedChurch,
-            WorkerStatus = worker.WorkerStatus,
-            OrdinationLevel = worker.OrdinationLevel ?? "Not Ordained",
-            LastOrdinationDate = worker.LastOrdinationDate,
+                Role = worker.Role,
+                SupervisorId = worker.SupervisorId,
+                DateJoinedChurch = worker.DateJoinedChurch,
+                WorkerStatus = worker.WorkerStatus,
+                OrdinationLevel =
+                    worker.OrdinationLevel ??
+                    "Not Ordained",
+                LastOrdinationDate =
+                    worker.LastOrdinationDate,
 
-            HasBelieverBaptism = worker.HasBelieverBaptism,
-            HasWorkerInTraining = worker.HasWorkerInTraining,
-            HasSOD = worker.HasSOD,
-            HasBibleCollege = worker.HasBibleCollege,
+                HasBelieverBaptism =
+                    worker.HasBelieverBaptism,
 
-            PassportPhotoPath = worker.PassportPhotoPath,
-            PassportPhotoThumbPath = worker.PassportPhotoThumbPath,
+                HasWorkerInTraining =
+                    worker.HasWorkerInTraining,
 
-            BelieverBaptismCertificatePath = worker.BelieverBaptismCertificatePath ?? string.Empty,
-            WorkerInTrainingCertificatePath = worker.WorkerInTrainingCertificatePath ?? string.Empty,
-            SODCertificatePath = worker.SODCertificatePath ?? string.Empty,
-            BibleCollegeCertificatePath = worker.BibleCollegeCertificatePath ?? string.Empty,
+                HasSOD =
+                    worker.HasSOD,
 
-            IsActive = worker.IsActive,
-            CompliancePercentage = worker.CompliancePercentage
-        };
+                HasBibleCollege =
+                    worker.HasBibleCollege,
 
-        believerBaptismPath = worker.BelieverBaptismCertificatePath ?? string.Empty;
-        workerInTrainingPath = worker.WorkerInTrainingCertificatePath ?? string.Empty;
-        sodPath = worker.SODCertificatePath ?? string.Empty;
-        bibleCollegePath = worker.BibleCollegeCertificatePath ?? string.Empty;
+                PassportPhotoPath =
+                    worker.PassportPhotoPath ??
+                    string.Empty,
+
+                PassportPhotoThumbPath =
+                    worker.PassportPhotoThumbPath,
+
+                BelieverBaptismCertificatePath =
+                    worker.BelieverBaptismCertificatePath ??
+                    string.Empty,
+
+                WorkerInTrainingCertificatePath =
+                    worker.WorkerInTrainingCertificatePath ??
+                    string.Empty,
+
+                SODCertificatePath =
+                    worker.SODCertificatePath ??
+                    string.Empty,
+
+                BibleCollegeCertificatePath =
+                    worker.BibleCollegeCertificatePath ??
+                    string.Empty,
+
+                IsActive =
+                    worker.IsActive,
+
+                CompliancePercentage =
+                    worker.CompliancePercentage
+            };
+
+        believerBaptismPath =
+            worker.BelieverBaptismCertificatePath ??
+            string.Empty;
+
+        workerInTrainingPath =
+            worker.WorkerInTrainingCertificatePath ??
+            string.Empty;
+
+        sodPath =
+            worker.SODCertificatePath ??
+            string.Empty;
+
+        bibleCollegePath =
+            worker.BibleCollegeCertificatePath ??
+            string.Empty;
 
         await FilterDepartments();
         await FilterUnits();
@@ -740,16 +1223,17 @@ else
 
     private async Task OnDirectorateChanged()
     {
-        await FilterDepartments();
         workerModel.DepartmentId = null;
         workerModel.UnitId = null;
+
+        await FilterDepartments();
         await FilterUnits();
     }
 
     private async Task OnDepartmentChanged()
     {
-        await FilterUnits();
         workerModel.UnitId = null;
+        await FilterUnits();
     }
 
     private async Task OnSecondaryDirectorateChanged()
@@ -758,46 +1242,94 @@ else
         await FilterSecondaryDepartments();
     }
 
-    private async Task FilterDepartments()
+    private Task FilterDepartments()
     {
-        filteredDepartments = workerModel.DirectorateId.HasValue
-            ? departments.Where(d => d.DirectorateId == workerModel.DirectorateId.Value && d.IsActive).ToList()
-            : new List<Department>();
+        filteredDepartments =
+            workerModel.DirectorateId.HasValue
+                ? departments
+                    .Where(d =>
+                        d.DirectorateId ==
+                            workerModel.DirectorateId.Value &&
+                        d.IsActive)
+                    .ToList()
+                : new List<Department>();
 
-        await InvokeAsync(StateHasChanged);
+        return Task.CompletedTask;
     }
 
-    private async Task FilterUnits()
+    private Task FilterUnits()
     {
-        filteredUnits = workerModel.DepartmentId.HasValue
-            ? units.Where(u => u.DepartmentId == workerModel.DepartmentId.Value && u.IsActive).ToList()
-            : new List<Unit>();
+        filteredUnits =
+            workerModel.DepartmentId.HasValue
+                ? units
+                    .Where(u =>
+                        u.DepartmentId ==
+                            workerModel.DepartmentId.Value &&
+                        u.IsActive)
+                    .ToList()
+                : new List<Unit>();
 
-        await InvokeAsync(StateHasChanged);
+        return Task.CompletedTask;
     }
 
-    private async Task FilterSecondaryDepartments()
+    private Task FilterSecondaryDepartments()
     {
-        filteredSecondaryDepartments = workerModel.SecondaryDirectorateId.HasValue
-            ? departments.Where(d => d.DirectorateId == workerModel.SecondaryDirectorateId.Value && d.IsActive).ToList()
-            : new List<Department>();
+        filteredSecondaryDepartments =
+            workerModel.SecondaryDirectorateId.HasValue
+                ? departments
+                    .Where(d =>
+                        d.DirectorateId ==
+                            workerModel.SecondaryDirectorateId.Value &&
+                        d.IsActive)
+                    .ToList()
+                : new List<Department>();
 
-        await InvokeAsync(StateHasChanged);
+        return Task.CompletedTask;
+    }
+
+    private IEnumerable<Worker>
+        GetSupervisorCandidates()
+    {
+        return workers
+            .Where(candidate =>
+                candidate.Id != WorkerId &&
+                candidate.DirectorateId ==
+                    workerModel.DirectorateId &&
+                candidate.IsActive &&
+                (
+                    candidate.Role ==
+                        "Head of Directorate" ||
+
+                    candidate.Role ==
+                        "Asst Head of Directorate" ||
+
+                    candidate.Role ==
+                        "Head of Department"
+                ))
+            .OrderBy(candidate =>
+                candidate.FirstName)
+            .ThenBy(candidate =>
+                candidate.LastName);
     }
 
     private async Task UpdateWorker()
     {
-        if (worker == null) return;
-
-        isUpdating = true;
-        successMessage = string.Empty;
-        errorMessage = string.Empty;
+        if (worker == null ||
+            isUpdating)
+        {
+            return;
+        }
 
         try
         {
+            isUpdating = true;
+            successMessage = string.Empty;
+            errorMessage = string.Empty;
+
             if (IsDirectorateLeadershipRole())
             {
                 workerModel.DepartmentId = null;
+                workerModel.UnitId = null;
             }
 
             if (workerModel.MaritalStatus == "Single")
@@ -805,290 +1337,1355 @@ else
                 workerModel.WeddingAnniversary = null;
             }
 
-            worker.FirstName = workerModel.FirstName;
-            worker.MiddleName = workerModel.MiddleName;
-            worker.LastName = workerModel.LastName;
-            worker.Sex = workerModel.Sex;
-            worker.Email = workerModel.Email;
-            worker.Phone = workerModel.Phone;
-            worker.DateOfBirth = workerModel.DateOfBirth;
-            worker.MaritalStatus = workerModel.MaritalStatus;
-            worker.WeddingAnniversary = workerModel.WeddingAnniversary;
-            worker.Address = workerModel.Address;
-            worker.Profession = workerModel.Profession;
-            worker.Organization = workerModel.Organization;
-            worker.PreviousChurch = workerModel.PreviousChurch;
-            worker.PreviousChurchRole = workerModel.PreviousChurchRole;
-            worker.PreviousChurchUnit = workerModel.PreviousChurchUnit;
+            worker.FirstName =
+                workerModel.FirstName;
 
-            worker.DirectorateId = workerModel.DirectorateId;
-            worker.DepartmentId = workerModel.DepartmentId;
-            worker.UnitId = workerModel.UnitId;
-            worker.SecondaryDirectorateId = workerModel.SecondaryDirectorateId;
-            worker.SecondaryDepartmentId = workerModel.SecondaryDepartmentId;
+            worker.MiddleName =
+                workerModel.MiddleName;
 
-            worker.Role = workerModel.Role;
-            worker.SupervisorId = workerModel.SupervisorId;
-            worker.DateJoinedChurch = workerModel.DateJoinedChurch;
-            worker.WorkerStatus = workerModel.WorkerStatus;
-            worker.OrdinationLevel = workerModel.OrdinationLevel;
-            worker.LastOrdinationDate = workerModel.LastOrdinationDate;
+            worker.LastName =
+                workerModel.LastName;
 
-            worker.HasBelieverBaptism = workerModel.HasBelieverBaptism;
-            worker.HasWorkerInTraining = workerModel.HasWorkerInTraining;
-            worker.HasSOD = workerModel.HasSOD;
-            worker.HasBibleCollege = workerModel.HasBibleCollege;
+            worker.Sex =
+                workerModel.Sex;
 
-            worker.PassportPhotoPath = workerModel.PassportPhotoPath;
-            worker.PassportPhotoThumbPath = workerModel.PassportPhotoThumbPath;
-            worker.BelieverBaptismCertificatePath = believerBaptismPath;
-            worker.WorkerInTrainingCertificatePath = workerInTrainingPath;
-            worker.SODCertificatePath = sodPath;
-            worker.BibleCollegeCertificatePath = bibleCollegePath;
+            worker.Email =
+                workerModel.Email;
 
-            worker.IsActive = workerModel.IsActive;
-            worker.CompliancePercentage = CalculateCompliance(workerModel);
-            worker.LastUpdated = DateTime.UtcNow;
+            worker.Phone =
+                workerModel.Phone;
 
-            await WorkerService.UpdateWorkerAsync(worker);
+            worker.DateOfBirth =
+                workerModel.DateOfBirth;
 
-            successMessage = "Worker updated successfully.";
+            worker.MaritalStatus =
+                workerModel.MaritalStatus;
+
+            worker.WeddingAnniversary =
+                workerModel.WeddingAnniversary;
+
+            worker.Address =
+                workerModel.Address;
+
+            worker.Profession =
+                workerModel.Profession;
+
+            worker.Organization =
+                workerModel.Organization;
+
+            worker.PreviousChurch =
+                workerModel.PreviousChurch;
+
+            worker.PreviousChurchRole =
+                workerModel.PreviousChurchRole;
+
+            worker.PreviousChurchUnit =
+                workerModel.PreviousChurchUnit;
+
+            worker.DirectorateId =
+                workerModel.DirectorateId;
+
+            worker.DepartmentId =
+                workerModel.DepartmentId;
+
+            worker.UnitId =
+                workerModel.UnitId;
+
+            worker.SecondaryDirectorateId =
+                workerModel.SecondaryDirectorateId;
+
+            worker.SecondaryDepartmentId =
+                workerModel.SecondaryDepartmentId;
+
+            worker.Role =
+                workerModel.Role;
+
+            worker.SupervisorId =
+                workerModel.SupervisorId;
+
+            worker.DateJoinedChurch =
+                workerModel.DateJoinedChurch;
+
+            worker.WorkerStatus =
+                workerModel.WorkerStatus;
+
+            worker.OrdinationLevel =
+                workerModel.OrdinationLevel;
+
+            worker.LastOrdinationDate =
+                workerModel.LastOrdinationDate;
+
+            worker.HasBelieverBaptism =
+                workerModel.HasBelieverBaptism;
+
+            worker.HasWorkerInTraining =
+                workerModel.HasWorkerInTraining;
+
+            worker.HasSOD =
+                workerModel.HasSOD;
+
+            worker.HasBibleCollege =
+                workerModel.HasBibleCollege;
+
+            worker.PassportPhotoPath =
+                workerModel.PassportPhotoPath;
+
+            worker.PassportPhotoThumbPath =
+                workerModel.PassportPhotoThumbPath;
+
+            worker.BelieverBaptismCertificatePath =
+                believerBaptismPath;
+
+            worker.WorkerInTrainingCertificatePath =
+                workerInTrainingPath;
+
+            worker.SODCertificatePath =
+                sodPath;
+
+            worker.BibleCollegeCertificatePath =
+                bibleCollegePath;
+
+            worker.IsActive =
+                workerModel.IsActive;
+
+            worker.CompliancePercentage =
+                CalculateCompliance(workerModel);
+
+            worker.LastUpdated =
+                DateTime.UtcNow;
+
+            await WorkerService
+                .UpdateWorkerAsync(worker);
+
+            successMessage =
+                "Worker updated successfully.";
+
             await LoadWorkerData(WorkerId);
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error updating worker: {ex.Message}";
+            errorMessage =
+                $"Error updating worker: {ex.Message}";
         }
         finally
         {
             isUpdating = false;
-            StateHasChanged();
         }
     }
 
-    private async Task OnPassportPhotoChanged(InputFileChangeEventArgs e)
+    private async Task OnPassportPhotoChanged(
+        InputFileChangeEventArgs e)
     {
-        isUploading = true;
-        errorMessage = string.Empty;
-        successMessage = string.Empty;
+        if (worker == null)
+            return;
 
         try
         {
-            if (worker == null) return;
+            isUploading = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
 
-            var file = e.File;
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
-            var fileExtension = Path.GetExtension(file.Name).ToLowerInvariant();
+            var file =
+                e.File;
 
-            if (!allowedExtensions.Contains(fileExtension))
+            var allowedExtensions =
+                new[]
+                {
+                    ".jpg",
+                    ".jpeg",
+                    ".png"
+                };
+
+            var extension =
+                Path.GetExtension(file.Name)
+                    .ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(extension))
             {
-                errorMessage = "Only JPG and PNG files are allowed.";
-                return;
+                throw new Exception(
+                    "Only JPG and PNG files are allowed.");
             }
 
-            var folder = Environment.IsDevelopment()
-                ? Path.Combine(Environment.ContentRootPath, "wwwroot", "uploads")
-                : "/var/data/uploads";
+            var folder =
+                Environment.IsDevelopment()
+                    ? Path.Combine(
+                        Environment.ContentRootPath,
+                        "wwwroot",
+                        "uploads")
+                    : "/var/data/uploads";
 
-            if (!Directory.Exists(folder))
-                Directory.CreateDirectory(folder);
+            Directory.CreateDirectory(folder);
 
-            var fileName = $"{worker.WorkerId}_passport_{Guid.NewGuid()}.jpg";
-            var filePath = Path.Combine(folder, fileName);
+            var fileName =
+                $"{worker.WorkerId}_passport_" +
+                $"{Guid.NewGuid()}.jpg";
 
-            using var image = await Image.LoadAsync(file.OpenReadStream(5 * 1024 * 1024));
+            var filePath =
+                Path.Combine(folder, fileName);
 
-            image.Mutate(x => x.Resize(new ResizeOptions
-            {
-                Size = new Size(800, 800),
-                Mode = ResizeMode.Max
-            }));
+            using var image =
+                await Image.LoadAsync(
+                    file.OpenReadStream(
+                        5 * 1024 * 1024));
 
-            await image.SaveAsJpegAsync(filePath, new JpegEncoder { Quality = 75 });
+            image.Mutate(x =>
+                x.Resize(
+                    new ResizeOptions
+                    {
+                        Size = new Size(800, 800),
+                        Mode = ResizeMode.Max
+                    }));
 
-            var optimizedFileName = $"{Path.GetFileNameWithoutExtension(fileName)}_mobile.webp";
-            var optimizedPath = Path.Combine(folder, optimizedFileName);
+            await image.SaveAsJpegAsync(
+                filePath,
+                new JpegEncoder
+                {
+                    Quality = 75
+                });
 
-            await imageOptimizationService.CreateMobileVersion(filePath, optimizedPath);
+            var optimizedFileName =
+                $"{Path.GetFileNameWithoutExtension(fileName)}_mobile.webp";
 
-            workerModel.PassportPhotoPath = fileName;
-            workerModel.PassportPhotoThumbPath = optimizedFileName;
+            var optimizedPath =
+                Path.Combine(
+                    folder,
+                    optimizedFileName);
 
-            successMessage = "Photo uploaded successfully.";
+            await ImageOptimizationService
+                .CreateMobileVersion(
+                    filePath,
+                    optimizedPath);
+
+            workerModel.PassportPhotoPath =
+                fileName;
+
+            workerModel.PassportPhotoThumbPath =
+                optimizedFileName;
+
+            successMessage =
+                "Photo uploaded successfully.";
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error uploading photo: {ex.Message}";
+            errorMessage =
+                $"Error uploading photo: {ex.Message}";
         }
         finally
         {
             isUploading = false;
-            StateHasChanged();
         }
     }
 
-    private async Task OnCertificateChanged(InputFileChangeEventArgs e, string certificateType)
+    private async Task OnCertificateChanged(
+        InputFileChangeEventArgs e,
+        string certificateType)
     {
-        if (worker == null) return;
+        if (worker == null)
+            return;
 
         try
         {
-            var file = e.File;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
 
-            if (file.Size > 5 * 1024 * 1024)
+            var file =
+                e.File;
+
+            if (file.Size >
+                5 * 1024 * 1024)
             {
-                errorMessage = "File size must be less than 5MB.";
-                return;
+                throw new Exception(
+                    "File size must be less than 5MB.");
             }
 
-            var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
-            var fileExtension = Path.GetExtension(file.Name).ToLowerInvariant();
+            var allowedExtensions =
+                new[]
+                {
+                    ".pdf",
+                    ".jpg",
+                    ".jpeg",
+                    ".png",
+                    ".doc",
+                    ".docx"
+                };
 
-            if (!allowedExtensions.Contains(fileExtension))
+            var extension =
+                Path.GetExtension(file.Name)
+                    .ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(extension))
             {
-                errorMessage = "Only PDF, JPG, PNG, DOC, and DOCX files are allowed.";
-                return;
+                throw new Exception(
+                    "Only PDF, JPG, PNG, DOC and DOCX files are allowed.");
             }
 
-            var folder = Environment.IsDevelopment()
-                ? Path.Combine(Environment.ContentRootPath, "wwwroot", "uploads")
-                : "/var/data/uploads";
+            var folder =
+                Environment.IsDevelopment()
+                    ? Path.Combine(
+                        Environment.ContentRootPath,
+                        "wwwroot",
+                        "uploads")
+                    : "/var/data/uploads";
 
-            if (!Directory.Exists(folder))
-                Directory.CreateDirectory(folder);
+            Directory.CreateDirectory(folder);
 
-            var fileName = $"{worker.WorkerId}_{certificateType}_{Guid.NewGuid()}{fileExtension}";
-            var filePath = Path.Combine(folder, fileName);
+            var fileName =
+                $"{worker.WorkerId}_" +
+                $"{certificateType}_" +
+                $"{Guid.NewGuid()}{extension}";
 
-            using var stream = new FileStream(filePath, FileMode.Create);
-            await file.OpenReadStream(5 * 1024 * 1024).CopyToAsync(stream);
+            var filePath =
+                Path.Combine(folder, fileName);
+
+            await using var stream =
+                new FileStream(
+                    filePath,
+                    FileMode.Create);
+
+            await file
+                .OpenReadStream(
+                    5 * 1024 * 1024)
+                .CopyToAsync(stream);
 
             switch (certificateType)
             {
                 case "believerBaptism":
-                    believerBaptismPath = fileName;
+                    believerBaptismPath =
+                        fileName;
                     break;
+
                 case "workerInTraining":
-                    workerInTrainingPath = fileName;
+                    workerInTrainingPath =
+                        fileName;
                     break;
+
                 case "sod":
-                    sodPath = fileName;
+                    sodPath =
+                        fileName;
                     break;
+
                 case "bibleCollege":
-                    bibleCollegePath = fileName;
+                    bibleCollegePath =
+                        fileName;
                     break;
             }
 
-            successMessage = "Certificate uploaded successfully.";
+            successMessage =
+                "Certificate uploaded successfully.";
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error uploading certificate: {ex.Message}";
+            errorMessage =
+                $"Error uploading certificate: {ex.Message}";
         }
-
-        StateHasChanged();
     }
 
-    private int CalculateCompliance(WorkerUpdateModel model)
+    private int CalculateCompliance(
+        WorkerUpdateModel model)
     {
-        int total = 0;
-        int completed = 0;
+        var total = 0;
+        var completed = 0;
 
-        total++; if (!string.IsNullOrWhiteSpace(model.MaritalStatus)) completed++;
-        total++; if (model.WeddingAnniversary.HasValue) completed++;
-        total++; if (!string.IsNullOrWhiteSpace(model.Address)) completed++;
-        total++; if (!string.IsNullOrWhiteSpace(model.Profession)) completed++;
-        total++; if (!string.IsNullOrWhiteSpace(model.Organization)) completed++;
-        total++; if (model.DateOfBirth.HasValue) completed++;
-        total++; if (!string.IsNullOrWhiteSpace(model.PreviousChurch)) completed++;
-        total++; if (!string.IsNullOrWhiteSpace(model.PreviousChurchRole)) completed++;
-        total++; if (!string.IsNullOrWhiteSpace(model.PreviousChurchUnit)) completed++;
-        total++; if (model.DirectorateId.HasValue) completed++;
-        total++; if (model.DepartmentId.HasValue) completed++;
-        total++; if (model.UnitId.HasValue) completed++;
-        total++; if (!string.IsNullOrWhiteSpace(model.Role)) completed++;
-        total++; if (model.SupervisorId.HasValue) completed++;
-        total++; if (model.DateJoinedChurch.HasValue) completed++;
-        total++; if (!string.IsNullOrWhiteSpace(model.WorkerStatus)) completed++;
-        total++; if (!string.IsNullOrWhiteSpace(model.OrdinationLevel)) completed++;
-        total++; if (model.LastOrdinationDate.HasValue) completed++;
-        total++; if (model.HasBelieverBaptism) completed++;
-        total++; if (model.HasWorkerInTraining) completed++;
-        total++; if (model.HasSOD) completed++;
-        total++; if (model.HasBibleCollege) completed++;
+        total++;
+        if (!string.IsNullOrWhiteSpace(
+            model.MaritalStatus))
+        {
+            completed++;
+        }
 
-        return total == 0 ? 0 : completed * 100 / total;
+        total++;
+        if (model.WeddingAnniversary.HasValue)
+        {
+            completed++;
+        }
+
+        total++;
+        if (!string.IsNullOrWhiteSpace(
+            model.Address))
+        {
+            completed++;
+        }
+
+        total++;
+        if (!string.IsNullOrWhiteSpace(
+            model.Profession))
+        {
+            completed++;
+        }
+
+        total++;
+        if (!string.IsNullOrWhiteSpace(
+            model.Organization))
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.DateOfBirth.HasValue)
+        {
+            completed++;
+        }
+
+        total++;
+        if (!string.IsNullOrWhiteSpace(
+            model.PreviousChurch))
+        {
+            completed++;
+        }
+
+        total++;
+        if (!string.IsNullOrWhiteSpace(
+            model.PreviousChurchRole))
+        {
+            completed++;
+        }
+
+        total++;
+        if (!string.IsNullOrWhiteSpace(
+            model.PreviousChurchUnit))
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.DirectorateId.HasValue)
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.DepartmentId.HasValue)
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.UnitId.HasValue)
+        {
+            completed++;
+        }
+
+        total++;
+        if (!string.IsNullOrWhiteSpace(
+            model.Role))
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.SupervisorId.HasValue)
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.DateJoinedChurch.HasValue)
+        {
+            completed++;
+        }
+
+        total++;
+        if (!string.IsNullOrWhiteSpace(
+            model.WorkerStatus))
+        {
+            completed++;
+        }
+
+        total++;
+        if (!string.IsNullOrWhiteSpace(
+            model.OrdinationLevel))
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.LastOrdinationDate.HasValue)
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.HasBelieverBaptism)
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.HasWorkerInTraining)
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.HasSOD)
+        {
+            completed++;
+        }
+
+        total++;
+        if (model.HasBibleCollege)
+        {
+            completed++;
+        }
+
+        return total == 0
+            ? 0
+            : completed * 100 / total;
     }
 
     private bool IsDirectorateLeadershipRole()
     {
-        return workerModel.Role == "Head of Directorate" ||
-               workerModel.Role == "Asst Head of Directorate";
+        return
+            workerModel.Role ==
+                "Head of Directorate" ||
+
+            workerModel.Role ==
+                "Asst Head of Directorate";
     }
 
     private void OnRoleChanged()
     {
-        if (IsDirectorateLeadershipRole())
-        {
-            workerModel.DepartmentId = null;
-        }
+        if (!IsDirectorateLeadershipRole())
+            return;
+
+        workerModel.DepartmentId = null;
+        workerModel.UnitId = null;
+
+        filteredUnits.Clear();
     }
 
-    private string GetUploadUrl(string? fileName)
+    private static string GetSupervisorName(
+        Worker worker)
     {
-        return string.IsNullOrWhiteSpace(fileName) ? "" : $"/uploads/{fileName.TrimStart('/')}";
+        if (worker.Supervisor == null)
+            return "Not assigned";
+
+        return string.Join(
+            " ",
+            new[]
+            {
+                worker.Supervisor.FirstName,
+                worker.Supervisor.LastName
+            }
+            .Where(x =>
+                !string.IsNullOrWhiteSpace(x)));
     }
 
-    private void NavigateBack() => Navigation.NavigateTo($"/admin/worker-details/{WorkerId}");
-    private void NavigateToDetails() => Navigation.NavigateTo($"/admin/worker-details/{WorkerId}");
-    private void NavigateToResetPassword() => Navigation.NavigateTo($"/admin/reset-password/{WorkerId}");
-    private void NavigateToDeactivate() => Navigation.NavigateTo($"/admin/deactivate-worker/{WorkerId}");
+    private static string DisplayValue(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not provided"
+            : value.Trim();
+    }
+
+    private static string FormatDate(
+        DateTime? value)
+    {
+        return value?.ToString(
+            "dd MMM yyyy") ?? "Not provided";
+    }
+
+    private static string GetComplianceClass(
+        int percentage)
+    {
+        if (percentage < 50)
+            return "bg-danger";
+
+        if (percentage < 80)
+            return "bg-warning";
+
+        return "bg-success";
+    }
+
+    private static string GetUploadUrl(
+        string? fileName)
+    {
+        return string.IsNullOrWhiteSpace(fileName)
+            ? string.Empty
+            : $"/uploads/{fileName.TrimStart('/')}";
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo(
+            $"/admin/worker-details/{WorkerId}");
+    }
+
+    private void NavigateToDetails()
+    {
+        Navigation.NavigateTo(
+            $"/admin/worker-details/{WorkerId}");
+    }
+
+    private void NavigateToResetPassword()
+    {
+        Navigation.NavigateTo(
+            $"/admin/reset-password/{WorkerId}");
+    }
+
+    private void NavigateToDeactivate()
+    {
+        Navigation.NavigateTo(
+            $"/admin/deactivate-worker/{WorkerId}");
+    }
 
     public class WorkerUpdateModel
     {
-        [Required] public string FirstName { get; set; } = string.Empty;
-        public string MiddleName { get; set; } = string.Empty;
-        [Required] public string LastName { get; set; } = string.Empty;
-        public string Sex { get; set; } = string.Empty;
-        [EmailAddress] public string Email { get; set; } = string.Empty;
-        public string Phone { get; set; } = string.Empty;
+        [Required]
+        public string FirstName { get; set; } =
+            string.Empty;
+
+        public string MiddleName { get; set; } =
+            string.Empty;
+
+        [Required]
+        public string LastName { get; set; } =
+            string.Empty;
+
+        public string Sex { get; set; } =
+            string.Empty;
+
+        [EmailAddress]
+        public string Email { get; set; } =
+            string.Empty;
+
+        public string Phone { get; set; } =
+            string.Empty;
+
         public DateTime? DateOfBirth { get; set; }
-        public string MaritalStatus { get; set; } = "Single";
-        public DateTime? WeddingAnniversary { get; set; }
-        public string Address { get; set; } = string.Empty;
-        public string Profession { get; set; } = string.Empty;
-        public string Organization { get; set; } = string.Empty;
-        public string PreviousChurch { get; set; } = string.Empty;
-        public string PreviousChurchRole { get; set; } = string.Empty;
-        public string PreviousChurchUnit { get; set; } = string.Empty;
+
+        public string MaritalStatus { get; set; } =
+            "Single";
+
+        public DateTime? WeddingAnniversary
+        {
+            get;
+            set;
+        }
+
+        public string Address { get; set; } =
+            string.Empty;
+
+        public string Profession { get; set; } =
+            string.Empty;
+
+        public string Organization { get; set; } =
+            string.Empty;
+
+        public string PreviousChurch { get; set; } =
+            string.Empty;
+
+        public string PreviousChurchRole
+        {
+            get;
+            set;
+        } = string.Empty;
+
+        public string PreviousChurchUnit
+        {
+            get;
+            set;
+        } = string.Empty;
 
         public int? DirectorateId { get; set; }
+
         public int? DepartmentId { get; set; }
+
         public int? UnitId { get; set; }
-        public int? SecondaryDirectorateId { get; set; }
-        public int? SecondaryDepartmentId { get; set; }
 
-        [Required] public string Role { get; set; } = string.Empty;
+        public int? SecondaryDirectorateId
+        {
+            get;
+            set;
+        }
+
+        public int? SecondaryDepartmentId
+        {
+            get;
+            set;
+        }
+
+        [Required]
+        public string Role { get; set; } =
+            string.Empty;
+
         public int? SupervisorId { get; set; }
-        public DateTime? DateJoinedChurch { get; set; }
-        public string WorkerStatus { get; set; } = "Temp Worker";
-        public string OrdinationLevel { get; set; } = "Not Ordained";
-        public DateTime? LastOrdinationDate { get; set; }
 
-        public bool HasBelieverBaptism { get; set; }
-        public bool HasWorkerInTraining { get; set; }
+        public DateTime? DateJoinedChurch
+        {
+            get;
+            set;
+        }
+
+        public string WorkerStatus { get; set; } =
+            "Temp Worker";
+
+        public string OrdinationLevel
+        {
+            get;
+            set;
+        } = "Not Ordained";
+
+        public DateTime? LastOrdinationDate
+        {
+            get;
+            set;
+        }
+
+        public bool HasBelieverBaptism
+        {
+            get;
+            set;
+        }
+
+        public bool HasWorkerInTraining
+        {
+            get;
+            set;
+        }
+
         public bool HasSOD { get; set; }
-        public bool HasBibleCollege { get; set; }
 
-        public string PassportPhotoPath { get; set; } = string.Empty;
-        public string? PassportPhotoThumbPath { get; set; } = string.Empty;
+        public bool HasBibleCollege
+        {
+            get;
+            set;
+        }
 
-        public string BelieverBaptismCertificatePath { get; set; } = string.Empty;
-        public string WorkerInTrainingCertificatePath { get; set; } = string.Empty;
-        public string SODCertificatePath { get; set; } = string.Empty;
-        public string BibleCollegeCertificatePath { get; set; } = string.Empty;
+        public string PassportPhotoPath
+        {
+            get;
+            set;
+        } = string.Empty;
+
+        public string? PassportPhotoThumbPath
+        {
+            get;
+            set;
+        } = string.Empty;
+
+        public string BelieverBaptismCertificatePath
+        {
+            get;
+            set;
+        } = string.Empty;
+
+        public string WorkerInTrainingCertificatePath
+        {
+            get;
+            set;
+        } = string.Empty;
+
+        public string SODCertificatePath
+        {
+            get;
+            set;
+        } = string.Empty;
+
+        public string BibleCollegeCertificatePath
+        {
+            get;
+            set;
+        } = string.Empty;
 
         public bool IsActive { get; set; } = true;
-        public int CompliancePercentage { get; set; }
+
+        public int CompliancePercentage
+        {
+            get;
+            set;
+        }
     }
 }
+
+<style>
+    .admin-update-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .admin-update-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .worker-update-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 11px 13px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+    }
+
+    .worker-update-person {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .worker-update-photo,
+    .worker-update-photo-placeholder {
+        flex: 0 0 50px;
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+    }
+
+    .worker-update-photo {
+        object-fit: cover;
+        border: 2px solid #e0e7ff;
+    }
+
+    .worker-update-photo-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 2px solid #c7d2fe;
+        font-size: 1rem;
+    }
+
+    .worker-update-person h5 {
+        margin: 0 0 3px;
+        color: #0f172a;
+        font-size: 0.92rem;
+        font-weight: 800;
+    }
+
+    .worker-update-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px 12px;
+    }
+
+    .worker-update-meta span {
+        color: #64748b;
+        font-size: 0.64rem;
+    }
+
+    .worker-update-meta i {
+        margin-right: 4px;
+        color: #4f46e5;
+    }
+
+    .worker-update-status-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(3, minmax(85px, 1fr));
+        gap: 7px;
+    }
+
+    .worker-update-status-grid > div {
+        padding: 7px 9px;
+        text-align: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .worker-update-status-grid span,
+    .worker-update-status-grid strong {
+        display: block;
+    }
+
+    .worker-update-status-grid span {
+        color: #64748b;
+        font-size: 0.56rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .worker-update-status-grid strong {
+        margin-top: 1px;
+        color: #0f172a;
+        font-size: 0.69rem;
+    }
+
+    .admin-update-tabs {
+        display: grid;
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .admin-update-tab {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 40px;
+        padding: 7px 9px;
+        color: #64748b;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 0.69rem;
+        font-weight: 800;
+    }
+
+    .admin-update-tab.active {
+        color: #4338ca;
+        background: #eef2ff;
+        border-color: #c7d2fe;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+    }
+
+    .update-section-card {
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 13px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
+    }
+
+    .update-section-header {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 11px;
+        background: #ffffff;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .update-section-header h6 {
+        margin: 0 0 1px;
+        color: #0f172a;
+        font-size: 0.81rem;
+        font-weight: 800;
+    }
+
+    .update-section-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.63rem;
+    }
+
+    .update-section-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 32px;
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        font-size: 0.74rem;
+    }
+
+    .update-section-icon.personal,
+    .update-section-icon.church {
+        color: #4338ca;
+        background: #eef2ff;
+    }
+
+    .update-section-icon.professional,
+    .update-section-icon.document {
+        color: #0369a1;
+        background: #e0f2fe;
+    }
+
+    .update-section-icon.ordination {
+        color: #7e22ce;
+        background: #f3e8ff;
+    }
+
+    .update-section-icon.qualification,
+    .update-section-icon.action {
+        color: #92400e;
+        background: #fef3c7;
+    }
+
+    .update-section-icon.status {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .compact-form-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .compact-form-grid.one-column {
+        grid-template-columns: 1fr;
+    }
+
+    .compact-field {
+        min-width: 0;
+        padding: 8px 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .compact-field.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .compact-field-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 5px;
+    }
+
+    .compact-field-top label {
+        margin: 0;
+        color: #334155;
+        font-size: 0.67rem;
+        font-weight: 800;
+    }
+
+    .compact-field-top small {
+        max-width: 48%;
+        color: #94a3b8;
+        font-size: 0.55rem;
+        line-height: 1.25;
+        text-align: right;
+    }
+
+    .compact-field-top small strong {
+        color: #64748b;
+        font-weight: 700;
+    }
+
+    .admin-update-page .form-control,
+    .admin-update-page .form-select {
+        min-height: 31px;
+        font-size: 0.74rem;
+    }
+
+    .admin-update-page textarea.form-control {
+        min-height: auto;
+    }
+
+    .tab-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid #eef2f7;
+    }
+
+    .tab-footer > span {
+        color: #64748b;
+        font-size: 0.65rem;
+    }
+
+    .assignment-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-top: 10px;
+        padding: 8px 9px;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        font-size: 0.63rem;
+    }
+
+    .qualification-update-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .qualification-update-card {
+        padding: 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .qualification-check-line {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 7px;
+    }
+
+    .qualification-check-line strong {
+        color: #0f172a;
+        font-size: 0.69rem;
+    }
+
+    .qualification-update-card small,
+    .qualification-disabled-text {
+        display: block;
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 0.57rem;
+    }
+
+    .certificate-current-link {
+        display: inline-flex;
+        margin-top: 6px;
+        color: #4338ca;
+        font-size: 0.61rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .passport-upload-panel {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .passport-preview,
+    .passport-preview-placeholder {
+        flex: 0 0 96px;
+        width: 96px;
+        height: 96px;
+        border-radius: 13px;
+    }
+
+    .passport-preview {
+        object-fit: cover;
+        border: 2px solid #e0e7ff;
+    }
+
+    .passport-preview-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 2px solid #c7d2fe;
+        font-size: 1.5rem;
+    }
+
+    .passport-upload-content {
+        flex: 1;
+    }
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: 0.67rem;
+        font-weight: 700;
+    }
+
+    .passport-upload-content small {
+        display: block;
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 0.57rem;
+    }
+
+    .uploading-line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 7px;
+        color: #4338ca;
+        font-size: 0.64rem;
+        font-weight: 700;
+    }
+
+    .status-control-card,
+    .compliance-panel {
+        padding: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .status-control-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 9px;
+    }
+
+    .status-control-card span,
+    .status-control-card strong {
+        display: block;
+    }
+
+    .status-control-card span {
+        color: #64748b;
+        font-size: 0.59rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .status-control-card strong {
+        margin-top: 2px;
+        font-size: 0.72rem;
+    }
+
+    .compliance-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+    }
+
+    .compliance-top span {
+        color: #64748b;
+        font-size: 0.64rem;
+        font-weight: 700;
+    }
+
+    .compliance-top strong {
+        color: #0f172a;
+        font-size: 0.75rem;
+    }
+
+    .compliance-panel .progress {
+        height: 7px;
+    }
+
+    .compliance-panel small {
+        display: block;
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 0.57rem;
+    }
+
+    .compact-validation-summary {
+        margin-top: 10px;
+        padding: 8px 10px;
+        color: #991b1b;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        font-size: 0.64rem;
+    }
+
+    .admin-action-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .admin-action-grid button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 46px;
+        padding: 8px 9px;
+        color: #334155;
+        text-align: left;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        font-size: 0.66rem;
+        font-weight: 800;
+    }
+
+    .admin-action-grid button i {
+        color: #4f46e5;
+    }
+
+    .admin-action-grid button.danger {
+        color: #991b1b;
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    .admin-action-grid button.danger i {
+        color: #dc2626;
+    }
+
+    .final-submit-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 12px;
+        padding: 10px;
+        color: #166534;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 9px;
+    }
+
+    .final-submit-panel strong,
+    .final-submit-panel span {
+        display: block;
+    }
+
+    .final-submit-panel strong {
+        font-size: 0.69rem;
+    }
+
+    .final-submit-panel span {
+        margin-top: 1px;
+        color: #15803d;
+        font-size: 0.6rem;
+    }
+
+    @@media (max-width: 1100px) {
+        .worker-update-summary {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .worker-update-status-grid {
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .admin-update-tabs {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+
+        .compact-form-grid,
+        .qualification-update-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .compact-field.full-width {
+            grid-column: auto;
+        }
+
+        .passport-upload-panel {
+            align-items: center;
+            flex-direction: column;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .admin-update-tabs,
+        .worker-update-status-grid,
+        .admin-action-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .compact-field-top {
+            flex-direction: column;
+        }
+
+        .compact-field-top small {
+            max-width: 100%;
+            text-align: left;
+        }
+
+        .tab-footer,
+        .final-submit-panel {
+            align-items: stretch;
+            flex-direction: column;
+        }
+    }
+</style>

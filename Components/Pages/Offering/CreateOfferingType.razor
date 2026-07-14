@@ -1,0 +1,1066 @@
+﻿@page "/Offering/types"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+
+@inject ChurchOfferingService OfferingService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Offering Types - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to manage offering types.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (!CanAccessPage())
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You do not have permission to manage offering types.</p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Service Records
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger d-flex align-items-start">
+                <i class="fas fa-exclamation-circle me-2 mt-1"></i>
+
+                <div class="flex-grow-1">
+                    @errorMessage
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="ClearErrorMessage">
+                </button>
+            </div>
+        }
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-tags me-2"></i>
+                    Offering Management
+                </div>
+
+                <div class="bcc-page-title">
+                    Offering Types
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Create and manage the offering types used by the new offering-record module.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary"
+                        @onclick="ShowAddModal">
+                    <i class="fas fa-plus me-2"></i>
+                    Add Offering Type
+                </button>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="bcc-card">
+                <div class="bcc-card-body text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+
+                    <div class="mt-3 text-muted">
+                        Loading offering types...
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="offering-type-summary-grid mb-4">
+
+                <div class="offering-type-summary-card">
+                    <div class="summary-icon total">
+                        <i class="fas fa-tags"></i>
+                    </div>
+
+                    <div>
+                        <span>Total Types</span>
+                        <strong>@offeringTypes.Count</strong>
+                    </div>
+                </div>
+
+                <div class="offering-type-summary-card">
+                    <div class="summary-icon active">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+
+                    <div>
+                        <span>Active Types</span>
+                        <strong>@offeringTypes.Count(x => x.IsActive)</strong>
+                    </div>
+                </div>
+
+                <div class="offering-type-summary-card">
+                    <div class="summary-icon inactive">
+                        <i class="fas fa-pause-circle"></i>
+                    </div>
+
+                    <div>
+                        <span>Inactive Types</span>
+                        <strong>@offeringTypes.Count(x => !x.IsActive)</strong>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="bcc-card">
+                <div class="bcc-card-body">
+
+                    <div class="offering-type-toolbar">
+                        <div>
+                            <h5>Offering Type Register</h5>
+                            <p>
+                                Review, edit, activate or deactivate offering types.
+                            </p>
+                        </div>
+
+                        <div class="offering-type-search">
+                            <i class="fas fa-search"></i>
+
+                            <InputText class="form-control"
+                                       @bind-Value="searchText"
+                                       @bind-Value:event="oninput"
+                                       placeholder="Search name or description" />
+                        </div>
+                    </div>
+
+                    @if (!FilteredOfferingTypes.Any())
+                    {
+                        <div class="bcc-empty py-5">
+                            <i class="fas fa-tags"></i>
+
+                            <h4>No Offering Types Found</h4>
+
+                            <p>
+                                No offering types match the current search.
+                            </p>
+
+                            <button type="button"
+                                    class="bcc-btn bcc-btn-primary"
+                                    @onclick="ShowAddModal">
+                                <i class="fas fa-plus me-2"></i>
+                                Add Offering Type
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0 offering-type-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    @foreach (var type in FilteredOfferingTypes)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="offering-type-name">
+                                                    <div class="offering-type-icon">
+                                                        <i class="fas fa-tag"></i>
+                                                    </div>
+
+                                                    <strong>@type.Name</strong>
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                <span class="text-muted">
+                                                    @(string.IsNullOrWhiteSpace(type.Description)
+                                                        ? "No description"
+                                                        : type.Description)
+                                                </span>
+                                            </td>
+
+                                            <td>
+                                                <span class="offering-type-status
+                                                    @(type.IsActive ? "active" : "inactive")">
+                                                    @(type.IsActive ? "Active" : "Inactive")
+                                                </span>
+                                            </td>
+
+                                            <td>
+                                                <span class="text-muted small">
+                                                    @type.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")
+                                                </span>
+                                            </td>
+
+                                            <td class="text-end">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary me-1"
+                                                        title="Edit"
+                                                        @onclick="() => ShowEditModal(type)">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+
+                                                <button type="button"
+                                                        class="btn btn-sm
+                                                            @(type.IsActive
+                                                                ? "btn-outline-warning"
+                                                                : "btn-outline-success") me-1"
+                                                        title="@(type.IsActive ? "Deactivate" : "Activate")"
+                                                        @onclick="() => ToggleStatus(type)">
+                                                    <i class="fas
+                                                        @(type.IsActive
+                                                            ? "fa-pause"
+                                                            : "fa-check")">
+                                                    </i>
+                                                </button>
+
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        title="Delete"
+                                                        @onclick="() => ShowDeleteModal(type)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (showModal)
+{
+    <div class="offering-type-popup-backdrop">
+        <div class="offering-type-popup-card">
+
+            <div class="offering-type-popup-header">
+                <div>
+                    <div class="popup-heading-icon @(isEditMode ? "edit" : "add")">
+                        <i class="fas @(isEditMode ? "fa-edit" : "fa-plus")"></i>
+                    </div>
+
+                    <div>
+                        <h4>
+                            @(isEditMode
+                                ? "Edit Offering Type"
+                                : "Add Offering Type")
+                        </h4>
+
+                        <p>
+                            @(isEditMode
+                                ? "Update the selected offering type."
+                                : "Create a new offering type for the new offering module.")
+                        </p>
+                    </div>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="CloseModal">
+                </button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(popupErrorMessage))
+            {
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    @popupErrorMessage
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">
+                    Name
+                    <span class="text-danger">*</span>
+                </label>
+
+                <InputText class="form-control"
+                           @bind-Value="currentOfferingType.Name"
+                           placeholder="Enter offering type name" />
+
+                @if (showValidation &&
+                     string.IsNullOrWhiteSpace(currentOfferingType.Name))
+                {
+                    <div class="text-danger small mt-1">
+                        Offering type name is required.
+                    </div>
+                }
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">
+                    Description
+                    <span class="text-muted fw-normal">
+                        (Optional)
+                    </span>
+                </label>
+
+                <InputTextArea class="form-control"
+                               rows="4"
+                               @bind-Value="currentOfferingType.Description"
+                               placeholder="Describe when this offering type should be used." />
+            </div>
+
+            @if (isEditMode)
+            {
+                <div class="offering-type-switch-panel">
+                    <div>
+                        <strong>Active Status</strong>
+                        <p>
+                            Inactive types will not appear on Record Offering.
+                        </p>
+                    </div>
+
+                    <div class="form-check form-switch">
+                        <InputCheckbox class="form-check-input"
+                                       @bind-Value="currentOfferingType.IsActive" />
+                    </div>
+                </div>
+            }
+
+            <div class="mt-4 d-flex justify-content-end gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        disabled="@isSaving"
+                        @onclick="CloseModal">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary"
+                        disabled="@isSaving"
+                        @onclick="SaveOfferingType">
+
+                    @if (isSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-save me-2"></i>
+                        <span>@(isEditMode ? "Update Type" : "Save Type")</span>
+                    }
+
+                </button>
+            </div>
+
+        </div>
+    </div>
+}
+
+@if (showDeleteModal && offeringTypeToDelete != null)
+{
+    <div class="offering-type-popup-backdrop">
+        <div class="offering-type-popup-card delete-popup">
+
+            <div class="delete-popup-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+
+            <h4>Delete Offering Type?</h4>
+
+            <p>
+                You are about to delete
+                <strong>@offeringTypeToDelete.Name</strong>.
+            </p>
+
+            <div class="alert alert-warning text-start">
+                A type already used by an offering record cannot be deleted.
+                Deactivate it instead.
+            </div>
+
+            <div class="mt-4 d-flex justify-content-center gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        disabled="@isDeleting"
+                        @onclick="CloseDeleteModal">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="btn btn-danger"
+                        disabled="@isDeleting"
+                        @onclick="ConfirmDelete">
+
+                    @if (isDeleting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Deleting...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-trash me-2"></i>
+                        <span>Delete Type</span>
+                    }
+
+                </button>
+            </div>
+
+        </div>
+    </div>
+}
+
+@if (showResultPopup)
+{
+    <div class="offering-type-popup-backdrop">
+        <div class="result-popup-card">
+
+            <div class="result-popup-icon
+                        @(resultPopupSuccess ? "success" : "error")">
+                <i class="fas
+                    @(resultPopupSuccess
+                        ? "fa-check-circle"
+                        : "fa-exclamation-circle")">
+                </i>
+            </div>
+
+            <h4>@resultPopupTitle</h4>
+            <p>@resultPopupMessage</p>
+
+            <button type="button"
+                    class="bcc-btn bcc-btn-primary"
+                    @onclick="CloseResultPopup">
+                OK
+            </button>
+
+        </div>
+    </div>
+}
+
+@code {
+    private List<ChurchOfferingTypeN> offeringTypes = new();
+
+    private bool isLoading = true;
+    private bool isEditMode;
+    private bool isSaving;
+    private bool isDeleting;
+    private bool showValidation;
+    private bool showModal;
+    private bool showDeleteModal;
+    private bool showResultPopup;
+    private bool resultPopupSuccess;
+
+    private string searchText = string.Empty;
+    private string? errorMessage;
+    private string? popupErrorMessage;
+    private string resultPopupTitle = string.Empty;
+    private string resultPopupMessage = string.Empty;
+
+    private ChurchOfferingTypeN currentOfferingType = new();
+    private ChurchOfferingTypeN? offeringTypeToDelete;
+
+    private IEnumerable<ChurchOfferingTypeN> FilteredOfferingTypes =>
+        string.IsNullOrWhiteSpace(searchText)
+            ? offeringTypes.OrderBy(x => x.Name)
+            : offeringTypes
+                .Where(x =>
+                    x.Name.Contains(
+                        searchText,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    (x.Description?.Contains(
+                        searchText,
+                        StringComparison.OrdinalIgnoreCase)
+                        ?? false))
+                .OrderBy(x => x.Name);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!CanAccessPage())
+        {
+            isLoading = false;
+            return;
+        }
+
+        await LoadOfferingTypes();
+    }
+
+    private bool CanAccessPage()
+    {
+        return AuthService.IsAuthenticated &&
+               (AuthService.CanAccessAdminPanel() ||
+                AuthService.IsInRole("Church Admin"));
+    }
+
+    private async Task LoadOfferingTypes()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            offeringTypes =
+                await OfferingService.GetAllOfferingTypesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load offering types: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        currentOfferingType = new ChurchOfferingTypeN
+        {
+            IsActive = true
+        };
+
+        isEditMode = false;
+        showValidation = false;
+        popupErrorMessage = null;
+        showModal = true;
+    }
+
+    private void ShowEditModal(
+        ChurchOfferingTypeN offeringType)
+    {
+        currentOfferingType = new ChurchOfferingTypeN
+        {
+            Id = offeringType.Id,
+            Name = offeringType.Name,
+            Description = offeringType.Description,
+            IsActive = offeringType.IsActive,
+            CreatedByWorkerId = offeringType.CreatedByWorkerId,
+            CreatedAt = offeringType.CreatedAt,
+            UpdatedAt = offeringType.UpdatedAt
+        };
+
+        isEditMode = true;
+        showValidation = false;
+        popupErrorMessage = null;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        if (isSaving)
+            return;
+
+        showModal = false;
+        currentOfferingType = new ChurchOfferingTypeN();
+        showValidation = false;
+        popupErrorMessage = null;
+    }
+
+    private async Task SaveOfferingType()
+    {
+        if (isSaving)
+            return;
+
+        if (string.IsNullOrWhiteSpace(currentOfferingType.Name))
+        {
+            showValidation = true;
+            popupErrorMessage =
+                "Please enter an offering type name.";
+            return;
+        }
+
+        if (AuthService.CurrentWorker == null)
+        {
+            popupErrorMessage =
+                "Unable to identify the current worker.";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            popupErrorMessage = null;
+            errorMessage = null;
+
+            if (isEditMode)
+            {
+                await OfferingService.UpdateOfferingTypeAsync(
+                    currentOfferingType,
+                    AuthService.CurrentWorker.Id);
+            }
+            else
+            {
+                await OfferingService.CreateOfferingTypeAsync(
+                    currentOfferingType.Name,
+                    currentOfferingType.Description,
+                    AuthService.CurrentWorker.Id);
+            }
+
+            var popupTitle = isEditMode
+                ? "Offering Type Updated"
+                : "Offering Type Created";
+
+            var popupMessage = isEditMode
+                ? "The offering type was updated successfully."
+                : "The offering type was created successfully.";
+
+            showModal = false;
+            await LoadOfferingTypes();
+
+            ShowResultPopup(
+                true,
+                popupTitle,
+                popupMessage);
+        }
+        catch (Exception ex)
+        {
+            popupErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ToggleStatus(
+        ChurchOfferingTypeN offeringType)
+    {
+        if (AuthService.CurrentWorker == null)
+            return;
+
+        try
+        {
+            errorMessage = null;
+
+            var wasActive = offeringType.IsActive;
+
+            await OfferingService.ToggleOfferingTypeStatusAsync(
+                offeringType.Id,
+                AuthService.CurrentWorker.Id);
+
+            await LoadOfferingTypes();
+
+            ShowResultPopup(
+                true,
+                wasActive
+                    ? "Offering Type Deactivated"
+                    : "Offering Type Activated",
+                $"The offering type was {(wasActive ? "deactivated" : "activated")} successfully.");
+        }
+        catch (Exception ex)
+        {
+            ShowResultPopup(
+                false,
+                "Unable to Update Status",
+                ex.Message);
+        }
+    }
+
+    private void ShowDeleteModal(
+        ChurchOfferingTypeN offeringType)
+    {
+        offeringTypeToDelete = offeringType;
+        showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        if (isDeleting)
+            return;
+
+        showDeleteModal = false;
+        offeringTypeToDelete = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (offeringTypeToDelete == null ||
+            isDeleting)
+        {
+            return;
+        }
+
+        try
+        {
+            isDeleting = true;
+
+            await OfferingService.DeleteOfferingTypeAsync(
+                offeringTypeToDelete.Id);
+
+            showDeleteModal = false;
+            offeringTypeToDelete = null;
+
+            await LoadOfferingTypes();
+
+            ShowResultPopup(
+                true,
+                "Offering Type Deleted",
+                "The offering type was deleted successfully.");
+        }
+        catch (Exception ex)
+        {
+            showDeleteModal = false;
+
+            ShowResultPopup(
+                false,
+                "Unable to Delete Offering Type",
+                ex.Message);
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    private void ShowResultPopup(
+        bool success,
+        string title,
+        string message)
+    {
+        resultPopupSuccess = success;
+        resultPopupTitle = title;
+        resultPopupMessage = message;
+        showResultPopup = true;
+    }
+
+    private void CloseResultPopup()
+    {
+        showResultPopup = false;
+        resultPopupTitle = string.Empty;
+        resultPopupMessage = string.Empty;
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = null;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/workspace/service-records");
+    }
+}
+
+<style>
+    .offering-type-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .offering-type-summary-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 15px;
+        box-shadow: 0 5px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    .summary-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 48px;
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+    }
+
+    .summary-icon.total {
+        color: #4338ca;
+        background: #eef2ff;
+    }
+
+    .summary-icon.active {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .summary-icon.inactive {
+        color: #475569;
+        background: #e2e8f0;
+    }
+
+    .offering-type-summary-card span {
+        display: block;
+        margin-bottom: 3px;
+        color: #64748b;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .offering-type-summary-card strong {
+        color: #0f172a;
+        font-size: 1.4rem;
+        font-weight: 800;
+    }
+
+    .offering-type-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 20px;
+    }
+
+    .offering-type-toolbar h5 {
+        margin: 0 0 4px;
+        color: #0f172a;
+        font-weight: 800;
+    }
+
+    .offering-type-toolbar p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.86rem;
+    }
+
+    .offering-type-search {
+        position: relative;
+        width: 100%;
+        max-width: 340px;
+    }
+
+    .offering-type-search > i {
+        position: absolute;
+        top: 50%;
+        left: 13px;
+        z-index: 2;
+        color: #94a3b8;
+        transform: translateY(-50%);
+    }
+
+    .offering-type-search .form-control {
+        padding-left: 38px;
+    }
+
+    .offering-type-table thead th {
+        padding: 14px;
+        color: #475569;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .offering-type-table tbody td {
+        padding: 14px;
+        vertical-align: middle;
+    }
+
+    .offering-type-name {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .offering-type-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 34px;
+        width: 34px;
+        height: 34px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 10px;
+    }
+
+    .offering-type-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 800;
+    }
+
+    .offering-type-status.active {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .offering-type-status.inactive {
+        color: #475569;
+        background: #e2e8f0;
+    }
+
+    .offering-type-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.6);
+    }
+
+    .offering-type-popup-card,
+    .result-popup-card {
+        width: 100%;
+        max-width: 620px;
+        max-height: 90vh;
+        padding: 28px;
+        overflow-y: auto;
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+    }
+
+    .offering-type-popup-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+
+    .offering-type-popup-header > div {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .popup-heading-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 42px;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+    }
+
+    .popup-heading-icon.add {
+        color: #4338ca;
+        background: #eef2ff;
+    }
+
+    .popup-heading-icon.edit {
+        color: #b45309;
+        background: #fef3c7;
+    }
+
+    .offering-type-popup-header h4,
+    .result-popup-card h4,
+    .delete-popup h4 {
+        margin: 0 0 4px;
+        color: #0f172a;
+        font-weight: 800;
+    }
+
+    .offering-type-popup-header p,
+    .result-popup-card p,
+    .delete-popup p {
+        margin: 0;
+        color: #64748b;
+    }
+
+    .offering-type-switch-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+    }
+
+    .offering-type-switch-panel p {
+        margin: 4px 0 0;
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    .delete-popup {
+        max-width: 500px;
+        text-align: center;
+    }
+
+    .delete-popup-icon,
+    .result-popup-icon {
+        margin-bottom: 14px;
+        font-size: 3rem;
+    }
+
+    .delete-popup-icon,
+    .result-popup-icon.error {
+        color: #dc2626;
+    }
+
+    .result-popup-card {
+        max-width: 440px;
+        text-align: center;
+    }
+
+    .result-popup-icon.success {
+        color: #16a34a;
+    }
+
+    .result-popup-card p {
+        margin-bottom: 22px;
+    }
+
+    @@media (max-width: 768px) {
+        .offering-type-summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .offering-type-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .offering-type-search {
+            max-width: none;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .offering-type-popup-card,
+        .result-popup-card {
+            padding: 22px 18px;
+        }
+    }
+</style>

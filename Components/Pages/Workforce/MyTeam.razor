@@ -1,517 +1,1607 @@
-﻿@page "/workforce/my-team1"
+﻿@page "/workforce/my-team"
 @layout Components.Layout.MainLayout
+
 @using ChurchApp.Services
 @using ChurchApp.Models
+
 @inject WorkerService WorkerService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
-<PageTitle>My Team - Workforce</PageTitle>
+<PageTitle>My Team - BCC ServiceHub</PageTitle>
 
-<div class="container-fluid py-4">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col">
-            <h2>My Team</h2>
-            <p class="text-muted">View team members under your supervision</p>
-        </div>
-    </div>
-
-    <!-- Filter Section -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label class="form-label">Search</label>
-                        <input type="text" class="form-control" placeholder="Search by name, worker ID..." 
-                               @bind-value="searchText" @bind-value:event="oninput" />
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="mb-3">
-                        <label class="form-label">Directorate</label>
-                        <select class="form-select" @bind="selectedDirectorate">
-                            <option value="">All Directorates</option>
-                            @foreach (var dir in directorates)
-                            {
-                                <option value="@dir">@dir</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="mb-3">
-                        <label class="form-label">Department</label>
-                        <select class="form-select" @bind="selectedDepartment">
-                            <option value="">All Departments</option>
-                            @foreach (var dept in departments)
-                            {
-                                <option value="@dept">@dept</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="mb-3">
-                        <label class="form-label">&nbsp;</label>
-                        <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">
-                            <i class="fas fa-filter-circle-xmark me-2"></i>Clear Filters
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Team Members List -->
-    <div class="card">
-        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Team Members (@filteredWorkers.Count)</h5>
-            <div>
-                <span class="badge bg-light text-dark me-2">
-                    <i class="fas fa-users me-1"></i>Total: @workers.Count
-                </span>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            @if (isLoading)
-            {
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2 text-muted">Loading team members...</p>
-                </div>
-            }
-            else if (filteredWorkers.Count == 0)
-            {
-                <div class="text-center py-5">
-                    <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
-                    <h4>No Team Members Found</h4>
-                    <p class="text-muted">@(workers.Count == 0 ? "No team members are assigned to you." : "No workers match your search criteria.")</p>
-                </div>
-            }
-            else
-            {
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Photo</th>
-                                <th>Worker ID</th>
-                                <th>Name</th>
-                                <th>Directorate</th>
-                                <th>Department</th>
-                                <th>Role</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var worker in filteredWorkers)
-                            {
-                                <tr>
-                                    <td>
-                                        @if (!string.IsNullOrEmpty(worker.PassportPhotoPath))
-                                        {
-                                            <img src="/uploads/@worker.PassportPhotoPath"
-     alt="@worker.FirstName"
-     class="rounded-circle"
-     style="width: 40px; height: 40px; object-fit: cover; cursor:pointer;"
-     @onclick="() => OpenWorkerPreview(worker)" />
-                                        }
-                                        else
-                                        {
-                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center"
-                                                 style="width: 40px; height: 40px;">
-                                                <i class="fas fa-user text-white"></i>
-                                            </div>
-                                        }
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-info">@worker.WorkerId</span>
-                                    </td>
-                                    <td>
-                                        <strong>@worker.FirstName @worker.LastName</strong>
-                                        @if (!string.IsNullOrEmpty(worker.MiddleName))
-                                        {
-                                            <br/><small class="text-muted">@worker.MiddleName</small>
-                                        }
-                                    </td>
-                                    <td>
-                                        @if (worker.Directorate != null)
-                                        {
-                                            <span class="badge bg-primary">@worker.Directorate.Name</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">Not assigned</span>
-                                        }
-                                    </td>
-                                    <td>
-                                        @if (worker.Department != null)
-                                        {
-                                            <span class="badge bg-info">@worker.Department.Name</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">Not assigned</span>
-                                        }
-                                    </td>
-                                    <td>
-                                        <small>@worker.Role</small>
-                                    </td>
-                                    <td>
-                                        <span class="badge @(worker.IsActive ? "bg-success" : "bg-secondary")">
-                                            @(worker.IsActive ? "Active" : "Inactive")
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-primary" 
-                                                @onclick="() => ViewWorkerDetails(worker.Id)"
-                                                title="View Details">
-                                            <i class="fas fa-eye"></i> View
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Pagination -->
-                @if (totalPages > 1)
-                {
-                    <div class="card-footer">
-                        <nav aria-label="Page navigation">
-                            <ul class="pagination justify-content-center mb-0">
-                                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
-                                    <button class="page-link" @onclick="() => ChangePage(currentPage - 1)">
-                                        <i class="fas fa-chevron-left"></i>
-                                    </button>
-                                </li>
-                                
-                                @for (int i = 1; i <= totalPages; i++)
-                                {
-                                    if (i == 1 || i == totalPages || (i >= currentPage - 2 && i <= currentPage + 2))
-                                    {
-                                        <li class="page-item @(i == currentPage ? "active" : "")">
-                                            <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
-                                        </li>
-                                    }
-                                    else if (i == currentPage - 3 || i == currentPage + 3)
-                                    {
-                                        <li class="page-item disabled">
-                                            <span class="page-link">...</span>
-                                        </li>
-                                    }
-                                }
-                                
-                                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
-                                    <button class="page-link" @onclick="() => ChangePage(currentPage + 1)">
-                                        <i class="fas fa-chevron-right"></i>
-                                    </button>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
-                }
-            }
-        </div>
-    </div>
-</div>
-@if (showWorkerPreview)
+@if (!AuthService.IsAuthenticated)
 {
-    <div class="modal-backdrop-custom" @onclick="CloseWorkerPreview">
-        <div class="modal-content-custom p-3"
-             style="max-width: 500px;"
-             @onclick:stopPropagation="true">
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to view your team.</p>
 
-            <!-- CLOSE -->
-            <button class="btn btn-sm btn-dark position-absolute top-0 end-0 m-2"
-                    @onclick="CloseWorkerPreview">
-                ✕
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (!CanAccessMyTeam())
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You do not have permission to view a team register.</p>
+
+        <a href="/"
+           class="bcc-btn bcc-btn-primary">
+            Return to Dashboard
+        </a>
+    </div>
+}
+else
+{
+    <div class="worker360-page my-team-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success py-2">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        <div class="bcc-page-header my-team-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-users-cog me-2"></i>
+                    Team Management
+                </div>
+
+                <div class="bcc-page-title">
+                    My Team
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    View workers under your supervision and review their current status.
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back
             </button>
+        </div>
 
-            @if (selectedWorker != null)
-            {
-                <div class="text-center mb-3">
+        <div class="row g-3 align-items-start">
 
-                    <img src="/uploads/@selectedWorker.PassportPhotoPath"
-                         class="rounded-circle mb-2"
-                         style="width:90px;height:90px;object-fit:cover;border:2px solid #ddd;" />
+            <div class="col-12 col-xl-4">
+                <div class="bcc-card team-filter-card">
 
-                    <h5 class="mb-0">
-                        @selectedWorker.FirstName @selectedWorker.LastName
-                    </h5>
+                    <div class="team-panel-header">
+                        <div class="team-panel-icon">
+                            <i class="fas fa-filter"></i>
+                        </div>
 
-                    <small class="text-muted">
-                        @selectedWorker.Role
-                    </small>
+                        <div>
+                            <h6>Team Search</h6>
+                            <p>Summary and search controls.</p>
+                        </div>
+                    </div>
 
-                    <div class="mt-2">
-                        <span class="badge @(selectedWorker.IsActive ? "bg-success" : "bg-danger")">
-                            @(selectedWorker.IsActive ? "Active" : "Inactive")
+                    <div class="bcc-card-body p-3">
+
+                        <div class="team-summary-grid mb-3">
+
+                            <div>
+                                <span>Total Workers</span>
+                                <strong>@workers.Count</strong>
+                            </div>
+
+                            <div class="active">
+                                <span>Active</span>
+                                <strong>@workers.Count(w => w.IsActive)</strong>
+                            </div>
+
+                            <div class="inactive">
+                                <span>Inactive</span>
+                                <strong>@workers.Count(w => !w.IsActive)</strong>
+                            </div>
+
+                            <div class="result">
+                                <span>Filtered</span>
+                                <strong>@filteredTotalCount</strong>
+                            </div>
+
+                        </div>
+
+                        <div class="team-search-tip">
+                            <i class="fas fa-lightbulb"></i>
+
+                            <span>
+                                Search by name, Worker ID, role, directorate or department.
+                            </span>
+                        </div>
+
+                        <div class="row g-2">
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Search Worker
+                                </label>
+
+                                <div class="team-search-input">
+                                    <i class="fas fa-search"></i>
+
+                                    <input type="text"
+                                           class="form-control form-control-sm"
+                                           placeholder="Name, Worker ID or role"
+                                           @bind-value="searchText"
+                                           @bind-value:event="oninput"
+                                           @onkeyup="ApplyFilters" />
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Directorate
+                                </label>
+
+                                <select class="form-select form-select-sm"
+                                        @bind="selectedDirectorate"
+                                        @bind:after="ApplyFilters">
+                                    <option value="">All Directorates</option>
+
+                                    @foreach (var directorate in directorates)
+                                    {
+                                        <option value="@directorate">
+                                            @directorate
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Department
+                                </label>
+
+                                <select class="form-select form-select-sm"
+                                        @bind="selectedDepartment"
+                                        @bind:after="ApplyFilters">
+                                    <option value="">All Departments</option>
+
+                                    @foreach (var department in availableDepartments)
+                                    {
+                                        <option value="@department">
+                                            @department
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Worker Status
+                                </label>
+
+                                <select class="form-select form-select-sm"
+                                        @bind="selectedStatus"
+                                        @bind:after="ApplyFilters">
+                                    <option value="">All Workers</option>
+                                    <option value="active">Active Workers</option>
+                                    <option value="inactive">Inactive Workers</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Sort Team
+                                </label>
+
+                                <select class="form-select form-select-sm"
+                                        @bind="selectedSort"
+                                        @bind:after="ApplyFilters">
+                                    <option value="name">Name A-Z</option>
+                                    <option value="worker-id">Worker ID</option>
+                                    <option value="directorate">Directorate</option>
+                                    <option value="status">Status</option>
+                                </select>
+                            </div>
+
+                        </div>
+
+                        <div class="mt-3 d-flex justify-content-end gap-2">
+                            <button type="button"
+                                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                                    @onclick="ClearFilters">
+                                <i class="fas fa-filter-circle-xmark me-1"></i>
+                                Clear
+                            </button>
+
+                            <button type="button"
+                                    class="bcc-btn bcc-btn-primary compact-btn"
+                                    @onclick="ApplyFilters">
+                                <i class="fas fa-filter me-1"></i>
+                                Apply
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-8">
+                <div class="bcc-card team-list-card">
+
+                    <div class="team-list-header">
+                        <div>
+                            <h6>
+                                <i class="fas fa-address-card me-2"></i>
+                                Team Members
+                            </h6>
+
+                            <p>
+                                @filteredTotalCount worker(s) match the current filter.
+                            </p>
+                        </div>
+
+                        <span class="team-result-count">
+                            @filteredTotalCount
                         </span>
                     </div>
+
+                    <div class="bcc-card-body p-0">
+
+                        @if (isLoading)
+                        {
+                            <div class="bcc-empty py-4">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="mt-2">Loading team members...</p>
+                            </div>
+                        }
+                        else if (!filteredWorkers.Any())
+                        {
+                            <div class="bcc-empty py-4">
+                                <i class="fas fa-users-slash"></i>
+                                <h4>No Team Members Found</h4>
+
+                                <p>
+                                    @(workers.Count == 0
+                                                                ? "No team members are assigned to you."
+                                                                : "No workers match the current search criteria.")
+                        </p>
+
+                        @if (workers.Any())
+                                {
+                                    <button type="button"
+                                            class="bcc-btn bcc-btn-primary compact-btn"
+                                            @onclick="ClearFilters">
+                                        Clear Filters
+                                    </button>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive team-table-wrapper">
+                                <table class="table align-middle mb-0 team-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Worker</th>
+                                            <th>Role</th>
+                                            <th>Status</th>
+                                            <th class="text-end">View</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        @foreach (var teamWorker in filteredWorkers)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <div class="team-worker-cell">
+
+                                                        @if (!string.IsNullOrWhiteSpace(
+                                                                                                    teamWorker.PassportPhotoPath))
+                                                        {
+                                                            <img src="/uploads/@(teamWorker.PassportPhotoThumbPath ?? teamWorker.PassportPhotoPath)"
+                                                                 alt="@teamWorker.FirstName"
+                                                                 class="team-worker-avatar"
+                                                                 loading="lazy"
+                                                                 @onclick="() => OpenWorkerPreview(teamWorker)" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <button type="button"
+                                                                    class="team-worker-avatar-placeholder"
+                                                                    @onclick="() => OpenWorkerPreview(teamWorker)">
+                                                                <i class="fas fa-user"></i>
+                                                            </button>
+                                                        }
+
+                                                        <div>
+                                                            <strong>
+                                                                @teamWorker.FirstName
+                                                                @teamWorker.LastName
+                                                            </strong>
+
+                                                            <span>
+                                                                @teamWorker.WorkerId
+                                                            </span>
+                                                        </div>
+
+                                                    </div>
+                                                </td>
+
+                                                <td>
+                                                    <span class="team-role-badge">
+                                                        @DisplayValue(teamWorker.Role)
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    <span class="team-status-badge
+                                                                    @(teamWorker.IsActive ? "active" : "inactive")">
+                                                        <i class="fas @(teamWorker.IsActive
+                                                                                                                       ? "fa-circle-check"
+                                                                                                                       : "fa-circle-xmark")"></i>
+
+                                                        @(teamWorker.IsActive
+                                                                                                    ? "Active"
+                                                                                                    : "Inactive")
+                                        </span>
+                                    </td>
+
+                                                <td class="text-end">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-primary"
+                                                            @onclick="() => OpenWorkerPreview(teamWorker)">
+                                                        <i class="fas fa-eye me-1"></i>
+                                                        View
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                                                }
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            @if (totalPages > 1)
+                            {
+                                <div class="team-pagination">
+
+                                    <button type="button"
+                                            class="team-page-btn"
+                                            disabled="@(currentPage == 1)"
+                                            @onclick="() => ChangePage(currentPage - 1)">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </button>
+
+                                    <span>
+                                        Page @currentPage of @totalPages
+                                    </span>
+
+                                    <button type="button"
+                                            class="team-page-btn"
+                                            disabled="@(currentPage == totalPages)"
+                                            @onclick="() => ChangePage(currentPage + 1)">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+
+                                </div>
+                            }
+                        }
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+}
+
+@if (showWorkerPreview && selectedWorker != null)
+{
+    <div class="team-preview-backdrop"
+         @onclick="CloseWorkerPreview">
+
+        <div class="team-preview-card"
+             @onclick:stopPropagation="true">
+
+            <div class="team-preview-header">
+                <div>
+                    <h4>Team Member</h4>
+                    <p>@selectedWorker.WorkerId</p>
                 </div>
 
-                <hr />
+                <button type="button"
+                        class="btn-close"
+                        disabled="@isChangingStatus"
+                        @onclick="CloseWorkerPreview">
+                </button>
+            </div>
 
-                <!-- DETAILS -->
-                <div class="small">
-                    <div><strong>ID:</strong> @selectedWorker.WorkerId</div>
-                    <div><strong>Directorate:</strong> @(selectedWorker.Directorate?.Name ?? "Not assigned")</div>
-                    <div><strong>Department:</strong> @(selectedWorker.Department?.Name ?? "Not assigned")</div>
+            <div class="team-preview-profile">
+
+                @if (!string.IsNullOrWhiteSpace(
+                            selectedWorker.PassportPhotoPath))
+                {
+                    <img src="/uploads/@selectedWorker.PassportPhotoPath"
+                         class="team-preview-photo"
+                         alt="@selectedWorker.FirstName" />
+                }
+                else
+                {
+                    <div class="team-preview-photo-placeholder">
+                        <i class="fas fa-user"></i>
+                    </div>
+                }
+
+            <div>
+                <h5>
+                    @selectedWorker.FirstName
+                    @selectedWorker.LastName
+                </h5>
+
+                <span>
+                    @DisplayValue(selectedWorker.Role)
+                </span>
+
+                <small class="team-status-badge
+                        @(selectedWorker.IsActive ? "active" : "inactive")">
+                    @(selectedWorker.IsActive
+                                        ? "Active"
+                                        : "Inactive")
+                                                 </small>
+                                             </div>
+
+        </div>
+
+        <div class="team-preview-grid">
+
+            <div>
+                <span>Directorate</span>
+                <strong>
+                    @(selectedWorker.Directorate?.Name
+                                        ?? "Not assigned")
+                                                      </strong>
+                                                  </div>
+
+            <div>
+                <span>Department</span>
+                <strong>
+                    @(selectedWorker.Department?.Name
+                                        ?? "Not assigned")
+                </strong>
+            </div>
+
+                <div>
+                    <span>Phone</span>
+                    <strong>
+                        @DisplayValue(selectedWorker.Phone)
+                    </strong>
                 </div>
 
-                <hr />
+                <div>
+                    <span>Email</span>
+                    <strong>
+                        @DisplayValue(selectedWorker.Email)
+                    </strong>
+                </div>
 
-                <!-- ACTION BUTTONS -->
-                <div class="d-flex gap-2">
+            </div>
 
-                    <button class="btn btn-primary btn-sm flex-fill"
-                            @onclick="() => ViewWorkerDetails(selectedWorker.Id)">
-                        <i class="fas fa-eye me-1"></i> View
+            <div class="team-preview-actions">
+
+                <button type="button"
+                        class="btn btn-sm btn-primary"
+                        @onclick="() => ViewWorkerDetails(selectedWorker.Id)">
+                    <i class="fas fa-user me-1"></i>
+                    View Details
+                </button>
+
+            @if (selectedWorker.IsActive)
+                {
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            disabled="@isChangingStatus"
+                            @onclick="() => ChangeWorkerStatus(selectedWorker, false)">
+
+                        @if (isChangingStatus)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-user-slash me-1"></i>
+                        }
+
+                        Deactivate
                     </button>
+                }
+                else
+                {
+                    <button type="button"
+                            class="btn btn-sm btn-outline-success"
+                            disabled="@isChangingStatus"
+                            @onclick="() => ChangeWorkerStatus(selectedWorker, true)">
 
-                    @if (selectedWorker.IsActive)
-                    {
-                        <button class="btn btn-danger btn-sm flex-fill"
-                                @onclick="() => DeactivateFromModal(selectedWorker)">
-                            <i class="fas fa-user-slash me-1"></i> Deactivate
-                        </button>
-                    }
-                    else
-                    {
-                        <button class="btn btn-success btn-sm flex-fill"
-                                @onclick="() => ActivateFromModal(selectedWorker)">
-                            <i class="fas fa-user-check me-1"></i> Activate
-                        </button>
-                    }
+                        @if (isChangingStatus)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-user-check me-1"></i>
+                        }
 
-                </div>
-            }
+                        Activate
+                    </button>
+                }
+
+            </div>
 
         </div>
     </div>
 }
 
 @code {
-    private List<Worker> workers = new List<Worker>();
-    private List<Worker> filteredWorkers = new List<Worker>();
+    private List<Worker> workers = new();
+    private List<Worker> filteredWorkers = new();
+
+    private List<string> directorates = new();
+    private List<string> departments = new();
+    private List<string> availableDepartments = new();
+
+    private Worker? selectedWorker;
+
     private bool isLoading = true;
-    private bool showWorkerPreview = false;
-private Worker? selectedWorker;
-private string? previewImageUrl;
-    private bool showImagePreview = false;
-    private Worker? previewWorker;
-    
-    // Filters
-    private string searchText = "";
-    private string selectedDirectorate = "";
-    private string selectedDepartment = "";
-    
-    // Pagination
+    private bool showWorkerPreview;
+    private bool isChangingStatus;
+
+    private string searchText = string.Empty;
+    private string selectedDirectorate = string.Empty;
+    private string selectedDepartment = string.Empty;
+    private string selectedStatus = string.Empty;
+    private string selectedSort = "name";
+
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
     private int currentPage = 1;
-    private int pageSize = 10;
+    private const int pageSize = 10;
     private int totalPages = 1;
-    
-    // Filter options
-    private List<string> directorates = new List<string>();
-    private List<string> departments = new List<string>();
-    
+    private int filteredTotalCount;
+
     protected override async Task OnInitializedAsync()
     {
-        if (!CanAccessMyTeam())
-        {
-            Navigation.NavigateTo("/");
-            return;
-        }
-        
         await LoadTeamMembers();
     }
-    private void OpenWorkerPreview(Worker worker)
-{
-    selectedWorker = worker;
-    showWorkerPreview = true;
-}
-private async Task DeactivateFromModal(Worker w)
-    {
-        w.IsActive = false;
-        await WorkerService.UpdateWorkerAsync(w);
-        ApplyFilters();
-        CloseImagePreview();
-    }
 
-    private async Task ActivateFromModal(Worker w)
-    {
-        w.IsActive = true;
-        await WorkerService.UpdateWorkerAsync(w);
-        ApplyFilters();
-        CloseImagePreview();
-
-    }
-      private void CloseImagePreview()
-    {
-        showImagePreview = false;
-        previewWorker = null;
-        previewImageUrl = null;
-    }
-private void CloseWorkerPreview()
-{
-    showWorkerPreview = false;
-    selectedWorker = null;
-}
     private async Task LoadTeamMembers()
     {
         try
         {
             isLoading = true;
-            StateHasChanged();
-            
-            var currentWorker = AuthService.CurrentWorker;
-            if (currentWorker == null) return;
-            
-            // Get workers based on role
-            if (currentWorker.Role?.Contains("Pastor in Charge") == true || 
-                currentWorker.Role?.Contains("Head of Service") == true)
+            errorMessage = string.Empty;
+
+            var currentWorker =
+                AuthService.CurrentWorker;
+
+            if (currentWorker == null)
             {
-                // Get all workers
-                workers = await WorkerService.GetAllWorkersAsync();
+                workers = new List<Worker>();
+                return;
             }
-            else if (currentWorker.Role?.Contains("Head of Directorate") == true || 
-                     currentWorker.Role?.Contains("Asst Head of Directorate") == true)
+
+            if (HasRole(
+                    currentWorker,
+                    "Pastor in Charge") ||
+                HasRole(
+                    currentWorker,
+                    "Head of Service") ||
+                HasRole(
+                    currentWorker,
+                    "Senior Pastor"))
             {
-                // Get workers in same directorate
-                if (currentWorker.DirectorateId.HasValue)
-                {
-                    workers = await WorkerService.GetWorkersByDirectorateAsync(currentWorker.DirectorateId.Value);
-                }
-                else
-                {
-                    workers = new List<Worker>();
-                }
+                workers =
+                    await WorkerService
+                        .GetAllWorkersAsync();
+            }
+            else if (
+                HasRole(
+                    currentWorker,
+                    "Head of Directorate") ||
+                HasRole(
+                    currentWorker,
+                    "Asst Head of Directorate"))
+            {
+                workers =
+                    currentWorker.DirectorateId.HasValue
+                        ? await WorkerService
+                            .GetWorkersByDirectorateAsync(
+                                currentWorker.DirectorateId.Value)
+                        : new List<Worker>();
             }
             else
             {
-                workers = new List<Worker>();
+                workers =
+                    new List<Worker>();
             }
-            
-            // Extract filter options
+
             ExtractFilterOptions();
-            
-            // Apply initial filtering
             ApplyFilters();
-            
-            isLoading = false;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading team members: {ex.Message}");
             workers = new List<Worker>();
+            filteredWorkers = new List<Worker>();
+
+            errorMessage =
+                $"Unable to load team members: {ex.Message}";
+        }
+        finally
+        {
             isLoading = false;
         }
     }
-    
+
     private void ExtractFilterOptions()
     {
-        directorates = workers
-            .Where(w => w.Directorate != null)
-            .Select(w => w.Directorate.Name)
-            .Distinct()
-            .OrderBy(d => d)
-            .ToList();
-            
-        departments = workers
-            .Where(w => w.Department != null)
-            .Select(w => w.Department.Name)
-            .Distinct()
-            .OrderBy(d => d)
-            .ToList();
+        directorates =
+            workers
+                .Where(worker =>
+                    worker.Directorate != null)
+                .Select(worker =>
+                    worker.Directorate!.Name)
+                .Where(name =>
+                    !string.IsNullOrWhiteSpace(name))
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name)
+                .ToList();
+
+        departments =
+            workers
+                .Where(worker =>
+                    worker.Department != null)
+                .Select(worker =>
+                    worker.Department!.Name)
+                .Where(name =>
+                    !string.IsNullOrWhiteSpace(name))
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name)
+                .ToList();
+
+        UpdateAvailableDepartments();
     }
-    
+
     private void ApplyFilters()
     {
-        var filtered = workers.AsEnumerable();
-        
-        // Apply search filter
-        if (!string.IsNullOrWhiteSpace(searchText))
+        UpdateAvailableDepartments();
+
+        IEnumerable<Worker> filtered =
+            workers;
+
+        if (!string.IsNullOrWhiteSpace(
+            searchText))
         {
-            var search = searchText.ToLowerInvariant();
-            filtered = filtered.Where(w =>
-                (w.FirstName?.ToLowerInvariant().Contains(search) == true) ||
-                (w.LastName?.ToLowerInvariant().Contains(search) == true) ||
-                (w.MiddleName?.ToLowerInvariant().Contains(search) == true) ||
-                (w.WorkerId?.ToLowerInvariant().Contains(search) == true));
+            var search =
+                searchText.Trim();
+
+            filtered =
+                filtered.Where(worker =>
+                    ($"{worker.FirstName} " +
+                     $"{worker.MiddleName} " +
+                     $"{worker.LastName}")
+                        .Contains(
+                            search,
+                            StringComparison.OrdinalIgnoreCase) ||
+
+                    (worker.WorkerId ?? string.Empty)
+                        .Contains(
+                            search,
+                            StringComparison.OrdinalIgnoreCase) ||
+
+                    (worker.Role ?? string.Empty)
+                        .Contains(
+                            search,
+                            StringComparison.OrdinalIgnoreCase) ||
+
+                    (worker.Directorate?.Name ?? string.Empty)
+                        .Contains(
+                            search,
+                            StringComparison.OrdinalIgnoreCase) ||
+
+                    (worker.Department?.Name ?? string.Empty)
+                        .Contains(
+                            search,
+                            StringComparison.OrdinalIgnoreCase));
         }
-        
-        // Apply directorate filter
-        if (!string.IsNullOrWhiteSpace(selectedDirectorate))
+
+        if (!string.IsNullOrWhiteSpace(
+            selectedDirectorate))
         {
-            filtered = filtered.Where(w => 
-                w.Directorate != null && 
-                w.Directorate.Name == selectedDirectorate);
+            filtered =
+                filtered.Where(worker =>
+                    string.Equals(
+                        worker.Directorate?.Name,
+                        selectedDirectorate,
+                        StringComparison.OrdinalIgnoreCase));
         }
-        
-        // Apply department filter
-        if (!string.IsNullOrWhiteSpace(selectedDepartment))
+
+        if (!string.IsNullOrWhiteSpace(
+            selectedDepartment))
         {
-            filtered = filtered.Where(w => 
-                w.Department != null && 
-                w.Department.Name == selectedDepartment);
+            filtered =
+                filtered.Where(worker =>
+                    string.Equals(
+                        worker.Department?.Name,
+                        selectedDepartment,
+                        StringComparison.OrdinalIgnoreCase));
         }
-        
-        filteredWorkers = filtered.ToList();
-        
-        // Calculate pagination
-        totalPages = (int)Math.Ceiling(filteredWorkers.Count / (double)pageSize);
-        if (currentPage > totalPages && totalPages > 0)
+
+        filtered =
+            selectedStatus switch
+            {
+                "active" =>
+                    filtered.Where(worker =>
+                        worker.IsActive),
+
+                "inactive" =>
+                    filtered.Where(worker =>
+                        !worker.IsActive),
+
+                _ =>
+                    filtered
+            };
+
+        filtered =
+            selectedSort switch
+            {
+                "worker-id" =>
+                    filtered
+                        .OrderBy(worker =>
+                            GetWorkerPriority(
+                                worker.WorkerId))
+                        .ThenBy(worker =>
+                            ExtractWorkerNumber(
+                                worker.WorkerId)),
+
+                "directorate" =>
+                    filtered
+                        .OrderBy(worker =>
+                            worker.Directorate?.Name)
+                        .ThenBy(worker =>
+                            worker.LastName)
+                        .ThenBy(worker =>
+                            worker.FirstName),
+
+                "status" =>
+                    filtered
+                        .OrderByDescending(worker =>
+                            worker.IsActive)
+                        .ThenBy(worker =>
+                            worker.LastName)
+                        .ThenBy(worker =>
+                            worker.FirstName),
+
+                _ =>
+                    filtered
+                        .OrderBy(worker =>
+                            worker.LastName)
+                        .ThenBy(worker =>
+                            worker.FirstName)
+            };
+
+        var filteredList =
+            filtered.ToList();
+
+        filteredTotalCount =
+            filteredList.Count;
+
+        totalPages =
+            Math.Max(
+                1,
+                (int)Math.Ceiling(
+                    filteredTotalCount /
+                    (double)pageSize));
+
+        if (currentPage > totalPages)
             currentPage = totalPages;
-        
-        // Apply pagination
-        filteredWorkers = filteredWorkers
-            .Skip((currentPage - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-        
+
+        filteredWorkers =
+            filteredList
+                .Skip(
+                    (currentPage - 1) *
+                    pageSize)
+                .Take(pageSize)
+                .ToList();
+
         StateHasChanged();
     }
-    
+
+    private void UpdateAvailableDepartments()
+    {
+        IEnumerable<Worker> departmentSource =
+            workers;
+
+        if (!string.IsNullOrWhiteSpace(
+            selectedDirectorate))
+        {
+            departmentSource =
+                departmentSource.Where(worker =>
+                    string.Equals(
+                        worker.Directorate?.Name,
+                        selectedDirectorate,
+                        StringComparison.OrdinalIgnoreCase));
+        }
+
+        availableDepartments =
+            departmentSource
+                .Where(worker =>
+                    worker.Department != null)
+                .Select(worker =>
+                    worker.Department!.Name)
+                .Where(name =>
+                    !string.IsNullOrWhiteSpace(name))
+                .Distinct(
+                    StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name)
+                .ToList();
+
+        if (!string.IsNullOrWhiteSpace(
+                selectedDepartment) &&
+            !availableDepartments.Contains(
+                selectedDepartment,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            selectedDepartment =
+                string.Empty;
+        }
+    }
+
     private void ClearFilters()
     {
-        searchText = "";
-        selectedDirectorate = "";
-        selectedDepartment = "";
+        searchText = string.Empty;
+        selectedDirectorate = string.Empty;
+        selectedDepartment = string.Empty;
+        selectedStatus = string.Empty;
+        selectedSort = "name";
         currentPage = 1;
+
+        UpdateAvailableDepartments();
         ApplyFilters();
     }
-    
-    private void ChangePage(int page)
+
+    private void ChangePage(
+        int page)
     {
-        if (page < 1 || page > totalPages) return;
-        
+        if (page < 1 ||
+            page > totalPages)
+        {
+            return;
+        }
+
         currentPage = page;
         ApplyFilters();
     }
-    
-    private void ViewWorkerDetails(int workerId)
+
+    private void OpenWorkerPreview(
+        Worker worker)
     {
-        Navigation.NavigateTo($"/workforce/worker-details/{workerId}");
+        selectedWorker = worker;
+        showWorkerPreview = true;
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
     }
-    
+
+    private void CloseWorkerPreview()
+    {
+        if (isChangingStatus)
+            return;
+
+        showWorkerPreview = false;
+        selectedWorker = null;
+    }
+
+    private async Task ChangeWorkerStatus(
+        Worker worker,
+        bool newStatus)
+    {
+        if (isChangingStatus)
+            return;
+
+        var previousStatus =
+            worker.IsActive;
+
+        try
+        {
+            isChangingStatus = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+
+            worker.IsActive =
+                newStatus;
+
+            worker.LastUpdated =
+                DateTime.UtcNow;
+
+            await WorkerService
+                .UpdateWorkerAsync(worker);
+
+            successMessage =
+                newStatus
+                    ? $"{worker.FirstName} {worker.LastName} was activated successfully."
+                    : $"{worker.FirstName} {worker.LastName} was deactivated successfully.";
+
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            worker.IsActive =
+                previousStatus;
+
+            errorMessage =
+                $"Unable to change worker status: {ex.Message}";
+        }
+        finally
+        {
+            isChangingStatus = false;
+            CloseWorkerPreview();
+        }
+    }
+
+    private void ViewWorkerDetails(
+        int workerId)
+    {
+        Navigation.NavigateTo(
+            $"/workforce/worker-details/{workerId}");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo(
+            "/workspace/my-team");
+    }
+
     private bool CanAccessMyTeam()
     {
-        var worker = AuthService.CurrentWorker;
-        if (worker == null) return false;
-        
-        var role = worker.Role?.ToLowerInvariant() ?? "";
-        
-        return role.Contains("head of directorate") ||
-               role.Contains("asst head of directorate") ||
-               role.Contains("head of service") ||
-               role.Contains("pastor in charge") ||
-               role.Contains("senior pastor");
+        var currentWorker =
+            AuthService.CurrentWorker;
+
+        if (currentWorker == null)
+            return false;
+
+        return
+            HasRole(
+                currentWorker,
+                "Head of Directorate") ||
+
+            HasRole(
+                currentWorker,
+                "Asst Head of Directorate") ||
+
+            HasRole(
+                currentWorker,
+                "Head of Service") ||
+
+            HasRole(
+                currentWorker,
+                "Pastor in Charge") ||
+
+            HasRole(
+                currentWorker,
+                "Senior Pastor");
+    }
+
+    private static bool HasRole(
+        Worker worker,
+        string roleName)
+    {
+        return
+            worker.Role?.Contains(
+                roleName,
+                StringComparison.OrdinalIgnoreCase)
+            == true;
+    }
+
+    private static string DisplayValue(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not provided"
+            : value.Trim();
+    }
+
+    private static int GetWorkerPriority(
+        string? workerId)
+    {
+        if (string.IsNullOrWhiteSpace(workerId))
+            return 99;
+
+        var normalized =
+            workerId.Trim().ToUpperInvariant();
+
+        if (normalized.StartsWith("P"))
+            return 1;
+
+        if (normalized.StartsWith("C"))
+            return 2;
+
+        if (normalized.StartsWith("D"))
+            return 3;
+
+        if (normalized.StartsWith("W"))
+            return 4;
+
+        return 99;
+    }
+
+    private static int ExtractWorkerNumber(
+        string? workerId)
+    {
+        if (string.IsNullOrWhiteSpace(workerId))
+            return int.MaxValue;
+
+        var digits =
+            new string(
+                workerId
+                    .Where(char.IsDigit)
+                    .ToArray());
+
+        return int.TryParse(
+            digits,
+            out var number)
+                ? number
+                : int.MaxValue;
     }
 }
+
+<style>
+    .my-team-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .my-team-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .team-filter-card,
+    .team-list-card {
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 13px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
+    }
+
+    .team-filter-card {
+        border-top: 4px solid #4f46e5;
+    }
+
+    .team-list-card {
+        border-top: 4px solid #7c3aed;
+    }
+
+    .team-panel-header,
+    .team-list-header {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 10px 12px;
+        background: #ffffff;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .team-list-header {
+        justify-content: space-between;
+    }
+
+    .team-panel-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 32px;
+        width: 32px;
+        height: 32px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 9px;
+        font-size: 0.74rem;
+    }
+
+    .team-panel-header h6,
+    .team-list-header h6 {
+        margin: 0 0 1px;
+        color: #0f172a;
+        font-size: 0.82rem;
+        font-weight: 800;
+    }
+
+    .team-panel-header p,
+    .team-list-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.64rem;
+    }
+
+    .team-result-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 29px;
+        height: 29px;
+        padding: 0 8px;
+        color: #ffffff;
+        background: #4f46e5;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 800;
+    }
+
+    .team-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+        .team-summary-grid > div {
+            padding: 8px 9px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .team-summary-grid span,
+        .team-summary-grid strong {
+            display: block;
+        }
+
+        .team-summary-grid span {
+            color: #64748b;
+            font-size: 0.58rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .team-summary-grid strong {
+            margin-top: 1px;
+            color: #0f172a;
+            font-size: 0.88rem;
+        }
+
+        .team-summary-grid .active {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+            .team-summary-grid .active strong {
+                color: #166534;
+            }
+
+        .team-summary-grid .inactive {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+            .team-summary-grid .inactive strong {
+                color: #991b1b;
+            }
+
+        .team-summary-grid .result {
+            background: #eef2ff;
+            border-color: #c7d2fe;
+        }
+
+            .team-summary-grid .result strong {
+                color: #4338ca;
+            }
+
+    .team-search-tip {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        margin-bottom: 11px;
+        padding: 8px 9px;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        font-size: 0.62rem;
+    }
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: 0.67rem;
+        font-weight: 700;
+    }
+
+    .my-team-page .form-control,
+    .my-team-page .form-select {
+        min-height: 32px;
+        font-size: 0.75rem;
+    }
+
+    .team-search-input {
+        position: relative;
+    }
+
+        .team-search-input > i {
+            position: absolute;
+            top: 50%;
+            left: 10px;
+            z-index: 2;
+            color: #94a3b8;
+            font-size: 0.67rem;
+            transform: translateY(-50%);
+        }
+
+        .team-search-input .form-control {
+            padding-left: 30px;
+        }
+
+    .team-table-wrapper {
+        max-height: 670px;
+        overflow-y: auto;
+    }
+
+    .team-table {
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
+    }
+
+        .team-table th:nth-child(1),
+        .team-table td:nth-child(1) {
+            width: 40%;
+        }
+
+        .team-table th:nth-child(2),
+        .team-table td:nth-child(2) {
+            width: 27%;
+        }
+
+        .team-table th:nth-child(3),
+        .team-table td:nth-child(3) {
+            width: 18%;
+        }
+
+        .team-table th:nth-child(4),
+        .team-table td:nth-child(4) {
+            width: 15%;
+        }
+
+        .team-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 3;
+        }
+
+            .team-table thead th {
+                padding: 8px 9px;
+                color: #475569;
+                background: #f8fafc;
+                border-bottom: 1px solid #e2e8f0;
+                font-size: 0.6rem;
+                font-weight: 800;
+                text-transform: uppercase;
+                white-space: nowrap;
+            }
+
+        .team-table tbody td {
+            padding: 8px 9px;
+            font-size: 0.72rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .team-table tbody tr:hover {
+            background: #fafafa;
+        }
+
+    .team-worker-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 155px;
+    }
+
+    .team-worker-avatar,
+    .team-worker-avatar-placeholder {
+        flex: 0 0 34px;
+        width: 34px;
+        height: 34px;
+        cursor: pointer;
+        border-radius: 9px;
+    }
+
+    .team-worker-avatar {
+        object-fit: cover;
+        border: 1px solid #c7d2fe;
+    }
+
+    .team-worker-avatar-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        font-size: 0.7rem;
+    }
+
+    .team-worker-cell strong,
+    .team-worker-cell span,
+    .team-worker-cell strong {
+        color: #0f172a;
+        font-size: 0.72rem;
+    }
+
+    .team-worker-cell span {
+        display: block;
+        margin-top: 1px;
+        color: #64748b;
+        font-size: 0.6rem;
+    }
+
+    .team-role-badge,
+    .team-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 7px;
+        border-radius: 999px;
+        font-size: 0.6rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .team-role-badge {
+        color: #4338ca;
+        background: #eef2ff;
+    }
+
+    .team-status-badge.active {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .team-status-badge.inactive {
+        color: #991b1b;
+        background: #fee2e2;
+    }
+
+    .team-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-top: 1px solid #eef2f7;
+    }
+
+        .team-pagination span {
+            color: #64748b;
+            font-size: 0.66rem;
+            font-weight: 700;
+        }
+
+    .team-page-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 29px;
+        height: 29px;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        font-size: 0.65rem;
+    }
+
+        .team-page-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+
+    .team-preview-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        background: rgba(15, 23, 42, 0.58);
+        backdrop-filter: blur(2px);
+    }
+
+    .team-preview-card {
+        width: 100%;
+        max-width: 480px;
+        padding: 17px;
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.28);
+    }
+
+    .team-preview-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 11px;
+        padding-bottom: 9px;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+        .team-preview-header h4 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.94rem;
+            font-weight: 800;
+        }
+
+        .team-preview-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.66rem;
+        }
+
+    .team-preview-profile {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        margin-bottom: 11px;
+    }
+
+    .team-preview-photo,
+    .team-preview-photo-placeholder {
+        flex: 0 0 72px;
+        width: 72px;
+        height: 72px;
+        border-radius: 14px;
+    }
+
+    .team-preview-photo {
+        object-fit: cover;
+        border: 2px solid #e0e7ff;
+    }
+
+    .team-preview-photo-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 2px solid #c7d2fe;
+        font-size: 1.3rem;
+    }
+
+    .team-preview-profile h5 {
+        margin: 0 0 2px;
+        color: #0f172a;
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .team-preview-profile > div > span {
+        display: block;
+        margin-bottom: 5px;
+        color: #64748b;
+        font-size: 0.67rem;
+    }
+
+    .team-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+        .team-preview-grid > div {
+            min-width: 0;
+            padding: 8px 9px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .team-preview-grid span,
+        .team-preview-grid strong {
+            display: block;
+        }
+
+        .team-preview-grid span {
+            color: #64748b;
+            font-size: 0.57rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .team-preview-grid strong {
+            margin-top: 2px;
+            color: #0f172a;
+            font-size: 0.67rem;
+            overflow-wrap: anywhere;
+        }
+
+    .team-preview-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 6px;
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid #eef2f7;
+    }
+
+    @@media (max-width: 1199px) {
+        .team-table-wrapper {
+            max-height: none;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .team-summary-grid,
+        .team-preview-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .team-table th:nth-child(1),
+        .team-table td:nth-child(1) {
+            width: 42%;
+        }
+
+        .team-table th:nth-child(2),
+        .team-table td:nth-child(2) {
+            width: 24%;
+        }
+
+        .team-table th:nth-child(3),
+        .team-table td:nth-child(3) {
+            width: 20%;
+        }
+
+        .team-table th:nth-child(4),
+        .team-table td:nth-child(4) {
+            width: 14%;
+        }
+
+        .team-role-badge,
+        .team-status-badge {
+            white-space: normal;
+            text-align: center;
+        }
+
+        .team-table .btn {
+            padding: 4px 7px;
+            font-size: 0.65rem;
+        }
+
+        .team-preview-card {
+            max-width: 96vw;
+            padding: 15px;
+        }
+
+        .team-preview-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

@@ -1,293 +1,268 @@
 ﻿@page "/guest/second-timer"
 @layout Components.Layout.MainLayout
-@using ChurchApp.Services
+
 @using ChurchApp.Models
+@using ChurchApp.Services
+
 @inject GuestService GuestService
+@inject ServiceRecordAccessService ServiceRecordAccessService
 @inject AuthService AuthService
-@inject RecordNominationService RecordNominationService
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 
 <PageTitle>Second Timer - BCC ServiceHub</PageTitle>
 
-@if (AuthService.IsAuthenticated)
+@if (!AuthService.IsAuthenticated)
 {
-    @if (showNotNominatedModal)
-    {
-        <div class="team-modal-backdrop">
-            <div class="team-modal-card text-center">
-                <div class="guest-access-icon warning">
-                    <i class="fas fa-user-clock"></i>
-                </div>
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to record second visits.</p>
 
-                <h4>Access Restricted</h4>
-                <p>You are not nominated to record guest second visits for today.</p>
-
-                <div class="guest-access-box">
-                    <div>
-                        <strong>Date</strong>
-                        <span>@DateTime.Today.ToString("dddd, dd MMMM yyyy")</span>
-                    </div>
-                </div>
-
-                <p class="text-muted small mb-4">
-                    Only nominated FIG members or FIG Directorate leaders can record guest second visits.
-                </p>
-
-                <button type="button" class="bcc-btn guest-secondary-btn w-100" @onclick="GoToGuestManagement">
-                    <i class="fas fa-arrow-left me-1"></i>Back to Guest Centre
-                </button>
-            </div>
-        </div>
-    }
-
-    @if (!IsFIGDirectorateMember() && !isUserNominated && !showNotNominatedModal)
-    {
-        <div class="guest-secondtimer-v2-page">
-            <div class="bcc-empty">
-                <i class="fas fa-lock"></i>
-                <h4>Access Denied</h4>
-                <p>This section is only accessible to FIG Directorate members or nominated record keepers.</p>
-                <a href="/guest" class="bcc-btn bcc-btn-primary text-decoration-none">
-                    <i class="fas fa-arrow-left me-1"></i>Back to Guest Centre
-                </a>
-            </div>
-        </div>
-    }
-    else if (isLoading)
-    {
-        <div class="guest-secondtimer-v2-page">
-            <div class="bcc-card">
-                <div class="bcc-card-body text-center py-5">
-                    <div class="spinner-border text-primary mb-3"></div>
-                    <h5 class="fw-bold">Loading Second Timer...</h5>
-                    <p class="text-muted mb-0">Please wait while we prepare the second visit workspace.</p>
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">
+                    Loading second timer workspace...
                 </div>
             </div>
         </div>
-    }
-    else if (isUserNominated || IsFIGDirectorateMember())
-    {
-        <div class="guest-secondtimer-v2-page">
+    </div>
+}
+else if (!canAccessGuestManagement)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
 
-            @if (!string.IsNullOrEmpty(successMessage))
-            {
-                <div class="alert alert-success profile-v2-alert alert-dismissible fade show" role="alert">
-                    <i class="fas fa-check-circle me-2"></i>
-                    <strong>Success!</strong> @successMessage
-                    <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
+        <p>
+            You must have the Guest Management privilege and either belong
+            to the FIG Directorate, have FIG as your secondary department,
+            or hold an authorised leadership role.
+        </p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Guest Management
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page second-timer-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success py-2">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        <div class="bcc-page-header second-timer-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-user-check me-2"></i>
+                    Guest Management
                 </div>
-            }
 
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="alert alert-danger profile-v2-alert alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i> @errorMessage
-                    <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
-                </div>
-            }
-
-            <div class="bcc-page-header">
-                <div>
-                    <div class="guest-page-kicker">
-                        <i class="fas fa-user-check me-2"></i>BCC ServiceHub
-                    </div>
-                    <div class="bcc-page-title">Second Timer</div>
-                    <div class="bcc-page-subtitle">
-                        Search first-time guests and update their record when they return for a second visit.
-                    </div>
-                    <div class="guest-page-date">
-                        <i class="fas fa-calendar-day me-2"></i>@DateTime.Today.ToString("dddd, dd MMMM yyyy")
-                    </div>
+                <div class="bcc-page-title">
+                    Second Timer
                 </div>
 
-                <div class="d-flex gap-2 flex-wrap">
-                    <button class="bcc-btn guest-light-btn" @onclick="GoToGuestManagement">
-                        <i class="fas fa-arrow-left me-1"></i>Guest Centre
-                    </button>
+                <div class="bcc-page-subtitle">
+                    Find a first-time guest and record a second visit.
                 </div>
             </div>
 
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <div class="team-summary-card">
-                        <span>Search Results</span>
-                        <strong>@searchResults.Count</strong>
-                        <i class="fas fa-search"></i>
-                    </div>
-                </div>
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back
+            </button>
+        </div>
 
-                <div class="col-md-3">
-                    <div class="team-summary-card active">
-                        <span>Authorized Status</span>
-                        <strong>@(IsFIGDirectorateMember() ? "Leader" : "Nominated")</strong>
-                        <i class="fas fa-user-shield"></i>
-                    </div>
-                </div>
+        <div class="row g-3">
 
-                <div class="col-md-3">
-                    <div class="team-summary-card directorate">
-                        <span>Nominated Services</span>
-                        <strong>@(IsFIGDirectorateMember() ? "All" : userNominations.Count)</strong>
-                        <i class="fas fa-church"></i>
-                    </div>
-                </div>
+            <div class="col-12 col-xl-4">
+                <div class="bcc-card h-100">
+                    <div class="bcc-card-body p-3">
 
-                <div class="col-md-3">
-                    <div class="team-summary-card inactive">
-                        <span>Search Status</span>
-                        <strong>@(hasSearched ? "Done" : "Ready")</strong>
-                        <i class="fas fa-clipboard-check"></i>
-                    </div>
-                </div>
-            </div>
+                        <div class="compact-section-heading">
+                            <div>
+                                <h6>
+                                    <i class="fas fa-search me-2"></i>
+                                    Search First Timer
+                                </h6>
 
-            <div class="bcc-card">
-                <div class="bcc-card-header guest-register-header">
-                    <div>
-                        <div class="bcc-card-title">
-                            <i class="fas fa-search me-2 text-primary"></i>Find First Timer
-                        </div>
-                        <small class="text-muted">
-                            Use any available detail to locate the guest’s first visit record.
-                        </small>
-                    </div>
-
-                    @if (!IsFIGDirectorateMember())
-                    {
-                        <span class="bcc-status bcc-status-warning">Nominated Record Keeper</span>
-                    }
-                    else
-                    {
-                        <span class="bcc-status bcc-status-success">FIG Leader</span>
-                    }
-                </div>
-
-                <div class="bcc-card-body">
-                    <div class="guest-auth-card @(IsFIGDirectorateMember() ? "approved" : "neutral") mb-4">
-                        <i class="fas @(IsFIGDirectorateMember() ? "fa-user-tie" : "fa-user-check")"></i>
-                        <div>
-                            @if (IsFIGDirectorateMember())
-                            {
-                                <strong>FIG Directorate Authorization</strong>
-                                <span>You are authorized to record second visits for all services.</span>
-                            }
-                            else
-                            {
-                                <strong>Nominated Record Keeper</strong>
-                                <span>You are authorized to record second visits only for your nominated services.</span>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="guest-form-section">
-                        <div class="guest-form-section-header blue">
-                            <i class="fas fa-filter"></i>
-                            <span>Search Criteria</span>
+                                <p>
+                                    Use any available detail to locate the guest.
+                                </p>
+                            </div>
                         </div>
 
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <div class="bcc-form-field">
-                                    <label class="bcc-form-label">Search by Name</label>
-                                    <input type="text" class="form-control bcc-input" @bind="searchName"
-                                           placeholder="First name, middle name or surname" />
-                                    <span class="bcc-form-current">Searches first name, middle name and surname.</span>
-                                </div>
+                        <div class="row g-2">
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Guest Name
+                                </label>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="searchName"
+                                           placeholder="First, middle or surname" />
                             </div>
 
-                            <div class="col-md-4">
-                                <div class="bcc-form-field">
-                                    <label class="bcc-form-label">Guest Number</label>
-                                    <input type="text" class="form-control bcc-input" @bind="searchGuestNumber"
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Guest Number
+                                </label>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="searchGuestNumber"
                                            placeholder="e.g. 151223/1" />
-                                </div>
                             </div>
 
-                            <div class="col-md-4">
-                                <div class="bcc-form-field">
-                                    <label class="bcc-form-label">Date of First Visit</label>
-                                    <input type="date" class="form-control bcc-input" @bind="searchDate"
-                                           @bind:format="yyyy-MM-dd"
-                                           max="@DateTime.Now.ToString("yyyy-MM-dd")" />
-                                </div>
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Date of First Visit
+                                </label>
+
+                                <InputDate class="form-control form-control-sm"
+                                           @bind-Value="searchDate" />
                             </div>
 
-                            <div class="col-md-4">
-                                <div class="bcc-form-field">
-                                    <label class="bcc-form-label">Year of First Visit</label>
-                                    <select class="form-select bcc-input" @bind="searchYear">
-                                        <option value="">Select Year</option>
-                                        @for (int year = DateTime.Now.Year; year >= 2020; year--)
-                                        {
-                                            <option value="@year">@year</option>
-                                        }
-                                    </select>
-                                </div>
+                            <div class="col-6">
+                                <label class="form-label compact-label">
+                                    Year
+                                </label>
+
+                                <select class="form-select form-select-sm"
+                                        @bind="searchYear">
+                                    <option value="">Select Year</option>
+
+                                    @for (int year = DateTime.Now.Year;
+                                                                    year >= 2020;
+                                                                    year--)
+                                    {
+                                        <option value="@year">@year</option>
+                                    }
+                                </select>
                             </div>
 
-                            <div class="col-md-4">
-                                <div class="bcc-form-field">
-                                    <label class="bcc-form-label">Month of First Visit</label>
-                                    <select class="form-select bcc-input" @bind="searchMonth">
-                                        <option value="">Select Month</option>
-                                        <option value="1">January</option>
-                                        <option value="2">February</option>
-                                        <option value="3">March</option>
-                                        <option value="4">April</option>
-                                        <option value="5">May</option>
-                                        <option value="6">June</option>
-                                        <option value="7">July</option>
-                                        <option value="8">August</option>
-                                        <option value="9">September</option>
-                                        <option value="10">October</option>
-                                        <option value="11">November</option>
-                                        <option value="12">December</option>
-                                    </select>
-                                </div>
+                            <div class="col-6">
+                                <label class="form-label compact-label">
+                                    Month
+                                </label>
+
+                                <select class="form-select form-select-sm"
+                                        @bind="searchMonth">
+                                    <option value="">Select Month</option>
+                                    <option value="1">January</option>
+                                    <option value="2">February</option>
+                                    <option value="3">March</option>
+                                    <option value="4">April</option>
+                                    <option value="5">May</option>
+                                    <option value="6">June</option>
+                                    <option value="7">July</option>
+                                    <option value="8">August</option>
+                                    <option value="9">September</option>
+                                    <option value="10">October</option>
+                                    <option value="11">November</option>
+                                    <option value="12">December</option>
+                                </select>
                             </div>
 
-                            <div class="col-md-4 d-flex align-items-end">
-                                <div class="guest-search-actions w-100">
-                                    <button class="bcc-btn guest-secondary-btn" @onclick="ResetSearch">
-                                        <i class="fas fa-redo me-1"></i>Reset
-                                    </button>
+                        </div>
 
-                                    <button class="bcc-btn bcc-btn-primary" @onclick="() => SearchGuests()" disabled="@isSearching">
-                                        @if (isSearching)
-                                        {
-                                            <span class="spinner-border spinner-border-sm me-2"></span>
-                                        }
-                                        else
-                                        {
-                                            <i class="fas fa-search me-1"></i>
-                                        }
-                                        Search
-                                    </button>
-                                </div>
+                        <div class="mt-3 d-flex justify-content-end gap-2">
+                            <button type="button"
+                                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                                    disabled="@isSearching"
+                                    @onclick="ResetSearch">
+                                Reset
+                            </button>
+
+                            <button type="button"
+                                    class="bcc-btn bcc-btn-primary compact-btn"
+                                    disabled="@isSearching"
+                                    @onclick="SearchGuests">
+
+                                @if (isSearching)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Searching...</span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-search me-2"></i>
+                                    <span>Search</span>
+                                }
+
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-8">
+                <div class="bcc-card">
+                    <div class="bcc-card-body p-3">
+
+                        <div class="result-heading">
+                            <div>
+                                <h6>Search Results</h6>
+                                <p>@searchResults.Count record(s)</p>
                             </div>
                         </div>
-                    </div>
 
-                    @if (searchResults.Any())
-                    {
-                        <div class="guest-results-section">
-                            <div class="guest-results-title">
-                                <div>
-                                    <h5><i class="fas fa-list me-2"></i>Search Results</h5>
-                                    <p>@searchResults.Count first timer record(s) found.</p>
-                                </div>
+                        @if (!hasSearched)
+                        {
+                            <div class="bcc-empty py-4">
+                                <i class="fas fa-search"></i>
+                                <h4>Ready to Search</h4>
+                                <p>Enter any available guest detail on the left.</p>
                             </div>
-
+                        }
+                        else if (!searchResults.Any())
+                        {
+                            <div class="bcc-empty py-4">
+                                <i class="fas fa-user-slash"></i>
+                                <h4>No Guest Found</h4>
+                                <p>Try changing the search criteria.</p>
+                            </div>
+                        }
+                        else
+                        {
                             <div class="table-responsive">
-                                <table class="table table-hover mb-0 bcc-table">
+                                <table class="table align-middle mb-0 second-timer-table">
                                     <thead>
                                         <tr>
                                             <th>Guest</th>
+                                            <th>Guest No.</th>
                                             <th>First Visit</th>
                                             <th>Service</th>
-                                            <th>Contact</th>
-                                            <th class="text-center">Actions</th>
+                                            <th>Phone</th>
+                                            <th class="text-end">Actions</th>
                                         </tr>
                                     </thead>
 
@@ -296,548 +271,522 @@
                                         {
                                             <tr>
                                                 <td>
-                                                    <div class="d-flex align-items-center gap-3">
+                                                    <div class="guest-name-cell">
                                                         <div class="guest-avatar">
                                                             @GetGuestInitials(guest)
                                                         </div>
 
                                                         <div>
-                                                            <div class="fw-bold text-dark">@guest.Title @guest.FirstName @guest.Surname</div>
-                                                            <small class="text-muted">@guest.GuestNumber • @guest.Sex • @guest.AgeGroup</small>
-                                                        </div>
+                                                            <strong>
+                                                                @guest.Title @guest.FirstName @guest.Surname
+                                                            </strong>
+
+                                                            <span>
+                                                                @guest.Sex
+                                                                @if (!string.IsNullOrWhiteSpace(guest.AgeGroup))
+                                                                {
+                                                                    <text> · @guest.AgeGroup</text>
+                                                                }
+                                                        </span>
                                                     </div>
-                                                </td>
+                                                </div>
+                                            </td>
 
-                                                <td>
-                                                    <span class="fw-bold text-dark">@guest.VisitingDate.ToString("dd-MMM-yyyy")</span>
-                                                </td>
+                                            <td>@guest.GuestNumber</td>
 
-                                                <td>
-                                                    <span class="fw-bold text-dark">@guest.Service?.Name</span>
-                                                </td>
+                                            <td>
+                                                @(guest.VisitingDate
+                                                                                        .ToString("dd MMM yyyy"))
+                                                                                                             </td>
 
-                                                <td>
-                                                    @if (!string.IsNullOrEmpty(guest.PhoneNumber))
-                                                    {
-                                                        <div class="guest-contact-line">
-                                                            <i class="fas fa-phone"></i>@guest.PhoneNumber
-                                                        </div>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="text-muted small">Not provided</span>
-                                                    }
-                                                </td>
+                                            <td>
+                                                @(guest.Service?.Name
+                                                                                        ?? "Not available")
+                                                                                                       </td>
 
-                                                <td class="text-center">
-                                                    <div class="guest-row-actions">
-                                                        <button class="team-action-btn" @onclick="() => ViewGuestDetails(guest.Id)">
-                                                            <i class="fas fa-eye me-1"></i>View
-                                                        </button>
+                                            <td>
+                                                @(string.IsNullOrWhiteSpace(guest.PhoneNumber)
+                                                                                        ? "—"
+                                                                                        : guest.PhoneNumber)
+                                    </td>
 
-                                                        <button class="team-success-btn"
-                                                                @onclick="() => MarkAsSecondTimer(guest.Id)"
-                                                                disabled="@(!CanRecordForService(guest.ServiceId))">
-                                                            <i class="fas fa-user-check me-1"></i>Second Visit
+                                                <td class="text-end">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-primary me-1"
+                                                            title="View"
+                                                            @onclick="() => OpenDetails(guest)">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
 
-                                                            @if (!CanRecordForService(guest.ServiceId) && !IsFIGDirectorateMember())
-                                                            {
-                                                                <span class="badge bg-warning ms-1">Not Nominated</span>
-                                                            }
-                                                        </button>
-                                                    </div>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-success"
+                                                            title="Record Second Visit"
+                                                            disabled="@guest.IsSecondTimer"
+                                                            @onclick="() => OpenSecondVisit(guest)">
+                                                        <i class="fas fa-user-check me-1"></i>
+                                                        @(guest.IsSecondTimer ? "Recorded" : "Second Visit")
+                                                    </button>
                                                 </td>
                                             </tr>
-                                        }
+                                                                }
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
-                    }
-                    else if (hasSearched)
-                    {
-                        <div class="guest-mini-empty mt-4">
-                            <i class="fas fa-search"></i>
-                            <h6>No first timers found</h6>
-                            <p>Try changing the name, date, guest number, month or year.</p>
-                        </div>
-                    }
+                        }
+
+                    </div>
                 </div>
             </div>
+
+        </div>
+    </div>
+}
+
+@if (showDetailsPopup && selectedGuest != null)
+{
+    <div class="second-timer-popup-backdrop">
+        <div class="second-timer-popup-card">
+
+            <div class="second-timer-popup-header">
+                <div>
+                    <h4>Guest Details</h4>
+                    <p>@selectedGuest.GuestNumber</p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="ClosePopups">
+                </button>
+            </div>
+
+            <div class="guest-detail-grid">
+
+                <div>
+                    <span>Guest</span>
+                    <strong>
+                        @selectedGuest.Title
+                        @selectedGuest.FirstName
+                        @selectedGuest.Surname
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Phone</span>
+                    <strong>@DisplayText(selectedGuest.PhoneNumber)</strong>
+                </div>
+
+                <div>
+                    <span>First Visit</span>
+                    <strong>
+                        @(selectedGuest.VisitingDate
+                                            .ToString("dd MMMM yyyy"))
+                </strong>
+            </div>
+
+                <div>
+                    <span>Service</span>
+                    <strong>
+                        @(selectedGuest.Service?.Name ?? "Not available")
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Sex</span>
+                    <strong>@DisplayText(selectedGuest.Sex)</strong>
+                </div>
+
+                <div>
+                    <span>Age Group</span>
+                    <strong>@DisplayText(selectedGuest.AgeGroup)</strong>
+                </div>
+
+            </div>
+
+            <div class="mt-3 d-flex justify-content-end gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="ClosePopups">
+                    Close
+                </button>
+
+            @if (!selectedGuest.IsSecondTimer)
+                {
+                    <button type="button"
+                            class="bcc-btn bcc-btn-primary compact-btn"
+                            @onclick="() => OpenSecondVisit(selectedGuest)">
+                        <i class="fas fa-user-check me-2"></i>
+                        Record Second Visit
+                    </button>
+                }
+            </div>
+
+        </div>
+    </div>
+}
+
+@if (showSecondVisitPopup && selectedGuest != null)
+{
+    <div class="second-timer-popup-backdrop">
+        <div class="second-timer-popup-card second-visit-popup">
+
+            <div class="second-timer-popup-header">
+                <div>
+                    <h4>Record Second Visit</h4>
+                    <p>
+                        @selectedGuest.GuestNumber ·
+                        @selectedGuest.FirstName
+                        @selectedGuest.Surname
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="ClosePopups">
+                </button>
+            </div>
+
+            @if (secondTimerValidationErrors.Any())
+            {
+                <div class="alert alert-warning py-2">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Please complete the required fields.
+                </div>
+            }
+
+            <div class="row g-2">
+
+                <div class="col-12">
+                    <label class="form-label compact-label">
+                        Current Phone Number
+                    </label>
+
+                    <InputText class="form-control form-control-sm"
+                               @bind-Value="secondTimerModel.CurrentPhoneNumber" />
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label compact-label">
+                        Birth Month
+                        <span class="text-danger">*</span>
+                    </label>
+
+                    <select class="form-select form-select-sm"
+                            @bind="secondTimerModel.BirthMonth">
+                        <option value="">Select Month</option>
+                        <option value="January">January</option>
+                        <option value="February">February</option>
+                        <option value="March">March</option>
+                        <option value="April">April</option>
+                        <option value="May">May</option>
+                        <option value="June">June</option>
+                        <option value="July">July</option>
+                        <option value="August">August</option>
+                        <option value="September">September</option>
+                        <option value="October">October</option>
+                        <option value="November">November</option>
+                        <option value="December">December</option>
+                    </select>
+
+                    <div class="text-danger small">
+                        @GetSecondTimerValidationMessage(
+                        nameof(secondTimerModel.BirthMonth))
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="compact-question">
+                    <span>Become BCC Member?</span>
+
+                    <div>
+                        <label>
+                            <input type="radio"
+                                   name="wantsMember"
+                                   checked="@(secondTimerModel.WantsToBecomeMember == true)"
+                                   @onchange="() => secondTimerModel.WantsToBecomeMember = true" />
+                            Yes
+                        </label>
+
+                        <label>
+                            <input type="radio"
+                                   name="wantsMember"
+                                   checked="@(secondTimerModel.WantsToBecomeMember == false)"
+                                   @onchange="() => secondTimerModel.WantsToBecomeMember = false" />
+                            No
+                        </label>
+                    </div>
+
+                    <small class="text-danger">
+                        @GetSecondTimerValidationMessage(
+                                                nameof(secondTimerModel.WantsToBecomeMember))
+                    </small>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="compact-question">
+                    <span>Baptised by Water?</span>
+
+                    <div>
+                        <label>
+                            <input type="radio"
+                                   name="baptised"
+                                   checked="@(secondTimerModel.IsBaptisedByWater == true)"
+                                   @onchange="() => secondTimerModel.IsBaptisedByWater = true" />
+                            Yes
+                        </label>
+
+                        <label>
+                            <input type="radio"
+                                   name="baptised"
+                                   checked="@(secondTimerModel.IsBaptisedByWater == false)"
+                                   @onchange="() => secondTimerModel.IsBaptisedByWater = false" />
+                            No
+                        </label>
+                    </div>
+
+                    <small class="text-danger">
+                        @GetSecondTimerValidationMessage(
+                                                nameof(secondTimerModel.IsBaptisedByWater))
+                    </small>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="compact-question">
+                    <span>Join BCC Workforce?</span>
+
+                    <div>
+                        <label>
+                            <input type="radio"
+                                   name="joinWorkforce"
+                                   checked="@(secondTimerModel.WantsToJoinWorkforce == true)"
+                                   @onchange="() => secondTimerModel.WantsToJoinWorkforce = true" />
+                            Yes
+                        </label>
+
+                        <label>
+                            <input type="radio"
+                                   name="joinWorkforce"
+                                   checked="@(secondTimerModel.WantsToJoinWorkforce == false)"
+                                   @onchange="() => secondTimerModel.WantsToJoinWorkforce = false" />
+                            No
+                        </label>
+                    </div>
+
+                    <small class="text-danger">
+                        @GetSecondTimerValidationMessage(
+                                                nameof(secondTimerModel.WantsToJoinWorkforce))
+                    </small>
+                </div>
+            </div>
+
         </div>
 
-        @if (selectedGuest != null && showDetailsModal)
-        {
-            <div class="team-modal-backdrop">
-                <div class="guest-secondtimer-workspace-modal">
+        <div class="mt-3 d-flex justify-content-end gap-2">
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    disabled="@isSubmitting"
+                    @onclick="ClosePopups">
+                Cancel
+            </button>
 
-                    <div class="workspace-modal-topbar">
-                        <div>
-                            <h5><i class="fas fa-user-circle me-2"></i>Guest Confirmation</h5>
-                            <small>@selectedGuest.GuestNumber • @selectedGuest.Title @selectedGuest.FirstName @selectedGuest.Surname</small>
-                        </div>
+            <button type="button"
+                    class="bcc-btn bcc-btn-primary compact-btn"
+                    disabled="@isSubmitting"
+                    @onclick="SubmitSecondTimer">
 
-                        <div class="workspace-modal-actions">
-                            <button type="button" class="bcc-btn guest-secondary-btn" @onclick="CloseDetailsModal">
-                                Close
-                            </button>
-
-                            <button type="button"
-                                    class="bcc-btn bcc-btn-primary"
-                                    @onclick="() => MarkAsSecondTimer(selectedGuest.Id)"
-                                    disabled="@(!CanRecordForService(selectedGuest.ServiceId))">
-                                <i class="fas fa-user-check me-1"></i>Record Visit
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="workspace-guest-summary">
-                        <div>
-                            <span>Guest</span>
-                            <strong>@selectedGuest.Title @selectedGuest.FirstName @selectedGuest.Surname</strong>
-                        </div>
-
-                        <div>
-                            <span>Guest No</span>
-                            <strong>@selectedGuest.GuestNumber</strong>
-                        </div>
-
-                        <div>
-                            <span>Phone</span>
-                            <strong>@DisplayText(selectedGuest.PhoneNumber)</strong>
-                        </div>
-
-                        <div>
-                            <span>First Visit</span>
-                            <strong>@selectedGuest.VisitingDate.ToString("dd-MMM-yyyy")</strong>
-                        </div>
-
-                        <div>
-                            <span>Service</span>
-                            <strong>@DisplayText(selectedGuest.Service?.Name)</strong>
-                        </div>
-
-                        <div>
-                            <span>Sex / Age</span>
-                            <strong>@selectedGuest.Sex / @selectedGuest.AgeGroup</strong>
-                        </div>
-                    </div>
-
-                    @if (!CanRecordForService(selectedGuest.ServiceId))
+                @if (isSubmitting)
                     {
-                        <div class="alert alert-danger mb-0">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            You are not nominated to record second visits for @selectedGuest.Service?.Name.
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-
-        @if (selectedGuest != null && showSecondTimerModal)
-        {
-            <div class="team-modal-backdrop">
-                <div class="guest-secondtimer-workspace-modal">
-
-                    <div class="workspace-modal-topbar">
-                        <div>
-                            <h5>
-                                <i class="fas fa-user-check me-2"></i>Record Second Visit
-                            </h5>
-                            <small>
-                                @selectedGuest.GuestNumber • @selectedGuest.Title @selectedGuest.FirstName @selectedGuest.Surname
-                            </small>
-                        </div>
-
-                        <div class="workspace-modal-actions">
-                            <button type="button" class="bcc-btn guest-secondary-btn" @onclick="CloseSecondTimerModal">
-                                Cancel
-                            </button>
-
-                            <button type="button"
-                                    class="bcc-btn bcc-btn-primary"
-                                    @onclick="SubmitSecondTimer"
-                                    disabled="@(!CanRecordForService(selectedGuest.ServiceId) || isSubmitting)">
-                                @if (isSubmitting)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-1"></span>
-                                }
-                                <span>Record Visit</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="workspace-guest-summary">
-                        <div>
-                            <span>Guest</span>
-                            <strong>@selectedGuest.Title @selectedGuest.FirstName @selectedGuest.Surname</strong>
-                        </div>
-
-                        <div>
-                            <span>Phone</span>
-                            <strong>@DisplayText(selectedGuest.PhoneNumber)</strong>
-                        </div>
-
-                        <div>
-                            <span>First Visit</span>
-                            <strong>@selectedGuest.VisitingDate.ToString("dd-MMM-yyyy")</strong>
-                        </div>
-
-                        <div>
-                            <span>Service</span>
-                            <strong>@DisplayText(selectedGuest.Service?.Name)</strong>
-                        </div>
-                    </div>
-
-                    @if (!CanRecordForService(selectedGuest.ServiceId))
-                    {
-                        <div class="alert alert-danger mb-0">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            You are not nominated to record second visits for @selectedGuest.Service?.Name.
-                        </div>
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Saving...</span>
                     }
                     else
                     {
-                        <div class="workspace-secondtimer-grid">
-
-                            <div class="workspace-field">
-                                <label>Phone Number</label>
-                                <input type="tel" class="form-control bcc-input"
-                                       @bind="secondTimerModel.CurrentPhoneNumber" />
-                            </div>
-
-                            <div class="workspace-field">
-                                <label>Birth Month *</label>
-                                <select class="form-select bcc-input" @bind="secondTimerModel.BirthMonth">
-                                    <option value="">Select Month</option>
-                                    <option value="January">January</option>
-                                    <option value="February">February</option>
-                                    <option value="March">March</option>
-                                    <option value="April">April</option>
-                                    <option value="May">May</option>
-                                    <option value="June">June</option>
-                                    <option value="July">July</option>
-                                    <option value="August">August</option>
-                                    <option value="September">September</option>
-                                    <option value="October">October</option>
-                                    <option value="November">November</option>
-                                    <option value="December">December</option>
-                                </select>
-                                <span class="text-danger small">@GetSecondTimerValidationMessage(nameof(secondTimerModel.BirthMonth))</span>
-                            </div>
-
-                            <div class="workspace-question">
-                                <label>Become BCC Member? *</label>
-                                <div class="workspace-radio-row">
-                                    <label><input type="radio" name="wantsMember" checked="@(secondTimerModel.WantsToBecomeMember == true)" @onchange="() => secondTimerModel.WantsToBecomeMember = true" /> Yes</label>
-                                    <label><input type="radio" name="wantsMember" checked="@(secondTimerModel.WantsToBecomeMember == false)" @onchange="() => secondTimerModel.WantsToBecomeMember = false" /> No</label>
-                                </div>
-                                <span class="text-danger small">@GetSecondTimerValidationMessage(nameof(secondTimerModel.WantsToBecomeMember))</span>
-                            </div>
-
-                            <div class="workspace-question">
-                                <label>Baptised by Water? *</label>
-                                <div class="workspace-radio-row">
-                                    <label><input type="radio" name="baptised" checked="@(secondTimerModel.IsBaptisedByWater == true)" @onchange="() => secondTimerModel.IsBaptisedByWater = true" /> Yes</label>
-                                    <label><input type="radio" name="baptised" checked="@(secondTimerModel.IsBaptisedByWater == false)" @onchange="() => secondTimerModel.IsBaptisedByWater = false" /> No</label>
-                                </div>
-                                <span class="text-danger small">@GetSecondTimerValidationMessage(nameof(secondTimerModel.IsBaptisedByWater))</span>
-                            </div>
-
-                            <div class="workspace-question full">
-                                <label>Join BCC Workforce? *</label>
-                                <div class="workspace-radio-row">
-                                    <label><input type="radio" name="joinWorkforce" checked="@(secondTimerModel.WantsToJoinWorkforce == true)" @onchange="() => secondTimerModel.WantsToJoinWorkforce = true" /> Yes</label>
-                                    <label><input type="radio" name="joinWorkforce" checked="@(secondTimerModel.WantsToJoinWorkforce == false)" @onchange="() => secondTimerModel.WantsToJoinWorkforce = false" /> No</label>
-                                </div>
-                                <span class="text-danger small">@GetSecondTimerValidationMessage(nameof(secondTimerModel.WantsToJoinWorkforce))</span>
-                            </div>
-
-                        </div>
+                        <i class="fas fa-save me-2"></i>
+                        <span>Record Visit</span>
                     }
-                </div>
+
+                </button>
             </div>
-        }
-    }
-}
-else
-{
-    <div class="guest-secondtimer-v2-page">
-        <div class="bcc-empty">
-            <i class="fas fa-exclamation-triangle"></i>
-            <h4>Please Log In</h4>
-            <p>You need to be logged in to access this page.</p>
-            <a href="/login" class="bcc-btn bcc-btn-primary text-decoration-none">Go to Login</a>
+
         </div>
     </div>
 }
 
 @code {
     private List<Guest> searchResults = new();
-    private Guest selectedGuest = null;
-    private UpdateSecondTimerModel secondTimerModel = new();
+    private Guest? selectedGuest;
 
-    private string searchName = "";
-    private DateTime? searchDate = null;
-    private string searchGuestNumber = "";
-    private int? searchYear = null;
-    private int? searchMonth = null;
+    private UpdateSecondTimerModel secondTimerModel =
+        new();
+
+    private string searchName = string.Empty;
+    private DateTime? searchDate;
+    private string searchGuestNumber = string.Empty;
+    private int? searchYear;
+    private int? searchMonth;
 
     private bool isLoading = true;
-    private bool isSearching = false;
-    private bool isSubmitting = false;
-    private bool hasSearched = false;
-    private bool showDetailsModal = false;
-    private bool showSecondTimerModal = false;
-    private bool showNotNominatedModal = false;
-    private bool isUserNominated = false;
-    private bool hasNominatedServiceToday = false;
+    private bool isSearching;
+    private bool isSubmitting;
+    private bool hasSearched;
+    private bool canAccessGuestManagement;
+    private bool showDetailsPopup;
+    private bool showSecondVisitPopup;
 
-    private Dictionary<int, bool> serviceAuthorizationCache = new();
-    private List<RecordNominationDTO> userNominations = new();
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
 
-    private string errorMessage = "";
-    private string successMessage = "";
-    private Dictionary<string, List<string>> secondTimerValidationErrors = new();
+    private Dictionary<string, List<string>>
+        secondTimerValidationErrors = new();
 
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthService.IsAuthenticated)
-            return;
-
-        var isFIGDirectorateMember = IsFIGDirectorateMember();
-
-        if (!isFIGDirectorateMember)
-        {
-            isUserNominated = await CheckUserNominationStatus();
-
-            if (!isUserNominated)
-            {
-                showNotNominatedModal = true;
-            }
-            else
-            {
-                await LoadUserNominations();
-            }
-        }
-        else
-        {
-            isUserNominated = true;
-            hasNominatedServiceToday = true;
-        }
-
-        isLoading = false;
-        StateHasChanged();
+        await LoadPageAsync();
     }
 
-    private async Task<bool> CheckUserNominationStatus()
+    private async Task LoadPageAsync()
     {
         try
         {
-            var currentWorker = AuthService.CurrentWorker;
-            if (currentWorker == null) return false;
+            isLoading = true;
+            errorMessage = string.Empty;
 
-            var today = DateTime.Today;
-            var nominations = await RecordNominationService.GetNominationsForUserAsync(currentWorker.WorkerId, today);
+            var worker = AuthService.CurrentWorker;
 
-            var guestRecordNominations = nominations.Where(n => n.RecordType == "Guest Record").ToList();
-
-            hasNominatedServiceToday = guestRecordNominations.Any();
-
-            return hasNominatedServiceToday;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error checking nomination status: {ex.Message}");
-            return false;
-        }
-    }
-
-    private async Task LoadUserNominations()
-    {
-        try
-        {
-            var currentWorker = AuthService.CurrentWorker;
-            if (currentWorker == null) return;
-
-            var today = DateTime.Today;
-            var nominations = await RecordNominationService.GetNominationsForUserAsync(currentWorker.WorkerId, today);
-
-            userNominations = nominations.Where(n => n.RecordType == "Guest Record").ToList();
-
-            foreach (var nomination in userNominations)
+            if (worker == null)
             {
-                if (nomination.ServiceId > 0)
-                {
-                    serviceAuthorizationCache[nomination.ServiceId] = true;
-                }
+                canAccessGuestManagement = false;
+                return;
             }
+
+            var access =
+                await ServiceRecordAccessService
+                    .GetAccessAsync(worker.Id);
+
+            var hasGuestPrivilege =
+                access.CanAccessGuestManagement;
+
+            var isFigDirectorate =
+                IsFigName(worker.Directorate?.Name);
+
+            var isSecondaryDepartmentFig =
+                IsFigName(worker.SecondaryDepartment?.Name);
+
+            var hasAuthorisedRole =
+                AuthService.IsInRole("Church Admin") ||
+                AuthService.IsInRole("Head of Service") ||
+                AuthService.IsInRole("Pastor in Charge");
+
+            canAccessGuestManagement =
+                hasGuestPrivilege &&
+                (
+                    isFigDirectorate ||
+                    isSecondaryDepartmentFig ||
+                    hasAuthorisedRole
+                );
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading user nominations: {ex.Message}");
+            errorMessage =
+                $"Unable to load second timer workspace: {ex.Message}";
         }
-    }
-
-    private bool CanRecordForService(int? serviceId)
-    {
-        if (!serviceId.HasValue) return false;
-
-        if (IsFIGDirectorateMember()) return true;
-
-        if (serviceAuthorizationCache.ContainsKey(serviceId.Value))
+        finally
         {
-            return serviceAuthorizationCache[serviceId.Value];
+            isLoading = false;
         }
-
-        var isNominated = userNominations.Any(n => n.ServiceId == serviceId.Value);
-        serviceAuthorizationCache[serviceId.Value] = isNominated;
-
-        return isNominated;
-    }
-
-    private bool IsFIGDirectorateMember()
-    {
-        var worker = AuthService.CurrentWorker;
-        if (worker == null) return false;
-
-        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
-        var departmentName = worker.Department?.Name?.ToLowerInvariant() ?? "";
-        var role = worker.Role?.ToLowerInvariant() ?? "";
-
-        var isInFIG = directorateName.Contains("fig");
-
-        var hasValidRole = role.Contains("head of directorate") ||
-                           role.Contains("asst head of directorate") ||
-                           role.Contains("directorate member") ||
-                           (role.Contains("head of department") && departmentName.Contains("membership assimilation")) ||
-                           AuthService.IsInRole("Church Admin") ||
-                           AuthService.IsInRole("Pastor in Charge");
-
-        return isInFIG && hasValidRole;
     }
 
     private async Task SearchGuests()
     {
-        isSearching = true;
-        errorMessage = "";
-        hasSearched = true;
-
         try
         {
-            searchResults = await GuestService.SearchFirstTimersAsync(
-                searchDate,
-                searchGuestNumber,
-                searchYear,
-                searchMonth,
-                searchName
-            );
+            isSearching = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            hasSearched = true;
+
+            searchResults =
+                await GuestService.SearchFirstTimersAsync(
+                    searchDate,
+                    searchGuestNumber,
+                    searchYear,
+                    searchMonth,
+                    searchName);
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error searching guests: {ex.Message}";
+            errorMessage =
+                $"Unable to search guests: {ex.Message}";
         }
         finally
         {
             isSearching = false;
-            StateHasChanged();
         }
     }
 
-    private async Task ViewGuestDetails(int guestId)
+    private void OpenDetails(Guest guest)
     {
-        try
-        {
-            selectedGuest = await GuestService.GetGuestByIdAsync(guestId);
-
-            if (selectedGuest != null)
-            {
-                showDetailsModal = true;
-            }
-            else
-            {
-                errorMessage = "Guest not found";
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error loading guest details: {ex.Message}";
-        }
+        selectedGuest = guest;
+        showDetailsPopup = true;
+        showSecondVisitPopup = false;
     }
 
-    private async Task MarkAsSecondTimer(int guestId)
+    private void OpenSecondVisit(Guest guest)
     {
-        try
+        if (guest.IsSecondTimer)
         {
-            selectedGuest = await GuestService.GetGuestByIdAsync(guestId);
+            errorMessage =
+                $"{guest.GuestNumber} is already marked as a second timer.";
+            return;
+        }
 
-            if (selectedGuest != null)
+        selectedGuest = guest;
+
+        secondTimerModel =
+            new UpdateSecondTimerModel
             {
-                if (selectedGuest.IsSecondTimer)
-                {
-                    errorMessage = $"Guest {selectedGuest.GuestNumber} is already marked as second timer";
-                    return;
-                }
+                GuestId = guest.Id,
+                CurrentPhoneNumber =
+                    guest.PhoneNumber
+            };
 
-                if (!CanRecordForService(selectedGuest.ServiceId))
-                {
-                    errorMessage = $"You are not authorized to record second visits for {selectedGuest.Service?.Name} service";
-                    return;
-                }
-
-                secondTimerModel = new UpdateSecondTimerModel
-                {
-                    GuestId = guestId,
-                    CurrentPhoneNumber = selectedGuest.PhoneNumber
-                };
-
-                showDetailsModal = false;
-                showSecondTimerModal = true;
-                secondTimerValidationErrors.Clear();
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error: {ex.Message}";
-        }
+        secondTimerValidationErrors.Clear();
+        showDetailsPopup = false;
+        showSecondVisitPopup = true;
     }
 
     private async Task SubmitSecondTimer()
     {
-        if (selectedGuest == null) return;
-
-        if (!CanRecordForService(selectedGuest.ServiceId))
-        {
-            errorMessage = "You are not authorized to record second visits for this service.";
+        if (selectedGuest == null)
             return;
-        }
 
         secondTimerValidationErrors.Clear();
 
         if (!ValidateSecondTimerForm())
-        {
             return;
-        }
-
-        isSubmitting = true;
-        errorMessage = "";
 
         try
         {
-            var currentWorker = AuthService.CurrentWorker;
-            var updatedGuest = await GuestService.UpdateSecondTimerAsync(secondTimerModel, currentWorker);
+            isSubmitting = true;
+            errorMessage = string.Empty;
 
-            successMessage = $"Second visit recorded successfully for {updatedGuest.Title} {updatedGuest.FirstName} {updatedGuest.Surname}";
+            var updatedGuest =
+                await GuestService.UpdateSecondTimerAsync(
+                    secondTimerModel,
+                    AuthService.CurrentWorker);
 
+            successMessage =
+                $"Second visit recorded successfully for " +
+                $"{updatedGuest.Title} {updatedGuest.FirstName} {updatedGuest.Surname}.";
+
+            ClosePopups();
             await SearchGuests();
-
-            CloseSecondTimerModal();
-
-            StateHasChanged();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error recording second visit: {ex.Message}";
+            errorMessage =
+                $"Unable to record second visit: {ex.Message}";
         }
         finally
         {
@@ -847,99 +796,359 @@ else
 
     private bool ValidateSecondTimerForm()
     {
-        secondTimerValidationErrors.Clear();
+        if (string.IsNullOrWhiteSpace(
+            secondTimerModel.BirthMonth))
+        {
+            AddSecondTimerValidationError(
+                nameof(secondTimerModel.BirthMonth),
+                "Birth month is required.");
+        }
 
-        if (string.IsNullOrWhiteSpace(secondTimerModel.BirthMonth))
-            AddSecondTimerValidationError(nameof(secondTimerModel.BirthMonth), "Birth month is required");
+        if (!secondTimerModel
+            .WantsToBecomeMember.HasValue)
+        {
+            AddSecondTimerValidationError(
+                nameof(secondTimerModel.WantsToBecomeMember),
+                "Please select Yes or No.");
+        }
 
-        if (!secondTimerModel.WantsToBecomeMember.HasValue)
-            AddSecondTimerValidationError(nameof(secondTimerModel.WantsToBecomeMember), "Please specify if the guest wants to become a member");
+        if (!secondTimerModel
+            .IsBaptisedByWater.HasValue)
+        {
+            AddSecondTimerValidationError(
+                nameof(secondTimerModel.IsBaptisedByWater),
+                "Please select Yes or No.");
+        }
 
-        if (!secondTimerModel.IsBaptisedByWater.HasValue)
-            AddSecondTimerValidationError(nameof(secondTimerModel.IsBaptisedByWater), "Please specify if the guest has been baptised by water");
-
-        if (!secondTimerModel.WantsToJoinWorkforce.HasValue)
-            AddSecondTimerValidationError(nameof(secondTimerModel.WantsToJoinWorkforce), "Please specify if the guest wants to join the workforce");
+        if (!secondTimerModel
+            .WantsToJoinWorkforce.HasValue)
+        {
+            AddSecondTimerValidationError(
+                nameof(secondTimerModel.WantsToJoinWorkforce),
+                "Please select Yes or No.");
+        }
 
         return !secondTimerValidationErrors.Any();
     }
 
-    private void AddSecondTimerValidationError(string propertyName, string message)
+    private void AddSecondTimerValidationError(
+        string propertyName,
+        string message)
     {
-        if (!secondTimerValidationErrors.ContainsKey(propertyName))
-            secondTimerValidationErrors[propertyName] = new List<string>();
-
-        secondTimerValidationErrors[propertyName].Add(message);
-    }
-
-    private string GetSecondTimerValidationMessage(string propertyName)
-    {
-        if (secondTimerValidationErrors.ContainsKey(propertyName))
+        if (!secondTimerValidationErrors
+            .ContainsKey(propertyName))
         {
-            return string.Join("; ", secondTimerValidationErrors[propertyName]);
+            secondTimerValidationErrors[propertyName] =
+                new List<string>();
         }
 
-        return "";
+        secondTimerValidationErrors[propertyName]
+            .Add(message);
+    }
+
+    private string GetSecondTimerValidationMessage(
+        string propertyName)
+    {
+        return secondTimerValidationErrors
+            .TryGetValue(propertyName, out var messages)
+                ? string.Join("; ", messages)
+                : string.Empty;
     }
 
     private void ResetSearch()
     {
-        searchName = "";
+        searchName = string.Empty;
         searchDate = null;
-        searchGuestNumber = "";
+        searchGuestNumber = string.Empty;
         searchYear = null;
         searchMonth = null;
         searchResults.Clear();
         hasSearched = false;
-        errorMessage = "";
-        successMessage = "";
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
     }
 
-    private void CloseDetailsModal()
+    private void ClosePopups()
     {
-        showDetailsModal = false;
+        showDetailsPopup = false;
+        showSecondVisitPopup = false;
         selectedGuest = null;
-        StateHasChanged();
-    }
+        secondTimerModel =
+            new UpdateSecondTimerModel();
 
-    private void CloseSecondTimerModal()
-    {
-        showSecondTimerModal = false;
-        selectedGuest = null;
-        secondTimerModel = new UpdateSecondTimerModel();
         secondTimerValidationErrors.Clear();
-        StateHasChanged();
     }
 
-    private void ClearSuccessMessage()
+    private static bool IsFigName(
+        string? value)
     {
-        successMessage = "";
-        StateHasChanged();
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return string.Equals(
+                   value.Trim(),
+                   "FIG",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               value.Contains(
+                   "FIG",
+                   StringComparison.OrdinalIgnoreCase);
     }
 
-    private void ClearErrorMessage()
-    {
-        errorMessage = "";
-        StateHasChanged();
-    }
-
-    private void GoToGuestManagement()
+    private void GoBack()
     {
         Navigation.NavigateTo("/guest");
     }
 
-    private string GetGuestInitials(Guest guest)
+    private static string GetGuestInitials(
+        Guest guest)
     {
-        var first = !string.IsNullOrWhiteSpace(guest.FirstName) ? guest.FirstName.Substring(0, 1).ToUpper() : "";
-        var last = !string.IsNullOrWhiteSpace(guest.Surname) ? guest.Surname.Substring(0, 1).ToUpper() : "";
+        var first =
+            !string.IsNullOrWhiteSpace(guest.FirstName)
+                ? guest.FirstName[..1].ToUpperInvariant()
+                : string.Empty;
+
+        var last =
+            !string.IsNullOrWhiteSpace(guest.Surname)
+                ? guest.Surname[..1].ToUpperInvariant()
+                : string.Empty;
 
         var initials = $"{first}{last}";
 
-        return string.IsNullOrWhiteSpace(initials) ? "G" : initials;
+        return string.IsNullOrWhiteSpace(initials)
+            ? "G"
+            : initials;
     }
 
-    private string DisplayText(string? value)
+    private static string DisplayText(
+        string? value)
     {
-        return string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not provided"
+            : value;
     }
 }
+
+<style>
+    .second-timer-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .second-timer-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .compact-section-heading,
+    .result-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+        .compact-section-heading h6,
+        .result-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .compact-section-heading p,
+        .result-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.72rem;
+        }
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: 0.69rem;
+        font-weight: 700;
+    }
+
+    .second-timer-page .form-control,
+    .second-timer-page .form-select {
+        min-height: 32px;
+        font-size: 0.78rem;
+    }
+
+    .second-timer-table thead th {
+        padding: 8px 9px;
+        color: #475569;
+        background: #f8fafc;
+        font-size: 0.63rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .second-timer-table tbody td {
+        padding: 8px 9px;
+        font-size: 0.76rem;
+        vertical-align: middle;
+    }
+
+    .guest-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .guest-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 32px;
+        width: 32px;
+        height: 32px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 9px;
+        font-size: 0.7rem;
+        font-weight: 800;
+    }
+
+    .guest-name-cell strong,
+    .guest-name-cell span {
+        display: block;
+    }
+
+    .guest-name-cell strong {
+        color: #0f172a;
+        font-size: 0.76rem;
+    }
+
+    .guest-name-cell span {
+        color: #64748b;
+        font-size: 0.66rem;
+    }
+
+    .second-timer-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        background: rgba(15, 23, 42, 0.58);
+    }
+
+    .second-timer-popup-card {
+        width: 100%;
+        max-width: 520px;
+        max-height: 84vh;
+        padding: 19px;
+        overflow-y: auto;
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.24);
+    }
+
+    .second-visit-popup {
+        max-width: 500px;
+    }
+
+    .second-timer-popup-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+        .second-timer-popup-header h4 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 1rem;
+            font-weight: 800;
+        }
+
+        .second-timer-popup-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.76rem;
+        }
+
+    .guest-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+        .guest-detail-grid > div {
+            padding: 8px 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .guest-detail-grid span {
+            display: block;
+            margin-bottom: 2px;
+            color: #64748b;
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .guest-detail-grid strong {
+            color: #0f172a;
+            font-size: 0.79rem;
+        }
+
+    .compact-question {
+        padding: 9px 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+        .compact-question > span {
+            display: block;
+            margin-bottom: 6px;
+            color: #334155;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .compact-question > div {
+            display: flex;
+            gap: 18px;
+        }
+
+        .compact-question label {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #475569;
+            font-size: 0.76rem;
+        }
+
+    @@media (max-width: 768px) {
+        .guest-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .second-timer-table thead th,
+        .second-timer-table tbody td {
+            white-space: normal;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .second-timer-popup-card {
+            max-width: 96vw;
+            padding: 16px;
+        }
+    }
+</style>

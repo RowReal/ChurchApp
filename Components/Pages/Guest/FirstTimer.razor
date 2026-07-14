@@ -1,813 +1,769 @@
 ﻿@page "/guest/first-timer"
 @layout Components.Layout.MainLayout
-@using ChurchApp.Services
+
 @using ChurchApp.Models
+@using ChurchApp.Services
+
 @inject GuestService GuestService
 @inject ServiceService ServiceService
+@inject ServiceRecordAccessService ServiceRecordAccessService
 @inject AuthService AuthService
-@inject RecordNominationService RecordNominationService
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
 
-<PageTitle>Guest Connect - BCC ServiceHub</PageTitle>
+<PageTitle>First Timer Registration - BCC ServiceHub</PageTitle>
 
-@if (AuthService.IsAuthenticated)
+@if (!AuthService.IsAuthenticated)
 {
-    @if (showNotNominatedModal)
-    {
-        <div class="team-modal-backdrop">
-            <div class="team-modal-card text-center">
-                <div class="guest-access-icon warning">
-                    <i class="fas fa-user-clock"></i>
-                </div>
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to register first timers.</p>
 
-                <h4>Access Restricted</h4>
-                <p>You are not nominated to take guest records for today.</p>
-
-                <div class="guest-access-box">
-                    <div>
-                        <strong>Service</strong>
-                        <span>@(selectedService?.Name ?? "No service selected")</span>
-                    </div>
-                    <div>
-                        <strong>Date</strong>
-                        <span>@DateTime.Today.ToString("dddd, dd MMMM yyyy")</span>
-                    </div>
-                </div>
-
-                <p class="text-muted small mb-4">
-                    Only nominated FIG members, FIG Directorate leaders, or authorized department heads can record guests.
-                </p>
-
-                <button type="button" class="bcc-btn guest-secondary-btn w-100" @onclick="GoToGuestManagement">
-                    <i class="fas fa-arrow-left me-1"></i>Back to Guest Centre
-                </button>
-            </div>
-        </div>
-    }
-
-    @if (!IsFIGDirectorateMember() && !IsFIGHeadOfDepartment() && !isUserNominated && !showNotNominatedModal)
-    {
-        <div class="guest-firsttimer-v2-page">
-            <div class="bcc-empty">
-                <i class="fas fa-lock"></i>
-                <h4>Access Denied</h4>
-                <p>This section is only accessible to FIG Directorate members or nominated guest record keepers.</p>
-                <a href="/guest" class="bcc-btn bcc-btn-primary text-decoration-none">
-                    <i class="fas fa-arrow-left me-1"></i>Back to Guest Centre
-                </a>
-            </div>
-        </div>
-    }
-    else if (isLoading)
-    {
-        <div class="guest-firsttimer-v2-page">
-            <div class="bcc-card">
-                <div class="bcc-card-body text-center py-5">
-                    <div class="spinner-border text-primary mb-3"></div>
-                    <h5 class="fw-bold">Loading Guest Connect...</h5>
-                    <p class="text-muted mb-0">Please wait while we prepare today’s guest register.</p>
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">
+                    Loading first timer register...
                 </div>
             </div>
         </div>
-    }
-    else if (isUserNominated || IsFIGDirectorateMember() || IsFIGHeadOfDepartment())
-    {
-        @if (showDeleteModal)
-        {
-            <div class="team-modal-backdrop">
-                <div class="team-modal-card">
-                    <button class="team-modal-close" @onclick="CancelDelete">
-                        <i class="fas fa-times"></i>
-                    </button>
+    </div>
+}
+else if (!canAccessGuestManagement)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
 
-                    <div class="text-center">
-                        <div class="guest-access-icon danger">
-                            <i class="fas fa-trash-alt"></i>
-                        </div>
+        <p>
+            You must have the Guest Management privilege and either belong
+            to the FIG Directorate, have FIG as your secondary department,
+            or hold an authorised leadership role.
+        </p>
 
-                        <h4>Delete Guest Record?</h4>
-                        <p>This action cannot be undone.</p>
-                    </div>
-
-                    <div class="guest-access-box">
-                        <div>
-                            <strong>Guest</strong>
-                            <span>@guestToDelete?.Title @guestToDelete?.FirstName @guestToDelete?.Surname</span>
-                        </div>
-                        <div>
-                            <strong>Guest ID</strong>
-                            <span>@guestToDelete?.GuestNumber</span>
-                        </div>
-                    </div>
-
-                    <div class="team-modal-actions">
-                        <button type="button" class="bcc-btn guest-secondary-btn" @onclick="CancelDelete">
-                            Cancel
-                        </button>
-
-                        <button type="button" class="bcc-btn guest-danger-btn" @onclick="ConfirmDelete" disabled="@isDeleting">
-                            @if (isDeleting)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            else
-                            {
-                                <i class="fas fa-trash me-1"></i>
-                            }
-                            Delete
-                        </button>
-                    </div>
-                </div>
-            </div>
-        }
-
-        @if (!string.IsNullOrEmpty(successMessage))
-        {
-            <div class="guest-firsttimer-v2-page">
-                <div class="alert alert-success profile-v2-alert alert-dismissible fade show" role="alert">
-                    <i class="fas fa-check-circle me-2"></i>
-                    <strong>Success!</strong> @successMessage
-                    <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
-                </div>
-            </div>
-        }
-
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="guest-firsttimer-v2-page">
-                <div class="alert alert-danger profile-v2-alert alert-dismissible fade show" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i> @errorMessage
-                    <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
-                </div>
-            </div>
-        }
-
-        @if (showAddForm)
-        {
-            <div class="guest-firsttimer-v2-page guest-intake-v3-page">
-
-                <div class="bcc-page-header guest-intake-header">
-                    <div>
-                        <div class="guest-page-kicker">
-                            <i class="fas fa-clipboard-list me-2"></i>BCC ServiceHub
-                        </div>
-                        <div class="bcc-page-title">Guest Intake Sheet</div>
-                        <div class="bcc-page-subtitle">
-                            Fast single-page capture for MAT guest registration.
-                        </div>
-                    </div>
-
-                    <button class="bcc-btn guest-light-btn" @onclick="ShowGuestList">
-                        <i class="fas fa-arrow-left me-1"></i>Today’s Register
-                    </button>
-                </div>
-
-                <div class="guest-intake-layout">
-
-                    <aside class="guest-intake-side">
-                        <div class="guest-intake-side-card">
-                            <div class="guest-intake-side-icon">
-                                <i class="fas fa-calendar-check"></i>
-                            </div>
-
-                            <h5>Service Access</h5>
-                            <p>Select the service first to unlock the form.</p>
-
-                            <label class="bcc-form-label">Service *</label>
-                            <select class="form-select bcc-input" @bind="SelectedServiceId" @bind:event="onchange">
-                                <option value="0">Select Service</option>
-                                @foreach (var service in services)
-                                {
-                                    <option value="@service.Id">@service.Name</option>
-                                }
-                            </select>
-
-                            @if (selectedService != null && !string.IsNullOrEmpty(nominationStatusMessage))
-                            {
-                                <div class="guest-intake-auth @(isUserNominatedForSelectedService ? "approved" : "warning")">
-                                    <i class="@(isUserNominatedForSelectedService ? "fas fa-check-circle" : "fas fa-info-circle")"></i>
-                                    <span>@nominationStatusMessage</span>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="guest-intake-auth neutral">
-                                    <i class="fas fa-info-circle"></i>
-                                    <span>Waiting for service selection.</span>
-                                </div>
-                            }
-                        </div>
-                    </aside>
-
-                    <main class="guest-intake-main">
-                        <div class="bcc-card">
-                            <div class="bcc-card-header guest-intake-card-header">
-                                <div>
-                                    <div class="bcc-card-title">
-                                        <i class="fas fa-user-plus me-2 text-primary"></i>First Timer Registration
-                                    </div>
-                                    <small class="text-muted">Compact MAT data-entry form. Fields marked * are required.</small>
-                                </div>
-                            </div>
-
-                            <div class="bcc-card-body guest-intake-body">
-                                <form>
-
-                                    <div class="guest-intake-section">
-                                        <h6><i class="fas fa-user-circle"></i>Personal Details</h6>
-
-                                        <div class="row g-2">
-                                            <div class="col-md-2">
-                                                <label class="guest-intake-label">Title *</label>
-                                                <select class="form-select bcc-input guest-intake-input" @bind="model.Title" disabled="@(!isUserNominatedForSelectedService)">
-                                                    <option value="">Title</option>
-                                                    <option value="Mr">Mr</option>
-                                                    <option value="Mrs">Mrs</option>
-                                                    <option value="Miss">Miss</option>
-                                                    <option value="Dr">Dr</option>
-                                                    <option value="Pastor">Pastor</option>
-                                                    <option value="Rev">Rev</option>
-                                                    <option value="Prof">Prof</option>
-                                                    <option value="Engr">Engr</option>
-                                                </select>
-                                                <span class="text-danger small">@GetValidationMessage(nameof(model.Title))</span>
-                                            </div>
-
-                                            <div class="col-md-3">
-                                                <label class="guest-intake-label">First Name *</label>
-                                                <input class="form-control bcc-input guest-intake-input" @bind="model.FirstName" disabled="@(!isUserNominatedForSelectedService)" />
-                                                <span class="text-danger small">@GetValidationMessage(nameof(model.FirstName))</span>
-                                            </div>
-
-                                            <div class="col-md-3">
-                                                <label class="guest-intake-label">Middle Name</label>
-                                                <input class="form-control bcc-input guest-intake-input" @bind="model.MiddleName" disabled="@(!isUserNominatedForSelectedService)" />
-                                            </div>
-
-                                            <div class="col-md-4">
-                                                <label class="guest-intake-label">Surname *</label>
-                                                <input class="form-control bcc-input guest-intake-input" @bind="model.Surname" disabled="@(!isUserNominatedForSelectedService)" />
-                                                <span class="text-danger small">@GetValidationMessage(nameof(model.Surname))</span>
-                                            </div>
-
-                                            <div class="col-md-3">
-                                                <label class="guest-intake-label">Sex *</label>
-                                                <div class="guest-radio-pill-group">
-                                                    <label class="guest-radio-pill">
-                                                        <input type="radio" name="sex"
-                                                               checked="@(model.Sex == "Male")"
-                                                               @onchange="@(() => { if (isUserNominatedForSelectedService) model.Sex = "Male"; })"
-                                                               disabled="@(!isUserNominatedForSelectedService)" />
-                                                        Male
-                                                    </label>
-
-                                                    <label class="guest-radio-pill">
-                                                        <input type="radio" name="sex"
-                                                               checked="@(model.Sex == "Female")"
-                                                               @onchange="@(() => { if (isUserNominatedForSelectedService) model.Sex = "Female"; })"
-                                                               disabled="@(!isUserNominatedForSelectedService)" />
-                                                        Female
-                                                    </label>
-                                                </div>
-                                                <span class="text-danger small">@GetValidationMessage(nameof(model.Sex))</span>
-                                            </div>
-
-                                            <div class="col-md-3">
-                                                <label class="guest-intake-label">Age Group *</label>
-                                                <select class="form-select bcc-input guest-intake-input" @bind="model.AgeGroup" disabled="@(!isUserNominatedForSelectedService)">
-                                                    <option value="">Age Group</option>
-                                                    <option value="below 30">Below 30</option>
-                                                    <option value="30-40">30-40</option>
-                                                    <option value="41-50">41-50</option>
-                                                    <option value="51-60">51-60</option>
-                                                    <option value="60 and above">60 and above</option>
-                                                </select>
-                                                <span class="text-danger small">@GetValidationMessage(nameof(model.AgeGroup))</span>
-                                            </div>
-
-                                            <div class="col-md-3">
-                                                <label class="guest-intake-label">Service Attended *</label>
-                                                <select class="form-select bcc-input guest-intake-input" @bind="model.ServiceId" disabled="@(!isUserNominatedForSelectedService)">
-                                                    <option value="0">Select Service</option>
-                                                    @foreach (var service in services)
-                                                    {
-                                                        <option value="@service.Id">@service.Name</option>
-                                                    }
-                                                </select>
-                                                <span class="text-danger small">@GetValidationMessage(nameof(model.ServiceId))</span>
-                                            </div>
-
-                                            <div class="col-md-3">
-                                                <label class="guest-intake-label">Visiting Date *</label>
-                                                <input type="date" class="form-control bcc-input guest-intake-input"
-                                                       @bind="model.VisitingDate"
-                                                       @bind:format="yyyy-MM-dd"
-                                                       max="@DateTime.Now.ToString("yyyy-MM-dd")"
-                                                       disabled="@(!isUserNominatedForSelectedService)" />
-                                                <span class="text-danger small">@GetValidationMessage(nameof(model.VisitingDate))</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="guest-intake-section">
-                                        <h6><i class="fas fa-phone-alt"></i>Contact Details</h6>
-
-                                        <div class="row g-2">
-                                            <div class="col-md-4">
-                                                <label class="guest-intake-label">Phone Number</label>
-                                                <input type="tel" class="form-control bcc-input guest-intake-input"
-                                                       @bind="model.PhoneNumber"
-                                                       placeholder="080XXXXXXXX"
-                                                       disabled="@(!isUserNominatedForSelectedService)" />
-                                                <span class="text-danger small">@phoneValidationMessage</span>
-                                            </div>
-
-                                            <div class="col-md-4">
-                                                <label class="guest-intake-label">WhatsApp Number</label>
-                                                <input type="tel" class="form-control bcc-input guest-intake-input"
-                                                       @bind="model.WhatsAppNumber"
-                                                       placeholder="080XXXXXXXX"
-                                                       disabled="@(!isUserNominatedForSelectedService)" />
-                                            </div>
-
-                                            <div class="col-md-4">
-                                                <label class="guest-intake-label">Email</label>
-                                                <input type="email" class="form-control bcc-input guest-intake-input"
-                                                       @bind="model.Email"
-                                                       placeholder="email@example.com"
-                                                       disabled="@(!isUserNominatedForSelectedService)" />
-                                                <span class="text-danger small">@emailValidationMessage</span>
-                                            </div>
-
-                                            <div class="col-md-8">
-                                                <label class="guest-intake-label">Address</label>
-                                                <textarea class="form-control bcc-input guest-intake-input"
-                                                          @bind="model.Address"
-                                                          rows="2"
-                                                          placeholder="Full residential address"
-                                                          disabled="@(!isUserNominatedForSelectedService)"></textarea>
-                                            </div>
-
-                                            <div class="col-md-4">
-                                                <label class="guest-intake-label">Landmark</label>
-                                                <textarea class="form-control bcc-input guest-intake-input"
-                                                          @bind="model.Landmark"
-                                                          rows="2"
-                                                          placeholder="Nearest landmark"
-                                                          disabled="@(!isUserNominatedForSelectedService)"></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="guest-intake-section">
-                                        <h6><i class="fas fa-church"></i>Church Connection</h6>
-
-                                        <div class="row g-2">
-                                            <div class="col-md-4">
-                                                <label class="guest-intake-label">RCCG Member? *</label>
-                                                <div class="guest-radio-pill-group">
-                                                    <label class="guest-radio-pill">
-                                                        <input type="radio" name="rccgMember"
-                                                               checked="@(model.IsRCCGMember == true)"
-                                                               @onchange="() => { if (isUserNominatedForSelectedService) model.IsRCCGMember = true; }"
-                                                               disabled="@(!isUserNominatedForSelectedService)" />
-                                                        Yes
-                                                    </label>
-
-                                                    <label class="guest-radio-pill">
-                                                        <input type="radio" name="rccgMember"
-                                                               checked="@(model.IsRCCGMember == false)"
-                                                               @onchange="() => { if (isUserNominatedForSelectedService) model.IsRCCGMember = false; }"
-                                                               disabled="@(!isUserNominatedForSelectedService)" />
-                                                        No
-                                                    </label>
-                                                </div>
-                                            </div>
-
-                                            @if (!model.IsRCCGMember)
-                                            {
-                                                <div class="col-md-4">
-                                                    <label class="guest-intake-label">Current Church</label>
-                                                    <input class="form-control bcc-input guest-intake-input"
-                                                           @bind="model.OtherChurch"
-                                                           placeholder="Name of church"
-                                                           disabled="@(!isUserNominatedForSelectedService)" />
-                                                </div>
-                                            }
-
-                                            <div class="col-md-4">
-                                                <label class="guest-intake-label">How did you find us? *</label>
-                                                <select class="form-select bcc-input guest-intake-input"
-                                                        value="@model.HowFoundUs"
-                                                        @onchange="OnHowFoundUsChanged"
-                                                        disabled="@(!isUserNominatedForSelectedService)">
-                                                    <option value="">Select Option</option>
-                                                    <option value="Facebook">Facebook</option>
-                                                    <option value="Youtube">YouTube</option>
-                                                    <option value="Instagram">Instagram</option>
-                                                    <option value="X">X (Twitter)</option>
-                                                    <option value="looking around">Looking Around</option>
-                                                    <option value="invite">Invitation</option>
-                                                </select>
-                                                <span class="text-danger small">@GetValidationMessage(nameof(model.HowFoundUs))</span>
-                                            </div>
-
-                                            @if (model.HowFoundUs == "invite")
-                                            {
-                                                <div class="col-md-4">
-                                                    <label class="guest-intake-label">Invited By</label>
-                                                    <input class="form-control bcc-input guest-intake-input"
-                                                           @bind="model.InvitedByName"
-                                                           placeholder="Name of inviter"
-                                                           disabled="@(!isUserNominatedForSelectedService)" />
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
-
-                                </form>
-                            </div>
-
-                            <div class="guest-intake-footer">
-                                <button class="bcc-btn guest-secondary-btn" @onclick="ShowGuestList">
-                                    <i class="fas fa-times me-1"></i>Cancel
-                                </button>
-
-                                <button class="bcc-btn bcc-btn-primary"
-                                        @onclick="SubmitForm"
-                                        disabled="@(!isUserNominatedForSelectedService || isSubmitting)">
-                                    @if (isSubmitting)
-                                    {
-                                        <span class="spinner-border spinner-border-sm me-2"></span>
-                                    }
-                                    else
-                                    {
-                                        <i class="fas fa-save me-1"></i>
-                                    }
-
-                                    @if (!isUserNominatedForSelectedService)
-                                    {
-                                        <span>Not Authorized</span>
-                                    }
-                                    else
-                                    {
-                                        <span>Save Guest Record</span>
-                                    }
-                                </button>
-                            </div>
-                        </div>
-                    </main>
-                </div>
-            </div>
-        }
-        else
-        {
-            <div class="guest-firsttimer-v2-page">
-                <div class="bcc-page-header">
-                    <div>
-                        <div class="guest-page-kicker">
-                            <i class="fas fa-hands-helping me-2"></i>BCC ServiceHub
-                        </div>
-                        <div class="bcc-page-title">Guest Connect</div>
-                        <div class="bcc-page-subtitle">
-                            Record and manage first-time visitors attending today’s church services.
-                        </div>
-                        <div class="guest-page-date">
-                            <i class="fas fa-calendar-day me-2"></i>@DateTime.Today.ToString("dddd, dd MMMM yyyy")
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button class="bcc-btn guest-light-btn" @onclick="GoToGuestManagement">
-                            <i class="fas fa-arrow-left me-1"></i>Guest Centre
-                        </button>
-
-                        <button class="bcc-btn guest-warning-btn"
-                                @onclick="() => ShowAddForm()"
-                                disabled="@(!hasNominatedServiceToday && !IsFIGDirectorateMember() && !IsFIGHeadOfDepartment())">
-                            <i class="fas fa-user-plus me-1"></i>Register Guest
-                        </button>
-                    </div>
-                </div>
-
-                <div class="bcc-empty guest-empty-state">
-                    <i class="fas fa-users"></i>
-                    <h4>Today’s Guest Register</h4>
-                    <p>Click Register Guest to capture a first timer.</p>
-                </div>
-            </div>
-        }
-    }
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Guest Management
+        </button>
+    </div>
 }
 else
 {
-    <div class="guest-firsttimer-v2-page">
-        <div class="bcc-empty">
-            <i class="fas fa-exclamation-triangle"></i>
-            <h4>Please Log In</h4>
-            <p>You need to be logged in to access Guest Connect.</p>
-            <a href="/login" class="bcc-btn bcc-btn-primary text-decoration-none">Go to Login</a>
+    <div class="worker360-page first-timer-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        <div class="bcc-page-header first-timer-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-user-plus me-2"></i>
+                    Guest Management
+                </div>
+
+                <div class="bcc-page-title">
+                    First Timer Registration
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Register a first-time guest and review today’s entries.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="ResetForm">
+                    <i class="fas fa-redo me-2"></i>
+                    Reset
+                </button>
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+            </div>
+        </div>
+
+        <div class="row g-3">
+
+            <div class="col-12 col-xl-5">
+                <div class="bcc-card">
+                    <div class="bcc-card-body p-3">
+
+                        <div class="compact-section-heading">
+                            <div>
+                                <h6>
+                                    <i class="fas fa-id-card me-2"></i>
+                                    Guest Information
+                                </h6>
+
+                                <p>
+                                    Fields marked * are required.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="row g-2">
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Service
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <InputSelect class="form-select form-select-sm"
+                                             @bind-Value="model.ServiceId">
+                                    <option value="0">Select Service</option>
+
+                                    @foreach (var service in services)
+                                    {
+                                        <option value="@service.Id">
+                                            @service.Name
+                                        </option>
+                                    }
+                                </InputSelect>
+
+                                <div class="text-danger small">
+                                    @GetValidationMessage(nameof(model.ServiceId))
+                                </div>
+                            </div>
+
+                            <div class="col-4">
+                                <label class="form-label compact-label">
+                                    Title
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <InputSelect class="form-select form-select-sm"
+                                             @bind-Value="model.Title">
+                                    <option value="">Select</option>
+                                    <option value="Mr">Mr</option>
+                                    <option value="Mrs">Mrs</option>
+                                    <option value="Miss">Miss</option>
+                                    <option value="Dr">Dr</option>
+                                    <option value="Pastor">Pastor</option>
+                                    <option value="Rev">Rev</option>
+                                    <option value="Prof">Prof</option>
+                                    <option value="Engr">Engr</option>
+                                </InputSelect>
+
+                                <div class="text-danger small">
+                                    @GetValidationMessage(nameof(model.Title))
+                                </div>
+                            </div>
+
+                            <div class="col-8">
+                                <label class="form-label compact-label">
+                                    First Name
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="model.FirstName" />
+
+                                <div class="text-danger small">
+                                    @GetValidationMessage(nameof(model.FirstName))
+                                </div>
+                            </div>
+
+                            <div class="col-6">
+                                <label class="form-label compact-label">
+                                    Middle Name
+                                </label>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="model.MiddleName" />
+                            </div>
+
+                            <div class="col-6">
+                                <label class="form-label compact-label">
+                                    Surname
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="model.Surname" />
+
+                                <div class="text-danger small">
+                                    @GetValidationMessage(nameof(model.Surname))
+                                </div>
+                            </div>
+
+                            <div class="col-6">
+                                <label class="form-label compact-label">
+                                    Sex
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <InputSelect class="form-select form-select-sm"
+                                             @bind-Value="model.Sex">
+                                    <option value="">Select</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </InputSelect>
+
+                                <div class="text-danger small">
+                                    @GetValidationMessage(nameof(model.Sex))
+                                </div>
+                            </div>
+
+                            <div class="col-6">
+                                <label class="form-label compact-label">
+                                    Age Group
+                                </label>
+                                <InputSelect class="form-select form-select-sm"
+                                             @bind-Value="model.AgeGroup">
+                                    <option value="">Select</option>
+                                    <option value="Child">Child</option>
+                                    <option value="Teenager">Teenager</option>
+                                    <option value="Young Adult">Young Adult</option>
+                                    <option value="Adult">Adult</option>
+                                    <option value="Senior">Senior</option>
+                                </InputSelect>
+
+                                <div class="text-danger small">
+                                    @GetValidationMessage(nameof(model.AgeGroup))
+                                </div>
+                            </div>
+
+                            <div class="col-6">
+                                <label class="form-label compact-label">
+                                    Phone Number
+                                </label>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="model.PhoneNumber" />
+
+                                @if (!string.IsNullOrWhiteSpace(phoneValidationMessage))
+                                {
+                                    <div class="text-danger small">
+                                        @phoneValidationMessage
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="col-6">
+                                <label class="form-label compact-label">
+                                    WhatsApp Number
+                                </label>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="model.WhatsAppNumber" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Email
+                                </label>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="model.Email" />
+
+                                @if (!string.IsNullOrWhiteSpace(emailValidationMessage))
+                                {
+                                    <div class="text-danger small">
+                                        @emailValidationMessage
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Address
+                                </label>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="model.Address" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Landmark
+                                </label>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="model.Landmark" />
+                            </div>
+
+                            <div class="col-6">
+                                <label class="form-label compact-label">
+                                    Visiting Date
+                                </label>
+
+                                <InputDate class="form-control form-control-sm"
+                                           @bind-Value="model.VisitingDate" />
+                            </div>
+
+                            <div class="col-6">
+                                <label class="form-label compact-label">
+                                    How Did You Find Us?
+                                </label>
+
+                                <select class="form-select form-select-sm"
+                                        value="@model.HowFoundUs"
+                                        @onchange="OnHowFoundUsChanged">
+                                    <option value="">Select</option>
+                                    <option value="invite">Invited</option>
+                                    <option value="social-media">Social Media</option>
+                                    <option value="signboard">Signboard</option>
+                                    <option value="nearby">Lives Nearby</option>
+                                    <option value="event">Church Event</option>
+                                    <option value="other">Other</option>
+                                </select>
+
+                                <div class="text-danger small">
+                                    @GetValidationMessage(nameof(model.HowFoundUs))
+                                </div>
+                            </div>
+
+                            @if (model.HowFoundUs == "invite")
+                            {
+                                <div class="col-12">
+                                    <label class="form-label compact-label">
+                                        Invited By
+                                    </label>
+
+                                    <InputText class="form-control form-control-sm"
+                                               @bind-Value="model.InvitedByName" />
+                                </div>
+                            }
+
+                            <div class="col-6">
+                                <div class="form-check compact-check">
+                                    <InputCheckbox class="form-check-input"
+                                                   @bind-Value="model.IsRCCGMember" />
+
+                                    <label class="form-check-label">
+                                        RCCG Member
+                                    </label>
+                                </div>
+                            </div>
+
+                            @if (model.IsRCCGMember)
+                            {
+                                <div class="col-6">
+                                    <label class="form-label compact-label">
+                                        Other Church/Parish
+                                    </label>
+
+                                    <InputText class="form-control form-control-sm"
+                                               @bind-Value="model.OtherChurch" />
+                                </div>
+                            }
+
+                        </div>
+
+                        @if (validationErrors.Any())
+                        {
+                            <div class="alert alert-warning py-2 mt-3 mb-2">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Please complete the required fields highlighted above.
+                            </div>
+                        }
+
+                        <div class="mt-3 d-flex justify-content-end gap-2">
+                            <button type="button"
+                                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                                    disabled="@isSubmitting"
+                                    @onclick="ResetForm">
+                                Clear
+                            </button>
+
+                            <button type="button"
+                                    class="bcc-btn bcc-btn-primary compact-btn"
+                                    disabled="@isSubmitting"
+                                    @onclick="SubmitForm">
+
+                                @if (isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Saving...</span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-save me-2"></i>
+                                    <span>Register Guest</span>
+                                }
+
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-7">
+                <div class="bcc-card">
+                    <div class="bcc-card-body p-3">
+
+                        <div class="guest-register-heading">
+                            <div>
+                                <h6>Today’s First Timers</h6>
+                                <p>@filteredFirstTimers.Count record(s)</p>
+                            </div>
+
+                            <div class="guest-search">
+                                <i class="fas fa-search"></i>
+
+                                <input class="form-control form-control-sm"
+                                       value="@searchTerm"
+                                       @oninput="OnSearch"
+                                       placeholder="Search name, phone, guest number or service" />
+                            </div>
+                        </div>
+
+                        @if (!filteredFirstTimers.Any())
+                        {
+                            <div class="bcc-empty py-4">
+                                <i class="fas fa-user-friends"></i>
+                                <h4>No First Timers Today</h4>
+                                <p>No guest records have been added today.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0 guest-register-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Guest</th>
+                                            <th>Guest No.</th>
+                                            <th>Phone</th>
+                                            <th>Service</th>
+                                            <th>How Found Us</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        @foreach (var guest in filteredFirstTimers)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <div class="guest-name-cell">
+                                                        <div class="guest-avatar">
+                                                            @GetGuestInitials(guest)
+                                                        </div>
+
+                                                        <div>
+                                                            <strong>
+                                                                @guest.Title @guest.FirstName @guest.Surname
+                                                            </strong>
+
+                                                            <span>
+                                                                @guest.Sex · @guest.AgeGroup
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <td>@guest.GuestNumber</td>
+
+                                                <td>
+                                                    @(string.IsNullOrWhiteSpace(guest.PhoneNumber)
+                                                                                            ? "—"
+                                                                                            : guest.PhoneNumber)
+                                                                                                            </td>
+
+                                                <td>
+                                                    @(guest.Service?.Name ?? "Not available")
+                                                </td>
+
+                                                <td>
+                                                    @(string.IsNullOrWhiteSpace(guest.HowFoundUs)
+                                                                                            ? "—"
+                                                                                            : guest.HowFoundUs)
+                                    </td>
+
+                                                <td class="text-end">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-primary me-1"
+                                                            title="View"
+                                                            @onclick="() => ViewGuestDetails(guest.Id)">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-warning me-1"
+                                                            title="Edit"
+                                                            @onclick="() => EditGuest(guest)">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-danger"
+                                                            title="Delete"
+                                                            @onclick="() => DeleteGuest(guest)">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                                                }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+}
+
+@if (showDeleteModal && guestToDelete != null)
+{
+    <div class="guest-popup-backdrop">
+        <div class="guest-popup-card delete-popup">
+
+            <div class="delete-popup-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+
+            <h4>Delete Guest Record?</h4>
+
+            <p>
+                You are about to delete
+                <strong>
+                    @guestToDelete.Title @guestToDelete.FirstName @guestToDelete.Surname
+                </strong>.
+            </p>
+
+            <div class="mt-3 d-flex justify-content-center gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        disabled="@isDeleting"
+                        @onclick="CancelDelete">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="btn btn-danger btn-sm"
+                        disabled="@isDeleting"
+                        @onclick="ConfirmDelete">
+
+                    @if (isDeleting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Deleting...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-trash me-2"></i>
+                        <span>Delete</span>
+                    }
+
+                </button>
+            </div>
+
         </div>
     </div>
 }
 
 @if (showSuccessModal)
 {
-    <div class="team-modal-backdrop">
-        <div class="team-modal-card text-center">
-            <div class="guest-access-icon success">
-                <i class="fas fa-user-check"></i>
+    <div class="guest-popup-backdrop">
+        <div class="guest-popup-card result-popup">
+
+            <div class="result-popup-icon">
+                <i class="fas fa-check-circle"></i>
             </div>
 
-            <h4>Guest Successfully Registered</h4>
-            <p>The first timer has been added to today’s guest register.</p>
+            <h4>Guest Registered</h4>
 
-            <div class="guest-success-id">
-                <span>Guest ID</span>
+            <p>
+                <strong>@successGuestName</strong> was registered successfully.
+            </p>
+
+            <div class="guest-number-box">
+                Guest Number:
                 <strong>@successGuestNumber</strong>
             </div>
 
-            <h5 class="fw-bold text-dark">@successGuestName</h5>
-
-            <button type="button" class="bcc-btn bcc-btn-primary w-100 mt-3" @onclick="CloseSuccessModalAndRefresh">
-                <i class="fas fa-check me-1"></i>Done
+            <button type="button"
+                    class="bcc-btn bcc-btn-primary compact-btn mt-3"
+                    @onclick="CloseSuccessModalAndRefresh">
+                OK
             </button>
+
         </div>
     </div>
 }
 
 @code {
-    private CreateGuestModel model = new();
+    private CreateGuestModel model = NewGuestModel();
+
     private List<Service> services = new();
-    private bool isLoading = true;
-    private bool isSubmitting = false;
-    private bool isDeleting = false;
-    private string errorMessage = "";
-    private string successMessage = "";
-    private string phoneValidationMessage = "";
-    private string emailValidationMessage = "";
-    private string nominationStatusMessage = "";
-
-    private bool showAddForm = false;
-    private bool showSuccessModal = false;
-    private bool showDeleteModal = false;
-    private bool showNotNominatedModal = false;
-    private bool isUserNominated = false;
-    private bool isUserNominatedForSelectedService = false;
-    private bool hasNominatedServiceToday = false;
-
     private List<Guest> recentFirstTimers = new();
     private List<Guest> filteredFirstTimers = new();
-    private Guest? guestToDelete;
-    private string searchTerm = "";
-    private int selectedServiceId = 0;
-    private Service? selectedService = null;
 
-    private string successGuestNumber = "";
-    private string successGuestName = "";
+    private Guest? guestToDelete;
+
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool isDeleting;
+    private bool canAccessGuestManagement;
+    private bool showDeleteModal;
+    private bool showSuccessModal;
+
+    private string errorMessage = string.Empty;
+    private string phoneValidationMessage = string.Empty;
+    private string emailValidationMessage = string.Empty;
+    private string searchTerm = string.Empty;
+
+    private string successGuestNumber = string.Empty;
+    private string successGuestName = string.Empty;
 
     private Dictionary<string, List<string>> validationErrors = new();
 
-    private int SelectedServiceId
-    {
-        get => selectedServiceId;
-        set
-        {
-            if (selectedServiceId != value)
-            {
-                selectedServiceId = value;
-                _ = OnServiceSelected(value);
-            }
-        }
-    }
-
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthService.IsAuthenticated)
-            return;
+        await LoadPageAsync();
+    }
 
-        var isFIGDirectorateMember = IsFIGDirectorateMember() || IsFIGHeadOfDepartment();
-
-        if (!isFIGDirectorateMember)
+    private async Task LoadPageAsync()
+    {
+        try
         {
-            isUserNominated = await CheckUserNominationStatus();
+            isLoading = true;
+            errorMessage = string.Empty;
 
-            if (!isUserNominated)
+            var worker = AuthService.CurrentWorker;
+
+            if (worker == null)
             {
-                showNotNominatedModal = true;
-            }
-        }
-        else
-        {
-            isUserNominated = true;
-            hasNominatedServiceToday = true;
-        }
-
-        await LoadServices();
-        await LoadTodayGuests();
-        isLoading = false;
-    }
-
-    private async Task<bool> CheckUserNominationStatus()
-    {
-        try
-        {
-            var currentWorker = AuthService.CurrentWorker;
-            if (currentWorker == null) return false;
-
-            var today = DateTime.Today;
-
-            var nominations = await RecordNominationService.GetNominationsForUserAsync(currentWorker.WorkerId, today);
-            var guestRecordNominations = nominations.Where(n => n.RecordType == "Guest Record").ToList();
-
-            hasNominatedServiceToday = guestRecordNominations.Any();
-
-            return hasNominatedServiceToday;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error checking nomination status: {ex.Message}");
-            return false;
-        }
-    }
-
-    private async Task LoadServices()
-    {
-        try
-        {
-            services = await ServiceService.GetActiveServicesAsync();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error loading services: {ex.Message}";
-        }
-    }
-
-    private async Task LoadTodayGuests()
-    {
-        try
-        {
-            var today = DateTime.Today;
-            recentFirstTimers = await GuestService.GetRecentFirstTimersAsync(today);
-            filteredFirstTimers = recentFirstTimers;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading today's guests: {ex.Message}");
-            recentFirstTimers = new List<Guest>();
-            filteredFirstTimers = new List<Guest>();
-        }
-    }
-
-    private bool IsFIGDirectorateMember()
-    {
-        var worker = AuthService.CurrentWorker;
-        if (worker == null) return false;
-
-        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
-        var role = worker.Role?.ToLowerInvariant() ?? "";
-
-        var isInFIG = directorateName.Contains("fig");
-
-        var hasValidRole = role.Contains("head of directorate") ||
-                           role.Contains("asst head of directorate") ||
-                           role.Contains("directorate member") ||
-                           AuthService.IsInRole("Church Admin") ||
-                           AuthService.IsInRole("Pastor in Charge");
-
-        return isInFIG && hasValidRole;
-    }
-
-    private async Task OnServiceSelected(int serviceId)
-    {
-        if (serviceId > 0)
-        {
-            selectedServiceId = serviceId;
-            selectedService = services.FirstOrDefault(s => s.Id == serviceId);
-
-            await CheckNominationForSelectedService();
-
-            model.ServiceId = serviceId;
-            model.VisitingDate = DateTime.Today;
-
-            StateHasChanged();
-        }
-        else
-        {
-            selectedServiceId = 0;
-            selectedService = null;
-            model.ServiceId = 0;
-            isUserNominatedForSelectedService = false;
-            nominationStatusMessage = "Please select a service";
-            StateHasChanged();
-        }
-    }
-
-    private async Task CheckNominationForSelectedService()
-    {
-        if (selectedServiceId <= 0 || AuthService.CurrentWorker == null)
-        {
-            isUserNominatedForSelectedService = false;
-            nominationStatusMessage = "Please select a service";
-            return;
-        }
-
-        var today = DateTime.Today;
-        var workerId = AuthService.CurrentWorker.WorkerId;
-        var recordType = "Guest Record";
-
-        try
-        {
-            if (IsFIGDirectorateMember() || IsFIGHeadOfDepartment())
-            {
-                isUserNominatedForSelectedService = true;
-                nominationStatusMessage = "Authorized to record guests for this service.";
+                canAccessGuestManagement = false;
                 return;
             }
 
-            var isNominated = await RecordNominationService.IsWorkerNominatedForRecord(
-                workerId,
-                selectedServiceId,
-                today,
-                recordType
-            );
+            var access =
+                await ServiceRecordAccessService
+                    .GetAccessAsync(worker.Id);
 
-            if (isNominated)
-            {
-                isUserNominatedForSelectedService = true;
-                nominationStatusMessage = $"Nominated for {selectedService?.Name}.";
-            }
-            else
-            {
-                isUserNominatedForSelectedService = false;
-                nominationStatusMessage = $"Not nominated for {selectedService?.Name}. Form disabled.";
-            }
+            var hasGuestPrivilege =
+                access.CanAccessGuestManagement;
+
+            var isFigDirectorate =
+                IsFigName(worker.Directorate?.Name);
+
+            var isSecondaryDepartmentFig =
+                IsFigName(worker.SecondaryDepartment?.Name);
+
+            var hasAuthorisedRole =
+                AuthService.IsInRole("Church Admin") ||
+                AuthService.IsInRole("Head of Service") ||
+                AuthService.IsInRole("Pastor in Charge");
+
+            canAccessGuestManagement =
+                hasGuestPrivilege &&
+                (
+                    isFigDirectorate ||
+                    isSecondaryDepartmentFig ||
+                    hasAuthorisedRole
+                );
+
+            if (!canAccessGuestManagement)
+                return;
+
+            services =
+                await ServiceService.GetActiveServicesAsync();
+
+            await LoadTodayGuests();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error checking nomination: {ex.Message}");
-            isUserNominatedForSelectedService = false;
-            nominationStatusMessage = "Error checking nomination status.";
+            errorMessage =
+                $"Unable to load first timer registration: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
     private async Task SubmitForm()
     {
-        if (!isUserNominatedForSelectedService)
-        {
-            errorMessage = "You are not authorized to record guests for this service.";
-            return;
-        }
-
         ClearValidationMessages();
 
         if (!ValidateModel())
+            return;
+
+        if (AuthService.CurrentWorker == null)
         {
+            errorMessage =
+                "Unable to identify the current worker.";
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(model.PhoneNumber))
-        {
-            var isPhoneUnique = await GuestService.IsPhoneNumberUniqueAsync(model.PhoneNumber);
-
-            if (!isPhoneUnique)
-            {
-                phoneValidationMessage = "This phone number is already registered with another guest.";
-                return;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(model.Email))
-        {
-            var isEmailUnique = await GuestService.IsEmailUniqueAsync(model.Email);
-
-            if (!isEmailUnique)
-            {
-                emailValidationMessage = "This email address is already registered with another guest.";
-                return;
-            }
-        }
-
-        isSubmitting = true;
-        errorMessage = "";
-        successMessage = "";
-
         try
         {
-            var currentWorker = AuthService.CurrentWorker;
-            var guest = await GuestService.CreateFirstTimerAsync(model, currentWorker);
+            isSubmitting = true;
 
-            successGuestNumber = guest.GuestNumber;
-            successGuestName = $"{guest.FirstName} {guest.Surname}".Trim();
+            if (!string.IsNullOrWhiteSpace(model.PhoneNumber))
+            {
+                var isPhoneUnique =
+                    await GuestService
+                        .IsPhoneNumberUniqueAsync(
+                            model.PhoneNumber);
+
+                if (!isPhoneUnique)
+                {
+                    phoneValidationMessage =
+                        "This phone number is already registered.";
+                    return;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.Email))
+            {
+                var isEmailUnique =
+                    await GuestService
+                        .IsEmailUniqueAsync(model.Email);
+
+                if (!isEmailUnique)
+                {
+                    emailValidationMessage =
+                        "This email address is already registered.";
+                    return;
+                }
+            }
+
+            var guest =
+                await GuestService.CreateFirstTimerAsync(
+                    model,
+                    AuthService.CurrentWorker);
+
+            successGuestNumber =
+                guest.GuestNumber;
+
+            successGuestName =
+                $"{guest.FirstName} {guest.Surname}".Trim();
 
             showSuccessModal = true;
-
-            StateHasChanged();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error saving guest: {ex.Message}";
+            errorMessage =
+                $"Unable to register guest: {ex.Message}";
         }
         finally
         {
@@ -815,57 +771,70 @@ else
         }
     }
 
+    private async Task LoadTodayGuests()
+    {
+        var today = DateTime.Today;
+
+        recentFirstTimers =
+            await GuestService
+                .GetRecentFirstTimersAsync(today);
+
+        filteredFirstTimers =
+            recentFirstTimers.ToList();
+    }
+
     private bool ValidateModel()
     {
         validationErrors.Clear();
 
+        if (model.ServiceId <= 0)
+            AddValidationError(
+                nameof(model.ServiceId),
+                "Please select a service.");
+
         if (string.IsNullOrWhiteSpace(model.Title))
-            AddValidationError(nameof(model.Title), "Title is required");
+            AddValidationError(
+                nameof(model.Title),
+                "Title is required.");
 
         if (string.IsNullOrWhiteSpace(model.FirstName))
-            AddValidationError(nameof(model.FirstName), "First name is required");
+            AddValidationError(
+                nameof(model.FirstName),
+                "First name is required.");
 
         if (string.IsNullOrWhiteSpace(model.Surname))
-            AddValidationError(nameof(model.Surname), "Surname is required");
+            AddValidationError(
+                nameof(model.Surname),
+                "Surname is required.");
 
         if (string.IsNullOrWhiteSpace(model.Sex))
-            AddValidationError(nameof(model.Sex), "Sex is required");
+            AddValidationError(
+                nameof(model.Sex),
+                "Sex is required.");
 
-        if (string.IsNullOrWhiteSpace(model.AgeGroup))
-            AddValidationError(nameof(model.AgeGroup), "Age group is required");
+        // if (string.IsNullOrWhiteSpace(model.AgeGroup))
+        //     AddValidationError(
+        //         nameof(model.AgeGroup),
+        //         "Age group is required.");
 
-        if (string.IsNullOrWhiteSpace(model.HowFoundUs))
-            AddValidationError(nameof(model.HowFoundUs), "Please specify how you found us");
+        // if (string.IsNullOrWhiteSpace(model.HowFoundUs))
+        //     AddValidationError(
+        //         nameof(model.HowFoundUs),
+        //         "Please specify how the guest found us.");
 
-        if (model.ServiceId <= 0)
-            AddValidationError(nameof(model.ServiceId), "Please select a service");
-
-        if (model.VisitingDate > DateTime.Today)
-            AddValidationError(nameof(model.VisitingDate), "Visiting date cannot be in the future");
+        if (model.VisitingDate.Date > DateTime.Today)
+            AddValidationError(
+                nameof(model.VisitingDate),
+                "Visiting date cannot be in the future.");
 
         return !validationErrors.Any();
     }
 
-    private void ShowAddForm()
-    {
-        if (!hasNominatedServiceToday && !IsFIGDirectorateMember() && !IsFIGHeadOfDepartment())
-        {
-            showNotNominatedModal = true;
-            return;
-        }
-
-        showAddForm = true;
-        model = new CreateGuestModel();
-        selectedServiceId = 0;
-        selectedService = null;
-        isUserNominatedForSelectedService = false;
-        nominationStatusMessage = "";
-        StateHasChanged();
-    }
-
     private void OnSearch(ChangeEventArgs e)
     {
-        searchTerm = e.Value?.ToString() ?? "";
+        searchTerm =
+            e.Value?.ToString() ?? string.Empty;
+
         FilterGuests();
     }
 
@@ -873,78 +842,94 @@ else
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
-            filteredFirstTimers = recentFirstTimers;
-        }
-        else
-        {
-            var term = searchTerm.ToLower();
+            filteredFirstTimers =
+                recentFirstTimers.ToList();
 
-            filteredFirstTimers = recentFirstTimers
+            return;
+        }
+
+        var term = searchTerm.Trim();
+
+        filteredFirstTimers =
+            recentFirstTimers
                 .Where(g =>
-                    (g.FirstName?.ToLower().Contains(term) ?? false) ||
-                    (g.Surname?.ToLower().Contains(term) ?? false) ||
-                    (g.GuestNumber?.ToLower().Contains(term) ?? false) ||
-                    (g.PhoneNumber?.Contains(term) ?? false) ||
-                    (g.Service?.Name?.ToLower().Contains(term) ?? false))
+                    (g.FirstName?.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase)
+                        ?? false) ||
+
+                    (g.Surname?.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase)
+                        ?? false) ||
+
+                    (g.GuestNumber?.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase)
+                        ?? false) ||
+
+                    (g.PhoneNumber?.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase)
+                        ?? false) ||
+
+                    (g.Service?.Name?.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase)
+                        ?? false))
                 .ToList();
-        }
-    }
-
-    private void ClearSearch()
-    {
-        searchTerm = "";
-        filteredFirstTimers = recentFirstTimers;
-        StateHasChanged();
-    }
-
-    private void ShowGuestList()
-    {
-        showAddForm = false;
-        StateHasChanged();
     }
 
     private void EditGuest(Guest guest)
     {
-        Navigation.NavigateTo($"/guest/edit/{guest.Id}");
+        Navigation.NavigateTo(
+            $"/guest/edit/{guest.Id}");
+    }
+
+    private void ViewGuestDetails(int guestId)
+    {
+        Navigation.NavigateTo(
+            $"/guest/details/{guestId}");
     }
 
     private void DeleteGuest(Guest guest)
     {
         guestToDelete = guest;
         showDeleteModal = true;
-        StateHasChanged();
     }
 
     private async Task ConfirmDelete()
     {
-        if (guestToDelete == null) return;
-
-        isDeleting = true;
+        if (guestToDelete == null)
+            return;
 
         try
         {
-            var success = await GuestService.DeleteGuestAsync(guestToDelete.Id);
+            isDeleting = true;
 
-            if (success)
+            var success =
+                await GuestService.DeleteGuestAsync(
+                    guestToDelete.Id);
+
+            if (!success)
             {
-                successMessage = $"Guest {guestToDelete.GuestNumber} deleted successfully.";
-                await LoadTodayGuests();
-                showDeleteModal = false;
-                guestToDelete = null;
+                throw new Exception(
+                    "The guest record could not be deleted.");
             }
-            else
-            {
-                errorMessage = "Failed to delete guest. Please try again.";
-            }
+
+            showDeleteModal = false;
+            guestToDelete = null;
+
+            await LoadTodayGuests();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error deleting guest: {ex.Message}";
+            errorMessage =
+                $"Unable to delete guest: {ex.Message}";
         }
         finally
         {
             isDeleting = false;
-            StateHasChanged();
         }
     }
 
@@ -952,130 +937,324 @@ else
     {
         showDeleteModal = false;
         guestToDelete = null;
-        StateHasChanged();
     }
 
-    private void AddValidationError(string propertyName, string message)
+    private void OnHowFoundUsChanged(
+        ChangeEventArgs e)
     {
-        if (!validationErrors.ContainsKey(propertyName))
-            validationErrors[propertyName] = new List<string>();
-
-        validationErrors[propertyName].Add(message);
-    }
-
-    private string GetValidationMessage(string propertyName)
-    {
-        if (validationErrors.ContainsKey(propertyName))
-        {
-            return string.Join("; ", validationErrors[propertyName]);
-        }
-
-        return "";
-    }
-
-    private void ClearValidationMessages()
-    {
-        validationErrors.Clear();
-        phoneValidationMessage = "";
-        emailValidationMessage = "";
-        errorMessage = "";
-    }
-
-    private void ClearSuccessMessage()
-    {
-        successMessage = "";
-        StateHasChanged();
-    }
-
-    private void ClearErrorMessage()
-    {
-        errorMessage = "";
-        StateHasChanged();
-    }
-
-    private void OnHowFoundUsChanged(ChangeEventArgs e)
-    {
-        model.HowFoundUs = e.Value?.ToString() ?? "";
+        model.HowFoundUs =
+            e.Value?.ToString() ?? string.Empty;
 
         if (model.HowFoundUs != "invite")
         {
-            model.InvitedByName = "";
+            model.InvitedByName =
+                string.Empty;
         }
-
-        StateHasChanged();
-    }
-
-    private void GoToGuestManagement()
-    {
-        Navigation.NavigateTo("/guest");
-    }
-
-    private void ViewGuestDetails(int guestId)
-    {
-        Navigation.NavigateTo($"/guest/details/{guestId}");
     }
 
     private void CloseSuccessModalAndRefresh()
     {
         showSuccessModal = false;
-        showAddForm = false;
-        model = new CreateGuestModel();
-        selectedServiceId = 0;
-        selectedService = null;
-        isUserNominatedForSelectedService = false;
-        nominationStatusMessage = "";
+        ResetForm();
         _ = LoadTodayGuests();
-        StateHasChanged();
     }
 
-    private bool IsFIGHeadOfDepartment()
+    private void ResetForm()
     {
-        var worker = AuthService.CurrentWorker;
-        if (worker == null) return false;
+        model = NewGuestModel();
 
-        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
-        var role = worker.Role?.ToLowerInvariant() ?? "";
-
-        return directorateName.Contains("fig")
-               && role.Contains("head of department")
-               && worker.DepartmentId == 4;
+        validationErrors.Clear();
+        phoneValidationMessage = string.Empty;
+        emailValidationMessage = string.Empty;
+        errorMessage = string.Empty;
     }
 
-    private bool IsValidDateForSelectedService(DateTime date)
+    private static CreateGuestModel NewGuestModel()
     {
-        if (selectedService == null)
-            return true;
-
-        if (selectedService.Name == "Sunday Service")
-            return date.DayOfWeek == DayOfWeek.Sunday;
-
-        if (selectedService.Name == "Mid Week Service")
-            return date.DayOfWeek == DayOfWeek.Wednesday;
-
-        return true;
-    }
-
-    private void OnServiceChanged()
-    {
-        if (selectedService?.Name == "Sunday Service")
+        return new CreateGuestModel
         {
-            while (model.VisitingDate.DayOfWeek != DayOfWeek.Sunday)
-                model.VisitingDate = model.VisitingDate.AddDays(1);
-        }
-        else if (selectedService?.Name == "Mid Week Service")
-        {
-            while (model.VisitingDate.DayOfWeek != DayOfWeek.Wednesday)
-                model.VisitingDate = model.VisitingDate.AddDays(1);
-        }
+            VisitingDate = DateTime.Today
+        };
     }
 
-    private string GetGuestInitials(Guest guest)
+    private static bool IsFigName(
+        string? value)
     {
-        var first = !string.IsNullOrWhiteSpace(guest.FirstName) ? guest.FirstName.Substring(0, 1).ToUpper() : "";
-        var last = !string.IsNullOrWhiteSpace(guest.Surname) ? guest.Surname.Substring(0, 1).ToUpper() : "";
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return string.Equals(
+                   value.Trim(),
+                   "FIG",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               value.Contains(
+                   "FIG",
+                   StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void AddValidationError(
+        string propertyName,
+        string message)
+    {
+        if (!validationErrors.ContainsKey(propertyName))
+        {
+            validationErrors[propertyName] =
+                new List<string>();
+        }
+
+        validationErrors[propertyName].Add(message);
+    }
+
+    private string GetValidationMessage(
+        string propertyName)
+    {
+        return validationErrors.TryGetValue(
+            propertyName,
+            out var messages)
+                ? string.Join("; ", messages)
+                : string.Empty;
+    }
+
+    private void ClearValidationMessages()
+    {
+        validationErrors.Clear();
+        phoneValidationMessage = string.Empty;
+        emailValidationMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
+
+    private static string GetGuestInitials(
+        Guest guest)
+    {
+        var first =
+            !string.IsNullOrWhiteSpace(guest.FirstName)
+                ? guest.FirstName[..1].ToUpperInvariant()
+                : string.Empty;
+
+        var last =
+            !string.IsNullOrWhiteSpace(guest.Surname)
+                ? guest.Surname[..1].ToUpperInvariant()
+                : string.Empty;
 
         var initials = $"{first}{last}";
 
-        return string.IsNullOrWhiteSpace(initials) ? "G" : initials;
+        return string.IsNullOrWhiteSpace(initials)
+            ? "G"
+            : initials;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/guest");
     }
 }
+
+<style>
+    .first-timer-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .first-timer-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .compact-section-heading,
+    .guest-register-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+        .compact-section-heading h6,
+        .guest-register-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .compact-section-heading p,
+        .guest-register-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.72rem;
+        }
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: 0.69rem;
+        font-weight: 700;
+    }
+
+    .first-timer-page .form-control,
+    .first-timer-page .form-select {
+        min-height: 32px;
+        font-size: 0.78rem;
+    }
+
+    .compact-check {
+        padding-top: 24px;
+        font-size: 0.76rem;
+    }
+
+    .guest-search {
+        position: relative;
+        width: 100%;
+        max-width: 320px;
+    }
+
+        .guest-search > i {
+            position: absolute;
+            top: 50%;
+            left: 11px;
+            z-index: 2;
+            color: #94a3b8;
+            transform: translateY(-50%);
+        }
+
+        .guest-search .form-control {
+            padding-left: 32px;
+        }
+
+    .guest-register-table thead th {
+        padding: 8px 9px;
+        color: #475569;
+        background: #f8fafc;
+        font-size: 0.63rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .guest-register-table tbody td {
+        padding: 8px 9px;
+        font-size: 0.76rem;
+        vertical-align: middle;
+    }
+
+    .guest-name-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .guest-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 32px;
+        width: 32px;
+        height: 32px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 9px;
+        font-size: 0.7rem;
+        font-weight: 800;
+    }
+
+    .guest-name-cell strong,
+    .guest-name-cell span {
+        display: block;
+    }
+
+    .guest-name-cell strong {
+        color: #0f172a;
+        font-size: 0.76rem;
+    }
+
+    .guest-name-cell span {
+        color: #64748b;
+        font-size: 0.66rem;
+    }
+
+    .guest-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        background: rgba(15, 23, 42, 0.58);
+    }
+
+    .guest-popup-card {
+        width: 100%;
+        max-width: 430px;
+        padding: 20px;
+        text-align: center;
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.24);
+    }
+
+        .guest-popup-card h4 {
+            margin: 0 0 5px;
+            color: #0f172a;
+            font-size: 1rem;
+            font-weight: 800;
+        }
+
+        .guest-popup-card p {
+            margin: 0 0 15px;
+            color: #64748b;
+            font-size: 0.76rem;
+        }
+
+    .delete-popup-icon,
+    .result-popup-icon {
+        margin-bottom: 10px;
+        font-size: 2.6rem;
+    }
+
+    .delete-popup-icon {
+        color: #dc2626;
+    }
+
+    .result-popup-icon {
+        color: #16a34a;
+    }
+
+    .guest-number-box {
+        padding: 9px 11px;
+        color: #334155;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        font-size: 0.78rem;
+    }
+
+    @@media (max-width: 768px) {
+        .guest-register-heading {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .guest-search {
+            max-width: none;
+        }
+
+        .guest-register-table thead th,
+        .guest-register-table tbody td {
+            white-space: normal;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .guest-popup-card {
+            max-width: 96vw;
+            padding: 16px;
+        }
+    }
+</style>

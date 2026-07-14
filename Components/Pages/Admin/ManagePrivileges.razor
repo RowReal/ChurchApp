@@ -1,7 +1,9 @@
 ﻿@page "/admin/manage-privileges"
 @layout Components.Layout.MainLayout
+
 @using ChurchApp.Models
 @using ChurchApp.Services
+
 @inject PrivilegeService PrivilegeService
 @inject WorkerService WorkerService
 @inject AuthService AuthService
@@ -13,42 +15,55 @@
 {
     <div class="worker360-page">
 
-        @if (!string.IsNullOrWhiteSpace(successMessage))
-        {
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle me-2"></i>@successMessage
-            </div>
-        }
-
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
-            </div>
-        }
-
         <div class="bcc-page-header">
             <div>
                 <div class="bcc-page-subtitle">
                     <i class="fas fa-user-shield me-2"></i>
                     Administration
                 </div>
-                <div class="bcc-page-title">Access Control</div>
+
+                <div class="bcc-page-title">
+                    Access Control
+                </div>
+
                 <div class="bcc-page-subtitle">
                     Assign system privileges to workers without hardcoding role access in the application.
                 </div>
             </div>
 
             <div class="d-flex gap-2">
-                <button class="bcc-btn profile-form-secondary-btn" @onclick="GoBack">
-                    <i class="fas fa-arrow-left me-2"></i>Back
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
                 </button>
 
-                <button class="bcc-btn bcc-btn-primary" @onclick="SavePrivileges" disabled="@(selectedWorkerId <= 0)">
-                    <i class="fas fa-save me-2"></i>Save Changes
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary"
+                        @onclick="SavePrivileges"
+                        disabled="@(selectedWorkerId <= 0 || isSaving)">
+                    @if (isSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-save me-2"></i>
+                        <span>Save Changes</span>
+                    }
                 </button>
             </div>
         </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
 
         <div class="row g-4">
 
@@ -56,15 +71,24 @@
                 <div class="bcc-card">
                     <div class="bcc-card-body">
                         <div class="worker360-section">
+
                             <h5>
                                 <i class="fas fa-user"></i>
                                 Select Worker
                             </h5>
 
-                            <label class="form-label fw-bold">Worker</label>
+                            <label class="form-label fw-bold">
+                                Worker
+                            </label>
 
-                          <select class="form-select access-worker-select" @onchange="OnWorkerChanged">
-                                <option value="">-- Select Worker --</option>
+                            <select class="form-select access-worker-select"
+                                    value="@selectedWorkerId"
+                                    @onchange="OnWorkerChanged"
+                                    disabled="@isLoadingPrivileges">
+                                <option value="0">
+                                    -- Select Worker --
+                                </option>
+
                                 @foreach (var worker in workers)
                                 {
                                     <option value="@worker.Id">
@@ -73,44 +97,104 @@
                                 }
                             </select>
 
-                            @if (selectedWorker != null)
+                            @if (isLoadingPrivileges)
+                            {
+                                <div class="mt-3 text-muted">
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    Loading worker privileges...
+                                </div>
+                            }
+                            else if (selectedWorker != null)
                             {
                                 <div class="worker360-note mt-3">
                                     <i class="fas fa-info-circle"></i>
                                     You are assigning access privileges to
-                                    <strong>@selectedWorker.FirstName @selectedWorker.LastName</strong>.
+                                    <strong>
+                                        @selectedWorker.FirstName @selectedWorker.LastName
+                                    </strong>.
                                 </div>
 
-                               <div class="access-worker-details mt-3">
-    <div class="access-info-box">
-        <span>Worker ID</span>
-        <strong>@selectedWorker.WorkerId</strong>
-    </div>
+                                <div class="access-worker-details mt-3">
 
-    <div class="access-info-box">
-        <span>Role</span>
-        <strong>@(selectedWorker.Role ?? "Not set")</strong>
-    </div>
+                                    <div class="access-info-box">
+                                        <span>Worker ID</span>
+                                        <strong>@selectedWorker.WorkerId</strong>
+                                    </div>
 
-    <div class="access-info-box">
-        <span>Directorate</span>
-        <strong>@(selectedWorker.Directorate?.Name ?? "Not assigned")</strong>
-    </div>
+                                    <div class="access-info-box">
+                                        <span>Role</span>
+                                        <strong>
+                                            @(selectedWorker.Role ?? "Not set")
+                                        </strong>
+                                    </div>
 
-    <div class="access-info-box">
-        <span>Department</span>
-        <strong>@(selectedWorker.Department?.Name ?? "Not assigned")</strong>
-    </div>
-</div>
+                                    <div class="access-info-box">
+                                        <span>Directorate</span>
+                                        <strong>
+                                            @(selectedWorker.Directorate?.Name ?? "Not assigned")
+                                        </strong>
+                                    </div>
+
+                                    <div class="access-info-box">
+                                        <span>Department</span>
+                                        <strong>
+                                            @(selectedWorker.Department?.Name ?? "Not assigned")
+                                        </strong>
+                                    </div>
+
+                                </div>
+
+                                <div class="existing-privileges-panel mt-4">
+
+                                    <div class="existing-privileges-heading">
+                                        <div>
+                                            <h6>
+                                                <i class="fas fa-key me-2"></i>
+                                                Current Privileges
+                                            </h6>
+
+                                            <p>
+                                                These are the privileges currently selected for this worker.
+                                            </p>
+                                        </div>
+
+                                        <span class="existing-privileges-count">
+                                            @selectedPrivilegeIds.Count
+                                        </span>
+                                    </div>
+
+                                    @if (GetSelectedPrivileges().Any())
+                                    {
+                                        <div class="existing-privileges-list">
+                                            @foreach (var privilege in GetSelectedPrivileges())
+                                            {
+                                                <span class="existing-privilege-badge">
+                                                    <i class="fas fa-check-circle me-1"></i>
+                                                    @privilege.Name
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-muted small">
+                                            No active privilege is currently assigned to this worker.
+                                        </div>
+                                    }
+
+                                </div>
                             }
                             else
                             {
                                 <div class="bcc-empty py-4">
                                     <i class="fas fa-user-shield"></i>
                                     <h4>No Worker Selected</h4>
-                                    <p>Select a worker to view and assign privileges.</p>
+                                    <p>
+                                        Select a worker to view and assign privileges.
+                                    </p>
                                 </div>
                             }
+
                         </div>
                     </div>
                 </div>
@@ -118,59 +202,112 @@
 
             <div class="col-12">
                 <div class="bcc-card">
+
                     <div class="profile-form-v2-tabs">
-                        <button type="button" class="profile-form-tab active">
-                            <i class="fas fa-key"></i> Privileges
+                        <button type="button"
+                                class="profile-form-tab active">
+                            <i class="fas fa-key"></i>
+                            Privileges
                         </button>
                     </div>
 
                     <div class="bcc-card-body">
-                        @if (selectedWorkerId > 0)
+
+                        @if (selectedWorkerId > 0 && selectedWorker != null)
                         {
                             <div class="worker360-section">
+
                                 <h5>
                                     <i class="fas fa-shield-alt"></i>
                                     Assign Privileges
                                 </h5>
 
-                                <div class="row g-3">
-                                    @foreach (var privilege in privileges)
-                                    {
-                                        <div class="col-md-6 col-xl-4">
-                                            <div class="profile-review-card h-100">
-                                                <div class="form-check">
-                                                    <input class="form-check-input"
-                                                           type="checkbox"
-                                                           checked="@selectedPrivilegeIds.Contains(privilege.Id)"
-                                                           @onchange="(e) => TogglePrivilege(privilege.Id, e)" />
+                                @if (!privileges.Any())
+                                {
+                                    <div class="bcc-empty py-4">
+                                        <i class="fas fa-key"></i>
+                                        <h4>No Privileges Available</h4>
+                                        <p>
+                                            No active privilege definition is available.
+                                        </p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="row g-3">
 
-                                                    <label class="form-check-label">
-                                                        <strong>@privilege.Name</strong>
-                                                        <br />
-                                                        <small class="text-muted">@privilege.Code</small>
-                                                    </label>
+                                        @foreach (var privilege in privileges)
+                                        {
+                                            <div class="col-md-6 col-xl-4">
+                                                <div class="profile-review-card privilege-card h-100
+                                                    @(selectedPrivilegeIds.Contains(privilege.Id) ? "selected" : "")">
+
+                                                    <div class="form-check">
+                                                        <input class="form-check-input"
+                                                               type="checkbox"
+                                                               id="@($"privilege-{privilege.Id}")"
+                                                               checked="@selectedPrivilegeIds.Contains(privilege.Id)"
+                                                               disabled="@isSaving"
+                                                               @onchange="(e) => TogglePrivilege(privilege.Id, e)" />
+
+                                                        <label class="form-check-label"
+                                                               for="@($"privilege-{privilege.Id}")">
+                                                            <strong>
+                                                                @privilege.Name
+                                                            </strong>
+
+                                                            <br />
+
+                                                            <small class="text-muted">
+                                                                @privilege.Code
+                                                            </small>
+                                                        </label>
+                                                    </div>
+
+                                                    @if (!string.IsNullOrWhiteSpace(privilege.Description))
+                                                    {
+                                                        <p class="text-muted small mt-2 mb-0">
+                                                            @privilege.Description
+                                                        </p>
+                                                    }
+
                                                 </div>
-
-                                                @if (!string.IsNullOrWhiteSpace(privilege.Description))
-                                                {
-                                                    <p class="text-muted small mt-2 mb-0">
-                                                        @privilege.Description
-                                                    </p>
-                                                }
                                             </div>
-                                        </div>
-                                    }
-                                </div>
+                                        }
 
-                                <div class="mt-4 d-flex justify-content-end gap-2">
-                                    <button class="bcc-btn profile-form-secondary-btn" @onclick="ClearSelection">
-                                        <i class="fas fa-times me-2"></i>Clear
-                                    </button>
+                                    </div>
 
-                                    <button class="bcc-btn bcc-btn-primary" @onclick="SavePrivileges">
-                                        <i class="fas fa-save me-2"></i>Save Privileges
-                                    </button>
-                                </div>
+                                    <div class="mt-4 d-flex justify-content-end gap-2">
+
+                                        <button type="button"
+                                                class="bcc-btn profile-form-secondary-btn"
+                                                @onclick="ClearSelection"
+                                                disabled="@isSaving">
+                                            <i class="fas fa-times me-2"></i>
+                                            Clear
+                                        </button>
+
+                                        <button type="button"
+                                                class="bcc-btn bcc-btn-primary"
+                                                @onclick="SavePrivileges"
+                                                disabled="@isSaving">
+
+                                            @if (isSaving)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                                <span>Saving...</span>
+                                            }
+                                            else
+                                            {
+                                                <i class="fas fa-save me-2"></i>
+                                                <span>Save Privileges</span>
+                                            }
+
+                                        </button>
+
+                                    </div>
+                                }
+
                             </div>
                         }
                         else
@@ -178,9 +315,12 @@
                             <div class="bcc-empty">
                                 <i class="fas fa-lock"></i>
                                 <h4>Privilege Assignment</h4>
-                                <p>Please select a worker above to manage access rights.</p>
+                                <p>
+                                    Please select a worker above to manage access rights.
+                                </p>
                             </div>
                         }
+
                     </div>
                 </div>
             </div>
@@ -193,8 +333,14 @@ else if (AuthService.IsAuthenticated && !AuthService.CanAccessAdminPanel())
     <div class="bcc-empty">
         <i class="fas fa-ban"></i>
         <h4>Access Denied</h4>
-        <p>You don't have permission to access this page.</p>
-        <a href="/" class="bcc-btn bcc-btn-primary">Return to Dashboard</a>
+        <p>
+            You don't have permission to access this page.
+        </p>
+
+        <a href="/"
+           class="bcc-btn bcc-btn-primary">
+            Return to Dashboard
+        </a>
     </div>
 }
 else
@@ -202,8 +348,37 @@ else
     <div class="bcc-empty">
         <i class="fas fa-lock"></i>
         <h4>Please Log In</h4>
-        <p>You need to be logged in to access this page.</p>
-        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+        <p>
+            You need to be logged in to access this page.
+        </p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+
+@if (showResultPopup)
+{
+    <div class="privilege-popup-backdrop">
+        <div class="privilege-popup-card">
+
+            <div class="privilege-popup-icon @(popupIsSuccess ? "success" : "error")">
+                <i class="fas @(popupIsSuccess ? "fa-check-circle" : "fa-exclamation-circle")"></i>
+            </div>
+
+            <h4>@popupTitle</h4>
+
+            <p>@popupMessage</p>
+
+            <button type="button"
+                    class="bcc-btn bcc-btn-primary"
+                    @onclick="CloseResultPopup">
+                OK
+            </button>
+
+        </div>
     </div>
 }
 
@@ -216,7 +391,14 @@ else
 
     private HashSet<int> selectedPrivilegeIds = new();
 
-    private string? successMessage;
+    private bool isSaving;
+    private bool isLoadingPrivileges;
+
+    private bool showResultPopup;
+    private bool popupIsSuccess;
+    private string popupTitle = string.Empty;
+    private string popupMessage = string.Empty;
+
     private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
@@ -226,42 +408,81 @@ else
             await PrivilegeService.SeedDefaultPrivilegesAsync();
 
             workers = await WorkerService.GetAllWorkersAsync();
+
+            workers = workers
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.FirstName)
+                .ThenBy(x => x.LastName)
+                .ToList();
+
             privileges = await PrivilegeService.GetAllPrivilegesAsync();
+
+            privileges = privileges
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Name)
+                .ToList();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error loading access control page: {ex.Message}";
+            errorMessage =
+                $"Error loading access control page: {ex.Message}";
         }
     }
 
     private async Task OnWorkerChanged(ChangeEventArgs e)
     {
-        successMessage = null;
         errorMessage = null;
         selectedPrivilegeIds.Clear();
 
-        if (int.TryParse(e.Value?.ToString(), out var workerId))
-        {
-            selectedWorkerId = workerId;
-            selectedWorker = workers.FirstOrDefault(w => w.Id == workerId);
-
-            var userPrivileges = await PrivilegeService.GetUserPrivilegesAsync(workerId);
-
-            selectedPrivilegeIds = userPrivileges
-                .Where(up => up.IsActive)
-                .Select(up => up.PrivilegeId)
-                .ToHashSet();
-        }
-        else
+        if (!int.TryParse(e.Value?.ToString(), out var workerId) ||
+            workerId <= 0)
         {
             selectedWorkerId = 0;
             selectedWorker = null;
+            return;
+        }
+
+        try
+        {
+            isLoadingPrivileges = true;
+
+            selectedWorkerId = workerId;
+
+            selectedWorker = workers
+                .FirstOrDefault(x => x.Id == workerId);
+
+            var userPrivileges =
+                await PrivilegeService
+                    .GetUserPrivilegesAsync(workerId);
+
+            selectedPrivilegeIds = userPrivileges
+                .Where(x => x.IsActive)
+                .Select(x => x.PrivilegeId)
+                .ToHashSet();
+        }
+        catch (Exception ex)
+        {
+            selectedWorkerId = 0;
+            selectedWorker = null;
+            selectedPrivilegeIds.Clear();
+
+            ShowPopup(
+                false,
+                "Unable to Load Privileges",
+                ex.Message);
+        }
+        finally
+        {
+            isLoadingPrivileges = false;
         }
     }
 
-    private void TogglePrivilege(int privilegeId, ChangeEventArgs e)
+    private void TogglePrivilege(
+        int privilegeId,
+        ChangeEventArgs e)
     {
-        var isChecked = e.Value is bool value && value;
+        var isChecked =
+            e.Value is bool value && value;
 
         if (isChecked)
         {
@@ -275,50 +496,129 @@ else
 
     private async Task SavePrivileges()
     {
-        if (selectedWorkerId <= 0)
+        if (isSaving)
+            return;
+
+        if (selectedWorkerId <= 0 ||
+            selectedWorker == null)
         {
-            errorMessage = "Please select a worker first.";
+            ShowPopup(
+                false,
+                "Worker Required",
+                "Please select a worker before saving privileges.");
+
             return;
         }
 
         try
         {
-            var currentPrivileges = await PrivilegeService.GetUserPrivilegesAsync(selectedWorkerId);
+            isSaving = true;
+            errorMessage = null;
+
+            var currentPrivileges =
+                await PrivilegeService
+                    .GetUserPrivilegesAsync(selectedWorkerId);
 
             foreach (var privilege in privileges)
             {
-                var alreadyAssigned = currentPrivileges.Any(up => up.PrivilegeId == privilege.Id);
-                var shouldBeAssigned = selectedPrivilegeIds.Contains(privilege.Id);
+                var activeAssignment =
+                    currentPrivileges.FirstOrDefault(x =>
+                        x.PrivilegeId == privilege.Id &&
+                        x.IsActive);
 
-                if (shouldBeAssigned && !alreadyAssigned)
+                var anyAssignment =
+                    currentPrivileges.FirstOrDefault(x =>
+                        x.PrivilegeId == privilege.Id);
+
+                var shouldBeAssigned =
+                    selectedPrivilegeIds.Contains(privilege.Id);
+
+                if (shouldBeAssigned &&
+                    activeAssignment == null)
                 {
+                    /*
+                     * AssignPrivilegeAsync should reactivate an existing
+                     * inactive assignment when one exists, or create it.
+                     */
                     await PrivilegeService.AssignPrivilegeAsync(
                         selectedWorkerId,
                         privilege.Id,
-                        AuthService.CurrentWorker?.WorkerId
-                    );
+                        AuthService.CurrentWorker?.WorkerId);
                 }
-
-                if (!shouldBeAssigned && alreadyAssigned)
+                else if (!shouldBeAssigned &&
+                         activeAssignment != null)
                 {
-                    await PrivilegeService.RemovePrivilegeAsync(selectedWorkerId, privilege.Id);
+                    await PrivilegeService.RemovePrivilegeAsync(
+                        selectedWorkerId,
+                        privilege.Id);
                 }
             }
 
-            successMessage = "Privileges updated successfully.";
-            errorMessage = null;
+            await ReloadSelectedWorkerPrivilegesAsync();
+
+            ShowPopup(
+                true,
+                "Privileges Updated",
+                $"Privileges for {selectedWorker.FirstName} " +
+                $"{selectedWorker.LastName} were updated successfully.");
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error saving privileges: {ex.Message}";
+            ShowPopup(
+                false,
+                "Unable to Save Privileges",
+                ex.Message);
         }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ReloadSelectedWorkerPrivilegesAsync()
+    {
+        if (selectedWorkerId <= 0)
+            return;
+
+        var savedPrivileges =
+            await PrivilegeService
+                .GetUserPrivilegesAsync(selectedWorkerId);
+
+        selectedPrivilegeIds = savedPrivileges
+            .Where(x => x.IsActive)
+            .Select(x => x.PrivilegeId)
+            .ToHashSet();
+    }
+
+    private IEnumerable<Privilege> GetSelectedPrivileges()
+    {
+        return privileges
+            .Where(x => selectedPrivilegeIds.Contains(x.Id))
+            .OrderBy(x => x.Name);
     }
 
     private void ClearSelection()
     {
         selectedPrivilegeIds.Clear();
-        successMessage = null;
         errorMessage = null;
+    }
+
+    private void ShowPopup(
+        bool isSuccess,
+        string title,
+        string message)
+    {
+        popupIsSuccess = isSuccess;
+        popupTitle = title;
+        popupMessage = message;
+        showResultPopup = true;
+    }
+
+    private void CloseResultPopup()
+    {
+        showResultPopup = false;
+        popupTitle = string.Empty;
+        popupMessage = string.Empty;
     }
 
     private void GoBack()
@@ -326,6 +626,7 @@ else
         Navigation.NavigateTo("/");
     }
 }
+
 <style>
     .access-worker-select {
         max-width: 520px;
@@ -333,42 +634,161 @@ else
 
     .access-worker-details {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
         gap: 14px;
     }
 
     .access-info-box {
+        min-height: 82px;
+        padding: 14px 16px;
+        overflow: hidden;
         background: #f8fafc;
         border: 1px solid #e5e7eb;
         border-radius: 14px;
-        padding: 14px 16px;
-        min-height: 82px;
-        overflow: hidden;
     }
 
     .access-info-box span {
         display: block;
+        margin-bottom: 8px;
+        color: #64748b;
         font-size: 0.72rem;
         font-weight: 700;
-        text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: #64748b;
-        margin-bottom: 8px;
+        text-transform: uppercase;
     }
 
     .access-info-box strong {
         display: block;
+        color: #0f172a;
         font-size: 0.92rem;
         font-weight: 700;
-        color: #0f172a;
         line-height: 1.35;
         white-space: normal;
         word-break: break-word;
     }
 
+    .existing-privileges-panel {
+        padding: 18px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+    }
+
+    .existing-privileges-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .existing-privileges-heading h6 {
+        margin: 0 0 4px;
+        color: #0f172a;
+        font-weight: 800;
+    }
+
+    .existing-privileges-heading p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.82rem;
+    }
+
+    .existing-privileges-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+        height: 30px;
+        padding: 0 9px;
+        color: #ffffff;
+        background: #4338ca;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .existing-privileges-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .existing-privilege-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 11px;
+        color: #166534;
+        background: #dcfce7;
+        border: 1px solid #bbf7d0;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .privilege-card {
+        transition:
+            border-color 0.2s ease,
+            background 0.2s ease,
+            box-shadow 0.2s ease;
+    }
+
+    .privilege-card.selected {
+        background: #f0fdf4;
+        border-color: #86efac;
+        box-shadow: 0 4px 14px rgba(22, 163, 74, 0.08);
+    }
+
+    .privilege-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.6);
+    }
+
+    .privilege-popup-card {
+        width: 100%;
+        max-width: 440px;
+        padding: 30px;
+        text-align: center;
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+    }
+
+    .privilege-popup-icon {
+        margin-bottom: 14px;
+        font-size: 3rem;
+    }
+
+    .privilege-popup-icon.success {
+        color: #16a34a;
+    }
+
+    .privilege-popup-icon.error {
+        color: #dc2626;
+    }
+
+    .privilege-popup-card h4 {
+        margin-bottom: 8px;
+        color: #0f172a;
+        font-weight: 800;
+    }
+
+    .privilege-popup-card p {
+        margin-bottom: 22px;
+        color: #64748b;
+    }
+
     @@media (max-width: 992px) {
         .access-worker-details {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
         }
     }
 
@@ -380,5 +800,14 @@ else
         .access-worker-details {
             grid-template-columns: 1fr;
         }
+
+        .existing-privileges-heading {
+            align-items: center;
+        }
+
+        .privilege-popup-card {
+            padding: 24px 20px;
+        }
     }
 </style>
+

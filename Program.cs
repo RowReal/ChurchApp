@@ -96,9 +96,14 @@ builder.Services.AddScoped<ApprovalDecisionService>();
 builder.Services.AddScoped<ApprovalSubmissionService>();
 builder.Services.AddScoped<LeaveRequestService>();
 
+//Service Record/Offering Services
+builder.Services.AddScoped<ChurchOfferingAccessService>();
+
+builder.Services.AddScoped<ChurchOfferingService>();
 
 builder.Services.AddScoped<ApprovalRequestService>();
-
+builder.Services.AddScoped<ServiceRecordAccessService>();
+builder.Services.AddScoped<VehicleRecordService>();
 var app = builder.Build();
 
 // APPLY EF CORE MIGRATIONS AUTOMATICALLY

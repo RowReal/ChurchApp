@@ -17,6 +17,8 @@
 @inject VerseOfTheDayService VerseService
 @inject PrayerFocusService PrayerFocusService
 @inject ApprovalRequestService ApprovalRequestService
+@inject ServiceRecordAccessService ServiceRecordAccessService
+
 
 <PageTitle>BCC ServiceHub - Dashboard</PageTitle>
 
@@ -388,8 +390,9 @@
                         <span class="action-text">My Profile</span>
                     </a>
                 </div>
-                
-                  @if (CanAccessMyTeamWorkspace())
+
+
+    @if (CanAccessMyTeamWorkspace())
 {
     <div class="col-6 col-sm-4 col-lg-3">
         <a href="/workspace/my-team"
@@ -406,13 +409,38 @@
     </div>
 }
 
+    @if (CanAccessProfileApproval())
+{
+    <div class="col-6 col-sm-4 col-lg-3">
+        <a href="/workforce/my-inbox"
+           class="action-card">
+
+            <div class="action-image">
+                <i class="fas fa-inbox"></i>
+            </div>
+
+            <span class="action-text">
+                Profile Approval
+            </span>
+
+            @if (pendingProfileApprovalCount > 0)
+            {
+                <span class="pending-badge"
+                      title="Pending profile approvals">
+                    @pendingProfileApprovalCount
+                </span>
+            }
+        </a>
+    </div>
+}  
+
                 <div class="col-6 col-sm-4 col-lg-3">
     <a href="/workspace/my-desk" class="action-card">
         <div class="action-image">
             <i class="fas fa-clipboard-check"></i>
         </div>
 
-        <span class="action-text">My Desk</span>
+        <span class="action-text">Approval Request</span>
 
         @if (myDeskCount > 0)
         {
@@ -443,6 +471,33 @@
         }
     </a>
 </div>
+
+                @if (canAccessServiceRecords)
+                {
+                    <div class="col-6 col-sm-4 col-lg-3">
+                        <a href="/workspace/service-records"
+                           class="action-card">
+
+                            <div class="action-image">
+                                <i class="fas fa-clipboard-list"></i>
+                            </div>
+
+                            <span class="action-text">
+                                Service Records
+                            </span>
+
+                            @if (serviceRecordAccess.CanApproveOffering &&
+                                 serviceRecordAccess.PendingOfferingApprovalCount > 0)
+                            {
+                                <span class="pending-badge"
+                                      title="Pending offering approvals">
+                                    @serviceRecordAccess.PendingOfferingApprovalCount
+                                </span>
+                            }
+                        </a>
+                    </div>
+                }
+
             </div>
         </div>
 
@@ -508,106 +563,6 @@
         }
 
         <!-- SERVICE RECORDS --> *@
-        @if (CanAccessServiceRecords())
-        {
-            <div class="menu-section">
-                <div class="menu-section-title">
-                    <i class="fas fa-church"></i>
-                    Service Records
-                </div>
-
-                <div class="row g-3">
-                    @if (CanAccessRecordNomination())
-                    {
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/Offering/record-nomination" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-vote-yea"></i>
-                                </div>
-                                <span class="action-text">Record Nomination</span>
-                            </a>
-                        </div>
-                    }
-
-                    @if (CanAccessServiceNotes())
-                    {
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/Offering/NoteList" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-sticky-note"></i>
-                                </div>
-                                <span class="action-text">Service Notes</span>
-                            </a>
-                        </div>
-                    }
-
-                    @if (CanRecordOfferings())
-                    {
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/offering/record" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-hand-holding-usd"></i>
-                                </div>
-                                <span class="action-text">Record Offering</span>
-
-                                @if (rejectedOfferingsCount > 0)
-                                {
-                                    <span class="rejected-badge">@rejectedOfferingsCount</span>
-                                }
-                            </a>
-                        </div>
-
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/Offering/Attendance-record" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-clipboard-check"></i>
-                                </div>
-                                <span class="action-text">Record Attendance</span>
-                            </a>
-                        </div>
-
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/Offering/Attendance-list" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-list-ol"></i>
-                                </div>
-                                <span class="action-text">View Attendance</span>
-                            </a>
-                        </div>
-                    }
-
-                    @if (CanApproveOfferings())
-                    {
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/offering/approvals" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-stamp"></i>
-                                </div>
-                                <span class="action-text">Approve Offerings</span>
-
-                                @if (pendingOfferingsCount > 0)
-                                {
-                                    <span class="pending-badge">@pendingOfferingsCount</span>
-                                }
-                            </a>
-                        </div>
-                    }
-
-                    @if (IsFIGDirectorateMember())
-                    {
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/guest" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-user-friends"></i>
-                                </div>
-                                <span class="action-text">Guest Management</span>
-                            </a>
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-
         <!-- REPORTS -->
         @if (CanAccessReports())
         {
@@ -1300,47 +1255,111 @@ else
     private int myPendingExcuses = 0;
     private int myApprovedExcuses = 0;
     private int userCompliance = 0;
-    private int userPendingApprovals = 0;
+   
     private int daysSinceJoin = 0;
     private int rejectionCount = 0;
     private int pendingBreakCount = 0;
     private int pendingExcuseApprovals = 0;
     private int pendingBreakApprovals = 0;
-    private int pendingApprovalCount = 0;
     
+private int pendingProfileApprovalCount;
+private int pendingMyDeskApprovalCount;
+
 private int returnedRequestCount;
 private int myDeskCount;
+
+   
     private List<Worker> birthdayWorkers = new();
-   private List<ChurchNotice> dashboardNotices = new();
+    private List<ChurchNotice> dashboardNotices = new();
 
     private ChurchAnnouncement? latestAnnouncement;
-private PrayerFocus? currentPrayerFocus;
-private VerseOfTheDay? todayVerse;
+    private PrayerFocus? currentPrayerFocus;
+    private VerseOfTheDay? todayVerse;
 
     private ChurchApp.Services.GrowthHubCounts growthHubCounts = new();
 
     private List<Notification> notifications = new();
     private List<Activity> recentActivities = new();
+    private ServiceRecordAccessModel serviceRecordAccess = new();
+
+
+private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
 
     protected override async Task OnInitializedAsync()
     {
         if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
         {
-            await LoadDashboardData();
-            await LoadMyDeskCountsAsync();
+             await LoadDashboardData();
+             await LoadMyDeskCountsAsync();
+             await LoadProfileApprovalCountAsync();
+             await LoadServiceRecordAccessAsync();
         }
     }
-    private async Task LoadMyDeskCountsAsync()
+    private async Task LoadProfileApprovalCountAsync()
+{
+    if (!AuthService.IsAuthenticated ||
+        AuthService.CurrentWorker == null ||
+        !CanAccessProfileApproval())
+    {
+        pendingProfileApprovalCount = 0;
+        return;
+    }
+
+    try
+    {
+        var pendingRequests =
+            await WorkforceService
+                .GetPendingApprovalsAsync(
+                    AuthService.CurrentWorker.Id);
+
+        pendingProfileApprovalCount =
+            pendingRequests.Count;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"Unable to load profile approval count: {ex.Message}");
+
+        pendingProfileApprovalCount = 0;
+    }
+}
+
+    private async Task LoadServiceRecordAccessAsync()
 {
     try
     {
         if (AuthService.CurrentWorker == null)
             return;
 
+        serviceRecordAccess =
+            await ServiceRecordAccessService
+                .GetAccessAsync(
+                    AuthService.CurrentWorker.Id);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"Unable to load Service Record access: {ex.Message}");
+    }
+}
+
+private async Task LoadMyDeskCountsAsync()
+{
+    if (!AuthService.IsAuthenticated ||
+        AuthService.CurrentWorker == null)
+    {
+        pendingMyDeskApprovalCount = 0;
+        returnedRequestCount = 0;
+        myDeskCount = 0;
+        return;
+    }
+
+    try
+    {
         var workerId =
             AuthService.CurrentWorker.Id;
 
-        pendingApprovalCount =
+        pendingMyDeskApprovalCount =
             await ApprovalRequestService
                 .GetPendingApprovalCountAsync(workerId);
 
@@ -1349,13 +1368,17 @@ private VerseOfTheDay? todayVerse;
                 .GetReturnedRequestCountAsync(workerId);
 
         myDeskCount =
-            pendingApprovalCount +
+            pendingMyDeskApprovalCount +
             returnedRequestCount;
     }
     catch (Exception ex)
     {
         Console.WriteLine(
             $"Unable to load My Desk counts: {ex.Message}");
+
+        pendingMyDeskApprovalCount = 0;
+        returnedRequestCount = 0;
+        myDeskCount = 0;
     }
 }
     private async Task LoadDashboardData()
@@ -1388,9 +1411,9 @@ todayVerse = await VerseService.GetTodayVerseAsync();
             userCompliance = CalculateCompleteness(AuthService.CurrentWorker);
             
             // Check for pending approvals (if user is an approver)
-            var approvals = await WorkforceService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
-            userPendingApprovals = approvals.Count;
-            pendingApprovalCount = approvals.Count;
+            // var approvals = await WorkforceService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
+            // userPendingApprovals = approvals.Count;
+            // pendingApprovalCount = approvals.Count;
             
             // Calculate days since joining church
             if (AuthService.CurrentWorker.DateJoinedChurch.HasValue)
@@ -1432,7 +1455,7 @@ todayVerse = await VerseService.GetTodayVerseAsync();
                 var workers = await WorkerService.GetAllWorkersAsync();
                 totalWorkers = workers.Count;
                 activeWorkers = workers.Count(w => w.IsActive);
-                pendingApprovals = approvals.Count;
+                // pendingApprovals = approvals.Count;
             }
         }
     }
@@ -1470,25 +1493,29 @@ todayVerse = await VerseService.GetTodayVerseAsync();
     }
 
     private async Task LoadNotificationCounts()
+{
+    if (!AuthService.IsAuthenticated ||
+        AuthService.CurrentWorker == null)
     {
-        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
-        {
-            try
-            {
-                var workforceService = ScopedServices.GetRequiredService<WorkforceService>();
-
-                var pendingRequests = await workforceService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
-                pendingApprovalCount = pendingRequests.Count;
-
-                var rejectionNotifications = await workforceService.GetRejectionNotificationsAsync(AuthService.CurrentWorker.Id);
-                rejectionCount = rejectionNotifications.Count;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading notification counts: {ex.Message}");
-            }
-        }
+        return;
     }
+
+    try
+    {
+        var rejectionNotifications =
+            await WorkforceService
+                .GetRejectionNotificationsAsync(
+                    AuthService.CurrentWorker.Id);
+
+        rejectionCount =
+            rejectionNotifications.Count;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"Error loading notification counts: {ex.Message}");
+    }
+}
 
     private async Task LoadGrowthHubCounts()
     {
@@ -1578,17 +1605,30 @@ todayVerse = await VerseService.GetTodayVerseAsync();
             }
 
             // Approval inbox notification
-            if (userPendingApprovals > 0)
-            {
-                notifications.Add(new Notification
-                {
-                    Icon = "fa-inbox",
-                    Color = "info",
-                    Message = $"You have {userPendingApprovals} pending approval(s) in your inbox.",
-                    Time = "Today",
-                    IsImportant = true
-                });
-            }
+            if (pendingMyDeskApprovalCount > 0)
+{
+    notifications.Add(new Notification
+    {
+        Icon = "fa-inbox",
+        Color = "info",
+        Message =
+            $"You have {pendingMyDeskApprovalCount} request approval(s) in My Desk.",
+        Time = "Today",
+        IsImportant = true
+    });
+}
+            if (pendingProfileApprovalCount > 0)
+{
+    notifications.Add(new Notification
+    {
+        Icon = "fa-user-check",
+        Color = "info",
+        Message =
+            $"You have {pendingProfileApprovalCount} profile update request(s) awaiting approval.",
+        Time = "Today",
+        IsImportant = true
+    });
+}
 
             // Growth Hub notifications
             if (growthHubCounts.AssignedToMe > 0)
@@ -3577,6 +3617,28 @@ todayVerse = await VerseService.GetTodayVerseAsync();
     .stat-number {
         font-size: 1.15rem !important;
     }
+    .workspace-badge{
+    position:absolute;
+    top:8px;
+    right:8px;
+    min-width:22px;
+    height:22px;
+    padding:0 6px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    border-radius:999px;
+
+    background:#dc2626;
+    color:#fff;
+
+    font-size:.70rem;
+    font-weight:700;
+
+    box-shadow:0 2px 8px rgba(220,38,38,.35);
+}
 }
 
 

@@ -1,8 +1,11 @@
 ﻿@page "/guest/phone-followup"
 @layout Components.Layout.MainLayout
+
 @using ChurchApp.Models
 @using ChurchApp.Services
+
 @inject GuestService GuestService
+@inject ServiceRecordAccessService ServiceRecordAccessService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
@@ -10,518 +13,651 @@
 
 @if (!AuthService.IsAuthenticated)
 {
-    <div class="guest-followup-v2-page">
-        <div class="bcc-empty">
-            <i class="fas fa-exclamation-triangle"></i>
-            <h4>Please Log In</h4>
-            <p>You need to be logged in to access phone follow-up.</p>
-            <a href="/login" class="bcc-btn bcc-btn-primary text-decoration-none">Go to Login</a>
-        </div>
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access phone follow-up.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
     </div>
 }
 else if (isLoading)
 {
-    <div class="guest-followup-v2-page">
+    <div class="worker360-page">
         <div class="bcc-card">
-            <div class="bcc-card-body text-center py-5">
-                <div class="spinner-border text-primary mb-3"></div>
-                <h5 class="fw-bold">Loading Phone Follow-up...</h5>
-                <p class="text-muted mb-0">Please wait while we load the guest record.</p>
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+
+                <div class="mt-2 text-muted">
+                    Loading phone follow-up...
+                </div>
             </div>
         </div>
+    </div>
+}
+else if (!canAccessGuestManagement)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+
+        <p>
+            You must have the Guest Management privilege and either belong
+            to the FIG Directorate, have FIG as your secondary department,
+            or hold an authorised leadership role.
+        </p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Guest Search
+        </button>
     </div>
 }
 else if (guest == null)
 {
-    <div class="guest-followup-v2-page">
-        <div class="bcc-empty">
-            <i class="fas fa-user-slash"></i>
-            <h4>Guest Record Not Found</h4>
-            <p>The selected guest record could not be found.</p>
-            <button class="bcc-btn bcc-btn-primary" @onclick="GoBack">
-                <i class="fas fa-arrow-left me-1"></i>Back to Guest Search
-            </button>
-        </div>
+    <div class="bcc-empty">
+        <i class="fas fa-user-slash"></i>
+        <h4>Guest Record Not Found</h4>
+        <p>The selected guest record could not be found.</p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            <i class="fas fa-arrow-left me-2"></i>
+            Back to Guest Search
+        </button>
     </div>
 }
 else
 {
-    <div class="guest-followup-v2-page">
+    <div class="worker360-page phone-followup-page">
 
-        <div class="bcc-page-header">
-            <div>
-                <div class="guest-page-kicker">
-                    <i class="fas fa-phone-volume me-2"></i>BCC ServiceHub
-                </div>
-                <div class="bcc-page-title">Phone Follow-up</div>
-                <div class="bcc-page-subtitle">
-                    Record guest phone conversations, prayer needs, visit interest, and next follow-up actions.
-                </div>
-            </div>
-
-            <div class="d-flex gap-2 flex-wrap">
-                <button class="bcc-btn guest-light-btn" @onclick="GoBack">
-                    <i class="fas fa-arrow-left me-1"></i>Guest Search
-                </button>
-            </div>
-        </div>
-
-        <div class="bcc-card">
-            <div class="bcc-card-body">
-                <div class="guest-followup-profile">
-                    <div class="guest360-avatar">
-                        @GetGuestInitials()
-                    </div>
-
-                    <div class="flex-grow-1">
-                        <h3>@guest.Title @guest.FirstName @guest.Surname</h3>
-
-                        <div class="guest-followup-meta">
-                            <span><i class="fas fa-id-card"></i>@guest.GuestNumber</span>
-                            <span><i class="fas fa-phone"></i>@DisplayText(guest.PhoneNumber)</span>
-                            <span><i class="fas fa-calendar-day"></i>@guest.VisitingDate.ToString("dd-MMM-yyyy")</span>
-
-                            @if (guest.IsSecondTimer)
-                            {
-                                <span class="status-warning"><i class="fas fa-user-check"></i>Second Timer</span>
-                            }
-                            else
-                            {
-                                <span class="status-success"><i class="fas fa-user-plus"></i>First Timer</span>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="guest-followup-count">
-                        <span>Previous Calls</span>
-                        <strong>@previousFollowUps.Count</strong>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        @if (!string.IsNullOrEmpty(errorMessage))
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
         {
-            <div class="alert alert-danger profile-v2-alert">
-                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
             </div>
         }
 
+        <div class="bcc-page-header phone-followup-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-phone-volume me-2"></i>
+                    Guest Management
+                </div>
+
+                <div class="bcc-page-title">
+                    Phone Follow-up
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Record conversations, prayer needs, visit interest and next actions.
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>
+                Guest Search
+            </button>
+        </div>
+
+        <div class="guest-profile-strip mb-3">
+
+            <div class="guest-profile-main">
+                <div class="guest-avatar-large">
+                    @GetGuestInitials()
+                </div>
+
+                <div>
+                    <h5>
+                        @guest.Title @guest.FirstName @guest.Surname
+                    </h5>
+
+                    <div class="guest-profile-meta">
+                        <span>
+                            <i class="fas fa-id-card"></i>
+                            @guest.GuestNumber
+                        </span>
+
+                        <span>
+                            <i class="fas fa-phone"></i>
+                            @DisplayText(guest.PhoneNumber)
+                        </span>
+
+                        <span>
+                            <i class="fas fa-calendar-day"></i>
+                            @(guest.VisitingDate.ToString("dd MMM yyyy"))
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="guest-profile-status">
+                <span class="guest-type-badge
+                        @(guest.IsSecondTimer ? "second" : "first")">
+                    @(guest.IsSecondTimer ? "Second Timer" : "First Timer")
+                </span>
+
+                <div class="previous-call-count">
+                    <span>Previous Calls</span>
+                    <strong>@previousFollowUps.Count</strong>
+                </div>
+            </div>
+
+        </div>
+
         @if (recordSaved)
         {
-            <div class="guest-followup-success">
-                <div class="guest-access-icon success">
+            <div class="followup-success-banner mb-3">
+                <div class="followup-success-icon">
                     <i class="fas fa-check-circle"></i>
                 </div>
 
                 <div>
-                    <h4>Phone Follow-up Recorded Successfully</h4>
+                    <h6>Phone Follow-up Saved</h6>
+
                     <p>
-                        The phone conversation for <strong>@guest.FirstName @guest.Surname</strong> has been saved successfully.
+                        The call record for
+                        <strong>@guest.FirstName @guest.Surname</strong>
+                        was saved successfully.
                     </p>
 
-                    <div class="guest-followup-success-grid">
-                        <div>
-                            <span>Call Date</span>
-                            <strong>@followUpModel.CallDate.ToString("dd-MMM-yyyy")</strong>
-                        </div>
+                    <div class="followup-success-details">
+                        <span>
+                            Call:
+                            <strong>
+                                @(followUpModel.CallDate.ToString("dd MMM yyyy"))
+                            </strong>
+                        </span>
 
-                        <div>
-                            <span>Outcome</span>
+                        <span>
+                            Outcome:
                             <strong>@followUpModel.Outcome</strong>
-                        </div>
+                        </span>
 
-                        <div>
-                            <span>Next Follow-up</span>
-                            <strong>@(followUpModel.NextFollowUpDate?.ToString("dd-MMM-yyyy") ?? "Not set")</strong>
-                        </div>
-                    </div>
-
-                    <button class="bcc-btn bcc-btn-primary mt-3" @onclick="GoBack">
-                        <i class="fas fa-arrow-left me-1"></i>Return to Guest Search
-                    </button>
-                </div>
+                        <span>
+                            Next:
+                            <strong>
+                                @(followUpModel.NextFollowUpDate?
+                                                        .ToString("dd MMM yyyy")
+                                                        ?? "Not set")
+                    </strong>
+                </span>
             </div>
+        </div>
+    </div>
         }
 
-        <div class="row g-4">
-            <div class="col-lg-5">
-                <div class="bcc-card h-100">
-                    <div class="bcc-card-header">
-                        <i class="fas fa-history text-primary"></i>
-                        <div>
-                            <div class="bcc-card-title">Previous Phone Follow-ups</div>
-                            <small class="text-muted">View earlier call records for this guest.</small>
-                        </div>
-                    </div>
+        <div class="row g-3">
 
-                    <div class="bcc-card-body">
+            <div class="col-12 col-xl-4">
+                <div class="bcc-card h-100">
+                    <div class="bcc-card-body p-3">
+
+                        <div class="compact-section-heading">
+                            <div>
+                                <h6>
+                                    <i class="fas fa-history me-2"></i>
+                                    Previous Calls
+                                </h6>
+
+                                <p>
+                                    Earlier phone follow-up records.
+                                </p>
+                            </div>
+                        </div>
+
                         @if (previousFollowUps.Any())
                         {
-                            <div class="guest-call-timeline">
-                                @foreach (var item in previousFollowUps.OrderByDescending(x => x.CallDate))
+                            <div class="call-history-list">
+
+                                @foreach (var item in previousFollowUps
+                                                        .OrderByDescending(x => x.CallDate))
                                 {
-                                    <div class="guest-call-item">
-                                        <div class="guest-call-dot"></div>
+                                    <div class="call-history-item">
 
-                                        <div class="guest-call-card">
-                                            <div class="d-flex justify-content-between gap-2 flex-wrap">
-                                                <div>
-                                                    <strong>@item.CallDate.ToString("dd-MMM-yyyy")</strong>
-                                                    <span>Called by @item.CalledByName</span>
-                                                </div>
+                                        <div class="call-history-top">
+                                            <div>
+                                                <strong>
+                                                    @(item.CallDate
+                                                                                            .ToString("dd MMM yyyy"))
+                                                                                                                 </strong>
 
-                                                @if (item.WasCallAnswered)
-                                                {
-                                                    <span class="bcc-status bcc-status-success">Answered</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="bcc-status bcc-status-warning">No Answer</span>
-                                                }
+                                                <span>
+                                                    Called by @item.CalledByName
+                                                </span>
                                             </div>
 
-                                            <p>@item.Outcome</p>
+                                            <span class="answer-badge
+                                                            @(item.WasCallAnswered
+                                                                                                      ? "answered"
+                                                                                                      : "not-answered")">
+                                                @(item.WasCallAnswered
+                                                                                    ? "Answered"
+                                                                                    : "No Answer")
+                                                                                              </span>
+                                                                                          </div>
 
-                                            <div class="guest-call-footer">
-                                                <small>
-                                                    <i class="fas fa-calendar-check me-1"></i>
-                                                    Next: @(item.NextFollowUpDate?.ToString("dd-MMM-yyyy") ?? "Not set")
-                                                </small>
+                                        <p>@item.Outcome</p>
 
-                                                <button class="team-action-btn" @onclick="() => ViewFollowUpDetails(item)">
-                                                    <i class="fas fa-eye me-1"></i>View
-                                                </button>
-                                            </div>
+                                        <div class="call-history-footer">
+                                            <small>
+                                                Next:
+                                                @(item.NextFollowUpDate?
+                                                                                    .ToString("dd MMM yyyy")
+                                                                                    ?? "Not set")
+                                </small>
+
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    @onclick="() => ViewFollowUpDetails(item)">
+                                                <i class="fas fa-eye me-1"></i>
+                                                View
+                                            </button>
                                         </div>
+
                                     </div>
-                                }
+                                                }
+
                             </div>
                         }
                         else
                         {
-                            <div class="guest-mini-empty">
+                            <div class="bcc-empty py-4">
                                 <i class="fas fa-phone-slash"></i>
-                                <h6>No phone follow-up yet</h6>
+                                <h4>No Previous Calls</h4>
                                 <p>This will be the first phone record for this guest.</p>
                             </div>
                         }
+
                     </div>
                 </div>
             </div>
 
-            <div class="col-lg-7">
-                <EditForm Model="@followUpModel" OnValidSubmit="SaveFollowUp">
+            <div class="col-12 col-xl-8">
+                <EditForm Model="@followUpModel"
+                          OnValidSubmit="SaveFollowUp">
+
                     <DataAnnotationsValidator />
 
                     <fieldset disabled="@recordSaved">
                         <div class="bcc-card">
-                            <div class="bcc-card-header">
-                                <i class="fas fa-phone-alt text-primary"></i>
-                                <div>
-                                    <div class="bcc-card-title">New Phone Call Record</div>
-                                    <small class="text-muted">Capture the result of the phone conversation.</small>
-                                </div>
-                            </div>
+                            <div class="bcc-card-body p-3">
 
-                            <div class="bcc-card-body">
+                                <div class="compact-section-heading">
+                                    <div>
+                                        <h6>
+                                            <i class="fas fa-phone-alt me-2"></i>
+                                            New Phone Call Record
+                                        </h6>
 
-                                <div class="guest-form-section">
-                                    <div class="guest-form-section-header blue">
-                                        <i class="fas fa-phone-volume"></i>
-                                        <span>Call Information</span>
-                                    </div>
-
-                                    <div class="row g-3">
-                                        <div class="col-md-4">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Date of Call</label>
-                                                <InputDate class="form-control bcc-input" @bind-Value="followUpModel.CallDate" />
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-4">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Was Call Answered?</label>
-                                                <InputSelect class="form-select bcc-input" @bind-Value="followUpModel.WasCallAnswered">
-                                                    <option value="true">Yes, answered</option>
-                                                    <option value="false">No, not answered</option>
-                                                </InputSelect>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-4">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Duration</label>
-                                                <div class="input-group">
-                                                    <InputNumber class="form-control bcc-input" @bind-Value="followUpModel.CallDurationMinutes" />
-                                                    <span class="input-group-text">mins</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-8">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Call Outcome</label>
-                                                <InputSelect class="form-select bcc-input" @bind-Value="followUpModel.Outcome">
-                                                    <option value="">Select call outcome</option>
-                                                    <option value="Answered - Positive">Answered - Positive</option>
-                                                    <option value="Answered - Needs Prayer">Answered - Needs Prayer</option>
-                                                    <option value="Answered - Wants Visit">Answered - Wants Visit</option>
-                                                    <option value="Answered - Wants Counselling">Answered - Wants Counselling</option>
-                                                    <option value="Answered - Will Return">Answered - Will Return</option>
-                                                    <option value="Answered - Not Interested">Answered - Not Interested</option>
-                                                    <option value="No Answer">No Answer</option>
-                                                    <option value="Wrong Number">Wrong Number</option>
-                                                    <option value="Number Switched Off">Number Switched Off</option>
-                                                    <option value="Call Back Later">Call Back Later</option>
-                                                </InputSelect>
-                                                <ValidationMessage For="@(() => followUpModel.Outcome)" />
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-4">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Next Follow-up Date</label>
-                                                <InputDate class="form-control bcc-input" @bind-Value="followUpModel.NextFollowUpDate" />
-                                            </div>
-                                        </div>
+                                        <p>
+                                            Capture the result of the conversation.
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div class="guest-form-section">
-                                    <div class="guest-form-section-header green">
-                                        <i class="fas fa-clipboard-check"></i>
-                                        <span>Follow-up Response</span>
+                                <div class="form-section-panel">
+                                    <div class="form-section-title">
+                                        Call Information
                                     </div>
 
-                                    <div class="row g-3">
-                                        <div class="col-md-3">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Will Return?</label>
-                                                <InputSelect class="form-select bcc-input" @bind-Value="followUpModel.WillGuestReturn">
-                                                    <option value="">Not Sure</option>
-                                                    <option value="true">Yes</option>
-                                                    <option value="false">No</option>
-                                                </InputSelect>
+                                    <div class="row g-2">
+
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label compact-label">
+                                                Call Date
+                                            </label>
+
+                                            <InputDate class="form-control form-control-sm"
+                                                       @bind-Value="followUpModel.CallDate" />
+                                        </div>
+
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label compact-label">
+                                                Answered?
+                                            </label>
+
+                                            <InputSelect class="form-select form-select-sm"
+                                                         @bind-Value="followUpModel.WasCallAnswered">
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
+                                            </InputSelect>
+                                        </div>
+
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label compact-label">
+                                                Duration
+                                            </label>
+
+                                            <div class="input-group input-group-sm">
+                                                <InputNumber class="form-control"
+                                                             @bind-Value="followUpModel.CallDurationMinutes" />
+                                                <span class="input-group-text">mins</span>
                                             </div>
                                         </div>
 
-                                        <div class="col-md-3">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Needs Visitation?</label>
-                                                <InputSelect class="form-select bcc-input" @bind-Value="followUpModel.NeedsVisitation">
-                                                    <option value="">Not Sure</option>
-                                                    <option value="true">Yes</option>
-                                                    <option value="false">No</option>
-                                                </InputSelect>
-                                            </div>
-                                        </div>
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label compact-label">
+                                                Next Follow-up
+                                            </label>
 
-                                        <div class="col-md-3">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Meet Pastor?</label>
-                                                <InputSelect class="form-select bcc-input" @bind-Value="followUpModel.WantsToMeetPastor">
-                                                    <option value="">Not Sure</option>
-                                                    <option value="true">Yes</option>
-                                                    <option value="false">No</option>
-                                                </InputSelect>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Join Dept?</label>
-                                                <InputSelect class="form-select bcc-input" @bind-Value="followUpModel.WantsToJoinDepartment">
-                                                    <option value="">Not Sure</option>
-                                                    <option value="true">Yes</option>
-                                                    <option value="false">No</option>
-                                                </InputSelect>
-                                            </div>
+                                            <InputDate class="form-control form-control-sm"
+                                                       @bind-Value="followUpModel.NextFollowUpDate" />
                                         </div>
 
                                         <div class="col-12">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Department Interest</label>
-                                                <InputText class="form-control bcc-input"
-                                                           @bind-Value="followUpModel.DepartmentInterest"
-                                                           placeholder="e.g. Choir, Ushering, Media, Prayer Team" />
-                                            </div>
+                                            <label class="form-label compact-label">
+                                                Call Outcome
+                                                <span class="text-danger">*</span>
+                                            </label>
+
+                                            <InputSelect class="form-select form-select-sm"
+                                                         @bind-Value="followUpModel.Outcome">
+                                                <option value="">Select outcome</option>
+                                                <option value="Answered - Positive">Answered - Positive</option>
+                                                <option value="Answered - Needs Prayer">Answered - Needs Prayer</option>
+                                                <option value="Answered - Wants Visit">Answered - Wants Visit</option>
+                                                <option value="Answered - Wants Counselling">Answered - Wants Counselling</option>
+                                                <option value="Answered - Will Return">Answered - Will Return</option>
+                                                <option value="Answered - Not Interested">Answered - Not Interested</option>
+                                                <option value="No Answer">No Answer</option>
+                                                <option value="Wrong Number">Wrong Number</option>
+                                                <option value="Number Switched Off">Number Switched Off</option>
+                                                <option value="Call Back Later">Call Back Later</option>
+                                            </InputSelect>
+
+                                            <ValidationMessage For="@(() => followUpModel.Outcome)" />
                                         </div>
+
                                     </div>
                                 </div>
 
-                                <div class="guest-form-section">
-                                    <div class="guest-form-section-header purple">
-                                        <i class="fas fa-comment-dots"></i>
-                                        <span>Conversation Notes</span>
+                                <div class="form-section-panel">
+                                    <div class="form-section-title">
+                                        Follow-up Response
                                     </div>
 
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Prayer Request</label>
-                                                <InputTextArea class="form-control bcc-input guest-note-box" rows="4" @bind-Value="followUpModel.PrayerRequest" />
-                                            </div>
+                                    <div class="row g-2">
+
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label compact-label">
+                                                Will Return?
+                                            </label>
+
+                                            <InputSelect class="form-select form-select-sm"
+                                                         @bind-Value="followUpModel.WillGuestReturn">
+                                                <option value="">Not Sure</option>
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
+                                            </InputSelect>
                                         </div>
 
-                                        <div class="col-md-6">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Guest Feedback</label>
-                                                <InputTextArea class="form-control bcc-input guest-note-box" rows="4" @bind-Value="followUpModel.GuestFeedback" />
-                                            </div>
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label compact-label">
+                                                Needs Visit?
+                                            </label>
+
+                                            <InputSelect class="form-select form-select-sm"
+                                                         @bind-Value="followUpModel.NeedsVisitation">
+                                                <option value="">Not Sure</option>
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
+                                            </InputSelect>
+                                        </div>
+
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label compact-label">
+                                                Meet Pastor?
+                                            </label>
+
+                                            <InputSelect class="form-select form-select-sm"
+                                                         @bind-Value="followUpModel.WantsToMeetPastor">
+                                                <option value="">Not Sure</option>
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
+                                            </InputSelect>
+                                        </div>
+
+                                        <div class="col-6 col-md-3">
+                                            <label class="form-label compact-label">
+                                                Join Dept?
+                                            </label>
+
+                                            <InputSelect class="form-select form-select-sm"
+                                                         @bind-Value="followUpModel.WantsToJoinDepartment">
+                                                <option value="">Not Sure</option>
+                                                <option value="true">Yes</option>
+                                                <option value="false">No</option>
+                                            </InputSelect>
                                         </div>
 
                                         <div class="col-12">
-                                            <div class="bcc-form-field">
-                                                <label class="bcc-form-label">Additional Remarks</label>
-                                                <InputTextArea class="form-control bcc-input guest-note-box" rows="3" @bind-Value="followUpModel.Remarks" />
-                                            </div>
+                                            <label class="form-label compact-label">
+                                                Department Interest
+                                            </label>
+
+                                            <InputText class="form-control form-control-sm"
+                                                       @bind-Value="followUpModel.DepartmentInterest"
+                                                       placeholder="e.g. Choir, Ushering, Media, Prayer Team" />
                                         </div>
+
                                     </div>
                                 </div>
 
-                            </div>
+                                <div class="form-section-panel mb-0">
+                                    <div class="form-section-title">
+                                        Conversation Notes
+                                    </div>
 
-                            @if (!recordSaved)
-                            {
-                                <div class="guest-form-footer">
-                                    <button class="bcc-btn guest-secondary-btn" type="button" @onclick="GoBack">
-                                        <i class="fas fa-arrow-left me-1"></i>Back to Search
-                                    </button>
+                                    <div class="row g-2">
 
-                                    <button class="bcc-btn bcc-btn-primary" type="submit" disabled="@isSaving">
-                                        @if (isSaving)
-                                        {
-                                            <span class="spinner-border spinner-border-sm me-2"></span>
-                                            <span>Saving...</span>
-                                        }
-                                        else
-                                        {
-                                            <i class="fas fa-save me-1"></i>
-                                            <span>Save Phone Record</span>
-                                        }
-                                    </button>
+                                        <div class="col-md-6">
+                                            <label class="form-label compact-label">
+                                                Prayer Request
+                                            </label>
+
+                                            <InputTextArea class="form-control form-control-sm"
+                                                           rows="3"
+                                                           @bind-Value="followUpModel.PrayerRequest" />
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <label class="form-label compact-label">
+                                                Guest Feedback
+                                            </label>
+
+                                            <InputTextArea class="form-control form-control-sm"
+                                                           rows="3"
+                                                           @bind-Value="followUpModel.GuestFeedback" />
+                                        </div>
+
+                                        <div class="col-12">
+                                            <label class="form-label compact-label">
+                                                Additional Remarks
+                                            </label>
+
+                                            <InputTextArea class="form-control form-control-sm"
+                                                           rows="2"
+                                                           @bind-Value="followUpModel.Remarks" />
+                                        </div>
+
+                                    </div>
                                 </div>
-                            }
+
+                                @if (!recordSaved)
+                                {
+                                    <div class="mt-3 d-flex justify-content-end gap-2">
+
+                                        <button type="button"
+                                                class="bcc-btn profile-form-secondary-btn compact-btn"
+                                                disabled="@isSaving"
+                                                @onclick="GoBack">
+                                            Cancel
+                                        </button>
+
+                                        <button type="submit"
+                                                class="bcc-btn bcc-btn-primary compact-btn"
+                                                disabled="@isSaving">
+
+                                            @if (isSaving)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                                <span>Saving...</span>
+                                            }
+                                            else
+                                            {
+                                                <i class="fas fa-save me-2"></i>
+                                                <span>Save Phone Record</span>
+                                            }
+
+                                        </button>
+
+                                    </div>
+                                }
+
+                            </div>
                         </div>
                     </fieldset>
+
                 </EditForm>
             </div>
+
         </div>
     </div>
 }
 
 @if (selectedFollowUp != null && showFollowUpModal)
 {
-    <div class="team-modal-backdrop">
-        <div class="guest-followup-modal">
-            <button class="team-modal-close" @onclick="CloseFollowUpModal">
-                <i class="fas fa-times"></i>
-            </button>
+    <div class="followup-popup-backdrop">
+        <div class="followup-popup-card">
 
-            <div class="guest360-header">
-                <div class="guest360-avatar">
-                    @GetGuestInitials()
+            <div class="followup-popup-header">
+                <div>
+                    <h4>Phone Call Detail</h4>
+
+                    <p>
+                        @guest?.FirstName @guest?.Surname ·
+                        @(selectedFollowUp.CallDate.ToString("dd MMM yyyy"))
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="CloseFollowUpModal">
+                </button>
+            </div>
+
+            <div class="call-detail-grid">
+
+                <div>
+                    <span>Called By</span>
+                    <strong>@selectedFollowUp.CalledByName</strong>
                 </div>
 
                 <div>
-                    <h4>Phone Call Detail</h4>
-                    <p>
-                        @guest?.FirstName @guest?.Surname -
-                        @selectedFollowUp.CallDate.ToString("dd-MMM-yyyy")
-                    </p>
-
-                    @if (selectedFollowUp.WasCallAnswered)
-                    {
-                        <span class="bcc-status bcc-status-success">Answered</span>
-                    }
-                    else
-                    {
-                        <span class="bcc-status bcc-status-warning">Not Answered</span>
-                    }
+                    <span>Answered</span>
+                    <strong>
+                        @(selectedFollowUp.WasCallAnswered ? "Yes" : "No")
+                    </strong>
                 </div>
+
+                <div>
+                    <span>Duration</span>
+                    <strong>
+                        @(selectedFollowUp.CallDurationMinutes.HasValue
+                                            ? $"{selectedFollowUp.CallDurationMinutes} mins"
+                                            : "Not provided")
+                                                         </strong>
+                                                     </div>
+
+                <div>
+                    <span>Next Follow-up</span>
+                    <strong>
+                        @(selectedFollowUp.NextFollowUpDate?
+                                            .ToString("dd MMM yyyy")
+                                            ?? "Not set")
+                </strong>
             </div>
 
-            <div class="guest360-body">
-                <div class="guest-detail-grid">
-                    <div class="guest-detail-item">
-                        <span>Call Date</span>
-                        <strong>@selectedFollowUp.CallDate.ToString("dd-MMM-yyyy")</strong>
-                    </div>
-
-                    <div class="guest-detail-item">
-                        <span>Called By</span>
-                        <strong>@selectedFollowUp.CalledByName</strong>
-                    </div>
-
-                    <div class="guest-detail-item">
-                        <span>Call Answered</span>
-                        <strong>@(selectedFollowUp.WasCallAnswered ? "Yes" : "No")</strong>
-                    </div>
-
-                    <div class="guest-detail-item">
-                        <span>Duration</span>
-                        <strong>@(selectedFollowUp.CallDurationMinutes.HasValue ? $"{selectedFollowUp.CallDurationMinutes} mins" : "-")</strong>
-                    </div>
-
-                    <div class="guest-detail-item full">
-                        <span>Outcome</span>
-                        <strong>@selectedFollowUp.Outcome</strong>
-                    </div>
-
-                    <div class="guest-detail-item">
-                        <span>Will Guest Return?</span>
-                        <strong>@FormatNullableBool(selectedFollowUp.WillGuestReturn)</strong>
-                    </div>
-
-                    <div class="guest-detail-item">
-                        <span>Needs Visitation?</span>
-                        <strong>@FormatNullableBool(selectedFollowUp.NeedsVisitation)</strong>
-                    </div>
-
-                    <div class="guest-detail-item">
-                        <span>Meet Pastor?</span>
-                        <strong>@FormatNullableBool(selectedFollowUp.WantsToMeetPastor)</strong>
-                    </div>
-
-                    <div class="guest-detail-item">
-                        <span>Join Department?</span>
-                        <strong>@FormatNullableBool(selectedFollowUp.WantsToJoinDepartment)</strong>
-                    </div>
-
-                    <div class="guest-detail-item full">
-                        <span>Department Interest</span>
-                        <strong>@DisplayText(selectedFollowUp.DepartmentInterest)</strong>
-                    </div>
-
-                    <div class="guest-detail-item full">
-                        <span>Next Follow-up Date</span>
-                        <strong>@(selectedFollowUp.NextFollowUpDate?.ToString("dd-MMM-yyyy") ?? "Not set")</strong>
-                    </div>
+                <div class="detail-wide">
+                    <span>Outcome</span>
+                    <strong>@DisplayText(selectedFollowUp.Outcome)</strong>
                 </div>
 
-                <div class="guest-note-section">
-                    <h6><i class="fas fa-praying-hands me-1"></i>Prayer Request</h6>
-                    <p>@DisplayText(selectedFollowUp.PrayerRequest)</p>
+                <div>
+                    <span>Will Return?</span>
+                    <strong>
+                        @FormatNullableBool(selectedFollowUp.WillGuestReturn)
+                    </strong>
                 </div>
 
-                <div class="guest-note-section">
-                    <h6><i class="fas fa-comment-dots me-1"></i>Guest Feedback</h6>
-                    <p>@DisplayText(selectedFollowUp.GuestFeedback)</p>
+                <div>
+                    <span>Needs Visitation?</span>
+                    <strong>
+                        @FormatNullableBool(selectedFollowUp.NeedsVisitation)
+                    </strong>
                 </div>
 
-                <div class="guest-note-section">
-                    <h6><i class="fas fa-sticky-note me-1"></i>Remarks</h6>
-                    <p>@DisplayText(selectedFollowUp.Remarks)</p>
+                <div>
+                    <span>Meet Pastor?</span>
+                    <strong>
+                        @FormatNullableBool(selectedFollowUp.WantsToMeetPastor)
+                    </strong>
                 </div>
+
+                <div>
+                    <span>Join Department?</span>
+                    <strong>
+                        @FormatNullableBool(selectedFollowUp.WantsToJoinDepartment)
+                    </strong>
+                </div>
+
+                <div class="detail-wide">
+                    <span>Department Interest</span>
+                    <strong>
+                        @DisplayText(selectedFollowUp.DepartmentInterest)
+                    </strong>
+                </div>
+
+                <div class="detail-wide note-detail">
+                    <span>Prayer Request</span>
+                    <strong>
+                        @DisplayText(selectedFollowUp.PrayerRequest)
+                    </strong>
+                </div>
+
+                <div class="detail-wide note-detail">
+                    <span>Guest Feedback</span>
+                    <strong>
+                        @DisplayText(selectedFollowUp.GuestFeedback)
+                    </strong>
+                </div>
+
+                <div class="detail-wide note-detail">
+                    <span>Remarks</span>
+                    <strong>
+                        @DisplayText(selectedFollowUp.Remarks)
+                    </strong>
+                </div>
+
             </div>
 
-            <div class="guest360-actions">
-                <button type="button" class="bcc-btn guest-secondary-btn" @onclick="CloseFollowUpModal">
+            <div class="mt-3 d-flex justify-content-end">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="CloseFollowUpModal">
                     Close
                 </button>
             </div>
+
         </div>
     </div>
 }
@@ -531,17 +667,22 @@ else
     public int guestId { get; set; }
 
     private Guest? guest;
-    private GuestPhoneFollowUp followUpModel = new();
-    private List<GuestPhoneFollowUp> previousFollowUps = new();
+
+    private GuestPhoneFollowUp followUpModel =
+        new();
+
+    private List<GuestPhoneFollowUp> previousFollowUps =
+        new();
 
     private GuestPhoneFollowUp? selectedFollowUp;
-    private bool showFollowUpModal = false;
 
+    private bool showFollowUpModal;
     private bool isLoading = true;
-    private bool isSaving = false;
-    private bool recordSaved = false;
+    private bool isSaving;
+    private bool recordSaved;
+    private bool canAccessGuestManagement;
 
-    private string errorMessage = "";
+    private string errorMessage = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -553,24 +694,69 @@ else
         try
         {
             isLoading = true;
+            errorMessage = string.Empty;
 
-            guest = await GuestService.GetGuestByIdAsync(guestId);
+            var worker = AuthService.CurrentWorker;
 
-            if (guest != null)
+            if (worker == null)
             {
-                previousFollowUps = await GuestService.GetGuestPhoneFollowUpsAsync(guest.Id);
+                canAccessGuestManagement = false;
+                return;
+            }
 
-                followUpModel = new GuestPhoneFollowUp
+            var access =
+                await ServiceRecordAccessService
+                    .GetAccessAsync(worker.Id);
+
+            var hasGuestPrivilege =
+                access.CanAccessGuestManagement;
+
+            var isFigDirectorate =
+                IsFigName(worker.Directorate?.Name);
+
+            var isSecondaryDepartmentFig =
+                IsFigName(worker.SecondaryDepartment?.Name);
+
+            var hasAuthorisedRole =
+                AuthService.IsInRole("Church Admin") ||
+                AuthService.IsInRole("Head of Service") ||
+                AuthService.IsInRole("Pastor in Charge");
+
+            canAccessGuestManagement =
+                hasGuestPrivilege &&
+                (
+                    isFigDirectorate ||
+                    isSecondaryDepartmentFig ||
+                    hasAuthorisedRole
+                );
+
+            if (!canAccessGuestManagement)
+                return;
+
+            guest =
+                await GuestService
+                    .GetGuestByIdAsync(guestId);
+
+            if (guest == null)
+                return;
+
+            previousFollowUps =
+                await GuestService
+                    .GetGuestPhoneFollowUpsAsync(
+                        guest.Id);
+
+            followUpModel =
+                new GuestPhoneFollowUp
                 {
                     GuestId = guest.Id,
                     CallDate = DateTime.Today,
                     WasCallAnswered = true
                 };
-            }
         }
         catch (Exception ex)
         {
-            errorMessage = "Error loading page: " + ex.Message;
+            errorMessage =
+                $"Error loading page: {ex.Message}";
         }
         finally
         {
@@ -580,31 +766,46 @@ else
 
     private async Task SaveFollowUp()
     {
-        if (guest == null)
+        if (guest == null ||
+            isSaving)
+        {
             return;
+        }
 
         try
         {
             isSaving = true;
-            errorMessage = "";
+            errorMessage = string.Empty;
 
-            var currentWorker = AuthService.CurrentWorker;
+            var currentWorker =
+                AuthService.CurrentWorker;
 
-            followUpModel.GuestId = guest.Id;
-            followUpModel.CalledByWorkerId = currentWorker?.Id;
-            followUpModel.CalledByName = currentWorker == null
-                ? "Unknown User"
-                : $"{currentWorker.FirstName} {currentWorker.LastName}";
+            followUpModel.GuestId =
+                guest.Id;
 
-            await GuestService.AddPhoneFollowUpAsync(followUpModel);
+            followUpModel.CalledByWorkerId =
+                currentWorker?.Id;
 
-            previousFollowUps = await GuestService.GetGuestPhoneFollowUpsAsync(guest.Id);
+            followUpModel.CalledByName =
+                currentWorker == null
+                    ? "Unknown User"
+                    : $"{currentWorker.FirstName} {currentWorker.LastName}";
+
+            await GuestService
+                .AddPhoneFollowUpAsync(
+                    followUpModel);
+
+            previousFollowUps =
+                await GuestService
+                    .GetGuestPhoneFollowUpsAsync(
+                        guest.Id);
 
             recordSaved = true;
         }
         catch (Exception ex)
         {
-            errorMessage = "Error saving phone follow-up: " + ex.Message;
+            errorMessage =
+                $"Error saving phone follow-up: {ex.Message}";
         }
         finally
         {
@@ -612,7 +813,8 @@ else
         }
     }
 
-    private void ViewFollowUpDetails(GuestPhoneFollowUp followUp)
+    private void ViewFollowUpDetails(
+        GuestPhoneFollowUp followUp)
     {
         selectedFollowUp = followUp;
         showFollowUpModal = true;
@@ -624,14 +826,36 @@ else
         selectedFollowUp = null;
     }
 
-    private string FormatNullableBool(bool? value)
+    private static bool IsFigName(
+        string? value)
     {
-        return value.HasValue ? (value.Value ? "Yes" : "No") : "Not Sure";
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return string.Equals(
+                   value.Trim(),
+                   "FIG",
+                   StringComparison.OrdinalIgnoreCase)
+               ||
+               value.Contains(
+                   "FIG",
+                   StringComparison.OrdinalIgnoreCase);
     }
 
-    private string DisplayText(string? value)
+    private static string FormatNullableBool(
+        bool? value)
     {
-        return string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+        return value.HasValue
+            ? (value.Value ? "Yes" : "No")
+            : "Not Sure";
+    }
+
+    private static string DisplayText(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not provided"
+            : value;
     }
 
     private string GetGuestInitials()
@@ -639,12 +863,21 @@ else
         if (guest == null)
             return "G";
 
-        var first = !string.IsNullOrWhiteSpace(guest.FirstName) ? guest.FirstName.Substring(0, 1).ToUpper() : "";
-        var last = !string.IsNullOrWhiteSpace(guest.Surname) ? guest.Surname.Substring(0, 1).ToUpper() : "";
+        var first =
+            !string.IsNullOrWhiteSpace(guest.FirstName)
+                ? guest.FirstName[..1].ToUpperInvariant()
+                : string.Empty;
+
+        var last =
+            !string.IsNullOrWhiteSpace(guest.Surname)
+                ? guest.Surname[..1].ToUpperInvariant()
+                : string.Empty;
 
         var initials = $"{first}{last}";
 
-        return string.IsNullOrWhiteSpace(initials) ? "G" : initials;
+        return string.IsNullOrWhiteSpace(initials)
+            ? "G"
+            : initials;
     }
 
     private void GoBack()
@@ -652,3 +885,390 @@ else
         Navigation.NavigateTo("/guest/search");
     }
 }
+
+<style>
+    .phone-followup-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .phone-followup-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .guest-profile-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 12px 14px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+    }
+
+    .guest-profile-main {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+    }
+
+    .guest-avatar-large {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 12px;
+        font-size: 0.82rem;
+        font-weight: 800;
+    }
+
+    .guest-profile-main h5 {
+        margin: 0 0 4px;
+        color: #0f172a;
+        font-size: 0.98rem;
+        font-weight: 800;
+    }
+
+    .guest-profile-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+    }
+
+        .guest-profile-meta span {
+            color: #64748b;
+            font-size: 0.68rem;
+        }
+
+        .guest-profile-meta i {
+            margin-right: 4px;
+            color: #4f46e5;
+        }
+
+    .guest-profile-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .guest-type-badge {
+        display: inline-flex;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 0.66rem;
+        font-weight: 800;
+    }
+
+        .guest-type-badge.first {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .guest-type-badge.second {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+    .previous-call-count {
+        min-width: 78px;
+        padding: 7px 9px;
+        text-align: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+        .previous-call-count span,
+        .previous-call-count strong {
+            display: block;
+        }
+
+        .previous-call-count span {
+            color: #64748b;
+            font-size: 0.59rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .previous-call-count strong {
+            color: #0f172a;
+            font-size: 0.95rem;
+        }
+
+    .followup-success-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 11px;
+        padding: 11px 13px;
+        color: #166534;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 11px;
+    }
+
+    .followup-success-icon {
+        font-size: 1.5rem;
+    }
+
+    .followup-success-banner h6 {
+        margin: 0 0 2px;
+        font-size: 0.84rem;
+        font-weight: 800;
+    }
+
+    .followup-success-banner p {
+        margin: 0;
+        color: #15803d;
+        font-size: 0.7rem;
+    }
+
+    .followup-success-details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        margin-top: 5px;
+        font-size: 0.66rem;
+    }
+
+    .compact-section-heading {
+        margin-bottom: 12px;
+    }
+
+        .compact-section-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .compact-section-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.72rem;
+        }
+
+    .phone-followup-page .col-xl-4 .bcc-card {
+        border-top: 4px solid #4f46e5;
+    }
+
+    .phone-followup-page .col-xl-8 .bcc-card {
+        border-top: 4px solid #7c3aed;
+    }
+
+    .call-history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .call-history-item {
+        padding: 10px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+
+    .call-history-top,
+    .call-history-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 9px;
+    }
+
+        .call-history-top strong,
+        .call-history-top span {
+            display: block;
+        }
+
+        .call-history-top strong {
+            color: #0f172a;
+            font-size: 0.75rem;
+        }
+
+        .call-history-top span,
+        .call-history-footer small {
+            color: #64748b;
+            font-size: 0.64rem;
+        }
+
+    .call-history-item p {
+        margin: 7px 0;
+        color: #334155;
+        font-size: 0.71rem;
+    }
+
+    .answer-badge {
+        display: inline-flex;
+        padding: 3px 7px;
+        border-radius: 999px;
+        font-size: 0.62rem;
+        font-weight: 800;
+    }
+
+        .answer-badge.answered {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .answer-badge.not-answered {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+    .form-section-panel {
+        margin-bottom: 11px;
+        padding: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+
+    .form-section-title {
+        margin-bottom: 8px;
+        color: #4338ca;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: 0.68rem;
+        font-weight: 700;
+    }
+
+    .phone-followup-page .form-control,
+    .phone-followup-page .form-select {
+        min-height: 32px;
+        font-size: 0.77rem;
+    }
+
+    .followup-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        background: rgba(15, 23, 42, 0.58);
+        backdrop-filter: blur(2px);
+    }
+
+    .followup-popup-card {
+        width: 100%;
+        max-width: 560px;
+        max-height: 86vh;
+        padding: 18px;
+        overflow-y: auto;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.28);
+    }
+
+    .followup-popup-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+        .followup-popup-header h4 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 1rem;
+            font-weight: 800;
+        }
+
+        .followup-popup-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+
+    .call-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+        .call-detail-grid > div {
+            padding: 8px 9px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .call-detail-grid span {
+            display: block;
+            margin-bottom: 2px;
+            color: #64748b;
+            font-size: 0.61rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .call-detail-grid strong {
+            color: #0f172a;
+            font-size: 0.77rem;
+            white-space: pre-wrap;
+        }
+
+    .detail-wide {
+        grid-column: 1 / -1;
+    }
+
+    .note-detail {
+        border-left: 4px solid #4f46e5 !important;
+    }
+
+    @@media (max-width: 768px) {
+        .guest-profile-strip {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .guest-profile-status {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .call-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .detail-wide {
+            grid-column: auto;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .followup-popup-card {
+            max-width: 96vw;
+            padding: 16px;
+        }
+
+        .call-history-top,
+        .call-history-footer {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>

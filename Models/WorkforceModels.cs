@@ -29,6 +29,11 @@ namespace ChurchApp.Models
         // Who should approve this request
         public int? ApproverWorkerId { get; set; }
         public Worker? ApproverWorker { get; set; }
+        public ICollection<ProfileUpdateApprover> EligibleApprovers
+        {
+            get;
+            set;
+        } = new List<ProfileUpdateApprover>();
     }
 
     public class ProposedChanges

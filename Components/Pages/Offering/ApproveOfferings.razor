@@ -1,447 +1,934 @@
-﻿@page "/offering/approvals"
+﻿@page "/Offering/approvals"
 @layout Components.Layout.MainLayout
-@using ChurchApp.Services
+
 @using ChurchApp.Models
-@inject OfferingService OfferingService
+@using ChurchApp.Services
+
 @inject AuthService AuthService
+@inject ChurchOfferingService OfferingService
+@inject ChurchOfferingAccessService OfferingAccessService
 @inject NavigationManager Navigation
 
-<PageTitle>Approve Offerings - BCC ServiceHub</PageTitle>
+<PageTitle>Offering Approvals - BCC ServiceHub</PageTitle>
 
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-check-circle me-2"></i>
-                        Pending Offerings Approval
-                        <span class="badge bg-light text-success ms-2">Church Admin Only</span>
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <!-- Success Message -->
-                    @if (!string.IsNullOrEmpty(successMessage))
-                    {
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle me-2"></i>
-                            @successMessage
-                            <button type="button" class="btn-close" @onclick="ClearSuccessMessage"></button>
-                        </div>
-                    }
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access offering approvals.</p>
 
-                    <!-- Error Message -->
-                    @if (!string.IsNullOrEmpty(errorMessage))
-                    {
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-circle me-2"></i>
-                            @errorMessage
-                            <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
-                        </div>
-                    }
-
-                    <!-- Access Denied Message -->
-                    @if (!IsChurchAdmin())
-                    {
-                        <div class="text-center py-5">
-                            <i class="fas fa-ban fa-3x text-danger mb-3"></i>
-                            <h4>Access Denied</h4>
-                            <p class="text-muted">Only Church Administrators can approve offerings.</p>
-                            <p class="text-muted small">Your role: <strong>@AuthService.CurrentWorker?.Role</strong></p>
-                            <a href="/" class="btn btn-primary">
-                                <i class="fas fa-home me-2"></i>Return to Dashboard
-                            </a>
-                        </div>
-                    }
-                    else if (isLoading)
-                    {
-                        <div class="text-center py-4">
-                            <div class="spinner-border text-primary"></div>
-                            <p class="mt-2">Loading pending offerings...</p>
-                        </div>
-                    }
-                    else if (pendingOfferings.Any())
-                    {
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Offering Type</th>
-                                        <th>Date</th>
-                                        <th>Amount</th>
-                                        <th>Currency</th>
-                                        <th>Payment Mode</th>
-                                        <th>Recorded By</th>
-                                        <th>Remarks</th>
-                                        <th>Recorded Date</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var offering in pendingOfferings)
-                                    {
-                                        <tr>
-                                            <td>
-                                                <strong>@offering.OfferingTypeName</strong>
-                                            </td>
-                                            <td>@offering.OfferingDate.ToString("MMM dd, yyyy")</td>
-                                            <td>
-                                                <span class="fw-bold">@offering.Amount.ToString("N2")</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-secondary">@offering.Currency</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-info">@offering.PaymentMode</span>
-                                            </td>
-                                            <td>@offering.RecordedByName</td>
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(offering.Remarks))
-                                                {
-                                                    <small class="text-muted">@offering.Remarks</small>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">-</span>
-                                                }
-                                            </td>
-                                            <td>
-                                                <small class="text-muted">
-                                                    @offering.RecordedDate.ToString("MMM dd, yyyy hh:mm tt")
-                                                </small>
-                                            </td>
-                                            <td>
-                                                <div class="btn-group btn-group-sm">
-                                                    <button class="btn btn-success" @onclick="() => ApproveOffering(offering)" title="Approve Offering">
-                                                        <i class="fas fa-check me-1"></i>Approve
-                                                    </button>
-                                                    <button class="btn btn-warning" @onclick="() => ShowRejectionModal(offering)" title="Reject Offering">
-                                                        <i class="fas fa-times me-1"></i>Reject
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Summary -->
-                        <div class="row mt-4">
-                            <div class="col-md-4">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center">
-                                        <h4 class="text-success">@pendingOfferings.Count</h4>
-                                        <p class="mb-0 text-muted">Pending Offerings</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center">
-                                        <h4 class="text-primary">@pendingOfferings.Sum(o => o.Amount).ToString("N2")</h4>
-                                        <p class="mb-0 text-muted">Total Amount</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-light">
-                                    <div class="card-body text-center">
-                                        <h4 class="text-info">@pendingOfferings.Select(o => o.RecordedByName).Distinct().Count()</h4>
-                                        <p class="mb-0 text-muted">Different Recorders</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                    else if (IsChurchAdmin())
-                    {
-                        <div class="text-center py-5">
-                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                            <h4>No Pending Offerings</h4>
-                            <p class="text-muted">All offerings have been approved. Great work!</p>
-                            <div class="mt-3">
-                                <button class="btn btn-primary me-2" @onclick="RefreshList">
-                                    <i class="fas fa-sync-alt me-2"></i>Refresh
-                                </button>
-                                <a href="/offering/record" class="btn btn-outline-primary">
-                                    <i class="fas fa-plus-circle me-2"></i>Record New Offering
-                                </a>
-                            </div>
-                        </div>
-                    }
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">
+                    Loading offering approvals...
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<!-- Rejection Modal -->
-@if (showRejectionModal && IsChurchAdmin())
+}
+else if (!canApproveOffering)
 {
-    <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Reject Offering
-                    </h5>
-                    <button type="button" class="btn-close" @onclick="CloseRejectionModal"></button>
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You do not have the Approve Offerings privilege.</p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Dashboard
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page compact-approval-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success py-2">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        <div class="bcc-page-header compact-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-check-double me-2"></i>
+                    Offering Management
                 </div>
-                <div class="modal-body">
-                    <p>Please provide a reason for rejecting this offering:</p>
-                    
-                    <!-- Offering Details -->
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h6 class="card-title">Offering Details</h6>
-                            <div class="row small">
-                                <div class="col-6">
-                                    <strong>Type:</strong> @offeringToReject?.OfferingTypeName<br>
-                                    <strong>Date:</strong> @offeringToReject?.OfferingDate.ToString("MMM dd, yyyy")
-                                </div>
-                                <div class="col-6">
-                                    <strong>Amount:</strong> @offeringToReject?.Amount.ToString("N2") @offeringToReject?.Currency<br>
-                                    <strong>Recorded By:</strong> @offeringToReject?.RecordedByName
-                                </div>
-                            </div>
-                            @if (!string.IsNullOrEmpty(offeringToReject?.Remarks))
-                            {
-                                <div class="mt-2">
-                                    <strong>Remarks:</strong> 
-                                    <small class="text-muted">@offeringToReject.Remarks</small>
-                                </div>
-                            }
-                        </div>
+
+                <div class="bcc-page-title">
+                    Offering Approvals
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Review offerings awaiting approval.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="RefreshPage">
+                    <i class="fas fa-sync-alt me-2"></i>
+                    Refresh
+                </button>
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+            </div>
+        </div>
+
+        <div class="offering-approval-summary mb-3">
+
+            <div class="offering-approval-summary-card">
+                <div class="summary-icon pending">
+                    <i class="fas fa-hourglass-half"></i>
+                </div>
+
+                <div>
+                    <span>Pending Approval</span>
+                    <strong>@pendingRecords.Count</strong>
+                </div>
+            </div>
+
+            <div class="offering-approval-summary-card">
+                <div class="summary-icon amount">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+
+                <div>
+                    <span>Pending NGN Total</span>
+                    <strong>
+                        @FormatAmount(
+                            pendingRecords
+                                .Where(x => x.Currency == "NGN")
+                                .Sum(x => x.Amount),
+                            "NGN")
+                    </strong>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="bcc-card">
+            <div class="bcc-card-body p-3">
+
+                <div class="row g-2 mb-3">
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small mb-1">
+                            Date From
+                        </label>
+
+                        <InputDate class="form-control form-control-sm"
+                                   @bind-Value="dateFrom" />
                     </div>
 
-                    <!-- Rejection Reason Input -->
-                    <div class="form-group">
-                        <label class="form-label">Rejection Reason *</label>
-                        <textarea class="form-control" @bind="rejectionReason" rows="3" 
-                                  placeholder="Explain why this offering is being rejected..."></textarea>
-                        @if (string.IsNullOrEmpty(rejectionReason) && showValidation)
-                        {
-                            <small class="text-danger">Please provide a rejection reason</small>
-                        }
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small mb-1">
+                            Date To
+                        </label>
+
+                        <InputDate class="form-control form-control-sm"
+                                   @bind-Value="dateTo" />
                     </div>
-                    
-                    <div class="alert alert-info mt-2">
-                        <small>
-                            <i class="fas fa-info-circle me-1"></i>
-                            This reason will be visible to the user who recorded the offering.
-                        </small>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small mb-1">
+                            Search
+                        </label>
+
+                        <InputText class="form-control form-control-sm"
+                                   @bind-Value="searchText"
+                                   placeholder="Service, type or recorder" />
+                    </div>
+
+                    <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+                        <button type="button"
+                                class="bcc-btn profile-form-secondary-btn compact-btn"
+                                @onclick="ClearFilters">
+                            Clear
+                        </button>
+
+                        <button type="button"
+                                class="bcc-btn bcc-btn-primary compact-btn"
+                                @onclick="ApplyFilters">
+                            <i class="fas fa-search me-2"></i>
+                            Search
+                        </button>
+                    </div>
+
+                </div>
+
+                @if (!filteredRecords.Any())
+                {
+                    <div class="bcc-empty py-4">
+                        <i class="fas fa-check-circle"></i>
+                        <h4>No Pending Offerings</h4>
+                        <p>There are currently no offering records waiting for approval.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0 offering-approval-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Service</th>
+                                    <th>Offering Type</th>
+                                    <th>Amount</th>
+                                    <th>Payment</th>
+                                    <th>Recorded By</th>
+                                    <th>Recorded At</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var record in filteredRecords)
+                                {
+                                    <tr>
+                                        <td>
+                                            @(record.OfferingDate.ToString("dd MMM yyyy"))
+                                        </td>
+
+                                        <td>
+                                            @(record.Service?.Name ?? "Not available")
+                                        </td>
+
+                                        <td>
+                                            @(record.OfferingType?.Name ?? "Not available")
+                                        </td>
+
+                                        <td class="fw-bold">
+                                            @FormatAmount(
+                                                record.Amount,
+                                                record.Currency)
+                                        </td>
+
+                                        <td>
+                                            @record.PaymentMode
+                                        </td>
+
+                                        <td>
+                                            @GetWorkerName(record.RecordedByWorker)
+                                        </td>
+
+                                        <td>
+                                            @(record.RecordedAt
+                                                .ToLocalTime()
+                                                .ToString("dd MMM yyyy, hh:mm tt"))
+                                        </td>
+
+                                        <td class="text-end">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    @onclick="() => OpenReview(record)">
+                                                <i class="fas fa-eye me-1"></i>
+                                                Review
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+}
+
+@if (showReviewPopup && selectedRecord != null)
+{
+    <div class="offering-popup-backdrop">
+        <div class="offering-popup-card">
+
+            <div class="offering-popup-header">
+                <div>
+                    <h4>Review Offering</h4>
+                    <p>Review the offering details before taking action.</p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="ClosePopup">
+                </button>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(popupErrorMessage))
+            {
+                <div class="alert alert-danger py-2">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    @popupErrorMessage
+                </div>
+            }
+
+            <div class="offering-detail-grid">
+
+                <div>
+                    <span>Service</span>
+                    <strong>
+                        @(selectedRecord.Service?.Name ?? "Not available")
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Offering Type</span>
+                    <strong>
+                        @(selectedRecord.OfferingType?.Name ?? "Not available")
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Offering Date</span>
+                    <strong>
+                        @(selectedRecord.OfferingDate
+                            .ToString("dd MMMM yyyy"))
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Amount</span>
+                    <strong class="offering-amount">
+                        @FormatAmount(
+                            selectedRecord.Amount,
+                            selectedRecord.Currency)
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Payment Mode</span>
+                    <strong>
+                        @selectedRecord.PaymentMode
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Recorded By</span>
+                    <strong>
+                        @GetWorkerName(selectedRecord.RecordedByWorker)
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Recorded At</span>
+                    <strong>
+                        @(selectedRecord.RecordedAt
+                            .ToLocalTime()
+                            .ToString("dd MMM yyyy, hh:mm tt"))
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Status</span>
+                    <strong class="text-warning">
+                        Pending Approval
+                    </strong>
+                </div>
+
+                <div class="detail-wide">
+                    <span>Remarks</span>
+                    <strong>
+                        @(string.IsNullOrWhiteSpace(selectedRecord.Remarks)
+                            ? "None"
+                            : selectedRecord.Remarks)
+                    </strong>
+                </div>
+
+            </div>
+
+            @if (showReturnSection)
+            {
+                <div class="return-section mt-3">
+                    <label class="form-label fw-bold small">
+                        Reason for Returning the Record
+                        <span class="text-danger">*</span>
+                    </label>
+
+                    <InputTextArea class="form-control form-control-sm"
+                                   rows="3"
+                                   @bind-Value="returnComment"
+                                   placeholder="Explain the correction required from the recorder." />
+
+                    <div class="form-text small">
+                        The original recorder will see this comment and can correct or remove the record.
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseRejectionModal">Cancel</button>
-                    <button type="button" class="btn btn-warning" @onclick="ConfirmRejection" disabled="@isRejecting">
-                        @if (isRejecting)
+            }
+
+            <div class="mt-3 d-flex justify-content-end gap-2 popup-actions">
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        disabled="@isProcessing"
+                        @onclick="ClosePopup">
+                    Cancel
+                </button>
+
+                @if (!showReturnSection)
+                {
+                    <button type="button"
+                            class="btn btn-outline-danger btn-sm"
+                            disabled="@isProcessing"
+                            @onclick="ShowReturnForm">
+                        <i class="fas fa-reply me-2"></i>
+                        Return
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-success btn-sm"
+                            disabled="@isProcessing"
+                            @onclick="ApproveSelectedOffering">
+
+                        @if (isProcessing)
                         {
                             <span class="spinner-border spinner-border-sm me-2"></span>
-                            <span>Rejecting...</span>
                         }
                         else
                         {
-                            <i class="fas fa-times me-2"></i>
-                            <span>Reject Offering</span>
+                            <i class="fas fa-check me-2"></i>
                         }
+
+                        Approve
                     </button>
-                </div>
+                }
+                else
+                {
+                    <button type="button"
+                            class="bcc-btn profile-form-secondary-btn compact-btn"
+                            disabled="@isProcessing"
+                            @onclick="CancelReturn">
+                        Back
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-danger btn-sm"
+                            disabled="@isProcessing"
+                            @onclick="ReturnSelectedOffering">
+
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-reply me-2"></i>
+                        }
+
+                        Confirm Return
+                    </button>
+                }
+
             </div>
         </div>
     </div>
 }
 
 @code {
-    private List<OfferingRecord> pendingOfferings = new();
+    private List<ChurchOfferingRecord> pendingRecords = new();
+    private List<ChurchOfferingRecord> filteredRecords = new();
+
+    private ChurchOfferingRecord? selectedRecord;
+
+    private DateTime? dateFrom;
+    private DateTime? dateTo;
+    private string searchText = string.Empty;
+    private string returnComment = string.Empty;
+
     private bool isLoading = true;
-    private string errorMessage = "";
-    private string successMessage = "";
-    
-    // Rejection modal variables
-    private bool showRejectionModal = false;
-    private OfferingRecord? offeringToReject = null;
-    private string rejectionReason = "";
-    private bool isRejecting = false;
-    private bool showValidation = false;
+    private bool isProcessing;
+    private bool canApproveOffering;
+    private bool showReviewPopup;
+    private bool showReturnSection;
+
+    private string? errorMessage;
+    private string? successMessage;
+    private string? popupErrorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        // Only Church Admin can access this page
-        if (!IsChurchAdmin())
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        try
         {
-            // Don't load data if not admin
+            isLoading = true;
+            errorMessage = null;
+
+            if (AuthService.CurrentWorker == null)
+            {
+                canApproveOffering = false;
+                return;
+            }
+
+            var workerId = AuthService.CurrentWorker.Id;
+
+            canApproveOffering =
+                await OfferingAccessService
+                    .CanApproveOfferingAsync(workerId);
+
+            if (!canApproveOffering)
+                return;
+
+            pendingRecords =
+                await OfferingService
+                    .GetPendingApprovalsAsync(workerId);
+
+            filteredRecords = pendingRecords.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load offering approvals: {ex.Message}";
+        }
+        finally
+        {
             isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        IEnumerable<ChurchOfferingRecord> query =
+            pendingRecords;
+
+        if (dateFrom.HasValue)
+        {
+            query = query.Where(x =>
+                x.OfferingDate.Date >=
+                dateFrom.Value.Date);
+        }
+
+        if (dateTo.HasValue)
+        {
+            query = query.Where(x =>
+                x.OfferingDate.Date <=
+                dateTo.Value.Date);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var search = searchText.Trim();
+
+            query = query.Where(x =>
+                (x.Service?.Name?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false) ||
+
+                (x.OfferingType?.Name?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false) ||
+
+                (x.PaymentMode?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false) ||
+
+                (x.RecordedByWorker?.FirstName?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false) ||
+
+                (x.RecordedByWorker?.LastName?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false));
+        }
+
+        filteredRecords = query
+            .OrderBy(x => x.OfferingDate)
+            .ThenBy(x => x.RecordedAt)
+            .ToList();
+    }
+
+    private void ClearFilters()
+    {
+        dateFrom = null;
+        dateTo = null;
+        searchText = string.Empty;
+        filteredRecords = pendingRecords.ToList();
+    }
+
+    private void OpenReview(
+        ChurchOfferingRecord record)
+    {
+        selectedRecord = record;
+        returnComment = string.Empty;
+        popupErrorMessage = null;
+        showReturnSection = false;
+        showReviewPopup = true;
+    }
+
+    private void ShowReturnForm()
+    {
+        popupErrorMessage = null;
+        returnComment = string.Empty;
+        showReturnSection = true;
+    }
+
+    private void CancelReturn()
+    {
+        popupErrorMessage = null;
+        returnComment = string.Empty;
+        showReturnSection = false;
+    }
+
+    private async Task ApproveSelectedOffering()
+    {
+        if (selectedRecord == null ||
+            AuthService.CurrentWorker == null)
+        {
             return;
         }
 
-        await LoadPendingOfferings();
-        isLoading = false;
-    }
-
-    private bool IsChurchAdmin()
-    {
-        return AuthService.IsInRole("Church Admin");
-    }
-
-    private async Task LoadPendingOfferings()
-    {
         try
         {
-            pendingOfferings = await OfferingService.GetPendingOfferingsAsync();
+            isProcessing = true;
+            popupErrorMessage = null;
+
+            await OfferingService.ApproveOfferingAsync(
+                selectedRecord.Id,
+                AuthService.CurrentWorker.Id,
+                null);
+
+            successMessage =
+                $"The offering of {FormatAmount(selectedRecord.Amount, selectedRecord.Currency)} was approved successfully.";
+
+            ClosePopup();
+            await LoadPageAsync();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error loading pending offerings: {ex.Message}";
+            popupErrorMessage =
+                $"Unable to approve offering: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
         }
     }
 
-    private async Task ApproveOffering(OfferingRecord offering)
+    private async Task ReturnSelectedOffering()
     {
-        // Double-check permission
-        if (!IsChurchAdmin()) return;
-
-        try
+        if (selectedRecord == null ||
+            AuthService.CurrentWorker == null)
         {
-            // Get the current worker's WorkerId (string) not Id (int)
-            var adminWorkerId = AuthService.CurrentWorker?.WorkerId;
-            var adminName = $"{AuthService.CurrentWorker?.FirstName} {AuthService.CurrentWorker?.LastName}";
-
-            if (string.IsNullOrEmpty(adminWorkerId))
-            {
-                errorMessage = "Unable to determine current user. Please log in again.";
-                StateHasChanged();
-                return;
-            }
-
-            var success = await OfferingService.ApproveOfferingAsync(
-                offering.Id,
-                adminWorkerId, // Pass string WorkerId
-                adminName
-            );
-
-            if (success)
-            {
-                successMessage = $"Offering from {offering.RecordedByName} approved successfully!";
-                await LoadPendingOfferings();
-                StateHasChanged();
-            }
-            else
-            {
-                errorMessage = "Failed to approve offering. Please try again.";
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error approving offering: {ex.Message}";
-        }
-    }
-
-    private void ShowRejectionModal(OfferingRecord offering)
-    {
-        // Double-check permission
-        if (!IsChurchAdmin()) return;
-
-        offeringToReject = offering;
-        rejectionReason = "";
-        showRejectionModal = true;
-        showValidation = false;
-        StateHasChanged();
-    }
-
-    private void CloseRejectionModal()
-    {
-        showRejectionModal = false;
-        offeringToReject = null;
-        rejectionReason = "";
-        showValidation = false;
-        isRejecting = false;
-        StateHasChanged();
-    }
-
-    private async Task ConfirmRejection()
-    {
-        // Double-check permission
-        if (!IsChurchAdmin() || offeringToReject == null)
-            return;
-
-        if (string.IsNullOrEmpty(rejectionReason))
-        {
-            showValidation = true;
-            StateHasChanged();
             return;
         }
 
-        isRejecting = true;
-        StateHasChanged();
+        if (string.IsNullOrWhiteSpace(returnComment))
+        {
+            popupErrorMessage =
+                "Please provide the reason for returning this offering.";
+
+            return;
+        }
 
         try
         {
-            // Get the current worker's WorkerId (string) not Id (int)
-            var adminWorkerId = AuthService.CurrentWorker?.WorkerId;
-            var adminName = $"{AuthService.CurrentWorker?.FirstName} {AuthService.CurrentWorker?.LastName}";
+            isProcessing = true;
+            popupErrorMessage = null;
 
-            if (string.IsNullOrEmpty(adminWorkerId))
-            {
-                errorMessage = "Unable to determine current user. Please log in again.";
-                isRejecting = false;
-                StateHasChanged();
-                return;
-            }
+            await OfferingService
+                .ReturnForCorrectionAsync(
+                    selectedRecord.Id,
+                    AuthService.CurrentWorker.Id,
+                    returnComment);
 
-            var success = await OfferingService.RejectOfferingAsync(
-                offeringToReject.Id,
-                adminWorkerId, // Pass string WorkerId
-                adminName,
-                rejectionReason
-            );
+            successMessage =
+                "The offering record was returned to the recorder for correction.";
 
-            if (success)
-            {
-                successMessage = $"Offering from {offeringToReject.RecordedByName} rejected successfully!";
-                await LoadPendingOfferings();
-                CloseRejectionModal();
-            }
-            else
-            {
-                errorMessage = "Failed to reject offering. Please try again.";
-                isRejecting = false;
-                StateHasChanged();
-            }
+            ClosePopup();
+            await LoadPageAsync();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error rejecting offering: {ex.Message}";
-            isRejecting = false;
-            StateHasChanged();
+            popupErrorMessage =
+                $"Unable to return offering: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
         }
     }
 
-    private async Task RefreshList()
+    private async Task RefreshPage()
     {
-        // Double-check permission
-        if (!IsChurchAdmin()) return;
-
-        isLoading = true;
-        StateHasChanged();
-        
-        await LoadPendingOfferings();
-        
-        isLoading = false;
-        StateHasChanged();
+        successMessage = null;
+        await LoadPageAsync();
     }
 
-    private void ClearSuccessMessage()
+    private void ClosePopup()
     {
-        successMessage = "";
-        StateHasChanged();
+        showReviewPopup = false;
+        showReturnSection = false;
+        selectedRecord = null;
+        returnComment = string.Empty;
+        popupErrorMessage = null;
     }
 
-    private void ClearErrorMessage()
+    private void GoBack()
     {
-        errorMessage = "";
-        StateHasChanged();
+        Navigation.NavigateTo("/workspace/service-records");
+    }
+
+    private static string GetWorkerName(
+        Worker? worker)
+    {
+        if (worker == null)
+            return "Not available";
+
+        return $"{worker.FirstName} {worker.LastName}".Trim();
+    }
+
+    private static string FormatAmount(
+        decimal amount,
+        string currency)
+    {
+        var symbol = currency switch
+        {
+            "NGN" => "₦",
+            "USD" => "$",
+            "GBP" => "£",
+            "EUR" => "€",
+            _ => $"{currency} "
+        };
+
+        return $"{symbol}{amount:N2}";
     }
 }
+
+<style>
+    .compact-approval-page {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .compact-page-header {
+        margin-bottom: 14px;
+    }
+
+    .offering-approval-summary {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .offering-approval-summary-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+    }
+
+    .summary-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        font-size: 0.9rem;
+    }
+
+    .summary-icon.pending {
+        color: #b45309;
+        background: #fef3c7;
+    }
+
+    .summary-icon.amount {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .offering-approval-summary-card span {
+        display: block;
+        margin-bottom: 2px;
+        color: #64748b;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+
+    .offering-approval-summary-card strong {
+        color: #0f172a;
+        font-size: 1.05rem;
+        font-weight: 800;
+    }
+
+    .compact-btn {
+        min-height: 34px;
+        padding: 7px 12px;
+        font-size: 0.82rem;
+    }
+
+    .offering-approval-table thead th {
+        padding: 10px;
+        color: #475569;
+        background: #f8fafc;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .offering-approval-table tbody td {
+        padding: 10px;
+        font-size: 0.82rem;
+        white-space: nowrap;
+    }
+
+    .offering-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 4000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(15, 23, 42, 0.58);
+    }
+
+    .offering-popup-card {
+        width: 100%;
+        max-width: 620px;
+        max-height: 85vh;
+        padding: 22px;
+        overflow-y: auto;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.24);
+    }
+
+    .offering-popup-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .offering-popup-header h4 {
+        margin: 0 0 2px;
+        font-size: 1.1rem;
+        font-weight: 800;
+    }
+
+    .offering-popup-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    .offering-detail-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 9px;
+    }
+
+    .offering-detail-grid > div {
+        padding: 10px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .offering-detail-grid span {
+        display: block;
+        margin-bottom: 3px;
+        color: #64748b;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .offering-detail-grid strong {
+        color: #0f172a;
+        font-size: 0.85rem;
+        white-space: pre-wrap;
+    }
+
+    .detail-wide {
+        grid-column: 1 / -1;
+    }
+
+    .offering-amount {
+        color: #166534 !important;
+        font-size: 0.95rem !important;
+    }
+
+    .return-section {
+        padding: 14px;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 10px;
+    }
+
+    @@media (max-width: 768px) {
+        .offering-approval-summary,
+        .offering-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .detail-wide {
+            grid-column: auto;
+        }
+
+        .offering-approval-table tbody td,
+        .offering-approval-table thead th {
+            white-space: normal;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .offering-popup-card {
+            max-width: 96vw;
+            padding: 18px;
+        }
+
+        .popup-actions {
+            flex-direction: column;
+        }
+
+        .popup-actions .btn,
+        .popup-actions .bcc-btn {
+            width: 100%;
+        }
+    }
+</style>

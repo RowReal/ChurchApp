@@ -1,32 +1,58 @@
-﻿<a href="@Href"
-   class="workspace-action-card">
+﻿@if (IsEnabled)
+{
+    <a href="@Href"
+       class="workspace-action-card">
 
-    <div class="workspace-action-icon">
-        <i class="@Icon"></i>
-    </div>
+        <div class="workspace-action-icon">
+            <i class="@Icon"></i>
+        </div>
 
-    <div class="workspace-action-content">
-        <div class="workspace-action-heading">
-            <h5>@Title</h5>
+        <div class="workspace-action-content">
+            <div class="workspace-action-heading">
+                <h5>@Title</h5>
 
-            @if (BadgeCount > 0)
+                @if (BadgeCount > 0)
+                {
+                    <span class="workspace-action-badge">
+                        @FormatBadge(BadgeCount)
+                    </span>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Description))
             {
-                <span class="workspace-action-badge">
-                    @FormatBadge(BadgeCount)
-                </span>
+                <p>@Description</p>
             }
         </div>
 
-        @if (!string.IsNullOrWhiteSpace(Description))
-        {
-            <p>@Description</p>
-        }
-    </div>
+        <div class="workspace-action-arrow">
+            <i class="fas fa-chevron-right"></i>
+        </div>
+    </a>
+}
+else
+{
+    <div class="workspace-action-card workspace-action-disabled"
+         title="@DisabledMessage"
+         aria-disabled="true">
 
-    <div class="workspace-action-arrow">
-        <i class="fas fa-chevron-right"></i>
+        <div class="workspace-action-icon workspace-action-icon-disabled">
+            <i class="@Icon"></i>
+        </div>
+
+        <div class="workspace-action-content">
+            <div class="workspace-action-heading">
+                <h5>@Title</h5>
+            </div>
+
+            <p>@DisabledMessage</p>
+        </div>
+
+        <div class="workspace-action-lock">
+            <i class="fas fa-lock"></i>
+        </div>
     </div>
-</a>
+}
 
 @code {
     [Parameter]
@@ -46,6 +72,13 @@
     [Parameter]
     public int BadgeCount { get; set; }
 
+    [Parameter]
+    public bool IsEnabled { get; set; } = true;
+
+    [Parameter]
+    public string DisabledMessage { get; set; } =
+        "You do not have access to this function.";
+
     private static string FormatBadge(int count)
     {
         return count > 99
@@ -61,6 +94,7 @@
         align-items: center;
         gap: 15px;
         min-height: 118px;
+        height: 100%;
         padding: 18px;
         color: inherit;
         text-decoration: none;
@@ -136,6 +170,30 @@
         flex-shrink: 0;
         color: #94a3b8;
         font-size: 0.88rem;
+    }
+
+    .workspace-action-disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+        background: #f8fafc;
+        box-shadow: none;
+    }
+
+        .workspace-action-disabled:hover {
+            border-color: #e5e7eb;
+            box-shadow: none;
+            transform: none;
+        }
+
+    .workspace-action-icon-disabled {
+        color: #64748b;
+        background: #e2e8f0;
+    }
+
+    .workspace-action-lock {
+        flex-shrink: 0;
+        color: #94a3b8;
+        font-size: 0.9rem;
     }
 
     @@media (max-width: 576px) {
