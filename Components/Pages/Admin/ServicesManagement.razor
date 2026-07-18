@@ -1,335 +1,591 @@
 ﻿@page "/admin/services"
 @layout Components.Layout.MainLayout
+
 @using ChurchApp.Models
 @using ChurchApp.Services
+
 @inject ExcuseService ExcuseService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
 <PageTitle>Service Management - BCC ServiceHub</PageTitle>
 
-<div class="container-fluid py-4">
-    @if (isAuthorized)
-    {
-        <!-- Compact Header -->
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="fw-bold text-dark-blue mb-1">Service Management</h4>
-                        <p class="text-muted small mb-0">Manage church services and schedules</p>
-                    </div>
-                    <button class="btn btn-primary btn-sm" @onclick="ShowAddServiceModal">
-                        <i class="fas fa-plus me-1"></i>Add Service
-                    </button>
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to access Service Management.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (!isAuthorized)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>
+            Service Management is available to authorised church leadership
+            and administrators.
+        </p>
+
+        <a href="/"
+           class="bcc-btn bcc-btn-primary">
+            Return to Dashboard
+        </a>
+    </div>
+}
+else
+{
+    <div class="worker360-page service-management-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage) &&
+             !showServiceModal)
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        <div class="bcc-page-header service-management-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-calendar-check me-2"></i>
+                    Worker Management
                 </div>
+
+                <div class="bcc-page-title">
+                    Service Management
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Create, schedule and manage church services.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary compact-btn"
+                        @onclick="ShowAddServiceModal">
+                    <i class="fas fa-plus me-2"></i>
+                    Add Service
+                </button>
             </div>
         </div>
 
-        <!-- Compact Filters -->
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body py-2">
-                        <div class="row g-2 align-items-center">
-                            <div class="col-md-3">
-                                <label class="form-label small fw-semibold mb-1">Status</label>
-                                <select value="@selectedStatusFilter" @onchange="@(e => OnFilterChanged(e, "status"))" class="form-select form-select-sm">
+        <div class="row g-3 align-items-start">
+
+            <div class="col-12 col-xl-4">
+                <div class="bcc-card service-filter-card">
+
+                    <div class="service-panel-header">
+                        <div class="service-panel-icon">
+                            <i class="fas fa-filter"></i>
+                        </div>
+
+                        <div>
+                            <h6>Service Filters</h6>
+                            <p>Summary and search controls.</p>
+                        </div>
+                    </div>
+
+                    <div class="bcc-card-body p-3">
+
+                        <div class="service-summary-grid mb-3">
+
+                            <div>
+                                <span>Total</span>
+                                <strong>@allServices.Count</strong>
+                            </div>
+
+                            <div class="active">
+                                <span>Active</span>
+                                <strong>@allServices.Count(x => x.IsActive)</strong>
+                            </div>
+
+                            <div class="inactive">
+                                <span>Inactive</span>
+                                <strong>@allServices.Count(x => !x.IsActive)</strong>
+                            </div>
+
+                            <div class="result">
+                                <span>Filtered</span>
+                                <strong>@filteredServices.Count</strong>
+                            </div>
+
+                        </div>
+
+                        <div class="service-filter-tip">
+                            <i class="fas fa-lightbulb"></i>
+
+                            <span>
+                                Filter services by status and recurrence pattern.
+                            </span>
+                        </div>
+
+                        <div class="row g-2">
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Status
+                                </label>
+
+                                <select value="@selectedStatusFilter"
+                                        @onchange='@(e => OnFilterChanged(e, "status"))'
+                                        class="form-select form-select-sm">
                                     <option value="all">All Services</option>
                                     <option value="active">Active Only</option>
                                     <option value="inactive">Inactive Only</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label small fw-semibold mb-1">Recurrence</label>
-                                <select value="@selectedRecurrenceFilter" @onchange="@(e => OnFilterChanged(e, "recurrence"))" class="form-select form-select-sm">
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">
+                                    Recurrence
+                                </label>
+
+                                <select value="@selectedRecurrenceFilter"
+                                        @onchange='@(e => OnFilterChanged(e, "recurrence"))'
+                                        class="form-select form-select-sm">
                                     <option value="all">All Types</option>
                                     <option value="Weekly">Weekly</option>
                                     <option value="Monthly">Monthly</option>
                                     <option value="OneTime">One Time</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
-                                <button class="btn btn-outline-secondary btn-sm w-100 mt-3" @onclick="ResetFilters">
-                                    <i class="fas fa-refresh me-1"></i>Reset
-                                </button>
-                            </div>
-                            <div class="col-md-3 text-end">
-                                <span class="badge bg-light text-dark small">
-                                    <i class="fas fa-list me-1"></i>
-                                    @filteredServices.Count of @allServices.Count
-                                </span>
-                            </div>
+
                         </div>
+
+                        <div class="mt-3 d-flex justify-content-end gap-2">
+                            <button type="button"
+                                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                                    @onclick="ResetFilters">
+                                <i class="fas fa-rotate-left me-1"></i>
+                                Reset
+                            </button>
+
+                            <button type="button"
+                                    class="bcc-btn bcc-btn-primary compact-btn"
+                                    @onclick="ShowAddServiceModal">
+                                <i class="fas fa-plus me-1"></i>
+                                Add
+                            </button>
+                        </div>
+
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Compact Services Table -->
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-0">
-                @if (filteredServices.Any())
-                {
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="ps-3">Service Name</th>
-                                    <th>Type</th>
-                                    <th>Schedule</th>
-                                    <th>Status</th>
-                                    <th class="text-center pe-3">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+            <div class="col-12 col-xl-8">
+                <div class="bcc-card service-list-card">
+
+                    <div class="service-list-header">
+                        <div>
+                            <h6>
+                                <i class="fas fa-list me-2"></i>
+                                Service Register
+                            </h6>
+
+                            <p>
+                                @filteredServices.Count service(s) match the current filters.
+                            </p>
+                        </div>
+
+                        <span class="service-result-count">
+                            @filteredServices.Count
+                        </span>
+                    </div>
+
+                    <div class="bcc-card-body p-0">
+
+                        @if (filteredServices.Any())
+                        {
+                            <div class="service-list">
+
                                 @foreach (var service in filteredServices)
                                 {
-                                    <tr class="@(service.IsActive ? "" : "text-muted")">
-                                        <td class="ps-3">
-                                            <div class="fw-semibold small">@service.Name</div>
-                                            @if (!string.IsNullOrEmpty(service.Description))
-                                            {
-                                                <small class="text-muted d-block" style="font-size: 0.75rem;">@service.Description</small>
-                                            }
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 small">
-                                                @service.RecurrencePattern
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div class="small fw-medium">@GetServiceScheduleDisplay(service)</div>
-                                            <div class="text-muted" style="font-size: 0.7rem;">
-                                                @if (service.RecurrencePattern == "OneTime")
-                                                {
-                                                    @service.SpecificStartTime?.ToString(@"hh\:mm")
-                                                }
-                                                else
-                                                {
-                                                    @service.StartTime?.ToString(@"hh\:mm")
-                                                }
-                                                @if ((service.RecurrencePattern == "OneTime" && service.SpecificEndTime.HasValue) ||
-                                                    (service.RecurrencePattern != "OneTime" && service.EndTime.HasValue))
-                                                {
-                                                    @:- @(service.RecurrencePattern == "OneTime" ? service.SpecificEndTime?.ToString(@"hh\:mm") : service.EndTime?.ToString(@"hh\:mm"))
-                                                }
+                                    <div class="service-row @(service.IsActive ? "" : "inactive-row")">
+
+                                        <div class="service-row-main">
+
+                                            <div class="service-row-icon">
+                                                <i class="fas fa-calendar-day"></i>
                                             </div>
-                                        </td>
-                                        <td>
-                                            <span class="badge @(service.IsActive ? "bg-success bg-opacity-10 text-success border border-success border-opacity-25" : "bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25") small">
-                                                <i class="fas @(service.IsActive ? "fa-play" : "fa-pause") me-1"></i>
-                                                @(service.IsActive ? "Active" : "Inactive")
+
+                                            <div class="service-row-content">
+                                                <div class="service-row-title">
+                                                    <strong>@service.Name</strong>
+
+                                                    <span class="service-type-badge">
+                                                        @service.RecurrencePattern
+                                                    </span>
+                                                </div>
+
+                                                @if (!string.IsNullOrWhiteSpace(service.Description))
+                                                {
+                                                    <p>@service.Description</p>
+                                                }
+
+                                                <div class="service-row-meta">
+                                                    <span>
+                                                        <i class="fas fa-calendar"></i>
+                                                        @GetServiceScheduleDisplay(service)
+                                                    </span>
+
+                                                    <span>
+                                                        <i class="fas fa-clock"></i>
+                                                        @GetServiceTimeDisplay(service)
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                        </div>
+
+                                        <div class="service-row-side">
+
+                                            <span class="service-status-badge
+                                                @(service.IsActive ? "active" : "inactive")">
+                                                <i class="fas @(service.IsActive
+                                                    ? "fa-circle-check"
+                                                    : "fa-circle-pause")"></i>
+
+                                                @(service.IsActive
+                                                    ? "Active"
+                                                    : "Inactive")
                                             </span>
-                                        </td>
-                                        <td class="text-center pe-3">
-                                            <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-primary btn-sm" @onclick="() => EditService(service)" title="Edit Service">
-                                                    <i class="fas fa-edit fa-xs"></i>
+
+                                            <div class="service-row-actions">
+                                                <button type="button"
+                                                        class="service-action-btn edit"
+                                                        title="Edit service"
+                                                        @onclick="() => EditService(service)">
+                                                    <i class="fas fa-pen"></i>
                                                 </button>
+
                                                 @if (service.IsActive)
                                                 {
-                                                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeactivateService(service)" title="Deactivate Service">
-                                                        <i class="fas fa-pause fa-xs"></i>
+                                                    <button type="button"
+                                                            class="service-action-btn deactivate"
+                                                            title="Deactivate service"
+                                                            @onclick="() => DeactivateService(service)">
+                                                        <i class="fas fa-pause"></i>
                                                     </button>
                                                 }
                                                 else
                                                 {
-                                                    <button class="btn btn-outline-success btn-sm" @onclick="() => ActivateService(service)" title="Activate Service">
-                                                        <i class="fas fa-play fa-xs"></i>
+                                                    <button type="button"
+                                                            class="service-action-btn activate"
+                                                            title="Activate service"
+                                                            @onclick="() => ActivateService(service)">
+                                                        <i class="fas fa-play"></i>
                                                     </button>
                                                 }
                                             </div>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-                else
-                {
-                    <div class="text-center py-4">
-                        <i class="fas fa-calendar-alt fa-2x text-muted mb-2"></i>
-                        <h6 class="text-muted">No Services Found</h6>
-                        <p class="text-muted small mb-3">No services match your current filters</p>
-                        <button class="btn btn-primary btn-sm" @onclick="ResetFilters">
-                            <i class="fas fa-refresh me-1"></i>Reset Filters
-                        </button>
-                    </div>
-                }
-            </div>
-        </div>
 
-        <!-- Compact Add/Edit Service Modal -->
-        @if (showServiceModal)
-        {
-            <div class="modal show d-block" style="background-color: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header py-2 bg-dark-blue text-white">
-                            <h6 class="modal-title mb-0">
-                                <i class="fas @(editingService ? "fa-edit" : "fa-plus") me-2"></i>
-                                @(editingService ? "Edit Service" : "Add New Service")
-                            </h6>
-                            <button type="button" class="btn-close btn-close-white" @onclick="CloseServiceModal"></button>
-                        </div>
-                        <EditForm Model="@serviceModel" OnValidSubmit="@SaveService">
-                            <DataAnnotationsValidator />
-                            <div class="modal-body py-3">
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-semibold">Service Name *</label>
-                                        <InputText @bind-Value="serviceModel.Name" class="form-control form-control-sm" placeholder="e.g., Sunday Service" />
-                                        <ValidationMessage For="@(() => serviceModel.Name)" class="text-danger small" />
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label small fw-semibold">Recurrence Pattern *</label>
-                                        <InputSelect @bind-Value="serviceModel.RecurrencePattern" class="form-select form-select-sm">
-                                            <option value="OneTime">One Time</option>
-                                            <option value="Weekly">Weekly</option>
-                                            <option value="Monthly">Monthly</option>
-                                        </InputSelect>
-                                    </div>
-                                </div>
+                                        </div>
 
-                                <div class="mt-2">
-                                    <label class="form-label small fw-semibold">Description</label>
-                                    <InputTextArea @bind-Value="serviceModel.Description" class="form-control form-control-sm" placeholder="Brief description of the service" rows="2" />
-                                </div>
-
-                                @if (serviceModel.RecurrencePattern == "OneTime")
-                                {
-                                    <div class="row g-2 mt-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label small fw-semibold">Date *</label>
-                                            <InputDate @bind-Value="serviceModel.SpecificDate" class="form-control form-control-sm" />
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label small fw-semibold">Start Time *</label>
-                                            <InputText @bind-Value="specificStartTimeString" class="form-control form-control-sm" type="time" />
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label small fw-semibold">End Time</label>
-                                            <InputText @bind-Value="specificEndTimeString" class="form-control form-control-sm" type="time" />
-                                        </div>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="row g-2 mt-2">
-                                        <div class="col-md-6">
-                                            @if (serviceModel.RecurrencePattern == "Weekly")
-                                            {
-                                                <label class="form-label small fw-semibold">Day of Week *</label>
-                                                <InputSelect @bind-Value="dayOfWeekString" class="form-select form-select-sm">
-                                                    <option value="0">Sunday</option>
-                                                    <option value="1">Monday</option>
-                                                    <option value="2">Tuesday</option>
-                                                    <option value="3">Wednesday</option>
-                                                    <option value="4">Thursday</option>
-                                                    <option value="5">Friday</option>
-                                                    <option value="6">Saturday</option>
-                                                </InputSelect>
-                                            }
-                                            else if (serviceModel.RecurrencePattern == "Monthly")
-                                            {
-                                                <label class="form-label small fw-semibold">Week of Month *</label>
-                                                <InputSelect @bind-Value="serviceModel.WeekOfMonth" class="form-select form-select-sm">
-                                                    <option value="1">First Week</option>
-                                                    <option value="2">Second Week</option>
-                                                    <option value="3">Third Week</option>
-                                                    <option value="4">Fourth Week</option>
-                                                    <option value="5">Last Week</option>
-                                                </InputSelect>
-                                            }
-                                        </div>
-                                        <div class="col-md-6">
-                                            @if (serviceModel.RecurrencePattern == "Monthly")
-                                            {
-                                                <label class="form-label small fw-semibold">Day of Week *</label>
-                                                <InputSelect @bind-Value="dayOfWeekString" class="form-select form-select-sm">
-                                                    <option value="0">Sunday</option>
-                                                    <option value="1">Monday</option>
-                                                    <option value="2">Tuesday</option>
-                                                    <option value="3">Wednesday</option>
-                                                    <option value="4">Thursday</option>
-                                                    <option value="5">Friday</option>
-                                                    <option value="6">Saturday</option>
-                                                </InputSelect>
-                                            }
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label small fw-semibold">Start Time *</label>
-                                            <InputText @bind-Value="startTimeString" class="form-control form-control-sm" type="time" />
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label small fw-semibold">End Time</label>
-                                            <InputText @bind-Value="endTimeString" class="form-control form-control-sm" type="time" />
-                                        </div>
                                     </div>
                                 }
 
-                                <div class="form-check form-switch mt-3">
-                                    <InputCheckbox @bind-Value="serviceModel.IsActive" class="form-check-input" />
-                                    <label class="form-check-label small fw-semibold">Active Service</label>
-                                </div>
-
-                                @if (!string.IsNullOrEmpty(errorMessage))
-                                {
-                                    <div class="alert alert-danger mt-2 py-2 small">
-                                        <i class="fas fa-exclamation-triangle me-1"></i>@errorMessage
-                                    </div>
-                                }
                             </div>
-                            <div class="modal-footer py-2">
-                                <button type="button" class="btn btn-secondary btn-sm" @onclick="CloseServiceModal">Cancel</button>
-                                <button type="submit" class="btn btn-primary btn-sm" disabled="@isLoading">
-                                    @if (isLoading)
-                                    {
-                                        <span class="spinner-border spinner-border-sm me-1"></span>
-                                        <span>Processing...</span>
-                                    }
-                                    else
-                                    {
-                                        <i class="fas @(editingService ? "fa-save" : "fa-plus") me-1"></i>
-                                        <span>@(editingService ? "Update" : "Create")</span>
-                                    }
+                        }
+                        else
+                        {
+                            <div class="bcc-empty py-4">
+                                <i class="fas fa-calendar-xmark"></i>
+                                <h4>No Services Found</h4>
+                                <p>No service matches the current filters.</p>
+
+                                <button type="button"
+                                        class="bcc-btn bcc-btn-primary compact-btn"
+                                        @onclick="ResetFilters">
+                                    Reset Filters
                                 </button>
                             </div>
-                        </EditForm>
+                        }
+
                     </div>
                 </div>
             </div>
-        }
-    }
-    else
-    {
-        <!-- Authorization Required Message -->
-        <div class="row justify-content-center mt-5">
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-danger text-white">
-                        <h5 class="mb-0"><i class="fas fa-ban me-2"></i>Access Denied</h5>
+
+        </div>
+    </div>
+}
+
+@if (showServiceModal)
+{
+    <div class="service-modal-backdrop"
+         @onclick="CloseServiceModal">
+
+        <div class="service-modal-card"
+             @onclick:stopPropagation="true">
+
+            <div class="service-modal-header">
+                <div>
+                    <h4>
+                        @(editingService
+                            ? "Edit Service"
+                            : "Add Service")
+                    </h4>
+
+                    <p>
+                        Configure the service schedule and status.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="CloseServiceModal">
+                </button>
+            </div>
+
+            <EditForm Model="@serviceModel"
+                      OnValidSubmit="@SaveService">
+
+                <DataAnnotationsValidator />
+
+                <div class="service-modal-body">
+
+                    <div class="row g-2">
+
+                        <div class="col-12 col-md-7">
+                            <label class="form-label compact-label">
+                                Service Name
+                                <span class="text-danger">*</span>
+                            </label>
+
+                            <InputText @bind-Value="serviceModel.Name"
+                                       class="form-control form-control-sm"
+                                       placeholder="e.g. Sunday Service" />
+
+                            <ValidationMessage For="@(() => serviceModel.Name)"
+                                               class="text-danger small" />
+                        </div>
+
+                        <div class="col-12 col-md-5">
+                            <label class="form-label compact-label">
+                                Recurrence Pattern
+                                <span class="text-danger">*</span>
+                            </label>
+
+                            <InputSelect @bind-Value="serviceModel.RecurrencePattern"
+                                         class="form-select form-select-sm">
+                                <option value="OneTime">One Time</option>
+                                <option value="Weekly">Weekly</option>
+                                <option value="Monthly">Monthly</option>
+                            </InputSelect>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label compact-label">
+                                Description
+                            </label>
+
+                            <InputTextArea @bind-Value="serviceModel.Description"
+                                           class="form-control form-control-sm"
+                                           rows="2"
+                                           placeholder="Brief description of the service" />
+                        </div>
+
                     </div>
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-lock fa-3x text-danger mb-3"></i>
-                        <h4>Service Management Access Required</h4>
-                        <p class="text-muted">
-                            You need to be a Church Admin, Pastor in Charge, Head of Service, 
-                            or Assistant Head of Service to access this page.
-                        </p>
-                        <div class="mt-4">
-                            <a href="/" class="btn btn-primary">
-                                <i class="fas fa-home me-1"></i>Return to Dashboard
-                            </a>
+
+                    @if (serviceModel.RecurrencePattern == "OneTime")
+                    {
+                        <div class="service-schedule-box mt-3">
+
+                            <div class="row g-2">
+
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label compact-label">
+                                        Service Date
+                                        <span class="text-danger">*</span>
+                                    </label>
+
+                                    <InputDate @bind-Value="serviceModel.SpecificDate"
+                                               class="form-control form-control-sm" />
+                                </div>
+
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label compact-label">
+                                        Start Time
+                                    </label>
+
+                                    <InputText @bind-Value="specificStartTimeString"
+                                               class="form-control form-control-sm"
+                                               type="time" />
+                                </div>
+
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label compact-label">
+                                        End Time
+                                    </label>
+
+                                    <InputText @bind-Value="specificEndTimeString"
+                                               class="form-control form-control-sm"
+                                               type="time" />
+                                </div>
+
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="service-schedule-box mt-3">
+
+                            <div class="row g-2">
+
+                                @if (serviceModel.RecurrencePattern == "Weekly")
+                                {
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">
+                                            Day of Week
+                                        </label>
+
+                                        <InputSelect @bind-Value="dayOfWeekString"
+                                                     class="form-select form-select-sm">
+                                            <option value="0">Sunday</option>
+                                            <option value="1">Monday</option>
+                                            <option value="2">Tuesday</option>
+                                            <option value="3">Wednesday</option>
+                                            <option value="4">Thursday</option>
+                                            <option value="5">Friday</option>
+                                            <option value="6">Saturday</option>
+                                        </InputSelect>
+                                    </div>
+                                }
+
+                                @if (serviceModel.RecurrencePattern == "Monthly")
+                                {
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">
+                                            Week of Month
+                                        </label>
+
+                                        <InputSelect @bind-Value="serviceModel.WeekOfMonth"
+                                                     class="form-select form-select-sm">
+                                            <option value="1">First Week</option>
+                                            <option value="2">Second Week</option>
+                                            <option value="3">Third Week</option>
+                                            <option value="4">Fourth Week</option>
+                                            <option value="5">Last Week</option>
+                                        </InputSelect>
+                                    </div>
+
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">
+                                            Day of Week
+                                        </label>
+
+                                        <InputSelect @bind-Value="dayOfWeekString"
+                                                     class="form-select form-select-sm">
+                                            <option value="0">Sunday</option>
+                                            <option value="1">Monday</option>
+                                            <option value="2">Tuesday</option>
+                                            <option value="3">Wednesday</option>
+                                            <option value="4">Thursday</option>
+                                            <option value="5">Friday</option>
+                                            <option value="6">Saturday</option>
+                                        </InputSelect>
+                                    </div>
+                                }
+
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label compact-label">
+                                        Start Time
+                                    </label>
+
+                                    <InputText @bind-Value="startTimeString"
+                                               class="form-control form-control-sm"
+                                               type="time" />
+                                </div>
+
+                                <div class="col-6 col-md-3">
+                                    <label class="form-label compact-label">
+                                        End Time
+                                    </label>
+
+                                    <InputText @bind-Value="endTimeString"
+                                               class="form-control form-control-sm"
+                                               type="time" />
+                                </div>
+
+                            </div>
+                        </div>
+                    }
+
+                    <div class="service-active-switch mt-3">
+                        <div>
+                            <strong>Active Service</strong>
+                            <span>
+                                Active services are available throughout the application.
+                            </span>
+                        </div>
+
+                        <div class="form-check form-switch">
+                            <InputCheckbox @bind-Value="serviceModel.IsActive"
+                                           class="form-check-input" />
                         </div>
                     </div>
+
+                    @if (!string.IsNullOrWhiteSpace(errorMessage))
+                    {
+                        <div class="alert alert-danger py-2 mt-3">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            @errorMessage
+                        </div>
+                    }
+
                 </div>
-            </div>
+
+                <div class="service-modal-footer">
+                    <button type="button"
+                            class="bcc-btn profile-form-secondary-btn compact-btn"
+                            disabled="@isLoading"
+                            @onclick="CloseServiceModal">
+                        Cancel
+                    </button>
+
+                    <button type="submit"
+                            class="bcc-btn bcc-btn-primary compact-btn"
+                            disabled="@isLoading">
+
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Saving...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-save me-2"></i>
+
+                            <span>
+                                @(editingService
+                                    ? "Update Service"
+                                    : "Create Service")
+                            </span>
+                        }
+
+                    </button>
+                </div>
+
+            </EditForm>
+
         </div>
-    }
-</div>
+    </div>
+}
+
 
 @code {
     private List<Service> allServices = new();
@@ -615,47 +871,482 @@
 
         ApplyFilters();
     }
+
+    private string GetServiceTimeDisplay(Service service)
+    {
+        var start =
+            service.RecurrencePattern == "OneTime"
+                ? service.SpecificStartTime
+                : service.StartTime;
+
+        var end =
+            service.RecurrencePattern == "OneTime"
+                ? service.SpecificEndTime
+                : service.EndTime;
+
+        if (!start.HasValue)
+            return "Time not set";
+
+        return end.HasValue
+            ? $"{start.Value:hh\\:mm} - {end.Value:hh\\:mm}"
+            : $"{start.Value:hh\\:mm}";
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo(
+            "/workspace/worker-management");
+    }
 }
 
+
 <style>
-    .text-dark-blue {
-        color: #2c3e50;
+    .service-management-page {
+        max-width: 1500px;
+        margin: 0 auto;
     }
 
-    .bg-dark-blue {
-        background-color: #2c3e50;
+    .service-management-header {
+        margin-bottom: 14px;
     }
 
-    .btn-group-sm .btn {
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
     }
 
-    .table-sm th,
-    .table-sm td {
-        padding: 0.5rem 0.75rem;
+    .service-filter-card,
+    .service-list-card {
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-radius: 13px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
     }
 
-    .badge {
+    .service-filter-card {
+        border-top: 4px solid #4f46e5;
+    }
+
+    .service-list-card {
+        border-top: 4px solid #7c3aed;
+    }
+
+    .service-panel-header,
+    .service-list-header {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 10px 12px;
+        background: #ffffff;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .service-list-header {
+        justify-content: space-between;
+    }
+
+    .service-panel-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 32px;
+        width: 32px;
+        height: 32px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 9px;
+        font-size: 0.74rem;
+    }
+
+    .service-panel-header h6,
+    .service-list-header h6 {
+        margin: 0 0 1px;
+        color: #0f172a;
+        font-size: 0.82rem;
+        font-weight: 800;
+    }
+
+    .service-panel-header p,
+    .service-list-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.64rem;
+    }
+
+    .service-result-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 29px;
+        height: 29px;
+        padding: 0 8px;
+        color: #ffffff;
+        background: #4f46e5;
+        border-radius: 999px;
         font-size: 0.7rem;
-        padding: 0.25em 0.5em;
+        font-weight: 800;
     }
 
-    .form-control-sm,
-    .form-select-sm {
-        font-size: 0.875rem;
-        padding: 0.25rem 0.5rem;
+    .service-summary-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 7px;
     }
 
-    .modal-header {
-        padding: 0.75rem 1rem;
+    .service-summary-grid > div {
+        padding: 8px 9px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
     }
 
-    .modal-body {
-        padding: 1rem;
+    .service-summary-grid span,
+    .service-summary-grid strong {
+        display: block;
     }
 
-    .modal-footer {
-        padding: 0.75rem 1rem;
+    .service-summary-grid span {
+        color: #64748b;
+        font-size: 0.58rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .service-summary-grid strong {
+        margin-top: 1px;
+        color: #0f172a;
+        font-size: 0.88rem;
+    }
+
+    .service-summary-grid .active {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+    }
+
+    .service-summary-grid .active strong {
+        color: #166534;
+    }
+
+    .service-summary-grid .inactive {
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    .service-summary-grid .inactive strong {
+        color: #991b1b;
+    }
+
+    .service-summary-grid .result {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+    }
+
+    .service-summary-grid .result strong {
+        color: #4338ca;
+    }
+
+    .service-filter-tip {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        margin-bottom: 11px;
+        padding: 8px 9px;
+        color: #4338ca;
+        background: #eef2ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        font-size: 0.62rem;
+    }
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: 0.67rem;
+        font-weight: 700;
+    }
+
+    .service-management-page .form-control,
+    .service-management-page .form-select,
+    .service-modal-card .form-control,
+    .service-modal-card .form-select {
+        min-height: 32px;
+        font-size: 0.75rem;
+    }
+
+    .service-list {
+        display: flex;
+        flex-direction: column;
+        max-height: 670px;
+        overflow-y: auto;
+    }
+
+    .service-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        background: #ffffff;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .service-row:hover {
+        background: #fafafa;
+    }
+
+    .service-row.inactive-row {
+        background: #f8fafc;
+        opacity: 0.78;
+    }
+
+    .service-row-main {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .service-row-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 10px;
+        font-size: 0.76rem;
+    }
+
+    .service-row-content {
+        min-width: 0;
+    }
+
+    .service-row-title {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .service-row-title strong {
+        color: #0f172a;
+        font-size: 0.74rem;
+    }
+
+    .service-type-badge {
+        display: inline-flex;
+        padding: 3px 6px;
+        color: #0369a1;
+        background: #e0f2fe;
+        border-radius: 999px;
+        font-size: 0.57rem;
+        font-weight: 800;
+    }
+
+    .service-row-content p {
+        margin: 3px 0 4px;
+        color: #64748b;
+        font-size: 0.62rem;
+        line-height: 1.35;
+    }
+
+    .service-row-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px 12px;
+    }
+
+    .service-row-meta span {
+        color: #64748b;
+        font-size: 0.59rem;
+    }
+
+    .service-row-meta i {
+        margin-right: 4px;
+        color: #4f46e5;
+    }
+
+    .service-row-side {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .service-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 7px;
+        border-radius: 999px;
+        font-size: 0.59rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .service-status-badge.active {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .service-status-badge.inactive {
+        color: #64748b;
+        background: #e2e8f0;
+    }
+
+    .service-row-actions {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .service-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 7px;
+        font-size: 0.62rem;
+    }
+
+    .service-action-btn.edit {
+        color: #4338ca;
+        background: #eef2ff;
+    }
+
+    .service-action-btn.deactivate {
+        color: #991b1b;
+        background: #fee2e2;
+    }
+
+    .service-action-btn.activate {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .service-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        background: rgba(15, 23, 42, 0.58);
+        backdrop-filter: blur(2px);
+    }
+
+    .service-modal-card {
+        width: 100%;
+        max-width: 760px;
+        max-height: 92vh;
+        overflow-y: auto;
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.28);
+    }
+
+    .service-modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .service-modal-header h4 {
+        margin: 0 0 2px;
+        color: #0f172a;
+        font-size: 0.95rem;
+        font-weight: 800;
+    }
+
+    .service-modal-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.66rem;
+    }
+
+    .service-modal-body {
+        padding: 14px 16px;
+    }
+
+    .service-schedule-box {
+        padding: 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .service-active-switch {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 9px 10px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .service-active-switch strong,
+    .service-active-switch span {
+        display: block;
+    }
+
+    .service-active-switch strong {
+        color: #0f172a;
+        font-size: 0.68rem;
+    }
+
+    .service-active-switch span {
+        margin-top: 1px;
+        color: #64748b;
+        font-size: 0.58rem;
+    }
+
+    .service-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 7px;
+        padding: 10px 16px 14px;
+        border-top: 1px solid #eef2f7;
+    }
+
+    @@media (max-width: 768px) {
+        .service-list {
+            max-height: none;
+        }
+
+        .service-row {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .service-row-side {
+            width: 100%;
+            justify-content: space-between;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .service-summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .service-modal-card {
+            max-width: 96vw;
+        }
+
+        .service-modal-footer {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
     }
 </style>

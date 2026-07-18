@@ -1,0 +1,182 @@
+﻿@page "/workspace/setup"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Components.Shared
+@using ChurchApp.Services
+
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>System Setup - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to log in to access System Setup.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (!CanAccessWorkspace())
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You do not have permission to access System Setup.</p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Dashboard
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page setup-workspace-page">
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-cogs me-2"></i>
+                    Administration Workspace
+                </div>
+
+                <div class="bcc-page-title">
+                    System Setup
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Configure the organisational structure, workflow and church content.
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>
+                Dashboard
+            </button>
+        </div>
+
+        <div class="bcc-card setup-workspace-card">
+            <div class="bcc-card-body p-3">
+
+                <div class="workspace-heading">
+                    <h6>Setup Functions</h6>
+                    <p>Select a setup function to continue.</p>
+                </div>
+
+                <div class="row g-3">
+
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <WorkspaceActionCard Href="/admin/directorate-setup"
+                                             Icon="fas fa-building"
+                                             Title="Directorate Setup"
+                                             Description="Create and manage church directorates." />
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <WorkspaceActionCard Href="/admin/department-setup"
+                                             Icon="fas fa-sitemap"
+                                             Title="Department Setup"
+                                             Description="Create and manage departments and units." />
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <WorkspaceActionCard Href="/admin/role-setup"
+                                             Icon="fas fa-user-tag"
+                                             Title="Role Setup"
+                                             Description="Create and manage workforce roles." />
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <WorkspaceActionCard Href="/admin/workflow-setup"
+                                             Icon="fas fa-project-diagram"
+                                             Title="Workflow Setup"
+                                             Description="Configure approval and operational workflows." />
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <WorkspaceActionCard Href="/admin/church-notices"
+                                             Icon="fas fa-bullhorn"
+                                             Title="Church Notices"
+                                             Description="Create and manage church notices." />
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <WorkspaceActionCard Href="/admin/verse-of-the-day"
+                                             Icon="fas fa-bible"
+                                             Title="Verse of the Day"
+                                             Description="Manage the daily Bible verse." />
+                    </div>
+
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <WorkspaceActionCard Href="/admin/prayer-focus"
+                                             Icon="fas fa-praying-hands"
+                                             Title="Prayer Focus"
+                                             Description="Create and manage prayer focus content." />
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool CanAccessWorkspace()
+    {
+        return
+            AuthService.IsAuthenticated &&
+            (
+                AuthService.IsInRole("Church Admin") ||
+                AuthService.IsInRole("Pastor in Charge")
+            );
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
+
+<style>
+    .setup-workspace-page {
+        max-width: 1300px;
+        margin: 0 auto;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .setup-workspace-card {
+        overflow: hidden;
+        border-top: 4px solid #7c3aed;
+    }
+
+    .workspace-heading {
+        margin-bottom: 12px;
+    }
+
+        .workspace-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.86rem;
+            font-weight: 800;
+        }
+
+        .workspace-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.67rem;
+        }
+</style>

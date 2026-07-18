@@ -1,0 +1,114 @@
+﻿@using ChurchApp.Models
+
+@if (Details != null)
+{
+    <div class="worker360-section mt-4 excuse-details-section">
+        <h5>
+            <i class="fas fa-calendar-times"></i>
+            Excuse Request Information
+        </h5>
+
+        <div class="excuse-summary-grid">
+            <div class="excuse-summary-item">
+                <span>Service</span>
+                <strong>@GetServiceName()</strong>
+            </div>
+
+            <div class="excuse-summary-item">
+                <span>Excuse Date</span>
+                <strong>@Details.RequestedDate.ToString("dd MMMM yyyy")</strong>
+            </div>
+
+            <div class="excuse-summary-item">
+                <span>Backup Worker</span>
+                <strong>@GetWorkerName(Details.NominatedBackupWorker)</strong>
+            </div>
+
+            <div class="excuse-summary-item excuse-summary-wide">
+                <span>Reason</span>
+                <strong>
+                    @(string.IsNullOrWhiteSpace(Details.Reason)
+                                    ? "Not provided"
+                                    : Details.Reason)
+            </strong>
+        </div>
+    </div>
+</div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public OffServiceRequestDetail? Details { get; set; }
+
+    private string GetServiceName()
+    {
+        if (Details?.Service != null)
+            return Details.Service.Name;
+
+        return "Not available";
+    }
+
+    private static string GetWorkerName(Worker? worker)
+    {
+        if (worker == null)
+            return "Not available";
+
+        return $"{worker.FirstName} {worker.LastName}".Trim();
+    }
+}
+
+<style>
+    .excuse-details-section {
+        border-left: 4px solid #7c3aed;
+    }
+
+    .excuse-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .excuse-summary-item {
+        padding: 11px 12px;
+        background: #fafafa;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+        .excuse-summary-item span,
+        .excuse-summary-item strong {
+            display: block;
+        }
+
+        .excuse-summary-item span {
+            margin-bottom: 3px;
+            color: #64748b;
+            font-size: 0.62rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .excuse-summary-item strong {
+            color: #0f172a;
+            font-size: 0.72rem;
+            white-space: pre-wrap;
+        }
+
+    .excuse-summary-wide {
+        grid-column: 1 / -1;
+    }
+
+    @@media (max-width: 768px) {
+        .excuse-summary-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    .excuse-summary-wide {
+        grid-column: auto;
+    }
+
+    }
+</style>
+

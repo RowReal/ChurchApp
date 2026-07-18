@@ -136,6 +136,14 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcQXBwcm92YWxSZXF1ZXN0RGV0YWlscy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/Forms/ExcuseRequestDetails.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcRm9ybXNcRXhjdXNlUmVxdWVzdERldGFpbHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/Forms/ExcuseRequestForm.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcRm9ybXNcRXhjdXNlUmVxdWVzdEZvcm0ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Approvals/Forms/LeaveRequestDetails.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBcHByb3ZhbHNcRm9ybXNcTGVhdmVSZXF1ZXN0RGV0YWlscy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
@@ -434,6 +442,14 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Workspace/ServiceRecordsWorkspace.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xXb3Jrc3BhY2VcU2VydmljZVJlY29yZHNXb3Jrc3BhY2UucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Workspace/SetupWorkspace.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xXb3Jrc3BhY2VcU2V0dXBXb3Jrc3BhY2UucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Pages/Workspace/WorkerManagementWorkspace.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xXb3Jrc3BhY2VcV29ya2VyTWFuYWdlbWVudFdvcmtzcGFjZS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/NewChurchProj/ChurchApp/ChurchApp/ChurchApp/Components/Routes.razor]

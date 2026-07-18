@@ -257,6 +257,70 @@ namespace ChurchApp.Services
                 .GetFinancialRequestDetailsAsync(
                     approvalRequestId);
         }
-     
+
+        public async Task SaveOffServiceRequestDetailsAsync(
+            int approvalRequestId,
+            ExcuseRequestModel model)
+        {
+            var requestExists =
+                await _context.ApprovalRequests
+                    .AnyAsync(x =>
+                        x.Id == approvalRequestId);
+
+            if (!requestExists)
+            {
+                throw new InvalidOperationException(
+                    "The approval request was not found.");
+            }
+
+            var existing =
+                await _context.OffServiceRequestDetails
+                    .FirstOrDefaultAsync(x =>
+                        x.ApprovalRequestId ==
+                            approvalRequestId);
+
+            if (existing != null)
+            {
+                throw new InvalidOperationException(
+                    "Excuse Request details have already been saved.");
+            }
+
+            var details =
+                new OffServiceRequestDetail
+                {
+                    ApprovalRequestId =
+                        approvalRequestId,
+
+                    ServiceId =
+                        model.ServiceId,
+
+                    RequestedDate =
+    model.ServiceId.HasValue
+        ? model.RequestedDate
+        : model.CustomServiceDate
+            ?? throw new InvalidOperationException(
+                "Custom service date is required."),
+
+                    NominatedBackupWorkerId =
+    model.NominatedBackupId,
+
+                    Reason =
+                        model.Reason?.Trim() ??
+                        string.Empty,
+
+                    CustomServiceName =
+                        model.CustomServiceName?.Trim(),
+
+                    CustomServiceDate =
+                        model.CustomServiceDate,
+
+                    CustomServiceTime =
+                        model.CustomServiceTime
+                };
+
+            _context.OffServiceRequestDetails.Add(details);
+            await _context.SaveChangesAsync();
+        }
+
     }
 }

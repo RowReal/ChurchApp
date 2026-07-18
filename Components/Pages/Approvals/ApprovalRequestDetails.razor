@@ -16,19 +16,21 @@
 
 @if (AuthService.IsAuthenticated)
 {
-    <div class="worker360-page">
+    <div class="worker360-page approval-details-page">
 
         @if (!string.IsNullOrWhiteSpace(errorMessage))
         {
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle me-2"></i>@errorMessage
+            <div class="alert alert-danger compact-alert">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
             </div>
         }
 
         @if (!string.IsNullOrWhiteSpace(successMessage))
         {
-            <div class="alert alert-success">
-                <i class="fas fa-check-circle me-2"></i>@successMessage
+            <div class="alert alert-success compact-alert">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
             </div>
         }
 
@@ -57,408 +59,419 @@
                 </div>
             </div>
 
-            <div class="bcc-card worker360-hero">
-                <div class="bcc-card-body">
-                    <div class="row g-4 align-items-center">
-                        <div class="col-md-8">
-                            <h3 class="worker360-name">@request.Subject</h3>
+            <div class="approval-tab-card">
 
-                            <div class="worker360-meta">
-                                <span>
-                                    <i class="fas fa-hashtag"></i>@request.RequestCode
-                                </span>
-                                <span>
-                                    <i class="fas fa-layer-group"></i>@request.RequestType?.Name
-                                </span>
-                                <span>
-                                    <i class="fas fa-user"></i>
-                                    @request.RequestedByWorker?.FirstName @request.RequestedByWorker?.LastName
-                                </span>
-                                <span>
-                                    <i class="fas fa-clock"></i>@request.CreatedAt.ToString("dd MMM yyyy")
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="worker360-status-box">
-                                <span>Status</span>
-                                <strong>@request.Status</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bcc-card">
-                <div class="profile-form-v2-tabs">
+                <div class="approval-tabs">
                     <button type="button"
-                            class="@GetTabClass("details")"
+                            class="@GetCompactTabClass("details")"
                             @onclick='() => SetTab("details")'>
-                        <i class="fas fa-file-alt"></i> Details
+                        <i class="fas fa-file-lines"></i>
+                        Request Details
                     </button>
 
                     <button type="button"
-                            class="@GetTabClass("timeline")"
+                            class="@GetCompactTabClass("timeline")"
                             @onclick='() => SetTab("timeline")'>
-                        <i class="fas fa-stream"></i> Timeline
+                        <i class="fas fa-clock-rotate-left"></i>
+                        Timeline
                     </button>
                 </div>
 
-                <div class="bcc-card-body">
-                    @if (activeTab == "details")
-                    {
-                        <div class="worker360-section">
-                            <h5>
-                                <i class="fas fa-info-circle"></i>
-                                Request Information
-                            </h5>
+                @if (activeTab == "details")
+                {
+                    <div class="approval-two-column">
 
-                            <div class="worker360-grid two">
-                                @InfoRow("Request Code", request.RequestCode)
-                                @InfoRow("Request Type", request.RequestType?.Name ?? "-")
-                                @InfoRow("Requested By", $"{request.RequestedByWorker?.FirstName} {request.RequestedByWorker?.LastName}")
-                                @InfoRow("Status", request.Status)
-                                @InfoRow("Directorate", request.Directorate?.Name ?? "Not assigned")
-                                @InfoRow("Department", request.Department?.Name ?? "Not assigned")
-                                @InfoRow("Submitted Date", request.SubmittedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")
-                                @InfoRow("Current Step", request.CurrentStepOrder.ToString())
-                                @InfoRow("Pending With", GetPendingWithText())
-                                @InfoRowMarkup("Final Approved By", GetFinalApprovedByMarkup())
-                            </div>
-                        </div>
+                        <div class="approval-column">
 
-                        @if (financialDetails != null)
-                        {
-                            <div class="worker360-section mt-4">
-                                <h5>
-                                    <i class="fas fa-coins"></i>
-                                    Financial Information
-                                </h5>
-
-                                <div class="worker360-grid two">
-                                    @InfoRow("Amount Requested", $"₦{financialDetails.AmountRequested:N2}")
-                                    @InfoRowMarkup("Amount Approved", GetAmountApprovedMarkup())
-                                    @InfoRow("Budget Line", financialDetails.BudgetLine ?? "Not provided")
-                                    @InfoRow("Financial Purpose", financialDetails.Purpose ?? "Not provided")
-                                    @InfoRow("Payment Details", financialDetails.PaymentDetails ?? "Not provided")
+                            <section class="compact-section">
+                                <div class="compact-section-header">
+                                    <div>
+                                        <i class="fas fa-circle-info"></i>
+                                        <span>Request Information</span>
+                                    </div>
                                 </div>
-                            </div>
-                        }
 
-                        <div class="worker360-section mt-4">
-                            <h5>
-                                <i class="fas fa-route"></i>
-                                Workflow Progress
-                            </h5>
+                                <div class="compact-info-grid">
+                                    @CompactInfo("Request Code", request.RequestCode)
+                                    @CompactInfo("Request Type", request.RequestType?.Name ?? "-")
+                                    @CompactInfo("Requested By", $"{request.RequestedByWorker?.FirstName} {request.RequestedByWorker?.LastName}")
+                                    @CompactInfo("Status", request.Status)
+                                    @CompactInfo("Directorate", request.Directorate?.Name ?? "Not assigned")
+                                    @CompactInfo("Department", request.Department?.Name ?? "Not assigned")
+                                    @CompactInfo("Submitted", request.SubmittedAt?.ToString("dd MMM yyyy, HH:mm") ?? "-")
+                                    @CompactInfo("Current Step", request.CurrentStepOrder.ToString())
+                                    @CompactInfo("Pending With", GetPendingWithText())
+                                    @CompactInfoMarkup("Final Approved By", GetFinalApprovedByMarkup())
+                                </div>
+                            </section>
 
-                            @if (workflowSteps.Any())
+                            @if (financialDetails != null)
                             {
-                                <div class="approval-progress">
-                                    <div class="approval-progress-step completed">
-                                        <div class="approval-progress-icon">
-                                            <i class="fas fa-check"></i>
-                                        </div>
-
-                                        <div class="approval-progress-content">
-                                            <strong>Submitted</strong>
-                                            <span>Request submitted</span>
+                                <section class="compact-section">
+                                    <div class="compact-section-header financial">
+                                        <div>
+                                            <i class="fas fa-coins"></i>
+                                            <span>Financial Information</span>
                                         </div>
                                     </div>
 
-                                    @foreach (var step in workflowSteps.OrderBy(x => x.StepOrder))
-                                    {
-                                        var progressStatus = GetWorkflowStepStatus(step);
+                                    <div class="compact-info-grid">
+                                        @CompactInfo("Amount Requested", $"₦{financialDetails.AmountRequested:N2}")
+                                        @CompactInfoMarkup("Amount Approved", GetAmountApprovedMarkup())
+                                        @CompactInfo("Budget Line", financialDetails.BudgetLine ?? "Not provided")
+                                        @CompactInfo("Purpose", financialDetails.Purpose ?? "Not provided")
+                                        @CompactInfo("Payment Details", financialDetails.PaymentDetails ?? "Not provided")
+                                    </div>
+                                </section>
+                            }
 
-                                        <div class="approval-progress-step @progressStatus">
-                                            <div class="approval-progress-icon">
-                                                <i class="@GetWorkflowStepIcon(progressStatus)"></i>
-                                            </div>
+                            @if (IsLeaveRequest && leaveDetails != null)
+                            {
+                                <section class="compact-section request-specific-section">
+                                    <LeaveRequestDetails Details="@leaveDetails" />
+                                </section>
+                            }
 
-                                            <div class="approval-progress-content">
-                                                <strong>@step.StepName</strong>
-                                                <span>@GetWorkflowStepDescription(step, progressStatus)</span>
+                            @if (!IsLeaveRequest)
+                            {
+                                <section class="compact-section">
+                                    <div class="compact-section-header">
+                                        <div>
+                                            <i class="fas fa-align-left"></i>
+                                            <span>Details / Background</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="compact-rich-box approval-rich-content">
+                                        @((MarkupString)HtmlCleanService.Clean(request.Details))
+                                    </div>
+                                </section>
+
+                                <section class="compact-section">
+                                    <div class="compact-section-header approval-sought">
+                                        <div>
+                                            <i class="fas fa-circle-check"></i>
+                                            <span>Approval Sought</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="compact-rich-box approval-rich-content">
+                                        @((MarkupString)HtmlCleanService.Clean(request.ApprovalSought))
+                                    </div>
+                                </section>
+                            }
+
+                        </div>
+
+                        <div class="approval-column">
+
+                            <section class="compact-section">
+                                <div class="compact-section-header workflow">
+                                    <div>
+                                        <i class="fas fa-route"></i>
+                                        <span>Workflow Progress</span>
+                                    </div>
+                                </div>
+
+                                @if (workflowSteps.Any())
+                                {
+                                    <div class="compact-workflow">
+
+                                        <div class="compact-workflow-row completed">
+                                            <span class="workflow-dot">
+                                                <i class="fas fa-check"></i>
+                                            </span>
+
+                                            <div>
+                                                <strong>Submitted</strong>
+                                                <small>Request successfully submitted</small>
                                             </div>
                                         </div>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="bcc-empty py-3">
-                                    <i class="fas fa-route"></i>
-                                    <p>No workflow information is available.</p>
-                                </div>
-                            }
-                        </div>
 
-                        @if (IsLeaveRequest && leaveDetails != null)
-                        {
-                          <LeaveRequestDetails Details="@leaveDetails" />
-                         }
-                        @if (!IsLeaveRequest)
-                        {
-                            <div class="worker360-section mt-4">
-                                <h5>
-                                    <i class="fas fa-align-left"></i>
-                                    Details / Background
-                                </h5>
+                                        @foreach (var step in workflowSteps.OrderBy(x => x.StepOrder))
+                                        {
+                                            var progressStatus =
+                                                GetWorkflowStepStatus(step);
 
-                                <div class="worker360-note approval-rich-content">
-                                    @((MarkupString)HtmlCleanService.Clean(request.Details))
-                                </div>
-                            </div>
-
-                            <div class="worker360-section mt-4">
-                                <h5>
-                                <i class="fas fa-check-circle"></i>
-                                Approval Sought
-                            </h5>
-
-                            <div class="worker360-note approval-rich-content">
-                                @((MarkupString)HtmlCleanService.Clean(request.ApprovalSought))
-                            </div>
-                        </div>
-                        }
-
-                        <div class="worker360-section mt-4">
-                            <h5>
-                                <i class="fas fa-paperclip"></i>
-                                Supporting Documents
-                            </h5>
-
-                            @if (attachments.Any())
-                            {
-                                <div class="approval-attachment-list">
-                                    @foreach (var attachment in attachments)
-                                    {
-                                        <div class="approval-attachment-card">
-                                            <div class="approval-attachment-info">
-                                                <div class="approval-attachment-icon">
-                                                    <i class="@GetAttachmentIcon(attachment.FileName)"></i>
-                                                </div>
+                                            <div class="compact-workflow-row @progressStatus">
+                                                <span class="workflow-dot">
+                                                    <i class="@GetWorkflowStepIcon(progressStatus)"></i>
+                                                </span>
 
                                                 <div>
-                                                    <strong>@attachment.FileName</strong>
-                                                    <span>
-                                                        @FormatAttachmentSize(attachment.FileSize)
-                                                        • Uploaded by
-                                                        @attachment.UploadedByWorker?.FirstName
-                                                        @attachment.UploadedByWorker?.LastName
-                                                        • @attachment.UploadedAt.ToString("dd MMM yyyy HH:mm")
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <a href="/@attachment.FilePath"
-                                               target="_blank"
-                                               rel="noopener noreferrer"
-                                               class="team-action-btn">
-                                                <i class="fas fa-eye me-1"></i>View
-                                            </a>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="bcc-empty py-3">
-                                    <i class="fas fa-paperclip"></i>
-                                    <p>No supporting document was attached.</p>
-                                </div>
-                            }
-                        </div>
-
-                        @if (canActOnRequest && request.Status != "Approved" && request.Status != "Rejected")
-                        {
-                            <div class="worker360-section mt-4">
-                                <h5>
-                                    <i class="fas fa-gavel"></i>
-                                    Approval Action
-                                </h5>
-
-                                <div class="profile-review-card">
-                                    @if (IsFinalFinancialApproval)
-                                    {
-                                        <div class="financial-approval-box mb-4">
-                                            <div class="row g-3 align-items-end">
-                                                <div class="col-md-6">
-                                                    <label class="form-label fw-bold">
-                                                        Amount Approved
-                                                        <span class="text-danger">*</span>
-                                                    </label>
-
-                                                    <div class="input-group">
-                                                        <span class="input-group-text">₦</span>
-                                                        <InputNumber class="form-control"
-                                                                     @bind-Value="amountApproved" />
-                                                    </div>
-
-                                                    <small class="text-muted">
-                                                        Amount requested: ₦@(financialDetails?.AmountRequested.ToString("N2") ?? "0.00")
+                                                    <strong>@step.StepName</strong>
+                                                    <small>
+                                                        @GetWorkflowStepDescription(step, progressStatus)
                                                     </small>
                                                 </div>
                                             </div>
-                                        </div>
-                                    }
+                                        }
 
-                                    <label class="form-label fw-bold">
-                                        Comment <span class="text-danger">*</span>
-                                    </label>
-
-                                    <textarea class="form-control"
-                                              rows="4"
-                                              @bind="decisionComment"
-                                              placeholder="Enter your comment. Comment is required for every action."></textarea>
-
-                                    <div class="mt-3 d-flex flex-wrap gap-2">
-                                        <button type="button"
-                                                class="bcc-btn bcc-btn-primary"
-                                                disabled="@isProcessing"
-                                                @onclick="ApproveRequest">
-                                            <i class="fas fa-check me-2"></i>Approve
-                                        </button>
-
-                                        <button type="button"
-                                                class="team-danger-btn"
-                                                disabled="@isProcessing"
-                                                @onclick="RejectRequest">
-                                            <i class="fas fa-times me-2"></i>Reject
-                                        </button>
-
-                                        <button type="button"
-                                                class="team-action-btn"
-                                                disabled="@isProcessing"
-                                                @onclick="RequestMoreInfo">
-                                            <i class="fas fa-question-circle me-2"></i>
-                                            Request More Information
-                                        </button>
                                     </div>
+                                }
+                                else
+                                {
+                                    <div class="compact-empty">
+                                        No workflow information is available.
+                                    </div>
+                                }
+                            </section>
+
+                            <section class="compact-section">
+                                <div class="compact-section-header attachments">
+                                    <div>
+                                        <i class="fas fa-paperclip"></i>
+                                        <span>Supporting Documents</span>
+                                    </div>
+
+                                    <span class="section-count">
+                                        @attachments.Count
+                                    </span>
                                 </div>
-                            </div>
-                        }
 
-                        @if (canResubmit)
-                        {
-                            <div class="worker360-section mt-4">
-                                <h5>
-                                    <i class="fas fa-reply"></i>
-                                    Respond to More Information Request
-                                </h5>
+                                @if (attachments.Any())
+                                {
+                                    <div class="compact-attachment-list">
+                                        @foreach (var attachment in attachments)
+                                        {
+                                            <div class="compact-attachment">
+                                                <span class="attachment-icon">
+                                                    <i class="@GetAttachmentIcon(attachment.FileName)"></i>
+                                                </span>
 
-                                <div class="profile-review-card">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold">
+                                                <div class="attachment-details">
+                                                    <strong>@attachment.FileName</strong>
+                                                    <small>
+                                                        @FormatAttachmentSize(attachment.FileSize)
+                                                        • @attachment.UploadedAt.ToString("dd MMM yyyy")
+                                                    </small>
+                                                </div>
+
+                                                <a href="/@attachment.FilePath"
+                                                   target="_blank"
+                                                   rel="noopener noreferrer"
+                                                   class="compact-icon-btn"
+                                                   title="View attachment">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="compact-empty">
+                                        No supporting document was attached.
+                                    </div>
+                                }
+                            </section>
+
+                            @if (canActOnRequest &&
+                                 request.Status != "Approved" &&
+                                 request.Status != "Rejected")
+                            {
+                                <section class="compact-section action-section">
+                                    <div class="compact-section-header action">
+                                        <div>
+                                            <i class="fas fa-gavel"></i>
+                                            <span>Approval Action</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="compact-action-body">
+
+                                        @if (IsFinalFinancialApproval)
+                                        {
+                                            <div class="compact-financial-box">
+                                                <label class="form-label">
+                                                    Amount Approved
+                                                    <span class="text-danger">*</span>
+                                                </label>
+
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text">₦</span>
+
+                                                    <InputNumber class="form-control"
+                                                                 @bind-Value="amountApproved" />
+                                                </div>
+
+                                                <small>
+                                                    Requested:
+                                                    ₦@(financialDetails?.AmountRequested.ToString("N2") ?? "0.00")
+                                                </small>
+                                            </div>
+                                        }
+
+                                        <label class="form-label">
+                                            Decision Comment
+                                            <span class="text-danger">*</span>
+                                        </label>
+
+                                        <textarea class="form-control form-control-sm"
+                                                  rows="3"
+                                                  @bind="decisionComment"
+                                                  placeholder="Enter a brief comment for this action."></textarea>
+
+                                        <div class="compact-action-buttons">
+                                            <button type="button"
+                                                    class="bcc-btn bcc-btn-primary compact-btn"
+                                                    disabled="@isProcessing"
+                                                    @onclick="ApproveRequest">
+                                                <i class="fas fa-check me-1"></i>
+                                                Approve
+                                            </button>
+
+                                            <button type="button"
+                                                    class="compact-danger-btn"
+                                                    disabled="@isProcessing"
+                                                    @onclick="RejectRequest">
+                                                <i class="fas fa-times me-1"></i>
+                                                Reject
+                                            </button>
+
+                                            <button type="button"
+                                                    class="compact-moreinfo-btn"
+                                                    disabled="@isProcessing"
+                                                    @onclick="RequestMoreInfo">
+                                                <i class="fas fa-question-circle me-1"></i>
+                                                More Info
+                                            </button>
+                                        </div>
+
+                                    </div>
+                                </section>
+                            }
+
+                            @if (canResubmit)
+                            {
+                                <section class="compact-section">
+                                    <div class="compact-section-header returned">
+                                        <div>
+                                            <i class="fas fa-reply"></i>
+                                            <span>Respond and Resubmit</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="compact-action-body">
+                                        <label class="form-label">
                                             Response / Clarification
                                             <span class="text-danger">*</span>
                                         </label>
 
-                                        <textarea class="form-control"
-                                                  rows="4"
+                                        <textarea class="form-control form-control-sm mb-2"
+                                                  rows="3"
                                                   @bind="resubmitComment"
-                                                  placeholder="Provide the information requested by the approver."></textarea>
-                                    </div>
+                                                  placeholder="Provide the requested clarification."></textarea>
 
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold">
-                                            Updated Details / Background
+                                        <label class="form-label">
+                                            Updated Details
                                         </label>
 
-                                        <textarea class="form-control"
-                                                  rows="5"
+                                        <textarea class="form-control form-control-sm mb-2"
+                                                  rows="3"
                                                   @bind="resubmitDetails"></textarea>
-                                    </div>
 
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold">
+                                        <label class="form-label">
                                             Updated Approval Sought
                                         </label>
 
-                                        <textarea class="form-control"
-                                                  rows="4"
+                                        <textarea class="form-control form-control-sm"
+                                                  rows="2"
                                                   @bind="resubmitApprovalSought"></textarea>
-                                    </div>
 
-                                    <div class="mt-3">
-                                        <button type="button"
-                                                class="bcc-btn bcc-btn-primary"
-                                                disabled="@isProcessing"
-                                                @onclick="ResubmitRequest">
-                                            <i class="fas fa-paper-plane me-2"></i>
-                                            Resubmit Request
-                                        </button>
+                                        <div class="mt-2">
+                                            <button type="button"
+                                                    class="bcc-btn bcc-btn-primary compact-btn"
+                                                    disabled="@isProcessing"
+                                                    @onclick="ResubmitRequest">
+                                                <i class="fas fa-paper-plane me-1"></i>
+                                                Resubmit
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                </section>
+                            }
+
+                        </div>
+
+                    </div>
+                }
+
+                @if (activeTab == "timeline")
+                {
+                    <div class="timeline-panel">
+                        <div class="compact-section-header">
+                            <div>
+                                <i class="fas fa-clock-rotate-left"></i>
+                                <span>Request Timeline</span>
+                            </div>
+                        </div>
+
+                        @if (actions.Any())
+                        {
+                            <div class="compact-timeline">
+
+                                @foreach (var action in actions.OrderByDescending(x => x.CreatedAt))
+                                {
+                                    <div class="compact-timeline-item">
+                                        <span class="compact-timeline-dot @GetTimelineDotClass(action.ActionType)">
+                                            <i class="@GetTimelineIcon(action.ActionType)"></i>
+                                        </span>
+
+                                        <div class="compact-timeline-card">
+                                            <div class="compact-timeline-top">
+                                                <div>
+                                                    <strong>
+                                                        @GetTimelineActionName(action.ActionType)
+                                                    </strong>
+
+                                                    <span class="@GetTimelineBadgeClass(action.ActionType)">
+                                                        @GetTimelineActionName(action.ActionType)
+                                                    </span>
+                                                </div>
+
+                                                <small>
+                                                    @action.CreatedAt.ToString("dd MMM yyyy, HH:mm")
+                                                </small>
+                                            </div>
+
+                                            <div class="compact-timeline-user">
+                                                <i class="fas fa-user-circle"></i>
+                                                @action.ActionByWorker?.FirstName
+                                                @action.ActionByWorker?.LastName
+                                            </div>
+
+                                            @if (!string.IsNullOrWhiteSpace(action.Comment))
+                                            {
+                                                <div class="compact-timeline-comment">
+                                                    @action.Comment
+                                                </div>
+                                            }
+
+                                            @if (action.FromStepOrder.HasValue ||
+                                                 action.ToStepOrder.HasValue)
+                                            {
+                                                <div class="compact-timeline-movement">
+                                                    Level @(action.FromStepOrder ?? 0)
+                                                    <i class="fas fa-arrow-right mx-1"></i>
+                                                    Level @(action.ToStepOrder ?? 0)
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+
                             </div>
                         }
-                    }
+                        else
+                        {
+                            <div class="compact-empty py-4">
+                                No action has been recorded for this request.
+                            </div>
+                        }
+                    </div>
+                }
 
-                    @if (activeTab == "timeline")
-                    {
-                        <div class="worker360-section">
-                            <h5>
-                                <i class="fas fa-stream"></i>
-                                Request Timeline
-                            </h5>
-
-                            @if (actions.Any())
-                            {
-                                <div class="worker360-timeline">
-                                    @foreach (var action in actions.OrderBy(x => x.CreatedAt))
-                                    {
-                                        <div class="worker360-timeline-item approval-timeline-item">
-                                            <div class="worker360-timeline-dot @GetTimelineDotClass(action.ActionType)">
-                                                <i class="@GetTimelineIcon(action.ActionType)"></i>
-                                            </div>
-
-                                            <div class="approval-timeline-content">
-                                                <div class="approval-timeline-header">
-                                                    <div>
-                                                        <strong>@GetTimelineActionName(action.ActionType)</strong>
-                                                        <span class="@GetTimelineBadgeClass(action.ActionType)">
-                                                            @GetTimelineActionName(action.ActionType)
-                                                        </span>
-                                                    </div>
-
-                                                    <small>@action.CreatedAt.ToString("dd MMM yyyy HH:mm")</small>
-                                                </div>
-
-                                                <div class="approval-timeline-user">
-                                                    <i class="fas fa-user-circle"></i>
-                                                    @action.ActionByWorker?.FirstName @action.ActionByWorker?.LastName
-                                                </div>
-
-                                                @if (!string.IsNullOrWhiteSpace(action.Comment))
-                                                {
-                                                    <div class="approval-timeline-comment">
-                                                        @action.Comment
-                                                    </div>
-                                                }
-
-                                                @if (action.FromStepOrder.HasValue || action.ToStepOrder.HasValue)
-                                                {
-                                                    <div class="approval-timeline-movement">
-                                                        Level @(action.FromStepOrder ?? 0)
-                                                        <i class="fas fa-arrow-right mx-1"></i>
-                                                        Level @(action.ToStepOrder ?? 0)
-                                                    </div>
-                                                }
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="bcc-empty">
-                                    <i class="fas fa-history"></i>
-                                    <h4>No Timeline Yet</h4>
-                                    <p>No action has been recorded for this request.</p>
-                                </div>
-                            }
-                        </div>
-                    }
-                </div>
             </div>
         }
         else
@@ -467,8 +480,9 @@
                 <i class="fas fa-file-circle-xmark"></i>
                 <h4>Request Not Found</h4>
                 <p>The approval request could not be found.</p>
+
                 <button type="button"
-                        class="bcc-btn bcc-btn-primary"
+                        class="bcc-btn bcc-btn-primary compact-btn"
                         @onclick="GoBack">
                     Back
                 </button>
@@ -498,13 +512,14 @@ else
             <p>@popupMessage</p>
 
             <button type="button"
-                    class="bcc-btn bcc-btn-primary"
+                    class="bcc-btn bcc-btn-primary compact-btn"
                     @onclick="CloseSuccessPopup">
                 OK
             </button>
         </div>
     </div>
 }
+
 
 @code {
     [Parameter]
@@ -1039,163 +1054,638 @@ private bool IsLeaveRequest =>
         <div class="bcc-info-label">@label</div>
         <div class="bcc-info-value">@value</div>
     </div>;
+
+    private string GetCompactTabClass(string tab)
+    {
+        return activeTab == tab
+            ? "approval-tab active"
+            : "approval-tab";
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Approved" => "approval-status-badge approved",
+            "Rejected" => "approval-status-badge rejected",
+            "MoreInfoRequested" => "approval-status-badge returned",
+            "Pending" => "approval-status-badge pending",
+            _ => "approval-status-badge neutral"
+        };
+    }
+
+    private RenderFragment CompactInfo(string label, string value) => @<div class="compact-info-item">
+        <span>@label</span>
+        <strong>@value</strong>
+    </div>;
+
+    private RenderFragment CompactInfoMarkup(string label, MarkupString value) => @<div class="compact-info-item">
+        <span>@label</span>
+        <strong>@value</strong>
+    </div>;
 }
 
+
 <style>
-    .approval-popup-backdrop {
-        position: fixed;
-        inset: 0;
+    .approval-details-page {
+        max-width: 1480px;
+        margin: 0 auto;
+    }
+
+    .compact-alert {
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        font-size: 0.72rem;
+    }
+
+    .approval-page-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 10px;
+        padding: 11px 13px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid #4f46e5;
+        border-radius: 12px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
+    }
+
+    .approval-page-heading,
+    .approval-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .approval-heading-icon {
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 3000;
-        padding: 20px;
-        background: rgba(15, 23, 42, 0.55);
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 10px;
+        font-size: 0.8rem;
     }
 
-    .approval-popup-card {
-        width: 100%;
-        max-width: 420px;
-        padding: 32px;
-        text-align: center;
-        background: #ffffff;
-        border-radius: 20px;
-        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
-    }
-
-    .approval-popup-icon {
-        margin-bottom: 12px;
-        color: #16a34a;
-        font-size: 3rem;
-    }
-
-    .approval-popup-card h4 {
-        margin-bottom: 8px;
-        color: #0f172a;
+    .approval-eyebrow {
+        margin-bottom: 1px;
+        color: #6366f1;
+        font-size: 0.57rem;
         font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
 
-    .approval-popup-card p {
-        margin-bottom: 24px;
+    .approval-page-heading h3 {
+        max-width: 800px;
+        margin: 0;
+        overflow: hidden;
+        color: #0f172a;
+        font-size: 0.96rem;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .approval-heading-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 10px;
+        margin-top: 2px;
         color: #64748b;
+        font-size: 0.59rem;
     }
 
-    .approval-rich-content {
-        overflow-wrap: anywhere;
-    }
-
-    .approval-rich-content p:last-child {
-        margin-bottom: 0;
-    }
-
-    .financial-approval-box {
-        padding: 16px;
-        border: 1px solid #bbf7d0;
-        border-left: 4px solid #16a34a;
-        border-radius: 12px;
-        background: #f0fdf4;
-    }
-
-    .approval-progress {
+    .approval-topbar-actions {
         display: flex;
-        align-items: flex-start;
-        gap: 0;
-        overflow-x: auto;
-        padding: 16px 4px 8px;
+        align-items: center;
+        gap: 7px;
+        flex-shrink: 0;
     }
 
-    .approval-progress-step {
-        position: relative;
-        display: flex;
-        align-items: flex-start;
-        flex: 1;
-        min-width: 180px;
+    .compact-btn {
+        min-height: 30px;
+        padding: 5px 10px;
+        font-size: 0.68rem;
     }
 
-    .approval-progress-step:not(:last-child)::after {
-        content: "";
-        position: absolute;
-        top: 20px;
-        left: 42px;
-        right: 0;
-        height: 3px;
+    .approval-status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 0.6rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .approval-status-badge.approved {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .approval-status-badge.rejected {
+        color: #991b1b;
+        background: #fee2e2;
+    }
+
+    .approval-status-badge.pending {
+        color: #92400e;
+        background: #fef3c7;
+    }
+
+    .approval-status-badge.returned {
+        color: #9a3412;
+        background: #ffedd5;
+    }
+
+    .approval-status-badge.neutral {
+        color: #475569;
         background: #e2e8f0;
     }
 
-    .approval-progress-step.completed:not(:last-child)::after {
-        background: #16a34a;
+    .approval-tab-card {
+        overflow: hidden;
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
     }
 
-    .approval-progress-icon {
+    .approval-tabs {
+        display: flex;
+        gap: 4px;
+        padding: 7px 8px 0;
+        background: #ffffff;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .approval-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        color: #64748b;
+        background: transparent;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        font-size: 0.66rem;
+        font-weight: 700;
+    }
+
+    .approval-tab.active {
+        color: #4338ca;
+        border-bottom-color: #4f46e5;
+    }
+
+    .approval-two-column {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1.08fr) minmax(0, 0.92fr);
+        gap: 10px;
+        padding: 10px;
+        align-items: start;
+    }
+
+    .approval-column {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .compact-section {
+        overflow: hidden;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+
+    .compact-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 34px;
+        padding: 7px 9px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-bottom: 1px solid #c7d2fe;
+    }
+
+    .compact-section-header > div {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .compact-section-header span {
+        color: #0f172a;
+        font-size: 0.67rem;
+        font-weight: 800;
+    }
+
+    .compact-section-header i {
+        font-size: 0.64rem;
+    }
+
+    .compact-section-header.financial {
+        color: #166534;
+        background: #f0fdf4;
+        border-bottom-color: #bbf7d0;
+    }
+
+    .compact-section-header.workflow {
+        color: #6d28d9;
+        background: #f5f3ff;
+        border-bottom-color: #ddd6fe;
+    }
+
+    .compact-section-header.attachments {
+        color: #0369a1;
+        background: #f0f9ff;
+        border-bottom-color: #bae6fd;
+    }
+
+    .compact-section-header.action {
+        color: #92400e;
+        background: #fffbeb;
+        border-bottom-color: #fde68a;
+    }
+
+    .compact-section-header.returned {
+        color: #9a3412;
+        background: #fff7ed;
+        border-bottom-color: #fed7aa;
+    }
+
+    .compact-section-header.approval-sought {
+        color: #166534;
+        background: #f0fdf4;
+        border-bottom-color: #bbf7d0;
+    }
+
+    .section-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        color: #ffffff !important;
+        background: #0284c7;
+        border-radius: 999px;
+        font-size: 0.56rem !important;
+    }
+
+    .compact-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+        padding: 4px 9px;
+    }
+
+    .compact-info-item {
+        min-width: 0;
+        padding: 6px 6px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .compact-info-item span,
+    .compact-info-item strong {
+        display: block;
+    }
+
+    .compact-info-item span {
+        margin-bottom: 1px;
+        color: #64748b;
+        font-size: 0.55rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .compact-info-item strong {
+        overflow-wrap: anywhere;
+        color: #0f172a;
+        font-size: 0.66rem;
+        font-weight: 700;
+    }
+
+    .compact-rich-box {
+        min-height: 46px;
+        padding: 9px 10px;
+        color: #334155;
+        font-size: 0.67rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
+    .compact-rich-box p:last-child {
+        margin-bottom: 0;
+    }
+
+    .compact-workflow {
+        padding: 7px 9px;
+    }
+
+    .compact-workflow-row {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        min-height: 38px;
+        padding-bottom: 7px;
+    }
+
+    .compact-workflow-row:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        top: 24px;
+        bottom: -2px;
+        left: 10px;
+        width: 2px;
+        background: #e2e8f0;
+    }
+
+    .workflow-dot {
         position: relative;
         z-index: 2;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 42px;
-        height: 42px;
-        flex-shrink: 0;
+        flex: 0 0 22px;
+        width: 22px;
+        height: 22px;
         color: #64748b;
         background: #e2e8f0;
-        border: 4px solid #ffffff;
         border-radius: 50%;
-        box-shadow: 0 0 0 1px #e2e8f0;
+        font-size: 0.52rem;
     }
 
-    .approval-progress-content {
-        padding: 3px 14px 0 10px;
+    .compact-workflow-row.completed .workflow-dot {
+        color: #ffffff;
+        background: #16a34a;
     }
 
-    .approval-progress-content strong {
+    .compact-workflow-row.current .workflow-dot {
+        color: #ffffff;
+        background: #f59e0b;
+    }
+
+    .compact-workflow-row.rejected .workflow-dot {
+        color: #ffffff;
+        background: #dc2626;
+    }
+
+    .compact-workflow-row.returned .workflow-dot {
+        color: #ffffff;
+        background: #f97316;
+    }
+
+    .compact-workflow-row strong,
+    .compact-workflow-row small {
         display: block;
+    }
+
+    .compact-workflow-row strong {
         color: #0f172a;
-        font-size: 0.9rem;
+        font-size: 0.64rem;
     }
 
-    .approval-progress-content span {
-        display: block;
-        margin-top: 3px;
+    .compact-workflow-row small {
+        margin-top: 1px;
         color: #64748b;
-        font-size: 0.78rem;
+        font-size: 0.56rem;
         line-height: 1.35;
     }
 
-    .approval-progress-step.completed .approval-progress-icon {
-        color: #ffffff;
-        background: #16a34a;
-        box-shadow: 0 0 0 1px #16a34a;
+    .compact-attachment-list {
+        padding: 5px 8px;
     }
 
-    .approval-progress-step.current .approval-progress-icon {
-        color: #ffffff;
-        background: #f59e0b;
-        box-shadow: 0 0 0 1px #f59e0b;
+    .compact-attachment {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 2px;
+        border-bottom: 1px solid #f1f5f9;
     }
 
-    .approval-progress-step.rejected .approval-progress-icon {
-        color: #ffffff;
-        background: #dc2626;
-        box-shadow: 0 0 0 1px #dc2626;
+    .attachment-icon {
+        flex: 0 0 24px;
+        font-size: 0.8rem;
+        text-align: center;
     }
 
-    .approval-progress-step.returned .approval-progress-icon {
-        color: #ffffff;
-        background: #f97316;
-        box-shadow: 0 0 0 1px #f97316;
+    .attachment-details {
+        min-width: 0;
+        flex: 1;
     }
 
-    .approval-timeline-item {
+    .attachment-details strong,
+    .attachment-details small {
+        display: block;
+    }
+
+    .attachment-details strong {
+        overflow: hidden;
+        color: #0f172a;
+        font-size: 0.62rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .attachment-details small {
+        color: #64748b;
+        font-size: 0.54rem;
+    }
+
+    .compact-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 27px;
+        width: 27px;
+        height: 27px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 7px;
+        text-decoration: none;
+        font-size: 0.58rem;
+    }
+
+    .compact-empty {
+        padding: 12px;
+        color: #64748b;
+        text-align: center;
+        font-size: 0.62rem;
+    }
+
+    .compact-action-body {
+        padding: 9px;
+    }
+
+    .compact-action-body .form-label,
+    .compact-financial-box .form-label {
+        margin-bottom: 3px;
+        color: #334155;
+        font-size: 0.61rem;
+        font-weight: 700;
+    }
+
+    .compact-action-body .form-control,
+    .compact-financial-box .form-control,
+    .compact-financial-box .input-group-text {
+        min-height: 31px;
+        font-size: 0.66rem;
+    }
+
+    .compact-financial-box {
+        margin-bottom: 8px;
+        padding: 8px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+    }
+
+    .compact-financial-box small {
+        display: block;
+        margin-top: 3px;
+        color: #64748b;
+        font-size: 0.54rem;
+    }
+
+    .compact-action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 7px;
+    }
+
+    .compact-danger-btn,
+    .compact-moreinfo-btn {
+        min-height: 30px;
+        padding: 5px 9px;
+        border: 0;
+        border-radius: 7px;
+        font-size: 0.65rem;
+        font-weight: 700;
+    }
+
+    .compact-danger-btn {
+        color: #991b1b;
+        background: #fee2e2;
+    }
+
+    .compact-moreinfo-btn {
+        color: #92400e;
+        background: #fef3c7;
+    }
+
+    .timeline-panel {
+        padding: 10px;
+    }
+
+    .compact-timeline {
+        padding: 10px 4px 2px;
+    }
+
+    .compact-timeline-item {
+        position: relative;
+        display: flex;
         align-items: flex-start;
+        gap: 9px;
+        padding-bottom: 10px;
     }
 
-    .approval-timeline-item .worker360-timeline-dot {
+    .compact-timeline-item:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        top: 28px;
+        bottom: 0;
+        left: 13px;
+        width: 2px;
+        background: #e2e8f0;
+    }
+
+    .compact-timeline-dot {
+        position: relative;
+        z-index: 2;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 34px;
-        height: 34px;
+        flex: 0 0 28px;
+        width: 28px;
+        height: 28px;
         color: #ffffff;
         border-radius: 50%;
+        font-size: 0.57rem;
+    }
+
+    .compact-timeline-card {
+        flex: 1;
+        min-width: 0;
+        padding: 8px 9px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .compact-timeline-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .compact-timeline-top > div {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .compact-timeline-top strong {
+        color: #0f172a;
+        font-size: 0.65rem;
+    }
+
+    .compact-timeline-top .badge {
+        font-size: 0.49rem;
+    }
+
+    .compact-timeline-top small {
+        color: #64748b;
+        font-size: 0.53rem;
+        white-space: nowrap;
+    }
+
+    .compact-timeline-user {
+        margin-top: 4px;
+        color: #475569;
+        font-size: 0.58rem;
+    }
+
+    .compact-timeline-comment {
+        margin-top: 6px;
+        padding: 6px 8px;
+        color: #334155;
+        background: #f8fafc;
+        border-left: 3px solid #6366f1;
+        border-radius: 6px;
+        font-size: 0.61rem;
+        white-space: pre-wrap;
+    }
+
+    .compact-timeline-movement {
+        margin-top: 5px;
+        color: #64748b;
+        font-size: 0.54rem;
     }
 
     .timeline-success {
@@ -1218,127 +1708,811 @@ private bool IsLeaveRequest =>
         background: #64748b !important;
     }
 
-    .approval-timeline-content {
-        width: 100%;
-        padding-bottom: 12px;
-    }
-
-    .approval-timeline-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    .approval-timeline-header > div {
+    .approval-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
         display: flex;
         align-items: center;
-        flex-wrap: wrap;
-        gap: 8px;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(15, 23, 42, 0.55);
     }
 
-    .approval-timeline-header small {
+    .approval-popup-card {
+        width: 100%;
+        max-width: 360px;
+        padding: 20px;
+        text-align: center;
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    }
+
+    .approval-popup-icon {
+        margin-bottom: 7px;
+        color: #16a34a;
+        font-size: 2.2rem;
+    }
+
+    .approval-popup-card h4 {
+        margin-bottom: 5px;
+        color: #0f172a;
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .approval-popup-card p {
+        margin-bottom: 14px;
         color: #64748b;
+        font-size: 0.67rem;
+    }
+
+    @@media (max-width: 991.98px) {
+        .approval-two-column {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 640px) {
+        .approval-page-topbar {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .approval-topbar-actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .approval-page-heading h3 {
+            white-space: normal;
+        }
+
+        .compact-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .compact-timeline-top {
+            flex-direction: column;
+        }
+    }
+
+    /* Compact original hero */
+    .worker360-hero {
+        width: calc(100% - 28px);
+        max-width: 1220px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .worker360-hero .bcc-card-body,
+    .worker360-hero .worker360-hero-body,
+    .worker360-hero .hero-body {
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+    }
+
+    .worker360-hero .row {
+        --bs-gutter-x: 0.75rem;
+    }
+
+    .worker360-hero h1,
+    .worker360-hero h2,
+    .worker360-hero h3,
+    .worker360-hero .hero-title {
+        font-size: 0.96rem !important;
+        margin-bottom: 2px !important;
+    }
+
+    .worker360-hero p,
+    .worker360-hero .hero-subtitle,
+    .worker360-hero .hero-meta {
+        font-size: 0.62rem !important;
+        line-height: 1.35;
+    }
+
+    @@media (max-width: 767.98px) {
+        .worker360-hero {
+            width: 100%;
+        }
+    }
+
+</style>
+
+
+
+<style>
+    .approval-details-page {
+        max-width: 1480px;
+        margin: 0 auto;
+    }
+
+    .compact-alert {
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        font-size: 0.72rem;
+    }
+
+    .approval-page-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 10px;
+        padding: 11px 13px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid #4f46e5;
+        border-radius: 12px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
+    }
+
+    .approval-page-heading,
+    .approval-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .approval-heading-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 10px;
+        font-size: 0.8rem;
+    }
+
+    .approval-eyebrow {
+        margin-bottom: 1px;
+        color: #6366f1;
+        font-size: 0.57rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .approval-page-heading h3 {
+        max-width: 800px;
+        margin: 0;
+        overflow: hidden;
+        color: #0f172a;
+        font-size: 0.96rem;
+        font-weight: 800;
+        text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .approval-timeline-user {
-        margin-top: 7px;
-        color: #475569;
-        font-size: 0.85rem;
-    }
-
-    .approval-timeline-comment {
-        margin-top: 10px;
-        padding: 12px 14px;
-        color: #334155;
-        white-space: pre-wrap;
-        background: #f8fafc;
-        border-left: 3px solid #6366f1;
-        border-radius: 8px;
-    }
-
-    .approval-timeline-movement {
-        margin-top: 8px;
+    .approval-heading-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 10px;
+        margin-top: 2px;
         color: #64748b;
-        font-size: 0.78rem;
+        font-size: 0.59rem;
     }
 
-    .approval-attachment-list {
+    .approval-topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex-shrink: 0;
+    }
+
+    .compact-btn {
+        min-height: 30px;
+        padding: 5px 10px;
+        font-size: 0.68rem;
+    }
+
+    .approval-status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 0.6rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .approval-status-badge.approved {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .approval-status-badge.rejected {
+        color: #991b1b;
+        background: #fee2e2;
+    }
+
+    .approval-status-badge.pending {
+        color: #92400e;
+        background: #fef3c7;
+    }
+
+    .approval-status-badge.returned {
+        color: #9a3412;
+        background: #ffedd5;
+    }
+
+    .approval-status-badge.neutral {
+        color: #475569;
+        background: #e2e8f0;
+    }
+
+    .approval-tab-card {
+        overflow: hidden;
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
+    }
+
+    .approval-tabs {
+        display: flex;
+        gap: 4px;
+        padding: 7px 8px 0;
+        background: #ffffff;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .approval-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        color: #64748b;
+        background: transparent;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        font-size: 0.66rem;
+        font-weight: 700;
+    }
+
+    .approval-tab.active {
+        color: #4338ca;
+        border-bottom-color: #4f46e5;
+    }
+
+    .approval-two-column {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1.08fr) minmax(0, 0.92fr);
+        gap: 10px;
+        padding: 10px;
+        align-items: start;
+    }
+
+    .approval-column {
         display: flex;
         flex-direction: column;
         gap: 10px;
+        min-width: 0;
     }
 
-    .approval-attachment-card {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-        padding: 13px 15px;
+    .compact-section {
+        overflow: hidden;
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        border-radius: 12px;
+        border-radius: 10px;
     }
 
-    .approval-attachment-info {
+    .compact-section-header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        min-width: 0;
+        justify-content: space-between;
+        min-height: 34px;
+        padding: 7px 9px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-bottom: 1px solid #c7d2fe;
     }
 
-    .approval-attachment-icon {
-        flex-shrink: 0;
-        font-size: 1.35rem;
+    .compact-section-header > div {
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 
-    .approval-attachment-info > div:last-child {
-        min-width: 0;
-    }
-
-    .approval-attachment-info strong {
-        display: block;
+    .compact-section-header span {
         color: #0f172a;
+        font-size: 0.67rem;
+        font-weight: 800;
+    }
+
+    .compact-section-header i {
+        font-size: 0.64rem;
+    }
+
+    .compact-section-header.financial {
+        color: #166534;
+        background: #f0fdf4;
+        border-bottom-color: #bbf7d0;
+    }
+
+    .compact-section-header.workflow {
+        color: #6d28d9;
+        background: #f5f3ff;
+        border-bottom-color: #ddd6fe;
+    }
+
+    .compact-section-header.attachments {
+        color: #0369a1;
+        background: #f0f9ff;
+        border-bottom-color: #bae6fd;
+    }
+
+    .compact-section-header.action {
+        color: #92400e;
+        background: #fffbeb;
+        border-bottom-color: #fde68a;
+    }
+
+    .compact-section-header.returned {
+        color: #9a3412;
+        background: #fff7ed;
+        border-bottom-color: #fed7aa;
+    }
+
+    .compact-section-header.approval-sought {
+        color: #166534;
+        background: #f0fdf4;
+        border-bottom-color: #bbf7d0;
+    }
+
+    .section-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 6px;
+        color: #ffffff !important;
+        background: #0284c7;
+        border-radius: 999px;
+        font-size: 0.56rem !important;
+    }
+
+    .compact-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+        padding: 4px 9px;
+    }
+
+    .compact-info-item {
+        min-width: 0;
+        padding: 6px 6px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .compact-info-item span,
+    .compact-info-item strong {
+        display: block;
+    }
+
+    .compact-info-item span {
+        margin-bottom: 1px;
+        color: #64748b;
+        font-size: 0.55rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .compact-info-item strong {
+        overflow-wrap: anywhere;
+        color: #0f172a;
+        font-size: 0.66rem;
+        font-weight: 700;
+    }
+
+    .compact-rich-box {
+        min-height: 46px;
+        padding: 9px 10px;
+        color: #334155;
+        font-size: 0.67rem;
+        line-height: 1.45;
         overflow-wrap: anywhere;
     }
 
-    .approval-attachment-info span {
+    .compact-rich-box p:last-child {
+        margin-bottom: 0;
+    }
+
+    .compact-workflow {
+        padding: 7px 9px;
+    }
+
+    .compact-workflow-row {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        min-height: 38px;
+        padding-bottom: 7px;
+    }
+
+    .compact-workflow-row:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        top: 24px;
+        bottom: -2px;
+        left: 10px;
+        width: 2px;
+        background: #e2e8f0;
+    }
+
+    .workflow-dot {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 22px;
+        width: 22px;
+        height: 22px;
+        color: #64748b;
+        background: #e2e8f0;
+        border-radius: 50%;
+        font-size: 0.52rem;
+    }
+
+    .compact-workflow-row.completed .workflow-dot {
+        color: #ffffff;
+        background: #16a34a;
+    }
+
+    .compact-workflow-row.current .workflow-dot {
+        color: #ffffff;
+        background: #f59e0b;
+    }
+
+    .compact-workflow-row.rejected .workflow-dot {
+        color: #ffffff;
+        background: #dc2626;
+    }
+
+    .compact-workflow-row.returned .workflow-dot {
+        color: #ffffff;
+        background: #f97316;
+    }
+
+    .compact-workflow-row strong,
+    .compact-workflow-row small {
+        display: block;
+    }
+
+    .compact-workflow-row strong {
+        color: #0f172a;
+        font-size: 0.64rem;
+    }
+
+    .compact-workflow-row small {
+        margin-top: 1px;
+        color: #64748b;
+        font-size: 0.56rem;
+        line-height: 1.35;
+    }
+
+    .compact-attachment-list {
+        padding: 5px 8px;
+    }
+
+    .compact-attachment {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 2px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .attachment-icon {
+        flex: 0 0 24px;
+        font-size: 0.8rem;
+        text-align: center;
+    }
+
+    .attachment-details {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .attachment-details strong,
+    .attachment-details small {
+        display: block;
+    }
+
+    .attachment-details strong {
+        overflow: hidden;
+        color: #0f172a;
+        font-size: 0.62rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .attachment-details small {
+        color: #64748b;
+        font-size: 0.54rem;
+    }
+
+    .compact-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 27px;
+        width: 27px;
+        height: 27px;
+        color: #4338ca;
+        background: #eef2ff;
+        border-radius: 7px;
+        text-decoration: none;
+        font-size: 0.58rem;
+    }
+
+    .compact-empty {
+        padding: 12px;
+        color: #64748b;
+        text-align: center;
+        font-size: 0.62rem;
+    }
+
+    .compact-action-body {
+        padding: 9px;
+    }
+
+    .compact-action-body .form-label,
+    .compact-financial-box .form-label {
+        margin-bottom: 3px;
+        color: #334155;
+        font-size: 0.61rem;
+        font-weight: 700;
+    }
+
+    .compact-action-body .form-control,
+    .compact-financial-box .form-control,
+    .compact-financial-box .input-group-text {
+        min-height: 31px;
+        font-size: 0.66rem;
+    }
+
+    .compact-financial-box {
+        margin-bottom: 8px;
+        padding: 8px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+    }
+
+    .compact-financial-box small {
         display: block;
         margin-top: 3px;
         color: #64748b;
-        font-size: 0.78rem;
+        font-size: 0.54rem;
     }
 
-    @@media (max-width: 768px) {
-        .approval-progress {
-            flex-direction: column;
-            gap: 12px;
-            overflow-x: visible;
-        }
+    .compact-action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 7px;
+    }
 
-        .approval-progress-step {
-            min-width: 100%;
-        }
+    .compact-danger-btn,
+    .compact-moreinfo-btn {
+        min-height: 30px;
+        padding: 5px 9px;
+        border: 0;
+        border-radius: 7px;
+        font-size: 0.65rem;
+        font-weight: 700;
+    }
 
-        .approval-progress-step:not(:last-child)::after {
-            top: 42px;
-            bottom: -12px;
-            left: 20px;
-            right: auto;
-            width: 3px;
-            height: auto;
-        }
+    .compact-danger-btn {
+        color: #991b1b;
+        background: #fee2e2;
+    }
 
-        .approval-timeline-header {
-            flex-direction: column;
+    .compact-moreinfo-btn {
+        color: #92400e;
+        background: #fef3c7;
+    }
+
+    .timeline-panel {
+        padding: 10px;
+    }
+
+    .compact-timeline {
+        padding: 10px 4px 2px;
+    }
+
+    .compact-timeline-item {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        padding-bottom: 10px;
+    }
+
+    .compact-timeline-item:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        top: 28px;
+        bottom: 0;
+        left: 13px;
+        width: 2px;
+        background: #e2e8f0;
+    }
+
+    .compact-timeline-dot {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 28px;
+        width: 28px;
+        height: 28px;
+        color: #ffffff;
+        border-radius: 50%;
+        font-size: 0.57rem;
+    }
+
+    .compact-timeline-card {
+        flex: 1;
+        min-width: 0;
+        padding: 8px 9px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .compact-timeline-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .compact-timeline-top > div {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .compact-timeline-top strong {
+        color: #0f172a;
+        font-size: 0.65rem;
+    }
+
+    .compact-timeline-top .badge {
+        font-size: 0.49rem;
+    }
+
+    .compact-timeline-top small {
+        color: #64748b;
+        font-size: 0.53rem;
+        white-space: nowrap;
+    }
+
+    .compact-timeline-user {
+        margin-top: 4px;
+        color: #475569;
+        font-size: 0.58rem;
+    }
+
+    .compact-timeline-comment {
+        margin-top: 6px;
+        padding: 6px 8px;
+        color: #334155;
+        background: #f8fafc;
+        border-left: 3px solid #6366f1;
+        border-radius: 6px;
+        font-size: 0.61rem;
+        white-space: pre-wrap;
+    }
+
+    .compact-timeline-movement {
+        margin-top: 5px;
+        color: #64748b;
+        font-size: 0.54rem;
+    }
+
+    .timeline-success {
+        background: #16a34a !important;
+    }
+
+    .timeline-danger {
+        background: #dc2626 !important;
+    }
+
+    .timeline-warning {
+        background: #f59e0b !important;
+    }
+
+    .timeline-primary {
+        background: #2563eb !important;
+    }
+
+    .timeline-secondary {
+        background: #64748b !important;
+    }
+
+    .approval-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(15, 23, 42, 0.55);
+    }
+
+    .approval-popup-card {
+        width: 100%;
+        max-width: 360px;
+        padding: 20px;
+        text-align: center;
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    }
+
+    .approval-popup-icon {
+        margin-bottom: 7px;
+        color: #16a34a;
+        font-size: 2.2rem;
+    }
+
+    .approval-popup-card h4 {
+        margin-bottom: 5px;
+        color: #0f172a;
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .approval-popup-card p {
+        margin-bottom: 14px;
+        color: #64748b;
+        font-size: 0.67rem;
+    }
+
+    @@media (max-width: 991.98px) {
+        .approval-two-column {
+            grid-template-columns: 1fr;
         }
     }
 
-    @@media (max-width: 576px) {
-        .approval-attachment-card {
+    @@media (max-width: 640px) {
+        .approval-page-topbar {
             align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .approval-topbar-actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .approval-page-heading h3 {
+            white-space: normal;
+        }
+
+        .compact-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .compact-timeline-top {
             flex-direction: column;
         }
     }
 </style>
+
+

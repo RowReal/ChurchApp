@@ -455,6 +455,7 @@ else
         {
             isLoading = true;
             errorMessage = string.Empty;
+            approverNames = string.Empty;
 
             if (!AuthService.IsAuthenticated ||
                 AuthService.CurrentWorker == null)
@@ -469,8 +470,16 @@ else
                 await WorkforceService
                     .GetWorkerWithProposedChangesAsync(workerId);
 
-            worker = result.Item1;
-            proposedChanges = result.Item2;
+            worker = result.worker;
+            proposedChanges = result.proposedChanges;
+
+            if (worker == null)
+            {
+                errorMessage =
+                    "Your worker profile could not be found.";
+
+                return;
+            }
 
             pendingRequest =
                 await WorkforceService
@@ -479,28 +488,67 @@ else
             hasPendingUpdate =
                 pendingRequest != null;
 
-            if (pendingRequest.EligibleApprovers.Any())
+            if (pendingRequest == null)
+            {
+                approverNames = string.Empty;
+                return;
+            }
+
+            var eligibleApproverNames =
+                pendingRequest.EligibleApprovers?
+                    .Where(x =>
+                        x != null &&
+                        x.ApproverWorker != null)
+                    .Select(x =>
+                        string.Join(
+                            " ",
+                            new[]
+                            {
+                            x.ApproverWorker.FirstName,
+                            x.ApproverWorker.LastName
+                            }
+                            .Where(name =>
+                                !string.IsNullOrWhiteSpace(name))))
+                    .Where(name =>
+                        !string.IsNullOrWhiteSpace(name))
+                    .Distinct(
+                        StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+                ?? new List<string>();
+
+            if (eligibleApproverNames.Count > 0)
             {
                 approverNames =
                     string.Join(
                         " or ",
-                        pendingRequest
-                            .EligibleApprovers
-                            .Select(x =>
-                                $"{x.ApproverWorker.FirstName} {x.ApproverWorker.LastName}"));
+                        eligibleApproverNames);
+            }
+            else if (pendingRequest.ApproverWorker != null)
+            {
+                approverNames =
+                    string.Join(
+                        " ",
+                        new[]
+                        {
+                        pendingRequest.ApproverWorker.FirstName,
+                        pendingRequest.ApproverWorker.LastName
+                        }
+                        .Where(name =>
+                            !string.IsNullOrWhiteSpace(name)));
             }
             else
             {
                 approverNames =
-                    pendingRequest.ApproverWorker == null
-                        ? ""
-                        : $"{pendingRequest.ApproverWorker.FirstName} {pendingRequest.ApproverWorker.LastName}";
+                    "the assigned approval authority";
             }
         }
         catch (Exception ex)
         {
             errorMessage =
                 $"Unable to load your profile: {ex.Message}";
+
+            Console.WriteLine(
+                $"Workforce Profile error: {ex}");
         }
         finally
         {

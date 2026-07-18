@@ -1,0 +1,188 @@
+﻿@page "/workspace/worker-management"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Components.Shared
+@using ChurchApp.Services
+
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Worker Management - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to log in to access Worker Management.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (!CanAccessWorkspace())
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You do not have permission to access Worker Management.</p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Dashboard
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page worker-management-workspace">
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-users-cog me-2"></i>
+                    Administration Workspace
+                </div>
+
+                <div class="bcc-page-title">
+                    Worker Management
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Manage worker records, services and access permissions.
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>
+                Dashboard
+            </button>
+        </div>
+
+        <div class="bcc-card workspace-card">
+            <div class="bcc-card-body p-3">
+
+                <div class="workspace-heading">
+                    <h6>Worker Management Functions</h6>
+                    <p>Select an option to continue.</p>
+                </div>
+
+                <div class="row g-3">
+
+                    <div class="col-12 col-md-6">
+                        <WorkspaceActionCard Href="/admin/worker-update"
+                                             Icon="fas fa-address-card"
+                                             Title="Workers Detail"
+                                             Description="Search, view and update worker records." />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <WorkspaceActionCard Href="/admin/services" 
+                                             Icon="fas fa-church"
+                                             Title="Service Management"
+                                             Description="Manage church services and service-related setup." />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <WorkspaceActionCard Href="/admin/worker-cleanup"
+                                             Icon="fas fa-user-minus"
+                                             Title="Remove Worker"
+                                             Description="Remove workers details from the workforce Database." />
+                    </div>
+                   
+                    <div class="col-12 col-md-6">
+                        <WorkspaceActionCard Href="/admin/manage-privileges"
+                                             Icon="fas fa-user-shield"
+                                             Title="Access Control"
+                                             Description="Assign and manage worker privileges and access." />
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool CanAccessWorkspace()
+    {
+        if (!AuthService.IsAuthenticated ||
+            AuthService.CurrentWorker == null)
+        {
+            return false;
+        }
+
+        if (AuthService.IsInRole("Church Admin") ||
+            AuthService.IsInRole("Pastor in Charge"))
+        {
+            return true;
+        }
+
+        var currentWorker =
+            AuthService.CurrentWorker;
+
+        var isMeatDirectorate =
+            string.Equals(
+                currentWorker.Directorate?.Code,
+                "MEAT",
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                currentWorker.Directorate?.Name,
+                "MEAT",
+                StringComparison.OrdinalIgnoreCase);
+
+        var isMeatLeadership =
+            AuthService.IsInRole("Head of Directorate") ||
+            AuthService.IsInRole("Asst Head of Directorate") ||
+            AuthService.IsInRole("Assistant Head of Directorate");
+
+        return
+            isMeatDirectorate &&
+            isMeatLeadership;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
+
+<style>
+    .worker-management-workspace {
+        max-width: 1250px;
+        margin: 0 auto;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .workspace-card {
+        overflow: hidden;
+        border-top: 4px solid #4f46e5;
+    }
+
+    .workspace-heading {
+        margin-bottom: 12px;
+    }
+
+        .workspace-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.86rem;
+            font-weight: 800;
+        }
+
+        .workspace-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.67rem;
+        }
+</style>

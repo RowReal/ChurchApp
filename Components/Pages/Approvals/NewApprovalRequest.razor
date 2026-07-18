@@ -12,6 +12,7 @@
 @inject IJSRuntime JS
 @inject HtmlCleanService HtmlCleanService
 @inject LeaveRequestService LeaveRequestService
+@inject ExcuseService ExcuseService
 
 <PageTitle>New Approval Request - BCC ServiceHub</PageTitle>
 
@@ -103,7 +104,7 @@
                             </div>
 
                             <!-- Rich-text details -->
-                            @if (!IsLeaveRequest)
+                            @if (!IsLeaveRequest && !IsExcuseRequest)
 {
     <div class="col-12">
         <label class="form-label fw-bold">
@@ -208,6 +209,19 @@
                                  AvailableOfficers="@availableRelieveOfficers" />
                                 </div>
                              }
+
+                            @if (IsExcuseRequest)
+                            {
+                                <div class="col-12">
+                                    <ExcuseRequestForm
+                                        @ref="excuseRequestForm"
+                                        Model="@excuseRequestModel"
+                                        Services="@availableExcuseServices"
+                                        AvailableBackups="@availableExcuseBackups"
+                                        IsLoading="@isExcuseDataLoading"
+                                        RefreshBackups="@LoadExcuseBackupsAsync" />
+                                </div>
+                            }
 
                             <!-- Attachments -->
                             <div class="col-12">
@@ -342,13 +356,28 @@ else
     private const long MaximumFileSize = 10 * 1024 * 1024;
     private const int MaximumFileCount = 10;
     private LeaveRequestFormModel leaveRequestModel = new();
+    private ExcuseRequestModel excuseRequestModel = new();
+    private ExcuseRequestForm? excuseRequestForm;
 
     private List<Worker> availableRelieveOfficers = new();
+    private List<Service> availableExcuseServices = new();
+    private List<Worker> availableExcuseBackups = new();
+    private bool isExcuseDataLoading;
 
     private bool IsLeaveRequest =>
         string.Equals(
             selectedRequestType?.Code,
             "Leave-Request",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool IsExcuseRequest =>
+        string.Equals(
+            selectedRequestType?.Code,
+            "Off-Service-Request",
+            StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(
+            selectedRequestType?.Code,
+            "Excuse-Request",
             StringComparison.OrdinalIgnoreCase);
 
     private bool IsFinancialRequest =>
@@ -371,6 +400,11 @@ else
                     await LeaveRequestService
                         .GetAvailableRelieveOfficersAsync(
                             AuthService.CurrentWorker.Id);
+
+                availableExcuseServices =
+                    await ExcuseService.GetServicesAsync();
+
+                await LoadExcuseBackupsAsync();
             }
         }
         catch (Exception ex)
@@ -384,7 +418,7 @@ else
 {
     if (!AuthService.IsAuthenticated ||
         richTextEditorsInitialized ||
-        IsLeaveRequest)
+        (IsLeaveRequest || IsExcuseRequest))
     {
         return;
     }
@@ -440,6 +474,16 @@ else
     if (!IsLeaveRequest)
     {
         leaveRequestModel.Clear();
+    }
+
+    if (!IsExcuseRequest)
+    {
+        excuseRequestModel = new ExcuseRequestModel();
+        availableExcuseBackups.Clear();
+    }
+    else
+    {
+        _ = LoadExcuseBackupsAsync();
     }
 
     /*
@@ -619,6 +663,26 @@ else
         }
     }
 
+    if (IsExcuseRequest)
+    {
+        if (excuseRequestForm == null)
+        {
+            errorMessage =
+                "The Excuse Request form is not ready. Please try again.";
+            return;
+        }
+
+        try
+        {
+            excuseRequestForm.Validate();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            return;
+        }
+    }
+
     try
     {
         isSubmitting = true;
@@ -639,6 +703,16 @@ else
             requestModel.ApprovalSought =
                 HtmlCleanService.Clean(
                     "Kindly approve my leave as requested.");
+        }
+        else if (IsExcuseRequest)
+        {
+            requestModel.Details =
+                HtmlCleanService.Clean(
+                    excuseRequestForm!.BuildCommonDetails());
+
+            requestModel.ApprovalSought =
+    HtmlCleanService.Clean(
+        excuseRequestForm!.BuildApprovalSought());
         }
         else
         {
@@ -721,7 +795,18 @@ else
         }
 
         /*
-         * 4. Save supporting attachments.
+         * 4. Save Excuse Request-specific details.
+         */
+        if (IsExcuseRequest)
+        {
+            await ApprovalRequestService
+                .SaveOffServiceRequestDetailsAsync(
+                    newRequestId,
+                    excuseRequestModel);
+        }
+
+        /*
+         * 5. Save supporting attachments.
          */
         if (selectedFiles.Any())
         {
@@ -733,7 +818,7 @@ else
         }
 
         /*
-         * 5. Reload the request to obtain
+         * 6. Reload the request to obtain
          * the actual assigned approver.
          */
         var submittedRequest =
@@ -764,6 +849,39 @@ else
     }
 }
 
+    private async Task LoadExcuseBackupsAsync()
+    {
+        if (AuthService.CurrentWorker == null)
+        {
+            availableExcuseBackups.Clear();
+            return;
+        }
+
+        try
+        {
+            isExcuseDataLoading = true;
+
+            availableExcuseBackups =
+                await ExcuseService.GetAvailableBackupsAsync(
+                    AuthService.CurrentWorker.Id,
+                    excuseRequestModel.ServiceId,
+                  excuseRequestModel.RequestedDate == default
+    ? DateTime.Today
+    : excuseRequestModel.RequestedDate);
+        }
+        catch (Exception ex)
+        {
+            availableExcuseBackups.Clear();
+            errorMessage =
+                $"Unable to load available backup workers: {ex.Message}";
+        }
+        finally
+        {
+            isExcuseDataLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
     private bool IsRichTextEmpty(string? html)
     {
         if (string.IsNullOrWhiteSpace(html))
@@ -788,6 +906,8 @@ else
     selectedFiles.Clear();
 
     leaveRequestModel.Clear();
+    excuseRequestModel = new ExcuseRequestModel();
+    availableExcuseBackups.Clear();
 
     errorMessage = null;
     richTextEditorsInitialized = false;
@@ -884,6 +1004,7 @@ else
         public string PaymentDetails { get; set; } =
             string.Empty;
     }
+
 }
 
 <style>
@@ -1014,4 +1135,6 @@ else
         }
     }
 </style>
+
+
 
