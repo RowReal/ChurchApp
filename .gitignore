@@ -1,0 +1,20 @@
+# .NET build output
+bin/
+obj/
+
+# Local SQLite development database
+Data/*.db
+Data/*.db-shm
+Data/*.db-wal
+Data/*.db-journal
+
+# Visual Studio / IDE files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Operating system files
+.DS_Store
+Thumbs.db

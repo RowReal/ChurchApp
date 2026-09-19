@@ -3,6 +3,7 @@ using System;
 using ChurchApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChurchApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260913230410_AddWorkerAttendanceRegister")]
+    partial class AddWorkerAttendanceRegister
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -2475,25 +2478,6 @@ namespace ChurchApp.Migrations
                     b.Property<int>("AttendanceCloseMinutesAfterStart")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("AttendanceFullScore")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(20);
-
-                    b.Property<int>("AttendanceIntermediateScore")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(10);
-
-                    b.Property<int>("AttendanceLateScore")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(2);
-
-                    b.Property<decimal>("AttendanceMonthlyWeight")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("AttendanceOpenMinutesBefore")
                         .HasColumnType("INTEGER");
 
@@ -2523,12 +2507,6 @@ namespace ChurchApp.Migrations
                     b.Property<DateTime?>("LastUpdated")
                         .HasColumnType("TEXT");
 
-                    b.Property<TimeSpan?>("LeaderFullScoreCutoff")
-                        .HasColumnType("TEXT");
-
-                    b.Property<TimeSpan?>("LeaderIntermediateScoreCutoff")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -2551,17 +2529,8 @@ namespace ChurchApp.Migrations
                     b.Property<TimeSpan?>("StartTime")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("UseSeparateLeaderScoring")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int?>("WeekOfMonth")
                         .HasColumnType("INTEGER");
-
-                    b.Property<TimeSpan?>("WorkerFullScoreCutoff")
-                        .HasColumnType("TEXT");
-
-                    b.Property<TimeSpan?>("WorkerIntermediateScoreCutoff")
-                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -2678,78 +2647,6 @@ namespace ChurchApp.Migrations
                     b.HasIndex("ServiceId");
 
                     b.ToTable("ServiceNotes");
-                });
-
-            modelBuilder.Entity("ChurchApp.Models.SupervisoryCluster", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("HeadWorkerId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("LastUpdated")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("HeadWorkerId");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("SupervisoryClusters");
-                });
-
-            modelBuilder.Entity("ChurchApp.Models.SupervisoryClusterDirectorate", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("AssignedDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("DirectorateId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("SupervisoryClusterId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DirectorateId")
-                        .IsUnique();
-
-                    b.HasIndex("SupervisoryClusterId", "DirectorateId")
-                        .IsUnique();
-
-                    b.ToTable("SupervisoryClusterDirectorates");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.Unit", b =>
@@ -3193,49 +3090,6 @@ namespace ChurchApp.Migrations
                         .IsUnique();
 
                     b.ToTable("WorkerAttendances");
-                });
-
-            modelBuilder.Entity("ChurchApp.Models.WorkerAttendanceSettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<double>("AllowedRadiusMetres")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("REAL")
-                        .HasDefaultValue(40.0);
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("LastUpdated")
-                        .HasColumnType("TEXT");
-
-                    b.Property<double>("Latitude")
-                        .HasColumnType("REAL");
-
-                    b.Property<string>("LocationName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("TEXT");
-
-                    b.Property<double>("Longitude")
-                        .HasColumnType("REAL");
-
-                    b.Property<double>("MaximumGpsAccuracyMetres")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("REAL")
-                        .HasDefaultValue(150.0);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsActive");
-
-                    b.ToTable("WorkerAttendanceSettings");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.WorkerHierarchy", b =>
@@ -4097,35 +3951,6 @@ namespace ChurchApp.Migrations
                     b.Navigation("Service");
                 });
 
-            modelBuilder.Entity("ChurchApp.Models.SupervisoryCluster", b =>
-                {
-                    b.HasOne("ChurchApp.Models.Worker", "HeadWorker")
-                        .WithMany()
-                        .HasForeignKey("HeadWorkerId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("HeadWorker");
-                });
-
-            modelBuilder.Entity("ChurchApp.Models.SupervisoryClusterDirectorate", b =>
-                {
-                    b.HasOne("ChurchApp.Models.Directorate", "Directorate")
-                        .WithMany()
-                        .HasForeignKey("DirectorateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ChurchApp.Models.SupervisoryCluster", "SupervisoryCluster")
-                        .WithMany("Directorates")
-                        .HasForeignKey("SupervisoryClusterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Directorate");
-
-                    b.Navigation("SupervisoryCluster");
-                });
-
             modelBuilder.Entity("ChurchApp.Models.Unit", b =>
                 {
                     b.HasOne("ChurchApp.Models.Department", "Department")
@@ -4348,11 +4173,6 @@ namespace ChurchApp.Migrations
             modelBuilder.Entity("ChurchApp.Models.Service", b =>
                 {
                     b.Navigation("ExcuseRequests");
-                });
-
-            modelBuilder.Entity("ChurchApp.Models.SupervisoryCluster", b =>
-                {
-                    b.Navigation("Directorates");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.Unit", b =>

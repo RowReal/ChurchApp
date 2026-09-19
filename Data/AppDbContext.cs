@@ -1,4 +1,5 @@
 ﻿using ChurchApp.Models;
+using ChurchApp.Models.Finance;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChurchApp.Data
@@ -12,6 +13,9 @@ namespace ChurchApp.Data
         public DbSet<Worker> Workers { get; set; }
         public DbSet<Directorate> Directorates { get; set; }
         public DbSet<Department> Departments { get; set; }
+        public DbSet<SupervisoryCluster> SupervisoryClusters { get; set; }
+        public DbSet<SupervisoryClusterDirectorate> SupervisoryClusterDirectorates { get; set; }
+
         public DbSet<Unit> Units { get; set; }
         public DbSet<AuditTrail> AuditTrails { get; set; }
         public DbSet<ProfileUpdateRequest> ProfileUpdateRequests { get; set; }
@@ -25,6 +29,8 @@ namespace ChurchApp.Data
         public DbSet<OfferingType> OfferingTypes { get; set; }
         public DbSet<OfferingRecord> OfferingRecords { get; set; }
         public DbSet<AttendanceRecord> AttendanceRecords { get; set; }
+        public DbSet<WorkerAttendance> WorkerAttendances { get; set; }
+        public DbSet<WorkerAttendanceSettings> WorkerAttendanceSettings { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<AccountabilityCase> AccountabilityCases { get; set; }
         public DbSet<AccountabilityMessage> AccountabilityMessages { get; set; }
@@ -63,9 +69,95 @@ namespace ChurchApp.Data
 
         public DbSet<ChurchOfferingAmendment> ChurchOfferingAmendments { get; set; }
         public DbSet<VehicleRecord> VehicleRecords { get; set; }
+        public DbSet<BankAccount> BankAccounts { get; set; }
+        public DbSet<IncomeCategory> IncomeCategories { get; set; }
+        public DbSet<IncomeType> IncomeTypes { get; set; }
+        public DbSet<RemittanceRule> RemittanceRules { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            //finance configurations
+            // FINANCE: BANK ACCOUNTS
+            modelBuilder.Entity<BankAccount>(entity =>
+            {
+                entity.HasIndex(x => x.AccountNumber)
+                    .IsUnique();
+
+                entity.HasIndex(x => x.ShortName)
+                    .IsUnique();
+
+                entity.Property(x => x.Currency)
+                    .HasConversion<string>()
+                    .HasMaxLength(3);
+
+                entity.Property(x => x.OpeningBalance)
+                    .HasPrecision(18, 2);
+            });
+
+            // FINANCE: INCOME CATEGORIES
+            modelBuilder.Entity<IncomeCategory>(entity =>
+            {
+                entity.HasIndex(x => x.Name)
+                    .IsUnique();
+
+                entity.HasIndex(x => x.Code)
+                    .IsUnique();
+
+                entity.Property(x => x.Name)
+                    .IsRequired()
+                    .HasMaxLength(100);
+            });
+
+            // FINANCE: INCOME TYPES
+            modelBuilder.Entity<IncomeType>(entity =>
+            {
+                entity.HasIndex(x => x.Name)
+                    .IsUnique();
+
+                entity.HasIndex(x => x.Code)
+                    .IsUnique();
+
+                entity.Property(x => x.AccountSelectionMode)
+                    .HasConversion<string>()
+                    .HasMaxLength(30);
+
+                entity.HasOne(x => x.IncomeCategory)
+                    .WithMany(x => x.IncomeTypes)
+                    .HasForeignKey(x => x.IncomeCategoryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.DefaultBankAccount)
+                    .WithMany(x => x.IncomeTypes)
+                    .HasForeignKey(x => x.DefaultBankAccountId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // FINANCE: REMITTANCE RULES
+            modelBuilder.Entity<RemittanceRule>(entity =>
+            {
+                entity.Property(x => x.CalculationBasis)
+                    .HasConversion<string>()
+                    .HasMaxLength(30);
+
+                entity.Property(x => x.Percentage)
+                    .HasPrecision(8, 4);
+
+                entity.Property(x => x.FixedAmount)
+                    .HasPrecision(18, 2);
+
+                entity.HasIndex(x => new
+                {
+                    x.IncomeTypeId,
+                    x.EffectiveFrom
+                })
+                .IsUnique();
+
+                entity.HasOne(x => x.IncomeType)
+                    .WithMany(x => x.RemittanceRules)
+                    .HasForeignKey(x => x.IncomeTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            /* end of finance configurations */
 
             // Worker configurations
             modelBuilder.Entity<Worker>()
@@ -99,6 +191,67 @@ namespace ChurchApp.Data
                 .WithMany()
                 .HasForeignKey(d => d.AssistantHeadWorkerId)
                 .OnDelete(DeleteBehavior.Restrict);
+            // =====================================================
+            // Supervisory Cluster configurations
+            // =====================================================
+
+            modelBuilder.Entity<SupervisoryCluster>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Name)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.Code)
+                    .IsRequired()
+                    .HasMaxLength(20);
+
+                // Cluster names must be unique
+                entity.HasIndex(x => x.Name)
+                    .IsUnique();
+
+                // Cluster codes must be unique
+                entity.HasIndex(x => x.Code)
+                    .IsUnique();
+
+                // Current Cluster Head
+                entity.HasOne(x => x.HeadWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.HeadWorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+
+            modelBuilder.Entity<SupervisoryClusterDirectorate>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                // Cluster relationship
+                entity.HasOne(x => x.SupervisoryCluster)
+                    .WithMany(x => x.Directorates)
+                    .HasForeignKey(x => x.SupervisoryClusterId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Directorate relationship
+                entity.HasOne(x => x.Directorate)
+                    .WithMany()
+                    .HasForeignKey(x => x.DirectorateId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // A Directorate can belong to only ONE active cluster assignment.
+                // This prevents accidental duplicate cluster membership.
+                entity.HasIndex(x => x.DirectorateId)
+                    .IsUnique();
+
+                // Also prevent duplicate Cluster/Directorate combinations.
+                entity.HasIndex(x => new
+                {
+                    x.SupervisoryClusterId,
+                    x.DirectorateId
+                })
+                .IsUnique();
+            });
 
             modelBuilder.Entity<Privilege>()
     .HasIndex(p => p.Code)
@@ -226,12 +379,80 @@ namespace ChurchApp.Data
                 .WithMany()
                 .HasForeignKey(r => r.RejectedByWorkerId)
                 .OnDelete(DeleteBehavior.Restrict);
-
             // Service configurations
-            modelBuilder.Entity<Service>()
-                .HasIndex(s => s.Name)
+            modelBuilder.Entity<Service>(entity =>
+            {
+                // Service name must be unique
+                entity.HasIndex(s => s.Name)
+                    .IsUnique();
+
+                // Worker Attendance Scoring
+                entity.Property(s => s.AttendanceMonthlyWeight)
+                    .HasPrecision(5, 2);
+
+                entity.Property(s => s.AttendanceFullScore)
+                    .HasDefaultValue(20);
+
+                entity.Property(s => s.AttendanceIntermediateScore)
+                    .HasDefaultValue(10);
+
+                entity.Property(s => s.AttendanceLateScore)
+                    .HasDefaultValue(2);
+            });
+
+            // Worker Attendance configurations
+            modelBuilder.Entity<WorkerAttendance>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                // One attendance record per worker, service and service date
+                entity.HasIndex(x => new
+                {
+                    x.WorkerId,
+                    x.ServiceId,
+                    x.AttendanceDate
+                })
                 .IsUnique();
 
+                entity.Property(x => x.AttendanceDate)
+                    .IsRequired()
+                    .HasColumnType("date");
+
+                // Worker relationship
+                entity.HasOne(x => x.Worker)
+                    .WithMany()
+                    .HasForeignKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Service relationship
+                entity.HasOne(x => x.Service)
+                    .WithMany()
+                    .HasForeignKey(x => x.ServiceId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Useful indexes for reporting later
+                entity.HasIndex(x => x.AttendanceDate);
+                entity.HasIndex(x => x.WorkerId);
+                entity.HasIndex(x => x.ServiceId);
+            });
+
+            // Worker Attendance Location Settings
+            modelBuilder.Entity<WorkerAttendanceSettings>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.LocationName)
+                    .IsRequired()
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.AllowedRadiusMetres)
+                    .HasDefaultValue(40);
+
+                entity.Property(x => x.MaximumGpsAccuracyMetres)
+                    .HasDefaultValue(150);
+
+                entity.HasIndex(x => x.IsActive);
+            });
             // Excuse Request configurations
             modelBuilder.Entity<ExcuseRequest>()
                 .HasOne(e => e.Worker)
@@ -891,6 +1112,7 @@ namespace ChurchApp.Data
                 entity.HasIndex(x => x.RecordedByWorkerId);
             });
 
+           
             modelBuilder.Entity<ChurchOfferingAmendment>(entity =>
             {
                 entity.HasKey(x => x.Id);

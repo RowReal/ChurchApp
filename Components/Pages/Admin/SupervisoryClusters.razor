@@ -1,0 +1,1366 @@
+﻿@page "/admin/supervisory-clusters"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+
+@inject SupervisoryClusterService ClusterService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Supervisory Clusters - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to manage supervisory clusters.</p>
+        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
+    </div>
+}
+else if (!isAuthorized)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>Supervisory Cluster Management is available to authorised church administrators.</p>
+        <a href="/" class="bcc-btn bcc-btn-primary">Return to Dashboard</a>
+    </div>
+}
+else
+{
+    <div class="worker360-page cluster-management-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage) && !showModal)
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success py-2">
+                <i class="fas fa-circle-check me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        <div class="bcc-page-header cluster-management-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-sitemap me-2"></i>
+                    Organisational Structure
+                </div>
+
+                <div class="bcc-page-title">
+                    Supervisory Cluster Management
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Configure supervisory clusters, Cluster Heads and Directorate allocations.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+               <button type="button"
+        class="bcc-btn bcc-btn-primary add-cluster-btn"
+        @onclick="ShowAddModal">
+    <i class="fas fa-plus me-1"></i>
+    Add Cluster
+</button>
+
+            </div>
+        </div>
+
+        <div class="cluster-summary-grid mb-3">
+            <div class="cluster-summary-card">
+                <span>Total Clusters</span>
+                <strong>@clusters.Count</strong>
+            </div>
+
+            <div class="cluster-summary-card active">
+                <span>Active Clusters</span>
+                <strong>@clusters.Count(x => x.IsActive)</strong>
+            </div>
+
+            <div class="cluster-summary-card directors">
+                <span>Assigned Directorates</span>
+                <strong>@GetAssignedDirectorateCount()</strong>
+            </div>
+
+            <div class="cluster-summary-card unassigned">
+                <span>Unassigned Directorates</span>
+                <strong>@GetUnassignedDirectorateCount()</strong>
+            </div>
+        </div>
+
+        <div class="bcc-card cluster-list-card">
+
+            <div class="cluster-list-header">
+                <div>
+                    <h6>
+                        <i class="fas fa-diagram-project me-2"></i>
+                        Supervisory Structure
+                    </h6>
+                    <p>
+                        Each Directorate can belong to only one supervisory cluster.
+                    </p>
+                </div>
+
+                <span class="cluster-result-count">
+                    @clusters.Count
+                </span>
+            </div>
+
+            <div class="bcc-card-body p-0">
+
+                @if (isLoadingPage)
+                {
+                    <div class="bcc-empty py-5">
+                        <div class="spinner-border spinner-border-sm mb-3"></div>
+                        <p>Loading supervisory clusters...</p>
+                    </div>
+                }
+                else if (clusters.Any())
+                {
+                    <div class="cluster-list">
+
+                        @foreach (var cluster in clusters)
+                        {
+                            <div class="cluster-row @(cluster.IsActive ? "" : "inactive-row")">
+
+                                <div class="cluster-main">
+
+                                    <div class="cluster-icon">
+                                        <i class="fas fa-sitemap"></i>
+                                    </div>
+
+                                    <div class="cluster-content">
+
+                                        <div class="cluster-title-row">
+                                            <strong>@cluster.Name</strong>
+
+                                            <span class="cluster-code">
+                                                @cluster.Code
+                                            </span>
+
+                                            <span class="cluster-status @(cluster.IsActive ? "active" : "inactive")">
+                                                @(cluster.IsActive ? "Active" : "Inactive")
+                                            </span>
+                                        </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(cluster.Description))
+                                        {
+                                            <p class="cluster-description">
+                                                @cluster.Description
+                                            </p>
+                                        }
+
+                                        <div class="cluster-head-display">
+                                            <span class="cluster-head-label">
+                                                <i class="fas fa-user-tie me-1"></i>
+                                                Cluster Head
+                                            </span>
+
+                                            @if (cluster.HeadWorker != null)
+                                            {
+                                                <strong>
+                                                    @cluster.HeadWorker.FullName
+                                                </strong>
+
+                                                <span>
+                                                    @cluster.HeadWorker.WorkerId
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    Not assigned
+                                                </span>
+                                            }
+                                        </div>
+
+                                        <div class="directorate-section">
+                                            <div class="directorate-heading">
+                                                <i class="fas fa-building me-1"></i>
+                                                Directorates
+                                                <span>
+                                                    (@cluster.Directorates.Count)
+                                                </span>
+                                            </div>
+
+                                            @if (cluster.Directorates.Any())
+                                            {
+                                                <div class="directorate-tags">
+                                                    @foreach (var assignment in cluster.Directorates
+                                                        .Where(x => x.Directorate != null)
+                                                        .OrderBy(x => x.Directorate!.Name))
+                                                    {
+                                                        <span class="directorate-tag">
+                                                            @assignment.Directorate!.Name
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="no-directorates">
+                                                    No Directorates assigned.
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="cluster-actions">
+                                    <button type="button"
+                                            class="cluster-action-btn"
+                                            title="Edit cluster"
+                                            @onclick="() => EditCluster(cluster)">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="bcc-empty py-5">
+                        <i class="fas fa-sitemap"></i>
+                        <h4>No Supervisory Clusters</h4>
+                        <p>
+                            Create the first supervisory cluster to begin configuring the church structure.
+                        </p>
+
+                        <button type="button"
+                                class="bcc-btn bcc-btn-primary add-cluster-btn"
+                                @onclick="ShowAddModal">
+                            <i class="fas fa-plus me-1"></i>
+                            Add Cluster
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@if (showModal)
+{
+    <div class="cluster-modal-backdrop"
+         @onclick="CloseModal">
+
+        <div class="cluster-modal-card"
+             @onclick:stopPropagation="true">
+
+            <div class="cluster-modal-header">
+
+                <div>
+                    <div class="modal-eyebrow">
+                        <i class="fas fa-sitemap me-2"></i>
+                        Organisational Configuration
+                    </div>
+
+                    <h4>
+                        @(editingCluster ? "Edit Supervisory Cluster" : "Add Supervisory Cluster")
+                    </h4>
+
+                    <p>
+                        Configure the cluster, appoint its Cluster Head and allocate Directorates.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn-close"
+                        aria-label="Close"
+                        @onclick="CloseModal">
+                </button>
+            </div>
+
+            <div class="cluster-modal-body">
+                <div class="cluster-form-grid">
+
+                    <div class="cluster-form-column">
+                        <div class="form-section">
+                            <div class="form-section-heading">
+                                <div class="form-section-icon">
+                                    <i class="fas fa-circle-info"></i>
+                                </div>
+                                <div>
+                                    <h6>Cluster Information</h6>
+                                    <p>Basic information identifying this supervisory cluster.</p>
+                                </div>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-12 col-md-8">
+                                    <label class="form-label compact-label">
+                                        Cluster Name <span class="text-danger">*</span>
+                                    </label>
+                                    <input class="form-control form-control-sm"
+                                           @bind="clusterName"
+                                           placeholder="e.g. Cluster 1" />
+                                </div>
+
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label compact-label">
+                                        Code <span class="text-danger">*</span>
+                                    </label>
+                                    <input class="form-control form-control-sm"
+                                           @bind="clusterCode"
+                                           placeholder="e.g. CL01" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label compact-label">Description</label>
+                                    <textarea class="form-control form-control-sm compact-description"
+                                              @bind="clusterDescription"
+                                              rows="2"
+                                              maxlength="500"
+                                              placeholder="Optional description of this cluster"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section mb-0">
+                            <div class="form-section-heading">
+                                <div class="form-section-icon head">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                                <div>
+                                    <h6>Cluster Head</h6>
+                                    <p>Appoint the worker responsible for supervising this cluster.</p>
+                                </div>
+                            </div>
+
+                            <label class="form-label compact-label">Cluster Head</label>
+                            <select class="form-select form-select-sm"
+                                    @bind="selectedHeadWorkerId">
+                                <option value="">-- Select Cluster Head --</option>
+                                @foreach (var worker in workers)
+                                {
+                                    <option value="@worker.Id">
+                                        @worker.FullName (@worker.WorkerId)
+                                    </option>
+                                }
+                            </select>
+
+                            <div class="field-help cluster-head-note">
+                                <i class="fas fa-circle-info me-1"></i>
+                                Cluster Head is an organisational assignment and does not depend on the worker's pastoral title or Role field.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cluster-form-column">
+                        <div class="form-section directorate-form-section">
+                            <div class="form-section-heading">
+                                <div class="form-section-icon directorates">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <div>
+                                    <h6>Directorate Allocation</h6>
+                                    <p>Select the Directorates that should belong to this cluster.</p>
+                                </div>
+                            </div>
+
+                            @if (directorates.Any())
+                            {
+                                <div class="directorate-scroll-area">
+                                    <div class="directorate-selection-grid">
+                                        @foreach (var directorate in directorates)
+                                        {
+                                            var selected = selectedDirectorateIds.Contains(directorate.Id);
+                                            var otherClusterName = GetOtherClusterName(directorate.Id);
+
+                                            <label class="directorate-select-card @(selected ? "selected" : "")">
+                                                <input type="checkbox"
+                                                       checked="@selected"
+                                                       @onchange="e => ToggleDirectorate(
+                                                           directorate.Id,
+                                                           e.Value is bool value && value)" />
+
+                                                <div class="directorate-select-content">
+                                                    <div class="directorate-select-title">
+                                                        <strong>@directorate.Name</strong>
+                                                        <span class="directorate-code-badge">@directorate.Code</span>
+                                                    </div>
+
+                                                    @if (!string.IsNullOrWhiteSpace(otherClusterName) && !selected)
+                                                    {
+                                                        <small>Currently: @otherClusterName</small>
+                                                    }
+                                                </div>
+                                            </label>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="reassignment-note mt-2">
+                                    <i class="fas fa-circle-info me-1"></i>
+                                    Selecting a Directorate already assigned elsewhere will automatically move it to this cluster when saved.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="bcc-empty py-2">
+                                    <p class="mb-0">No active Directorates are available.</p>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="form-section mb-0">
+                            <div class="form-section-heading">
+                                <div class="form-section-icon status">
+                                    <i class="fas fa-toggle-on"></i>
+                                </div>
+                                <div>
+                                    <h6>Cluster Status</h6>
+                                    <p>Control whether this supervisory cluster is active.</p>
+                                </div>
+                            </div>
+
+                            <div class="option-card">
+                                <div>
+                                    <strong>Active Cluster</strong>
+                                    <span>
+                                        Inactive clusters remain in the register but can be excluded from normal organisational processing.
+                                    </span>
+                                </div>
+
+                                <div class="form-check form-switch m-0">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           @bind="clusterIsActive" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                {
+                    <div class="alert alert-danger py-2 mt-2 mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        @modalErrorMessage
+                    </div>
+                }
+            </div>
+
+            <div class="cluster-modal-footer">
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        disabled="@isSaving"
+                        @onclick="CloseModal">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary compact-btn"
+                        disabled="@isSaving"
+                        @onclick="SaveCluster">
+
+                    @if (isSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-save me-2"></i>
+                        <span>
+                            @(editingCluster ? "Update Cluster" : "Create Cluster")
+                        </span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<SupervisoryCluster> clusters = new();
+    private List<Worker> workers = new();
+    private List<Directorate> directorates = new();
+
+    private Dictionary<int, int> directorateAssignments = new();
+
+    private bool isAuthorized;
+    private bool isLoadingPage;
+    private bool showModal;
+    private bool editingCluster;
+    private bool isSaving;
+
+    private int? editingClusterId;
+
+    private string clusterName = string.Empty;
+    private string clusterCode = string.Empty;
+    private string clusterDescription = string.Empty;
+
+    private int? selectedHeadWorkerId;
+    private bool clusterIsActive = true;
+
+    private HashSet<int> selectedDirectorateIds = new();
+
+    private string errorMessage = string.Empty;
+    private string modalErrorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!IsUserAuthorized())
+        {
+            isAuthorized = false;
+            return;
+        }
+
+        isAuthorized = true;
+
+        await LoadPageData();
+    }
+
+ private bool IsUserAuthorized()
+{
+    if (!AuthService.IsAuthenticated ||
+        AuthService.CurrentWorker == null)
+    {
+        return false;
+    }
+
+    var role = (AuthService.CurrentWorker.Role ?? string.Empty).Trim();
+
+    return role.Equals("Church Admin", StringComparison.OrdinalIgnoreCase) ||
+           role.Equals("Pastor in Charge", StringComparison.OrdinalIgnoreCase);
+}
+    private async Task LoadPageData()
+    {
+        try
+        {
+            isLoadingPage = true;
+            errorMessage = string.Empty;
+
+            clusters = await ClusterService.GetAllAsync();
+            workers = await ClusterService.GetAvailableWorkersAsync();
+            directorates = await ClusterService.GetActiveDirectoratesAsync();
+
+            directorateAssignments =
+                await ClusterService.GetDirectorateClusterAssignmentsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Error loading supervisory clusters: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingPage = false;
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        editingCluster = false;
+        editingClusterId = null;
+
+        clusterName = string.Empty;
+        clusterCode = string.Empty;
+        clusterDescription = string.Empty;
+
+        selectedHeadWorkerId = null;
+        clusterIsActive = true;
+
+        selectedDirectorateIds = new HashSet<int>();
+
+        modalErrorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        showModal = true;
+    }
+
+    private void EditCluster(SupervisoryCluster cluster)
+    {
+        editingCluster = true;
+        editingClusterId = cluster.Id;
+
+        clusterName = cluster.Name;
+        clusterCode = cluster.Code;
+        clusterDescription = cluster.Description ?? string.Empty;
+
+        selectedHeadWorkerId = cluster.HeadWorkerId;
+        clusterIsActive = cluster.IsActive;
+
+        selectedDirectorateIds = cluster.Directorates
+            .Select(x => x.DirectorateId)
+            .ToHashSet();
+
+        modalErrorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        showModal = true;
+    }
+
+    private void ToggleDirectorate(int directorateId, bool selected)
+    {
+        if (selected)
+        {
+            selectedDirectorateIds.Add(directorateId);
+        }
+        else
+        {
+            selectedDirectorateIds.Remove(directorateId);
+        }
+    }
+
+    private async Task SaveCluster()
+    {
+        try
+        {
+            modalErrorMessage = string.Empty;
+            successMessage = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(clusterName))
+            {
+                modalErrorMessage = "Cluster name is required.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(clusterCode))
+            {
+                modalErrorMessage = "Cluster code is required.";
+                return;
+            }
+
+            isSaving = true;
+
+            int clusterId;
+
+            if (editingCluster && editingClusterId.HasValue)
+            {
+                clusterId = editingClusterId.Value;
+
+                await ClusterService.UpdateAsync(
+                    clusterId,
+                    clusterName,
+                    clusterCode,
+                    clusterDescription,
+                    selectedHeadWorkerId,
+                    clusterIsActive);
+            }
+            else
+            {
+                var createdCluster =
+                    await ClusterService.CreateAsync(
+                        clusterName,
+                        clusterCode,
+                        clusterDescription,
+                        selectedHeadWorkerId);
+
+                clusterId = createdCluster.Id;
+            }
+
+            await ClusterService.AssignDirectoratesAsync(
+                clusterId,
+                selectedDirectorateIds);
+
+            showModal = false;
+
+            successMessage = editingCluster
+                ? "Supervisory cluster updated successfully."
+                : "Supervisory cluster created successfully.";
+
+            await LoadPageData();
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void CloseModal()
+    {
+        if (isSaving)
+            return;
+
+        showModal = false;
+        modalErrorMessage = string.Empty;
+    }
+
+    private int GetAssignedDirectorateCount()
+    {
+        return directorateAssignments.Count;
+    }
+
+    private int GetUnassignedDirectorateCount()
+    {
+        return Math.Max(
+            0,
+            directorates.Count - directorateAssignments.Count);
+    }
+
+    private string GetOtherClusterName(int directorateId)
+    {
+        if (!directorateAssignments.TryGetValue(
+            directorateId,
+            out var clusterId))
+        {
+            return string.Empty;
+        }
+
+        if (editingClusterId.HasValue &&
+            editingClusterId.Value == clusterId)
+        {
+            return string.Empty;
+        }
+
+        return clusters
+            .FirstOrDefault(x => x.Id == clusterId)
+            ?.Name ?? "Another Cluster";
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/workspace/worker-management");
+    }
+}
+
+<style>
+    .cluster-management-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .cluster-management-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .cluster-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .cluster-summary-card {
+        padding: 13px 15px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-top: 4px solid #4f46e5;
+        border-radius: 12px;
+    }
+
+    .cluster-summary-card span {
+        display: block;
+        color: #64748b;
+        font-size: .66rem;
+        font-weight: 700;
+    }
+
+    .cluster-summary-card strong {
+        display: block;
+        margin-top: 3px;
+        color: #0f172a;
+        font-size: 1.25rem;
+    }
+
+    .cluster-summary-card.active {
+        border-top-color: #16a34a;
+    }
+
+    .cluster-summary-card.directors {
+        border-top-color: #7c3aed;
+    }
+
+    .cluster-summary-card.unassigned {
+        border-top-color: #d97706;
+    }
+
+    .cluster-list-card {
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        border-top: 4px solid #7c3aed;
+        border-radius: 13px;
+    }
+
+    .cluster-list-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 13px 15px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .cluster-list-header h6 {
+        margin: 0;
+        color: #0f172a;
+        font-weight: 800;
+    }
+
+    .cluster-list-header p {
+        margin: 2px 0 0;
+        color: #64748b;
+        font-size: .66rem;
+    }
+
+    .cluster-result-count {
+        min-width: 34px;
+        padding: 5px 9px;
+        background: #ede9fe;
+        color: #6d28d9;
+        border-radius: 20px;
+        text-align: center;
+        font-size: .7rem;
+        font-weight: 800;
+    }
+
+    .cluster-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 16px;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .cluster-row:last-child {
+        border-bottom: 0;
+    }
+
+    .cluster-row.inactive-row {
+        background: #fafafa;
+        opacity: .75;
+    }
+
+    .cluster-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .cluster-icon {
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        border-radius: 10px;
+        background: #ede9fe;
+        color: #6d28d9;
+    }
+
+    .cluster-content {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .cluster-title-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex-wrap: wrap;
+    }
+
+    .cluster-title-row strong {
+        color: #0f172a;
+        font-size: .86rem;
+    }
+
+    .cluster-code,
+    .cluster-status {
+        padding: 3px 7px;
+        border-radius: 12px;
+        font-size: .56rem;
+        font-weight: 800;
+    }
+
+    .cluster-code {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .cluster-status.active {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .cluster-status.inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .cluster-description {
+        margin: 5px 0 8px;
+        color: #64748b;
+        font-size: .66rem;
+    }
+
+    .cluster-head-display {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+        font-size: .66rem;
+    }
+
+    .cluster-head-label {
+        color: #64748b;
+        font-weight: 700;
+    }
+
+    .cluster-head-display strong {
+        color: #0f172a;
+    }
+
+    .cluster-head-display > span:last-child {
+        color: #94a3b8;
+    }
+
+    .directorate-section {
+        margin-top: 11px;
+    }
+
+    .directorate-heading {
+        margin-bottom: 6px;
+        color: #475569;
+        font-size: .63rem;
+        font-weight: 800;
+    }
+
+    .directorate-tags {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+
+    .directorate-tag {
+        padding: 4px 8px;
+        background: #f0f9ff;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+        border-radius: 14px;
+        font-size: .58rem;
+        font-weight: 700;
+    }
+
+    .no-directorates {
+        color: #94a3b8;
+        font-size: .62rem;
+    }
+
+    .cluster-actions {
+        flex: 0 0 auto;
+    }
+
+    .cluster-action-btn {
+        width: 31px;
+        height: 31px;
+        border: 1px solid #ddd6fe;
+        border-radius: 8px;
+        background: #f5f3ff;
+        color: #6d28d9;
+    }
+
+    .cluster-action-btn:hover {
+        background: #ede9fe;
+    }
+
+    .cluster-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1055;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        background: rgba(15, 23, 42, .58);
+        backdrop-filter: blur(2px);
+    }
+
+    .cluster-modal-card {
+        width: 100%;
+        max-width: 600px;
+        max-height: 64vh;
+        overflow: hidden;
+        background: #fff;
+        border-radius: 15px;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, .28);
+    }
+
+    .cluster-modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 15px 18px 12px;
+        border-bottom: 1px solid #eef2f7;
+    }
+
+    .modal-eyebrow {
+        margin-bottom: 3px;
+        color: #6d28d9;
+        font-size: .62rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .cluster-modal-header h4 {
+        margin: 0 0 2px;
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .cluster-modal-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: .67rem;
+    }
+
+    .cluster-modal-body {
+        padding: 16px 18px;
+    }
+
+    .form-section {
+        padding: 14px;
+        margin-bottom: 13px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+    }
+
+    .form-section-heading {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 13px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .form-section-heading h6 {
+        margin: 0;
+        color: #0f172a;
+        font-size: .72rem;
+        font-weight: 800;
+    }
+
+    .form-section-heading p {
+        margin: 2px 0 0;
+        color: #64748b;
+        font-size: .6rem;
+    }
+
+    .form-section-icon {
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: #ede9fe;
+        color: #6d28d9;
+    }
+
+    .form-section-icon.head {
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .form-section-icon.directorates {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .form-section-icon.status {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .compact-label {
+        margin-bottom: 4px;
+        color: #475569;
+        font-size: .63rem;
+        font-weight: 800;
+    }
+
+    .field-help {
+        margin-top: 5px;
+        color: #94a3b8;
+        font-size: .58rem;
+        line-height: 1.35;
+    }
+
+    .directorate-selection-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .directorate-select-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        padding: 10px;
+        margin: 0;
+        cursor: pointer;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .directorate-select-card.selected {
+        background: #f5f3ff;
+        border-color: #c4b5fd;
+    }
+
+    .directorate-select-card input {
+        margin-top: 3px;
+    }
+
+    .directorate-select-card strong,
+    .directorate-select-card span,
+    .directorate-select-card small {
+        display: block;
+    }
+
+    .directorate-select-card strong {
+        color: #0f172a;
+        font-size: .67rem;
+    }
+
+    .directorate-code-text {
+        margin-top: 1px;
+        color: #64748b;
+        font-size: .57rem;
+    }
+
+    .directorate-select-card small {
+        margin-top: 3px;
+        color: #d97706;
+        font-size: .54rem;
+    }
+
+    .reassignment-note {
+        padding: 8px 10px;
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        font-size: .59rem;
+    }
+
+    .option-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 11px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .option-card strong,
+    .option-card span {
+        display: block;
+    }
+
+    .option-card strong {
+        color: #0f172a;
+        font-size: .7rem;
+    }
+
+    .option-card span {
+        margin-top: 2px;
+        color: #64748b;
+        font-size: .6rem;
+    }
+
+    .cluster-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 7px;
+        padding: 11px 18px 15px;
+        background: #fff;
+        border-top: 1px solid #eef2f7;
+    }
+
+    .cluster-form-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+    }
+
+    .cluster-form-column {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .cluster-modal-body {
+        padding: 8px 10px;
+        overflow-y: auto;
+        max-height: calc(64vh - 112px);
+    }
+
+    .cluster-modal-header {
+        padding: 8px 10px 7px;
+    }
+
+    .cluster-modal-footer {
+        padding: 7px 10px 8px;
+    }
+
+    .form-section {
+        padding: 8px;
+        margin-bottom: 0;
+    }
+
+    .form-section-heading {
+        margin-bottom: 7px;
+        padding-bottom: 6px;
+    }
+
+    .compact-description {
+        resize: vertical;
+        min-height: 44px;
+        max-height: 60px;
+    }
+
+    .cluster-head-note {
+        margin-top: 8px;
+        padding: 5px 6px;
+        border-radius: 7px;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .directorate-scroll-area {
+        max-height: 155px;
+        overflow-y: auto;
+        padding-right: 3px;
+    }
+
+    .directorate-selection-grid {
+        grid-template-columns: 1fr;
+        gap: 5px;
+    }
+
+    .directorate-select-card {
+        align-items: center;
+        padding: 5px 6px;
+        min-height: 34px;
+    }
+
+    .directorate-select-card input {
+        margin-top: 0;
+        flex: 0 0 auto;
+    }
+
+    .directorate-select-content {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .directorate-select-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .directorate-code-badge {
+        display: inline-block !important;
+        padding: 2px 6px;
+        border-radius: 10px;
+        background: #e2e8f0;
+        color: #475569;
+        font-size: .52rem;
+        font-weight: 800;
+    }
+
+    .directorate-form-section {
+        min-height: 0;
+    }
+
+    @@media (max-width: 768px) {
+        .cluster-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .cluster-modal-card {
+            max-width: 96vw;
+            max-height: 94vh;
+        }
+
+        .cluster-modal-body {
+            max-height: calc(94vh - 112px);
+        }
+
+        .directorate-scroll-area {
+            max-height: 220px;
+        }
+
+        .cluster-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .directorate-selection-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .cluster-row {
+            flex-direction: column;
+        }
+
+        .cluster-actions {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+    }
+    .add-cluster-btn {
+    min-height: 28px;
+    padding: 4px 9px;
+    font-size: 0.68rem;
+    width: auto;
+    min-width: 0;
+}
+    @@media (max-width: 576px) {
+        .cluster-summary-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .cluster-modal-footer {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .option-card {
+            align-items: flex-start;
+        }
+    }
+</style>

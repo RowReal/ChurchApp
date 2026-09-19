@@ -43,7 +43,7 @@ if (!builder.Environment.IsDevelopment())
         File.Copy(seedDbPath, dbPath);
 }
 
-// 2?? Register DbContext FIRST
+// 2. Register DbContext and DbContextFactory
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
@@ -67,6 +67,10 @@ builder.Services.AddScoped<AccountabilityService>();
 builder.Services.AddScoped<RecordNominationService>();
 builder.Services.AddScoped<ServiceService>();
 builder.Services.AddScoped<AttendanceService>();
+builder.Services.AddScoped<WorkerAttendanceService>();
+builder.Services.AddScoped<WorkerAttendanceScoringService>();
+builder.Services.AddScoped<SupervisoryClusterService>();
+builder.Services.AddScoped<OrganizationalAccessService>();
 builder.Services.AddScoped<ServiceNoteService>();
 builder.Services.AddScoped<GuestService>();
 builder.Services.AddScoped<ImageOptimizationService>();
@@ -75,6 +79,8 @@ builder.Services.AddScoped<ChurchNoticeService>();
 builder.Services.AddScoped<VerseOfTheDayService>();
 builder.Services.AddScoped<PrayerFocusService>();
 builder.Services.AddScoped<PrivilegeService>();
+
+//builder.Services.AddScoped<WorkerAttendanceTestSeeder>();
 
 builder.Services.AddCascadingAuthenticationState();
 
@@ -95,6 +101,7 @@ builder.Services.AddScoped<ApprovalQueryService>();
 builder.Services.AddScoped<ApprovalDecisionService>();
 builder.Services.AddScoped<ApprovalSubmissionService>();
 builder.Services.AddScoped<LeaveRequestService>();
+builder.Services.AddScoped<WorkerAttendanceExportService>();
 
 //Service Record/Offering Services
 builder.Services.AddScoped<ChurchOfferingAccessService>();
@@ -104,6 +111,10 @@ builder.Services.AddScoped<ChurchOfferingService>();
 builder.Services.AddScoped<ApprovalRequestService>();
 builder.Services.AddScoped<ServiceRecordAccessService>();
 builder.Services.AddScoped<VehicleRecordService>();
+
+builder.Services.AddScoped<BankAccountService>();
+builder.Services.AddScoped<IncomeCategoryService>();
+builder.Services.AddScoped<IncomeTypeService>();
 var app = builder.Build();
 
 // APPLY EF CORE MIGRATIONS AUTOMATICALLY
@@ -172,14 +183,9 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.UseAntiforgery();
 
-// Seed data
-using (var scope = app.Services.CreateScope())
-{
-    var seeder = scope.ServiceProvider.GetRequiredService<DataSeederService>();
-    await seeder.SeedDataAsync();
-}
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
 
 app.Run();

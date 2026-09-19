@@ -1,0 +1,299 @@
+﻿@page "/admin/get-my-location"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+
+<PageTitle>Get My Location</PageTitle>
+
+<div class="container py-4">
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+
+            <h3 class="mb-2">
+                <i class="fas fa-map-marker-alt me-2"></i>
+                Get My GPS Location
+            </h3>
+
+            <p class="text-muted mb-4">
+                Use this page to obtain the GPS coordinates of your current
+                location. Nothing is saved to the database.
+            </p>
+
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="alert alert-danger">
+                    @errorMessage
+                </div>
+            }
+
+            @if (!hasLocation)
+            {
+                <div class="text-center py-4">
+
+                    <i class="fas fa-location-crosshairs fa-3x mb-3 text-primary"></i>
+
+                    <p>
+                        Make sure location/GPS is enabled on your device,
+                        then click the button below.
+                    </p>
+
+                    <button class="btn btn-primary btn-lg"
+                            @onclick="GetLocation"
+                            disabled="@isLoading">
+
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Getting Location...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-location-dot me-2"></i>
+                            <span>Get My Location</span>
+                        }
+
+                    </button>
+
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-success">
+                    <strong>Location obtained successfully.</strong>
+                    You can copy these coordinates into Worker Attendance Setup.
+                </div>
+
+                <div class="row g-3">
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">
+                            Latitude
+                        </label>
+
+                        <div class="input-group">
+                            <input class="form-control"
+                                   value="@LatitudeText"
+                                   readonly />
+
+                            <button class="btn btn-outline-secondary"
+                                    @onclick="CopyLatitude">
+                                <i class="fas fa-copy me-1"></i>
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">
+                            Longitude
+                        </label>
+
+                        <div class="input-group">
+                            <input class="form-control"
+                                   value="@LongitudeText"
+                                   readonly />
+
+                            <button class="btn btn-outline-secondary"
+                                    @onclick="CopyLongitude">
+                                <i class="fas fa-copy me-1"></i>
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="mt-4">
+                    <label class="form-label fw-bold">
+                        GPS Accuracy
+                    </label>
+
+                    <div class="form-control bg-light">
+                        ± @AccuracyText metres
+                    </div>
+
+                    <small class="text-muted">
+                        A smaller accuracy value generally means a more precise
+                        GPS reading.
+                    </small>
+                </div>
+
+                <div class="mt-4">
+                    <label class="form-label fw-bold">
+                        Latitude, Longitude
+                    </label>
+
+                    <div class="input-group">
+
+                        <input class="form-control"
+                               value="@CombinedCoordinates"
+                               readonly />
+
+                        <button class="btn btn-success"
+                                @onclick="CopyBoth">
+
+                            <i class="fas fa-copy me-1"></i>
+                            Copy Both
+
+                        </button>
+
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(copyMessage))
+                {
+                    <div class="alert alert-info mt-3 mb-0">
+                        @copyMessage
+                    </div>
+                }
+
+                <div class="mt-4">
+
+                    <button class="btn btn-primary"
+                            @onclick="GetLocation"
+                            disabled="@isLoading">
+
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Refreshing...</span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-rotate me-2"></i>
+                            <span>Refresh Location</span>
+                        }
+
+                    </button>
+
+                </div>
+            }
+
+        </div>
+    </div>
+
+</div>
+
+@code {
+
+    private bool isLoading;
+    private bool hasLocation;
+
+    private double latitude;
+    private double longitude;
+    private double accuracy;
+
+    private string errorMessage = string.Empty;
+    private string copyMessage = string.Empty;
+
+    private string LatitudeText =>
+        latitude.ToString("F7",
+            System.Globalization.CultureInfo.InvariantCulture);
+
+    private string LongitudeText =>
+        longitude.ToString("F7",
+            System.Globalization.CultureInfo.InvariantCulture);
+
+    private string AccuracyText =>
+        accuracy.ToString("F1",
+            System.Globalization.CultureInfo.InvariantCulture);
+
+    private string CombinedCoordinates =>
+        $"{LatitudeText}, {LongitudeText}";
+
+    private async Task GetLocation()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        copyMessage = string.Empty;
+
+        try
+        {
+            var result =
+                await JS.InvokeAsync<GpsResult>(
+                    "bccLocation.getCurrentPosition");
+
+            if (!result.Success)
+            {
+                hasLocation = false;
+
+                errorMessage =
+                    string.IsNullOrWhiteSpace(result.Error)
+                        ? "Unable to obtain your location."
+                        : result.Error;
+
+                return;
+            }
+
+            latitude = result.Latitude;
+            longitude = result.Longitude;
+            accuracy = result.Accuracy;
+
+            hasLocation = true;
+        }
+        catch (Exception ex)
+        {
+            hasLocation = false;
+
+            errorMessage =
+                $"Unable to obtain your location. {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CopyLatitude()
+    {
+        await CopyText(
+            LatitudeText,
+            "Latitude copied.");
+    }
+
+    private async Task CopyLongitude()
+    {
+        await CopyText(
+            LongitudeText,
+            "Longitude copied.");
+    }
+
+    private async Task CopyBoth()
+    {
+        await CopyText(
+            CombinedCoordinates,
+            "Latitude and longitude copied.");
+    }
+
+    private async Task CopyText(
+        string value,
+        string successMessage)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "bccLocation.copyText",
+                value);
+
+            copyMessage = successMessage;
+        }
+        catch
+        {
+            copyMessage =
+                "Unable to copy automatically. You can select and copy the value manually.";
+        }
+    }
+
+    private class GpsResult
+    {
+        public bool Success { get; set; }
+
+        public double Latitude { get; set; }
+
+        public double Longitude { get; set; }
+
+        public double Accuracy { get; set; }
+
+        public string Error { get; set; } = string.Empty;
+    }
+}

@@ -73,20 +73,34 @@ else
                 </div>
 
                 <div class="row g-3">
+                    @if (CanManageOrganisationSetup())
+                    {
+                         <div class="col-12 col-md-6 col-xl-4">
+    <WorkspaceActionCard Href="/admin/get-my-location"
+                         Icon="fas fa-building"
+                         Title="Get My Location"
+                         Description="Get Current Location For Setup." />
+</div>
+                   <div class="col-12 col-md-6 col-xl-4">
+    <WorkspaceActionCard Href="/admin/directorate-setup"
+                         Icon="fas fa-building"
+                         Title="Directorate Setup"
+                         Description="Create and manage church directorates." />
+</div>
 
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <WorkspaceActionCard Href="/admin/directorate-setup"
-                                             Icon="fas fa-building"
-                                             Title="Directorate Setup"
-                                             Description="Create and manage church directorates." />
-                    </div>
+<div class="col-12 col-md-6 col-xl-4">
+    <WorkspaceActionCard Href="/admin/supervisory-clusters"
+                         Icon="fas fa-diagram-project"
+                         Title="Supervisory Clusters"
+                         Description="Configure supervisory clusters, Cluster Heads and Directorate allocations." />
+</div>
 
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <WorkspaceActionCard Href="/admin/department-setup"
-                                             Icon="fas fa-sitemap"
-                                             Title="Department Setup"
-                                             Description="Create and manage departments and units." />
-                    </div>
+<div class="col-12 col-md-6 col-xl-4">
+    <WorkspaceActionCard Href="/admin/department-setup"
+                         Icon="fas fa-sitemap"
+                         Title="Department Setup"
+                         Description="Create and manage departments and units." />
+</div>
 
                     <div class="col-12 col-md-6 col-xl-4">
                         <WorkspaceActionCard Href="/admin/role-setup"
@@ -122,7 +136,76 @@ else
                                              Title="Prayer Focus"
                                              Description="Create and manage prayer focus content." />
                     </div>
+                    <div class="col-12 col-md-6 col-xl-4">
+    <WorkspaceActionCard Href="/admin/worker-attendance-settings"
+                         Icon="fas fa-map-marker-alt"
+                         Title="Worker Attendance Setup"
+                         Description="Configure the authorised location and GPS radius for worker attendance." />
+</div>
+<div class="col-12 col-md-6 col-xl-4">
+    <WorkspaceActionCard Href="/admin/services"
+                         Icon="fas fa-calendar-alt"
+                         Title="Service Management"
+                         Description="Create and manage church services, schedules and worker attendance windows." />
+</div>
+<div class="col-12 col-md-6 col-xl-4">
+    <WorkspaceActionCard Href="/worker-attendance"
+                         Icon="fas fa-user-check"
+                         Title="Worker Attendance"
+                         Description="Open the worker attendance register to test sign-in, sign-out and location validation." />
+</div>
+                    }
+                    @if (CanAccessFinanceSetup())
+                    {
+                        <div class="col-12">
+                            <div class="workspace-section-divider">
+                                <span>
+                                    <i class="fas fa-coins me-2"></i>
+                                    Finance Configuration
+                                </span>
+                            </div>
+                        </div>
+                    }
 
+                    @if (CanManageBankAccounts())
+                    {
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <WorkspaceActionCard Href="/finance/bank-accounts"
+                                                 Icon="fas fa-university"
+                                                 Title="Bank Account Setup"
+                                                 Description="Configure church bank accounts and their permitted uses." />
+                        </div>
+                    }
+
+                    @if (CanManageIncomeCategories())
+                    {
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <WorkspaceActionCard Href="/finance/income-categories"
+                                                 Icon="fas fa-tags"
+                                                 Title="Income Category Setup"
+                                                 Description="Create broad categories for church income." />
+                        </div>
+                    }
+
+                    @if (CanManageIncomeTypes())
+                    {
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <WorkspaceActionCard Href="/finance/income-types"
+                                                 Icon="fas fa-list-alt"
+                                                 Title="Income Type Setup"
+                                                 Description="Define specific income types and their default bank accounts." />
+                        </div>
+                    }
+
+                    @if (CanManageRemittanceRules())
+                    {
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <WorkspaceActionCard Href="/finance/remittance-rules"
+                                                 Icon="fas fa-percentage"
+                                                 Title="Remittance Rule Setup"
+                                                 Description="Configure effective remittance percentages and rules." />
+                        </div>
+                    }
                 </div>
             </div>
         </div>
@@ -136,7 +219,8 @@ else
             AuthService.IsAuthenticated &&
             (
                 AuthService.IsInRole("Church Admin") ||
-                AuthService.IsInRole("Pastor in Charge")
+                AuthService.IsInRole("Pastor in Charge") ||
+                 CanAccessFinanceSetup()
             );
     }
 
@@ -144,6 +228,52 @@ else
     {
         Navigation.NavigateTo("/");
     }
+    private bool CanAccessFinanceSetup()
+    {
+        return
+            CanManageBankAccounts() ||
+            CanManageIncomeCategories() ||
+            CanManageIncomeTypes() ||
+            CanManageRemittanceRules();
+    }
+
+    private bool CanManageBankAccounts()
+    {
+        return
+            AuthService.IsInRole("Church Admin") ||
+            AuthService.IsInRole("Pastor in Charge") ||
+            AuthService.IsInRole("Finance Head");
+    }
+
+    private bool CanManageIncomeCategories()
+    {
+        return
+            AuthService.IsInRole("Church Admin") ||
+            AuthService.IsInRole("Pastor in Charge") ||
+            AuthService.IsInRole("Finance Head");
+    }
+
+    private bool CanManageIncomeTypes()
+    {
+        return
+            AuthService.IsInRole("Church Admin") ||
+            AuthService.IsInRole("Pastor in Charge") ||
+            AuthService.IsInRole("Finance Head");
+    }
+
+    private bool CanManageRemittanceRules()
+    {
+        return
+            AuthService.IsInRole("Church Admin") ||
+            AuthService.IsInRole("Pastor in Charge") ||
+            AuthService.IsInRole("Finance Head");
+    }
+    private bool CanManageOrganisationSetup()
+{
+    return
+        AuthService.IsInRole("Church Admin") ||
+        AuthService.IsInRole("Pastor in Charge");
+}
 }
 
 <style>

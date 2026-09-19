@@ -1,0 +1,435 @@
+﻿@page "/admin/worker-attendance-settings"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using Microsoft.EntityFrameworkCore
+
+@inject ChurchApp.Data.AppDbContext DbContext
+@inject ChurchApp.Services.AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Worker Attendance Setup - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to log in to access Worker Attendance Setup.</p>
+
+        <a href="/login" class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (!CanManageSettings())
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>You do not have permission to manage worker attendance settings.</p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to System Setup
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page setup-workspace-page">
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-map-marker-alt me-2"></i>
+                    Worker Attendance
+                </div>
+
+                <div class="bcc-page-title">
+                    Attendance Location Setup
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Configure the authorised church location,
+                    attendance radius and GPS accuracy requirement.
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-2"></i>
+                System Setup
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        <div class="bcc-card setup-workspace-card">
+            <div class="bcc-card-body p-3">
+
+                <div class="workspace-heading">
+                    <h6>Authorised Attendance Location</h6>
+
+                    <p>
+                        Workers must be within the configured attendance
+                        radius and provide an acceptable GPS reading before
+                        clock-in or clock-out is accepted.
+                    </p>
+                </div>
+
+                <EditForm Model="@settings"
+                          OnValidSubmit="@SaveSettings">
+
+                    <DataAnnotationsValidator />
+
+                    <div class="row g-3">
+
+                        <div class="col-12">
+                            <label class="form-label">
+                                Location Name
+                            </label>
+
+                            <InputText class="form-control"
+                                       @bind-Value="settings.LocationName" />
+
+                            <ValidationMessage For="@(() => settings.LocationName)" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">
+                                Latitude
+                            </label>
+
+                            <InputNumber TValue="double"
+                                         class="form-control"
+                                         @bind-Value="settings.Latitude"
+                                         step="any" />
+
+                            <small class="text-muted">
+                                Latitude of the authorised attendance location.
+                            </small>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">
+                                Longitude
+                            </label>
+
+                            <InputNumber TValue="double"
+                                         class="form-control"
+                                         @bind-Value="settings.Longitude"
+                                         step="any" />
+
+                            <small class="text-muted">
+                                Longitude of the authorised attendance location.
+                            </small>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">
+                                Allowed Attendance Radius
+                            </label>
+
+                            <div class="input-group">
+
+                                <InputNumber TValue="double"
+                                             class="form-control"
+                                             @bind-Value="settings.AllowedRadiusMetres" />
+
+                                <span class="input-group-text">
+                                    metres
+                                </span>
+
+                            </div>
+
+                            <small class="text-muted">
+                                Maximum distance a worker may be from
+                                the authorised attendance point.
+                            </small>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">
+                                Maximum GPS Accuracy
+                            </label>
+
+                            <div class="input-group">
+
+                                <InputNumber TValue="double"
+                                             class="form-control"
+                                             @bind-Value="settings.MaximumGpsAccuracyMetres" />
+
+                                <span class="input-group-text">
+                                    metres
+                                </span>
+
+                            </div>
+
+                            <small class="text-muted">
+                                GPS readings with an accuracy worse than
+                                this value will not be accepted.
+                            </small>
+                        </div>
+
+                        <div class="col-12 col-md-6 d-flex align-items-end">
+                            <div class="form-check mb-2">
+
+                                <InputCheckbox class="form-check-input"
+                                               @bind-Value="settings.IsActive" />
+
+                                <label class="form-check-label">
+                                    Active attendance location
+                                </label>
+
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="mt-4 d-flex gap-2">
+
+                        <button type="submit"
+                                class="bcc-btn bcc-btn-primary"
+                                disabled="@isSaving">
+
+                            @if (isSaving)
+                            {
+                                <span>
+                                    <i class="fas fa-spinner fa-spin me-2"></i>
+                                    Saving...
+                                </span>
+                            }
+                            else
+                            {
+                                <span>
+                                    <i class="fas fa-save me-2"></i>
+                                    Save Settings
+                                </span>
+                            }
+
+                        </button>
+
+                        <button type="button"
+                                class="bcc-btn profile-form-secondary-btn"
+                                @onclick="GoBack">
+                            Cancel
+                        </button>
+
+                    </div>
+
+                </EditForm>
+
+            </div>
+        </div>
+
+    </div>
+}
+
+@code {
+
+    private ChurchApp.Models.WorkerAttendanceSettings settings =
+        new ChurchApp.Models.WorkerAttendanceSettings();
+
+    private bool isSaving;
+
+    private string? successMessage;
+
+    private string? errorMessage;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated ||
+            !CanManageSettings())
+        {
+            return;
+        }
+
+        var existing =
+            await DbContext.WorkerAttendanceSettings
+                .FirstOrDefaultAsync();
+
+        if (existing != null)
+        {
+            settings = existing;
+        }
+        else
+        {
+            settings =
+                new ChurchApp.Models.WorkerAttendanceSettings
+                {
+                    LocationName = "BCC Church",
+                    AllowedRadiusMetres = 40,
+                    MaximumGpsAccuracyMetres = 150,
+                    IsActive = true
+                };
+        }
+    }
+
+
+    private async Task SaveSettings()
+    {
+        successMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            isSaving = true;
+
+            if (string.IsNullOrWhiteSpace(
+                    settings.LocationName))
+            {
+                errorMessage =
+                    "Please enter the location name.";
+
+                return;
+            }
+
+            if (settings.Latitude == 0 ||
+                settings.Longitude == 0)
+            {
+                errorMessage =
+                    "Please enter valid latitude and longitude.";
+
+                return;
+            }
+
+            if (settings.AllowedRadiusMetres <= 0)
+            {
+                errorMessage =
+                    "Allowed attendance radius must be greater than zero.";
+
+                return;
+            }
+
+            if (settings.MaximumGpsAccuracyMetres <= 0)
+            {
+                errorMessage =
+                    "Maximum GPS accuracy must be greater than zero.";
+
+                return;
+            }
+
+            var existing =
+                await DbContext.WorkerAttendanceSettings
+                    .FirstOrDefaultAsync();
+
+            if (existing == null)
+            {
+                settings.LocationName =
+                    settings.LocationName.Trim();
+
+                settings.CreatedDate =
+                    DateTime.UtcNow;
+
+                DbContext.WorkerAttendanceSettings
+                    .Add(settings);
+            }
+            else
+            {
+                existing.LocationName =
+                    settings.LocationName.Trim();
+
+                existing.Latitude =
+                    settings.Latitude;
+
+                existing.Longitude =
+                    settings.Longitude;
+
+                existing.AllowedRadiusMetres =
+                    settings.AllowedRadiusMetres;
+
+                existing.MaximumGpsAccuracyMetres =
+                    settings.MaximumGpsAccuracyMetres;
+
+                existing.IsActive =
+                    settings.IsActive;
+
+                existing.LastUpdated =
+                    DateTime.UtcNow;
+            }
+
+            await DbContext.SaveChangesAsync();
+
+            successMessage =
+                "Worker attendance settings saved successfully.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to save settings: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+
+    private bool CanManageSettings()
+    {
+        return
+            AuthService.IsInRole("Church Admin") ||
+            AuthService.IsInRole("Pastor in Charge");
+    }
+
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/workspace/setup");
+    }
+}
+
+<style>
+
+    .setup-workspace-page {
+        max-width: 1300px;
+        margin: 0 auto;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .setup-workspace-card {
+        overflow: hidden;
+        border-top: 4px solid #7c3aed;
+    }
+
+    .workspace-heading {
+        margin-bottom: 18px;
+    }
+
+        .workspace-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.86rem;
+            font-weight: 800;
+        }
+
+        .workspace-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.67rem;
+        }
+
+</style>

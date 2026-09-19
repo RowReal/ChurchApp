@@ -16,11 +16,7 @@
         <i class="fas fa-lock"></i>
         <h4>Please Log In</h4>
         <p>You need to be logged in to access Service Management.</p>
-
-        <a href="/login"
-           class="bcc-btn bcc-btn-primary">
-            Go to Login
-        </a>
+        <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
     </div>
 }
 else if (!isAuthorized)
@@ -28,23 +24,15 @@ else if (!isAuthorized)
     <div class="bcc-empty">
         <i class="fas fa-ban"></i>
         <h4>Access Denied</h4>
-        <p>
-            Service Management is available to authorised church leadership
-            and administrators.
-        </p>
-
-        <a href="/"
-           class="bcc-btn bcc-btn-primary">
-            Return to Dashboard
-        </a>
+        <p>Service Management is available to authorised church leadership and administrators.</p>
+        <a href="/" class="bcc-btn bcc-btn-primary">Return to Dashboard</a>
     </div>
 }
 else
 {
     <div class="worker360-page service-management-page">
 
-        @if (!string.IsNullOrWhiteSpace(errorMessage) &&
-             !showServiceModal)
+        @if (!string.IsNullOrWhiteSpace(errorMessage) && !showServiceModal)
         {
             <div class="alert alert-danger py-2">
                 <i class="fas fa-exclamation-circle me-2"></i>
@@ -58,17 +46,13 @@ else
                     <i class="fas fa-calendar-check me-2"></i>
                     Worker Management
                 </div>
-
-                <div class="bcc-page-title">
-                    Service Management
-                </div>
-
+                <div class="bcc-page-title">Service Management</div>
                 <div class="bcc-page-subtitle">
-                    Create, schedule and manage church services.
+                    Create and manage church services, schedules and worker attendance windows.
                 </div>
             </div>
 
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 flex-wrap">
                 <button type="button"
                         class="bcc-btn profile-form-secondary-btn compact-btn"
                         @onclick="GoBack">
@@ -86,15 +70,12 @@ else
         </div>
 
         <div class="row g-3 align-items-start">
-
             <div class="col-12 col-xl-4">
                 <div class="bcc-card service-filter-card">
-
                     <div class="service-panel-header">
                         <div class="service-panel-icon">
                             <i class="fas fa-filter"></i>
                         </div>
-
                         <div>
                             <h6>Service Filters</h6>
                             <p>Summary and search controls.</p>
@@ -102,46 +83,28 @@ else
                     </div>
 
                     <div class="bcc-card-body p-3">
-
                         <div class="service-summary-grid mb-3">
-
                             <div>
                                 <span>Total</span>
                                 <strong>@allServices.Count</strong>
                             </div>
-
                             <div class="active">
                                 <span>Active</span>
                                 <strong>@allServices.Count(x => x.IsActive)</strong>
                             </div>
-
-                            <div class="inactive">
-                                <span>Inactive</span>
-                                <strong>@allServices.Count(x => !x.IsActive)</strong>
+                            <div class="attendance">
+                                <span>Attendance</span>
+                                <strong>@allServices.Count(x => x.EnableWorkerAttendance)</strong>
                             </div>
-
                             <div class="result">
                                 <span>Filtered</span>
                                 <strong>@filteredServices.Count</strong>
                             </div>
-
-                        </div>
-
-                        <div class="service-filter-tip">
-                            <i class="fas fa-lightbulb"></i>
-
-                            <span>
-                                Filter services by status and recurrence pattern.
-                            </span>
                         </div>
 
                         <div class="row g-2">
-
-                            <div class="col-12">
-                                <label class="form-label compact-label">
-                                    Status
-                                </label>
-
+                            <div class="col-12 col-md-6 col-xl-12">
+                                <label class="form-label compact-label">Status</label>
                                 <select value="@selectedStatusFilter"
                                         @onchange='@(e => OnFilterChanged(e, "status"))'
                                         class="form-select form-select-sm">
@@ -151,11 +114,8 @@ else
                                 </select>
                             </div>
 
-                            <div class="col-12">
-                                <label class="form-label compact-label">
-                                    Recurrence
-                                </label>
-
+                            <div class="col-12 col-md-6 col-xl-12">
+                                <label class="form-label compact-label">Recurrence</label>
                                 <select value="@selectedRecurrenceFilter"
                                         @onchange='@(e => OnFilterChanged(e, "recurrence"))'
                                         class="form-select form-select-sm">
@@ -165,7 +125,6 @@ else
                                     <option value="OneTime">One Time</option>
                                 </select>
                             </div>
-
                         </div>
 
                         <div class="mt-3 d-flex justify-content-end gap-2">
@@ -175,7 +134,6 @@ else
                                 <i class="fas fa-rotate-left me-1"></i>
                                 Reset
                             </button>
-
                             <button type="button"
                                     class="bcc-btn bcc-btn-primary compact-btn"
                                     @onclick="ShowAddServiceModal">
@@ -183,43 +141,31 @@ else
                                 Add
                             </button>
                         </div>
-
                     </div>
                 </div>
             </div>
 
             <div class="col-12 col-xl-8">
                 <div class="bcc-card service-list-card">
-
                     <div class="service-list-header">
                         <div>
                             <h6>
                                 <i class="fas fa-list me-2"></i>
                                 Service Register
                             </h6>
-
-                            <p>
-                                @filteredServices.Count service(s) match the current filters.
-                            </p>
+                            <p>@filteredServices.Count service(s) match the current filters.</p>
                         </div>
-
-                        <span class="service-result-count">
-                            @filteredServices.Count
-                        </span>
+                        <span class="service-result-count">@filteredServices.Count</span>
                     </div>
 
                     <div class="bcc-card-body p-0">
-
                         @if (filteredServices.Any())
                         {
                             <div class="service-list">
-
                                 @foreach (var service in filteredServices)
                                 {
                                     <div class="service-row @(service.IsActive ? "" : "inactive-row")">
-
                                         <div class="service-row-main">
-
                                             <div class="service-row-icon">
                                                 <i class="fas fa-calendar-day"></i>
                                             </div>
@@ -227,10 +173,15 @@ else
                                             <div class="service-row-content">
                                                 <div class="service-row-title">
                                                     <strong>@service.Name</strong>
+                                                    <span class="service-type-badge">@service.RecurrencePattern</span>
 
-                                                    <span class="service-type-badge">
-                                                        @service.RecurrencePattern
-                                                    </span>
+                                                    @if (service.EnableWorkerAttendance)
+                                                    {
+                                                        <span class="attendance-badge">
+                                                            <i class="fas fa-location-dot"></i>
+                                                            Worker Attendance
+                                                        </span>
+                                                    }
                                                 </div>
 
                                                 @if (!string.IsNullOrWhiteSpace(service.Description))
@@ -243,27 +194,25 @@ else
                                                         <i class="fas fa-calendar"></i>
                                                         @GetServiceScheduleDisplay(service)
                                                     </span>
-
                                                     <span>
                                                         <i class="fas fa-clock"></i>
                                                         @GetServiceTimeDisplay(service)
                                                     </span>
+                                                    @if (service.EnableWorkerAttendance)
+                                                    {
+                                                        <span>
+                                                            <i class="fas fa-right-to-bracket"></i>
+                                                            Opens @service.AttendanceOpenMinutesBefore min before
+                                                        </span>
+                                                    }
                                                 </div>
                                             </div>
-
                                         </div>
 
                                         <div class="service-row-side">
-
-                                            <span class="service-status-badge
-                                                @(service.IsActive ? "active" : "inactive")">
-                                                <i class="fas @(service.IsActive
-                                                    ? "fa-circle-check"
-                                                    : "fa-circle-pause")"></i>
-
-                                                @(service.IsActive
-                                                    ? "Active"
-                                                    : "Inactive")
+                                            <span class="service-status-badge @(service.IsActive ? "active" : "inactive")">
+                                                <i class="fas @(service.IsActive ? "fa-circle-check" : "fa-circle-pause")"></i>
+                                                @(service.IsActive ? "Active" : "Inactive")
                                             </span>
 
                                             <div class="service-row-actions">
@@ -293,12 +242,9 @@ else
                                                     </button>
                                                 }
                                             </div>
-
                                         </div>
-
                                     </div>
                                 }
-
                             </div>
                         }
                         else
@@ -307,7 +253,6 @@ else
                                 <i class="fas fa-calendar-xmark"></i>
                                 <h4>No Services Found</h4>
                                 <p>No service matches the current filters.</p>
-
                                 <button type="button"
                                         class="bcc-btn bcc-btn-primary compact-btn"
                                         @onclick="ResetFilters">
@@ -315,144 +260,195 @@ else
                                 </button>
                             </div>
                         }
-
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 }
 
 @if (showServiceModal)
 {
-    <div class="service-modal-backdrop"
-         @onclick="CloseServiceModal">
-
-        <div class="service-modal-card"
-             @onclick:stopPropagation="true">
+    <div class="service-modal-backdrop" @onclick="CloseServiceModal">
+        <div class="service-modal-card" @onclick:stopPropagation="true">
 
             <div class="service-modal-header">
                 <div>
-                    <h4>
-                        @(editingService
-                            ? "Edit Service"
-                            : "Add Service")
-                    </h4>
-
-                    <p>
-                        Configure the service schedule and status.
-                    </p>
+                    <div class="modal-eyebrow">
+                        <i class="fas fa-calendar-check me-2"></i>
+                        Service Configuration
+                    </div>
+                    <h4>@(editingService ? "Edit Service" : "Add Service")</h4>
+                    <p>Configure the service, schedule and worker attendance options.</p>
                 </div>
 
                 <button type="button"
                         class="btn-close"
+                        aria-label="Close"
                         @onclick="CloseServiceModal">
                 </button>
             </div>
 
-            <EditForm Model="@serviceModel"
-                      OnValidSubmit="@SaveService">
-
+            <EditForm Model="@serviceModel" OnValidSubmit="@SaveService">
                 <DataAnnotationsValidator />
 
                 <div class="service-modal-body">
 
-                    <div class="row g-2">
-
-                        <div class="col-12 col-md-7">
-                            <label class="form-label compact-label">
-                                Service Name
-                                <span class="text-danger">*</span>
-                            </label>
-
-                            <InputText @bind-Value="serviceModel.Name"
-                                       class="form-control form-control-sm"
-                                       placeholder="e.g. Sunday Service" />
-
-                            <ValidationMessage For="@(() => serviceModel.Name)"
-                                               class="text-danger small" />
+                    <div class="form-section">
+                        <div class="form-section-heading">
+                            <div class="form-section-icon">
+                                <i class="fas fa-circle-info"></i>
+                            </div>
+                            <div>
+                                <h6>Service Information</h6>
+                                <p>Basic information that identifies the service.</p>
+                            </div>
                         </div>
 
-                        <div class="col-12 col-md-5">
-                            <label class="form-label compact-label">
-                                Recurrence Pattern
-                                <span class="text-danger">*</span>
-                            </label>
-
-                            <InputSelect @bind-Value="serviceModel.RecurrencePattern"
-                                         class="form-select form-select-sm">
-                                <option value="OneTime">One Time</option>
-                                <option value="Weekly">Weekly</option>
-                                <option value="Monthly">Monthly</option>
-                            </InputSelect>
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label compact-label">
-                                Description
-                            </label>
-
-                            <InputTextArea @bind-Value="serviceModel.Description"
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label compact-label">
+                                    Service Name <span class="text-danger">*</span>
+                                </label>
+                                <InputText @bind-Value="serviceModel.Name"
                                            class="form-control form-control-sm"
-                                           rows="2"
-                                           placeholder="Brief description of the service" />
-                        </div>
+                                           placeholder="e.g. Sunday Service" />
+                                <ValidationMessage For="@(() => serviceModel.Name)"
+                                                   class="text-danger small" />
+                            </div>
 
+                            <div class="col-12 col-md-6">
+                                <label class="form-label compact-label">
+                                    Recurrence Pattern <span class="text-danger">*</span>
+                                </label>
+                                <InputSelect @bind-Value="serviceModel.RecurrencePattern"
+                                             class="form-select form-select-sm">
+                                    <option value="OneTime">One Time</option>
+                                    <option value="Weekly">Weekly</option>
+                                    <option value="Monthly">Monthly</option>
+                                </InputSelect>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label compact-label">Description</label>
+                                <InputTextArea @bind-Value="serviceModel.Description"
+                                               class="form-control form-control-sm"
+                                               rows="2"
+                                               placeholder="Brief description of the service" />
+                            </div>
+                        </div>
                     </div>
 
-                    @if (serviceModel.RecurrencePattern == "OneTime")
-                    {
-                        <div class="service-schedule-box mt-3">
+                    <div class="form-section">
+                        <div class="form-section-heading">
+                            <div class="form-section-icon schedule">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div>
+                                <h6>Service Schedule</h6>
+                                <p>Define when this service takes place.</p>
+                            </div>
+                        </div>
 
-                            <div class="row g-2">
-
+                        @if (serviceModel.RecurrencePattern == "OneTime")
+                        {
+                            <div class="row g-3">
                                 <div class="col-12 col-md-6">
                                     <label class="form-label compact-label">
-                                        Service Date
-                                        <span class="text-danger">*</span>
+                                        Service Date <span class="text-danger">*</span>
                                     </label>
-
                                     <InputDate @bind-Value="serviceModel.SpecificDate"
                                                class="form-control form-control-sm" />
                                 </div>
 
-                                <div class="col-6 col-md-3">
-                                    <label class="form-label compact-label">
-                                        Start Time
-                                    </label>
+                                <div class="col-12 col-md-6"></div>
 
-                                    <InputText @bind-Value="specificStartTimeString"
-                                               class="form-control form-control-sm"
-                                               type="time" />
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label compact-label">Start Time</label>
+                                    <div class="time-picker-12h">
+                                        <select class="form-select form-select-sm" @bind="specificStartHour">
+                                            @foreach (var hour in Hours12)
+                                            {
+                                                <option value="@hour">@hour.ToString("00")</option>
+                                            }
+                                        </select>
+                                        <span class="time-separator">:</span>
+                                        <select class="form-select form-select-sm" @bind="specificStartMinute">
+                                            @foreach (var minute in Minutes)
+                                            {
+                                                <option value="@minute">@minute.ToString("00")</option>
+                                            }
+                                        </select>
+                                        <select class="form-select form-select-sm period-select" @bind="specificStartPeriod">
+                                            <option value="AM">AM</option>
+                                            <option value="PM">PM</option>
+                                        </select>
+                                    </div>
                                 </div>
 
-                                <div class="col-6 col-md-3">
-                                    <label class="form-label compact-label">
-                                        End Time
-                                    </label>
-
-                                    <InputText @bind-Value="specificEndTimeString"
-                                               class="form-control form-control-sm"
-                                               type="time" />
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label compact-label">End Time</label>
+                                    <div class="time-picker-12h">
+                                        <select class="form-select form-select-sm" @bind="specificEndHour">
+                                            @foreach (var hour in Hours12)
+                                            {
+                                                <option value="@hour">@hour.ToString("00")</option>
+                                            }
+                                        </select>
+                                        <span class="time-separator">:</span>
+                                        <select class="form-select form-select-sm" @bind="specificEndMinute">
+                                            @foreach (var minute in Minutes)
+                                            {
+                                                <option value="@minute">@minute.ToString("00")</option>
+                                            }
+                                        </select>
+                                        <select class="form-select form-select-sm period-select" @bind="specificEndPeriod">
+                                            <option value="AM">AM</option>
+                                            <option value="PM">PM</option>
+                                        </select>
+                                    </div>
                                 </div>
-
                             </div>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="service-schedule-box mt-3">
-
-                            <div class="row g-2">
-
+                        }
+                        else
+                        {
+                            <div class="row g-3">
                                 @if (serviceModel.RecurrencePattern == "Weekly")
                                 {
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label compact-label">
-                                            Day of Week
-                                        </label>
+                                        <label class="form-label compact-label">Day of Week</label>
+                                        <InputSelect @bind-Value="dayOfWeekString"
+                                                     class="form-select form-select-sm">
+                                            <option value="0">Sunday</option>
+                                            <option value="1">Monday</option>
+                                            <option value="2">Tuesday</option>
+                                            <option value="3">Wednesday</option>
+                                            <option value="4">Thursday</option>
+                                            <option value="5">Friday</option>
+                                            <option value="6">Saturday</option>
+                                        </InputSelect>
+                                    </div>
+                                    <div class="col-12 col-md-6"></div>
+                                }
 
+                              @if (serviceModel.RecurrencePattern == "Monthly")
+{
+    <div class="col-12 col-md-6">
+        <label class="form-label compact-label">Week of Month</label>
+        <InputSelect TValue="int?"
+                     @bind-Value="serviceModel.WeekOfMonth"
+                     class="form-select form-select-sm">
+            <option value="">-- Select Week --</option>
+            <option value="1">First Week</option>
+            <option value="2">Second Week</option>
+            <option value="3">Third Week</option>
+            <option value="4">Fourth Week</option>
+            <option value="5">Last Week</option>
+        </InputSelect>
+    </div>
+
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">Day of Week</label>
                                         <InputSelect @bind-Value="dayOfWeekString"
                                                      class="form-select form-select-sm">
                                             <option value="0">Sunday</option>
@@ -466,87 +462,323 @@ else
                                     </div>
                                 }
 
-                                @if (serviceModel.RecurrencePattern == "Monthly")
-                                {
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label compact-label">
-                                            Week of Month
-                                        </label>
-
-                                        <InputSelect @bind-Value="serviceModel.WeekOfMonth"
-                                                     class="form-select form-select-sm">
-                                            <option value="1">First Week</option>
-                                            <option value="2">Second Week</option>
-                                            <option value="3">Third Week</option>
-                                            <option value="4">Fourth Week</option>
-                                            <option value="5">Last Week</option>
-                                        </InputSelect>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label compact-label">Start Time</label>
+                                    <div class="time-picker-12h">
+                                        <select class="form-select form-select-sm" @bind="startHour">
+                                            @foreach (var hour in Hours12)
+                                            {
+                                                <option value="@hour">@hour.ToString("00")</option>
+                                            }
+                                        </select>
+                                        <span class="time-separator">:</span>
+                                        <select class="form-select form-select-sm" @bind="startMinute">
+                                            @foreach (var minute in Minutes)
+                                            {
+                                                <option value="@minute">@minute.ToString("00")</option>
+                                            }
+                                        </select>
+                                        <select class="form-select form-select-sm period-select" @bind="startPeriod">
+                                            <option value="AM">AM</option>
+                                            <option value="PM">PM</option>
+                                        </select>
                                     </div>
-
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label compact-label">
-                                            Day of Week
-                                        </label>
-
-                                        <InputSelect @bind-Value="dayOfWeekString"
-                                                     class="form-select form-select-sm">
-                                            <option value="0">Sunday</option>
-                                            <option value="1">Monday</option>
-                                            <option value="2">Tuesday</option>
-                                            <option value="3">Wednesday</option>
-                                            <option value="4">Thursday</option>
-                                            <option value="5">Friday</option>
-                                            <option value="6">Saturday</option>
-                                        </InputSelect>
-                                    </div>
-                                }
-
-                                <div class="col-6 col-md-3">
-                                    <label class="form-label compact-label">
-                                        Start Time
-                                    </label>
-
-                                    <InputText @bind-Value="startTimeString"
-                                               class="form-control form-control-sm"
-                                               type="time" />
                                 </div>
 
-                                <div class="col-6 col-md-3">
-                                    <label class="form-label compact-label">
-                                        End Time
-                                    </label>
-
-                                    <InputText @bind-Value="endTimeString"
-                                               class="form-control form-control-sm"
-                                               type="time" />
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label compact-label">End Time</label>
+                                    <div class="time-picker-12h">
+                                        <select class="form-select form-select-sm" @bind="endHour">
+                                            @foreach (var hour in Hours12)
+                                            {
+                                                <option value="@hour">@hour.ToString("00")</option>
+                                            }
+                                        </select>
+                                        <span class="time-separator">:</span>
+                                        <select class="form-select form-select-sm" @bind="endMinute">
+                                            @foreach (var minute in Minutes)
+                                            {
+                                                <option value="@minute">@minute.ToString("00")</option>
+                                            }
+                                        </select>
+                                        <select class="form-select form-select-sm period-select" @bind="endPeriod">
+                                            <option value="AM">AM</option>
+                                            <option value="PM">PM</option>
+                                        </select>
+                                    </div>
                                 </div>
+                            </div>
+                        }
+                    </div>
 
+                    <div class="form-section">
+                        <div class="form-section-heading">
+                            <div class="form-section-icon attendance">
+                                <i class="fas fa-location-dot"></i>
+                            </div>
+                            <div>
+                                <h6>Worker Attendance</h6>
+                                <p>Configure attendance availability, clocking windows and monthly attendance scoring.</p>
                             </div>
                         </div>
-                    }
 
-                    <div class="service-active-switch mt-3">
-                        <div>
-                            <strong>Active Service</strong>
-                            <span>
-                                Active services are available throughout the application.
-                            </span>
+                        <div class="option-card mb-3">
+                            <div>
+                                <strong>Enable Worker Attendance</strong>
+                                <span>Workers will be able to select this service when attendance is open.</span>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <InputCheckbox @bind-Value="serviceModel.EnableWorkerAttendance"
+                                               class="form-check-input" />
+                            </div>
                         </div>
 
-                        <div class="form-check form-switch">
-                            <InputCheckbox @bind-Value="serviceModel.IsActive"
-                                           class="form-check-input" />
+                        @if (serviceModel.EnableWorkerAttendance)
+                        {
+                            <div class="attendance-settings-box mb-3">
+                                <div class="attendance-subheading">
+                                    <i class="fas fa-clock me-2"></i>
+                                    Attendance Window
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">Clock-in Opens Before Service</label>
+                                        <div class="input-group input-group-sm">
+                                            <InputNumber TValue="int"
+                                                         @bind-Value="serviceModel.AttendanceOpenMinutesBefore"
+                                                         class="form-control" />
+                                            <span class="input-group-text">minutes</span>
+                                        </div>
+                                        <div class="field-help">How early workers may clock in.</div>
+                                    </div>
+
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">Clock-in Closes After Start</label>
+                                        <div class="input-group input-group-sm">
+                                            <InputNumber TValue="int"
+                                                         @bind-Value="serviceModel.AttendanceCloseMinutesAfterStart"
+                                                         class="form-control" />
+                                            <span class="input-group-text">minutes</span>
+                                        </div>
+                                        <div class="field-help">How long clock-in remains available after service starts.</div>
+                                    </div>
+
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">Clock-out Closes After Service</label>
+                                        <div class="input-group input-group-sm">
+                                            <InputNumber TValue="int"
+                                                         @bind-Value="serviceModel.ClockOutCloseMinutesAfterEnd"
+                                                         class="form-control" />
+                                            <span class="input-group-text">minutes</span>
+                                        </div>
+                                        <div class="field-help">How long workers may still clock out after the service ends.</div>
+                                    </div>
+
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">Monthly Weight</label>
+                                        <div class="input-group input-group-sm">
+                                            <InputNumber TValue="decimal"
+                                                         @bind-Value="serviceModel.AttendanceMonthlyWeight"
+                                                         class="form-control" />
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                        <div class="field-help">Sunday 40%, Midweek 20%, Communion 20%, Prayer Rain 20%.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="attendance-settings-box mb-3">
+                                <div class="attendance-subheading">
+                                    <i class="fas fa-star me-2"></i>
+                                    Attendance Points
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">Full / Intermediate / Late Score</label>
+                                        <div class="score-input-grid">
+                                            <div>
+                                                <InputNumber TValue="int" @bind-Value="serviceModel.AttendanceFullScore" class="form-control form-control-sm" />
+                                                <span>Full</span>
+                                            </div>
+                                            <div>
+                                                <InputNumber TValue="int" @bind-Value="serviceModel.AttendanceIntermediateScore" class="form-control form-control-sm" />
+                                                <span>Intermediate</span>
+                                            </div>
+                                            <div>
+                                                <InputNumber TValue="int" @bind-Value="serviceModel.AttendanceLateScore" class="form-control form-control-sm" />
+                                                <span>Late</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 col-md-6 d-flex align-items-end">
+                                        <div class="field-help scoring-help mb-1">
+                                            These are the raw points awarded from clock-in time. The normal values are 20, 10 and 2.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="attendance-settings-box mb-3">
+                                <div class="attendance-subheading">
+                                    <i class="fas fa-user-check me-2"></i>
+                                    Worker / General Timing
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">Full Score Cut-off</label>
+                                        <div class="time-picker-12h">
+                                            <select class="form-select form-select-sm" @bind="workerFullHour">
+                                                @foreach (var hour in Hours12)
+                                                {
+                                                    <option value="@hour">@hour.ToString("00")</option>
+                                                }
+                                            </select>
+                                            <span class="time-separator">:</span>
+                                            <select class="form-select form-select-sm" @bind="workerFullMinute">
+                                                @foreach (var minute in Minutes)
+                                                {
+                                                    <option value="@minute">@minute.ToString("00")</option>
+                                                }
+                                            </select>
+                                            <select class="form-select form-select-sm period-select" @bind="workerFullPeriod">
+                                                <option value="AM">AM</option>
+                                                <option value="PM">PM</option>
+                                            </select>
+                                        </div>
+                                        <div class="field-help">Arrival at or before this time receives the full score.</div>
+                                    </div>
+
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label compact-label">Intermediate Score Cut-off</label>
+                                        <div class="time-picker-12h">
+                                            <select class="form-select form-select-sm" @bind="workerIntermediateHour">
+                                                @foreach (var hour in Hours12)
+                                                {
+                                                    <option value="@hour">@hour.ToString("00")</option>
+                                                }
+                                            </select>
+                                            <span class="time-separator">:</span>
+                                            <select class="form-select form-select-sm" @bind="workerIntermediateMinute">
+                                                @foreach (var minute in Minutes)
+                                                {
+                                                    <option value="@minute">@minute.ToString("00")</option>
+                                                }
+                                            </select>
+                                            <select class="form-select form-select-sm period-select" @bind="workerIntermediatePeriod">
+                                                <option value="AM">AM</option>
+                                                <option value="PM">PM</option>
+                                            </select>
+                                        </div>
+                                        <div class="field-help">Arrival after this time receives the late score.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="option-card mb-3">
+                                <div>
+                                    <strong>Use Separate Leader Timing</strong>
+                                    <span>Enable this only where leaders have different attendance cut-off times.</span>
+                                </div>
+                                <div class="form-check form-switch m-0">
+                                    <InputCheckbox @bind-Value="serviceModel.UseSeparateLeaderScoring"
+                                                   class="form-check-input" />
+                                </div>
+                            </div>
+
+                            @if (serviceModel.UseSeparateLeaderScoring)
+                            {
+                                <div class="attendance-settings-box">
+                                    <div class="attendance-subheading">
+                                        <i class="fas fa-user-tie me-2"></i>
+                                        Leader Timing
+                                    </div>
+
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label compact-label">Full Score Cut-off</label>
+                                            <div class="time-picker-12h">
+                                                <select class="form-select form-select-sm" @bind="leaderFullHour">
+                                                    @foreach (var hour in Hours12)
+                                                    {
+                                                        <option value="@hour">@hour.ToString("00")</option>
+                                                    }
+                                                </select>
+                                                <span class="time-separator">:</span>
+                                                <select class="form-select form-select-sm" @bind="leaderFullMinute">
+                                                    @foreach (var minute in Minutes)
+                                                    {
+                                                        <option value="@minute">@minute.ToString("00")</option>
+                                                    }
+                                                </select>
+                                                <select class="form-select form-select-sm period-select" @bind="leaderFullPeriod">
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label compact-label">Intermediate Score Cut-off</label>
+                                            <div class="time-picker-12h">
+                                                <select class="form-select form-select-sm" @bind="leaderIntermediateHour">
+                                                    @foreach (var hour in Hours12)
+                                                    {
+                                                        <option value="@hour">@hour.ToString("00")</option>
+                                                    }
+                                                </select>
+                                                <span class="time-separator">:</span>
+                                                <select class="form-select form-select-sm" @bind="leaderIntermediateMinute">
+                                                    @foreach (var minute in Minutes)
+                                                    {
+                                                        <option value="@minute">@minute.ToString("00")</option>
+                                                    }
+                                                </select>
+                                                <select class="form-select form-select-sm period-select" @bind="leaderIntermediatePeriod">
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    <div class="form-section mb-0">
+                        <div class="form-section-heading">
+                            <div class="form-section-icon status">
+                                <i class="fas fa-toggle-on"></i>
+                            </div>
+                            <div>
+                                <h6>Service Status</h6>
+                                <p>Control whether this service is available throughout the application.</p>
+                            </div>
+                        </div>
+
+                        <div class="option-card">
+                            <div>
+                                <strong>Active Service</strong>
+                                <span>Inactive services remain in the register but are not available for normal use.</span>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <InputCheckbox @bind-Value="serviceModel.IsActive"
+                                               class="form-check-input" />
+                            </div>
                         </div>
                     </div>
 
                     @if (!string.IsNullOrWhiteSpace(errorMessage))
                     {
-                        <div class="alert alert-danger py-2 mt-3">
+                        <div class="alert alert-danger py-2 mt-3 mb-0">
                             <i class="fas fa-exclamation-circle me-2"></i>
                             @errorMessage
                         </div>
                     }
-
                 </div>
 
                 <div class="service-modal-footer">
@@ -560,7 +792,6 @@ else
                     <button type="submit"
                             class="bcc-btn bcc-btn-primary compact-btn"
                             disabled="@isLoading">
-
                         @if (isLoading)
                         {
                             <span class="spinner-border spinner-border-sm me-2"></span>
@@ -569,55 +800,71 @@ else
                         else
                         {
                             <i class="fas fa-save me-2"></i>
-
-                            <span>
-                                @(editingService
-                                    ? "Update Service"
-                                    : "Create Service")
-                            </span>
+                            <span>@(editingService ? "Update Service" : "Create Service")</span>
                         }
-
                     </button>
                 </div>
-
             </EditForm>
-
         </div>
     </div>
 }
 
-
 @code {
     private List<Service> allServices = new();
     private List<Service> filteredServices = new();
-    private bool showServiceModal = false;
-    private bool editingService = false;
-    private bool isLoading = false;
+    private bool showServiceModal;
+    private bool editingService;
+    private bool isLoading;
     private ServiceModel serviceModel = new();
     private Service? currentService;
 
-    // Filter variables
     private string selectedStatusFilter = "all";
     private string selectedRecurrenceFilter = "all";
 
-    // Use separate string variables for form inputs
-    private string startTimeString = "09:00";
-    private string endTimeString = "10:00";
-    private string specificStartTimeString = "09:00";
-    private string specificEndTimeString = "10:00";
+    private readonly int[] Hours12 = Enumerable.Range(1, 12).ToArray();
+    private readonly int[] Minutes = Enumerable.Range(0, 60).ToArray();
+
+    private int startHour = 9;
+    private int startMinute = 0;
+    private string startPeriod = "AM";
+    private int endHour = 10;
+    private int endMinute = 0;
+    private string endPeriod = "AM";
+
+    private int specificStartHour = 9;
+    private int specificStartMinute = 0;
+    private string specificStartPeriod = "AM";
+    private int specificEndHour = 10;
+    private int specificEndMinute = 0;
+    private string specificEndPeriod = "AM";
     private string dayOfWeekString = "0";
+
+    // Worker attendance scoring time selectors
+    private int workerFullHour = 6;
+    private int workerFullMinute = 55;
+    private string workerFullPeriod = "AM";
+    private int workerIntermediateHour = 7;
+    private int workerIntermediateMinute = 30;
+    private string workerIntermediatePeriod = "AM";
+
+    private int leaderFullHour = 6;
+    private int leaderFullMinute = 45;
+    private string leaderFullPeriod = "AM";
+    private int leaderIntermediateHour = 7;
+    private int leaderIntermediateMinute = 0;
+    private string leaderIntermediatePeriod = "AM";
+
     private string errorMessage = string.Empty;
-    private bool isAuthorized = false;
+    private bool isAuthorized;
 
     protected override async Task OnInitializedAsync()
     {
-        // Check authorization
         if (!IsUserAuthorizedForServiceManagement())
         {
             isAuthorized = false;
             return;
         }
-        
+
         isAuthorized = true;
         await LoadServices();
     }
@@ -627,10 +874,9 @@ else
         if (!AuthService.IsAuthenticated || AuthService.CurrentWorker == null)
             return false;
 
-        var role = AuthService.CurrentWorker.Role?.ToLowerInvariant() ?? "";
-        
-        // Check specific roles that can manage services
-        if (role.Contains("church admin") || 
+        var role = AuthService.CurrentWorker.Role?.ToLowerInvariant() ?? string.Empty;
+
+        if (role.Contains("church admin") ||
             role.Contains("pastor in charge") ||
             role.Contains("head of service") ||
             role.Contains("assistant head of service") ||
@@ -638,12 +884,8 @@ else
         {
             return true;
         }
-        
-        // Also check the CanAccessAdminPanel property as fallback
-        if (AuthService.CurrentWorker.CanAccessAdminPanel)
-            return true;
-            
-        return false;
+
+        return AuthService.CurrentWorker.CanAccessAdminPanel;
     }
 
     private async Task LoadServices()
@@ -672,7 +914,6 @@ else
             filtered = filtered.Where(s => s.RecurrencePattern == selectedRecurrenceFilter);
 
         filteredServices = filtered.ToList();
-        StateHasChanged();
     }
 
     private void ResetFilters()
@@ -685,13 +926,10 @@ else
     private string GetServiceScheduleDisplay(Service service)
     {
         if (service.RecurrencePattern == "Weekly")
+            return $"Every {GetDayName(service.DayOfWeek)}";
+
+        if (service.RecurrencePattern == "Monthly")
         {
-            var dayName = GetDayName(service.DayOfWeek);
-            return $"Every {dayName}";
-        }
-        else if (service.RecurrencePattern == "Monthly")
-        {
-            var dayName = GetDayName(service.DayOfWeek);
             var weekDisplay = service.WeekOfMonth switch
             {
                 1 => "First",
@@ -701,12 +939,13 @@ else
                 5 => "Last",
                 _ => "Week " + service.WeekOfMonth
             };
-            return $"{weekDisplay} {dayName}";
+
+            return $"{weekDisplay} {GetDayName(service.DayOfWeek)}";
         }
-        else if (service.RecurrencePattern == "OneTime")
-        {
+
+        if (service.RecurrencePattern == "OneTime")
             return service.SpecificDate?.ToString("MMM dd, yyyy") ?? "One Time";
-        }
+
         return service.RecurrencePattern;
     }
 
@@ -730,23 +969,32 @@ else
         serviceModel = new ServiceModel
         {
             IsActive = true,
-            RecurrencePattern = "OneTime"
+            RecurrencePattern = "OneTime",
+            EnableWorkerAttendance = false,
+            AttendanceOpenMinutesBefore = 60,
+            AttendanceCloseMinutesAfterStart = 60,
+            ClockOutCloseMinutesAfterEnd = 60,
+            AttendanceMonthlyWeight = 0,
+            UseSeparateLeaderScoring = false,
+            AttendanceFullScore = 20,
+            AttendanceIntermediateScore = 10,
+            AttendanceLateScore = 2
         };
+
         editingService = false;
+        currentService = null;
         showServiceModal = true;
         errorMessage = string.Empty;
 
-        // Reset form values
-        startTimeString = "09:00";
-        endTimeString = "10:00";
-        specificStartTimeString = "09:00";
-        specificEndTimeString = "10:00";
+        SetDefaultTimeSelectors();
+        SetDefaultAttendanceScoringSelectors();
         dayOfWeekString = "0";
     }
 
     private void EditService(Service service)
     {
         currentService = service;
+
         serviceModel = new ServiceModel
         {
             Name = service.Name,
@@ -758,14 +1006,35 @@ else
             SpecificDate = service.SpecificDate,
             SpecificStartTime = service.SpecificStartTime,
             SpecificEndTime = service.SpecificEndTime,
-            IsActive = service.IsActive
+            IsActive = service.IsActive,
+            EnableWorkerAttendance = service.EnableWorkerAttendance,
+            AttendanceOpenMinutesBefore = service.AttendanceOpenMinutesBefore,
+            AttendanceCloseMinutesAfterStart = service.AttendanceCloseMinutesAfterStart,
+            ClockOutCloseMinutesAfterEnd = service.ClockOutCloseMinutesAfterEnd,
+            AttendanceMonthlyWeight = service.AttendanceMonthlyWeight,
+            UseSeparateLeaderScoring = service.UseSeparateLeaderScoring,
+            WorkerFullScoreCutoff = service.WorkerFullScoreCutoff,
+            WorkerIntermediateScoreCutoff = service.WorkerIntermediateScoreCutoff,
+            LeaderFullScoreCutoff = service.LeaderFullScoreCutoff,
+            LeaderIntermediateScoreCutoff = service.LeaderIntermediateScoreCutoff,
+            AttendanceFullScore = service.AttendanceFullScore,
+            AttendanceIntermediateScore = service.AttendanceIntermediateScore,
+            AttendanceLateScore = service.AttendanceLateScore
         };
 
-        dayOfWeekString = service.DayOfWeek.HasValue ? ((int)service.DayOfWeek.Value).ToString() : "0";
-        startTimeString = service.StartTime?.ToString(@"hh\:mm") ?? "09:00";
-        endTimeString = service.EndTime?.ToString(@"hh\:mm") ?? "10:00";
-        specificStartTimeString = service.SpecificStartTime?.ToString(@"hh\:mm") ?? "09:00";
-        specificEndTimeString = service.SpecificEndTime?.ToString(@"hh\:mm") ?? "10:00";
+        dayOfWeekString = service.DayOfWeek.HasValue
+            ? ((int)service.DayOfWeek.Value).ToString()
+            : "0";
+
+        SetTimeSelectors(service.StartTime, ref startHour, ref startMinute, ref startPeriod, 9, "AM");
+        SetTimeSelectors(service.EndTime, ref endHour, ref endMinute, ref endPeriod, 10, "AM");
+        SetTimeSelectors(service.SpecificStartTime, ref specificStartHour, ref specificStartMinute, ref specificStartPeriod, 9, "AM");
+        SetTimeSelectors(service.SpecificEndTime, ref specificEndHour, ref specificEndMinute, ref specificEndPeriod, 10, "AM");
+
+        SetTimeSelectors(service.WorkerFullScoreCutoff, ref workerFullHour, ref workerFullMinute, ref workerFullPeriod, 6, "AM");
+        SetTimeSelectors(service.WorkerIntermediateScoreCutoff, ref workerIntermediateHour, ref workerIntermediateMinute, ref workerIntermediatePeriod, 7, "AM");
+        SetTimeSelectors(service.LeaderFullScoreCutoff, ref leaderFullHour, ref leaderFullMinute, ref leaderFullPeriod, 6, "AM");
+        SetTimeSelectors(service.LeaderIntermediateScoreCutoff, ref leaderIntermediateHour, ref leaderIntermediateMinute, ref leaderIntermediatePeriod, 7, "AM");
 
         editingService = true;
         showServiceModal = true;
@@ -786,21 +1055,85 @@ else
 
         try
         {
-            if (TimeSpan.TryParse(startTimeString, out var startTime))
-                serviceModel.StartTime = startTime;
-            if (TimeSpan.TryParse(endTimeString, out var endTime))
-                serviceModel.EndTime = endTime;
-            if (TimeSpan.TryParse(specificStartTimeString, out var specificStartTime))
-                serviceModel.SpecificStartTime = specificStartTime;
-            if (TimeSpan.TryParse(specificEndTimeString, out var specificEndTime))
-                serviceModel.SpecificEndTime = specificEndTime;
+            if (serviceModel.RecurrencePattern == "Monthly" &&
+    !serviceModel.WeekOfMonth.HasValue)
+{
+    errorMessage = "Please select the week of the month for this monthly service.";
+    return;
+}
+            if (serviceModel.EnableWorkerAttendance)
+            {
+                if (serviceModel.AttendanceOpenMinutesBefore < 0 ||
+                    serviceModel.AttendanceCloseMinutesAfterStart < 0 ||
+                    serviceModel.ClockOutCloseMinutesAfterEnd < 0)
+                {
+                    errorMessage = "Attendance time windows cannot contain negative values.";
+                    return;
+                }
+
+                if (serviceModel.AttendanceMonthlyWeight < 0 || serviceModel.AttendanceMonthlyWeight > 100)
+                {
+                    errorMessage = "Monthly attendance weight must be between 0 and 100 percent.";
+                    return;
+                }
+
+                if (serviceModel.AttendanceFullScore < 0 ||
+                    serviceModel.AttendanceIntermediateScore < 0 ||
+                    serviceModel.AttendanceLateScore < 0)
+                {
+                    errorMessage = "Attendance scores cannot contain negative values.";
+                    return;
+                }
+
+                if (serviceModel.AttendanceFullScore < serviceModel.AttendanceIntermediateScore ||
+                    serviceModel.AttendanceIntermediateScore < serviceModel.AttendanceLateScore)
+                {
+                    errorMessage = "Attendance scores should follow Full Score >= Intermediate Score >= Late Score.";
+                    return;
+                }
+
+                serviceModel.WorkerFullScoreCutoff = ToTimeSpan(workerFullHour, workerFullMinute, workerFullPeriod);
+                serviceModel.WorkerIntermediateScoreCutoff = ToTimeSpan(workerIntermediateHour, workerIntermediateMinute, workerIntermediatePeriod);
+
+                if (serviceModel.WorkerIntermediateScoreCutoff < serviceModel.WorkerFullScoreCutoff)
+                {
+                    errorMessage = "Worker intermediate score cut-off cannot be earlier than the full score cut-off.";
+                    return;
+                }
+
+                if (serviceModel.UseSeparateLeaderScoring)
+                {
+                    serviceModel.LeaderFullScoreCutoff = ToTimeSpan(leaderFullHour, leaderFullMinute, leaderFullPeriod);
+                    serviceModel.LeaderIntermediateScoreCutoff = ToTimeSpan(leaderIntermediateHour, leaderIntermediateMinute, leaderIntermediatePeriod);
+
+                    if (serviceModel.LeaderIntermediateScoreCutoff < serviceModel.LeaderFullScoreCutoff)
+                    {
+                        errorMessage = "Leader intermediate score cut-off cannot be earlier than the full score cut-off.";
+                        return;
+                    }
+                }
+                else
+                {
+                    serviceModel.LeaderFullScoreCutoff = null;
+                    serviceModel.LeaderIntermediateScoreCutoff = null;
+                }
+            }
+
+            serviceModel.StartTime = ToTimeSpan(startHour, startMinute, startPeriod);
+            serviceModel.EndTime = ToTimeSpan(endHour, endMinute, endPeriod);
+            serviceModel.SpecificStartTime = ToTimeSpan(specificStartHour, specificStartMinute, specificStartPeriod);
+            serviceModel.SpecificEndTime = ToTimeSpan(specificEndHour, specificEndMinute, specificEndPeriod);
+
+            var selectedDay = int.TryParse(dayOfWeekString, out var dayInt)
+                ? (DayOfWeek)dayInt
+                : DayOfWeek.Sunday;
 
             if (editingService && currentService != null)
             {
                 currentService.Name = serviceModel.Name;
                 currentService.Description = serviceModel.Description;
                 currentService.RecurrencePattern = serviceModel.RecurrencePattern;
-                currentService.DayOfWeek = int.TryParse(dayOfWeekString, out int dayInt) ? (DayOfWeek)dayInt : DayOfWeek.Sunday;
+                currentService.DayOfWeek = selectedDay;
                 currentService.WeekOfMonth = serviceModel.WeekOfMonth;
                 currentService.StartTime = serviceModel.StartTime;
                 currentService.EndTime = serviceModel.EndTime;
@@ -808,6 +1141,19 @@ else
                 currentService.SpecificStartTime = serviceModel.SpecificStartTime;
                 currentService.SpecificEndTime = serviceModel.SpecificEndTime;
                 currentService.IsActive = serviceModel.IsActive;
+                currentService.EnableWorkerAttendance = serviceModel.EnableWorkerAttendance;
+                currentService.AttendanceOpenMinutesBefore = serviceModel.AttendanceOpenMinutesBefore;
+                currentService.AttendanceCloseMinutesAfterStart = serviceModel.AttendanceCloseMinutesAfterStart;
+                currentService.ClockOutCloseMinutesAfterEnd = serviceModel.ClockOutCloseMinutesAfterEnd;
+                currentService.AttendanceMonthlyWeight = serviceModel.AttendanceMonthlyWeight;
+                currentService.UseSeparateLeaderScoring = serviceModel.UseSeparateLeaderScoring;
+                currentService.WorkerFullScoreCutoff = serviceModel.WorkerFullScoreCutoff;
+                currentService.WorkerIntermediateScoreCutoff = serviceModel.WorkerIntermediateScoreCutoff;
+                currentService.LeaderFullScoreCutoff = serviceModel.LeaderFullScoreCutoff;
+                currentService.LeaderIntermediateScoreCutoff = serviceModel.LeaderIntermediateScoreCutoff;
+                currentService.AttendanceFullScore = serviceModel.AttendanceFullScore;
+                currentService.AttendanceIntermediateScore = serviceModel.AttendanceIntermediateScore;
+                currentService.AttendanceLateScore = serviceModel.AttendanceLateScore;
                 currentService.LastUpdated = DateTime.UtcNow;
 
                 await ExcuseService.UpdateServiceAsync(currentService);
@@ -819,7 +1165,7 @@ else
                     Name = serviceModel.Name,
                     Description = serviceModel.Description,
                     RecurrencePattern = serviceModel.RecurrencePattern,
-                    DayOfWeek = int.TryParse(dayOfWeekString, out int dayInt) ? (DayOfWeek)dayInt : DayOfWeek.Sunday,
+                    DayOfWeek = selectedDay,
                     WeekOfMonth = serviceModel.WeekOfMonth,
                     StartTime = serviceModel.StartTime,
                     EndTime = serviceModel.EndTime,
@@ -827,6 +1173,19 @@ else
                     SpecificStartTime = serviceModel.SpecificStartTime,
                     SpecificEndTime = serviceModel.SpecificEndTime,
                     IsActive = serviceModel.IsActive,
+                    EnableWorkerAttendance = serviceModel.EnableWorkerAttendance,
+                    AttendanceOpenMinutesBefore = serviceModel.AttendanceOpenMinutesBefore,
+                    AttendanceCloseMinutesAfterStart = serviceModel.AttendanceCloseMinutesAfterStart,
+                    ClockOutCloseMinutesAfterEnd = serviceModel.ClockOutCloseMinutesAfterEnd,
+                    AttendanceMonthlyWeight = serviceModel.AttendanceMonthlyWeight,
+                    UseSeparateLeaderScoring = serviceModel.UseSeparateLeaderScoring,
+                    WorkerFullScoreCutoff = serviceModel.WorkerFullScoreCutoff,
+                    WorkerIntermediateScoreCutoff = serviceModel.WorkerIntermediateScoreCutoff,
+                    LeaderFullScoreCutoff = serviceModel.LeaderFullScoreCutoff,
+                    LeaderIntermediateScoreCutoff = serviceModel.LeaderIntermediateScoreCutoff,
+                    AttendanceFullScore = serviceModel.AttendanceFullScore,
+                    AttendanceIntermediateScore = serviceModel.AttendanceIntermediateScore,
+                    AttendanceLateScore = serviceModel.AttendanceLateScore,
                     CreatedDate = DateTime.UtcNow
                 };
 
@@ -840,16 +1199,16 @@ else
         {
             errorMessage = $"Error saving service: {ex.Message}";
         }
-
-        isLoading = false;
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task DeactivateService(Service service)
     {
         if (await ExcuseService.DeleteServiceAsync(service.Id))
-        {
             await LoadServices();
-        }
     }
 
     private async Task ActivateService(Service service)
@@ -874,31 +1233,102 @@ else
 
     private string GetServiceTimeDisplay(Service service)
     {
-        var start =
-            service.RecurrencePattern == "OneTime"
-                ? service.SpecificStartTime
-                : service.StartTime;
+        var start = service.RecurrencePattern == "OneTime"
+            ? service.SpecificStartTime
+            : service.StartTime;
 
-        var end =
-            service.RecurrencePattern == "OneTime"
-                ? service.SpecificEndTime
-                : service.EndTime;
+        var end = service.RecurrencePattern == "OneTime"
+            ? service.SpecificEndTime
+            : service.EndTime;
 
         if (!start.HasValue)
             return "Time not set";
 
         return end.HasValue
-            ? $"{start.Value:hh\\:mm} - {end.Value:hh\\:mm}"
-            : $"{start.Value:hh\\:mm}";
+            ? $"{FormatTime12Hour(start.Value)} - {FormatTime12Hour(end.Value)}"
+            : FormatTime12Hour(start.Value);
+    }
+
+    private void SetDefaultTimeSelectors()
+    {
+        startHour = 9;
+        startMinute = 0;
+        startPeriod = "AM";
+        endHour = 10;
+        endMinute = 0;
+        endPeriod = "AM";
+        specificStartHour = 9;
+        specificStartMinute = 0;
+        specificStartPeriod = "AM";
+        specificEndHour = 10;
+        specificEndMinute = 0;
+        specificEndPeriod = "AM";
+    }
+
+    private void SetDefaultAttendanceScoringSelectors()
+    {
+        workerFullHour = 6;
+        workerFullMinute = 55;
+        workerFullPeriod = "AM";
+
+        workerIntermediateHour = 7;
+        workerIntermediateMinute = 30;
+        workerIntermediatePeriod = "AM";
+
+        leaderFullHour = 6;
+        leaderFullMinute = 45;
+        leaderFullPeriod = "AM";
+
+        leaderIntermediateHour = 7;
+        leaderIntermediateMinute = 0;
+        leaderIntermediatePeriod = "AM";
+    }
+
+    private void SetTimeSelectors(
+        TimeSpan? time,
+        ref int hour,
+        ref int minute,
+        ref string period,
+        int defaultHour,
+        string defaultPeriod)
+    {
+        if (!time.HasValue)
+        {
+            hour = defaultHour;
+            minute = 0;
+            period = defaultPeriod;
+            return;
+        }
+
+        var hour24 = time.Value.Hours;
+        minute = time.Value.Minutes;
+        period = hour24 >= 12 ? "PM" : "AM";
+        hour = hour24 % 12;
+
+        if (hour == 0)
+            hour = 12;
+    }
+
+    private TimeSpan ToTimeSpan(int hour, int minute, string period)
+    {
+        var hour24 = hour % 12;
+
+        if (string.Equals(period, "PM", StringComparison.OrdinalIgnoreCase))
+            hour24 += 12;
+
+        return new TimeSpan(hour24, minute, 0);
+    }
+
+    private string FormatTime12Hour(TimeSpan time)
+    {
+        return DateTime.Today.Add(time).ToString("h:mm tt");
     }
 
     private void GoBack()
     {
-        Navigation.NavigateTo(
-            "/workspace/worker-management");
+        Navigation.NavigateTo("/workspace/worker-management");
     }
 }
-
 
 <style>
     .service-management-page {
@@ -924,13 +1354,8 @@ else
         box-shadow: 0 4px 14px rgba(15, 23, 42, 0.035);
     }
 
-    .service-filter-card {
-        border-top: 4px solid #4f46e5;
-    }
-
-    .service-list-card {
-        border-top: 4px solid #7c3aed;
-    }
+    .service-filter-card { border-top: 4px solid #4f46e5; }
+    .service-list-card { border-top: 4px solid #7c3aed; }
 
     .service-panel-header,
     .service-list-header {
@@ -938,15 +1363,14 @@ else
         align-items: center;
         gap: 9px;
         padding: 10px 12px;
-        background: #ffffff;
+        background: #fff;
         border-bottom: 1px solid #eef2f7;
     }
 
-    .service-list-header {
-        justify-content: space-between;
-    }
+    .service-list-header { justify-content: space-between; }
 
-    .service-panel-icon {
+    .service-panel-icon,
+    .form-section-icon {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -960,7 +1384,8 @@ else
     }
 
     .service-panel-header h6,
-    .service-list-header h6 {
+    .service-list-header h6,
+    .form-section-heading h6 {
         margin: 0 0 1px;
         color: #0f172a;
         font-size: 0.82rem;
@@ -968,7 +1393,8 @@ else
     }
 
     .service-panel-header p,
-    .service-list-header p {
+    .service-list-header p,
+    .form-section-heading p {
         margin: 0;
         color: #64748b;
         font-size: 0.64rem;
@@ -981,7 +1407,7 @@ else
         min-width: 29px;
         height: 29px;
         padding: 0 8px;
-        color: #ffffff;
+        color: #fff;
         background: #4f46e5;
         border-radius: 999px;
         font-size: 0.7rem;
@@ -990,8 +1416,7 @@ else
 
     .service-summary-grid {
         display: grid;
-        grid-template-columns:
-            repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 7px;
     }
 
@@ -1003,9 +1428,7 @@ else
     }
 
     .service-summary-grid span,
-    .service-summary-grid strong {
-        display: block;
-    }
+    .service-summary-grid strong { display: block; }
 
     .service-summary-grid span {
         color: #64748b;
@@ -1025,54 +1448,36 @@ else
         border-color: #bbf7d0;
     }
 
-    .service-summary-grid .active strong {
-        color: #166534;
+    .service-summary-grid .active strong { color: #166534; }
+
+    .service-summary-grid .attendance {
+        background: #f5f3ff;
+        border-color: #ddd6fe;
     }
 
-    .service-summary-grid .inactive {
-        background: #fef2f2;
-        border-color: #fecaca;
-    }
-
-    .service-summary-grid .inactive strong {
-        color: #991b1b;
-    }
+    .service-summary-grid .attendance strong { color: #6d28d9; }
 
     .service-summary-grid .result {
         background: #eef2ff;
         border-color: #c7d2fe;
     }
 
-    .service-summary-grid .result strong {
-        color: #4338ca;
-    }
-
-    .service-filter-tip {
-        display: flex;
-        align-items: flex-start;
-        gap: 7px;
-        margin-bottom: 11px;
-        padding: 8px 9px;
-        color: #4338ca;
-        background: #eef2ff;
-        border: 1px solid #c7d2fe;
-        border-radius: 8px;
-        font-size: 0.62rem;
-    }
+    .service-summary-grid .result strong { color: #4338ca; }
 
     .compact-label {
-        margin-bottom: 3px;
+        margin-bottom: 4px;
         color: #475569;
-        font-size: 0.67rem;
+        font-size: 0.68rem;
         font-weight: 700;
     }
 
     .service-management-page .form-control,
     .service-management-page .form-select,
     .service-modal-card .form-control,
-    .service-modal-card .form-select {
-        min-height: 32px;
-        font-size: 0.75rem;
+    .service-modal-card .form-select,
+    .service-modal-card .input-group-text {
+        min-height: 34px;
+        font-size: 0.76rem;
     }
 
     .service-list {
@@ -1088,13 +1493,11 @@ else
         justify-content: space-between;
         gap: 12px;
         padding: 10px 12px;
-        background: #ffffff;
+        background: #fff;
         border-bottom: 1px solid #eef2f7;
     }
 
-    .service-row:hover {
-        background: #fafafa;
-    }
+    .service-row:hover { background: #fafafa; }
 
     .service-row.inactive-row {
         background: #f8fafc;
@@ -1121,9 +1524,7 @@ else
         font-size: 0.76rem;
     }
 
-    .service-row-content {
-        min-width: 0;
-    }
+    .service-row-content { min-width: 0; }
 
     .service-row-title {
         display: flex;
@@ -1137,14 +1538,25 @@ else
         font-size: 0.74rem;
     }
 
-    .service-type-badge {
+    .service-type-badge,
+    .attendance-badge {
         display: inline-flex;
+        align-items: center;
+        gap: 4px;
         padding: 3px 6px;
-        color: #0369a1;
-        background: #e0f2fe;
         border-radius: 999px;
         font-size: 0.57rem;
         font-weight: 800;
+    }
+
+    .service-type-badge {
+        color: #0369a1;
+        background: #e0f2fe;
+    }
+
+    .attendance-badge {
+        color: #6d28d9;
+        background: #f3e8ff;
     }
 
     .service-row-content p {
@@ -1243,11 +1655,11 @@ else
 
     .service-modal-card {
         width: 100%;
-        max-width: 760px;
-        max-height: 92vh;
+        max-width: 900px;
+        max-height: 94vh;
         overflow-y: auto;
-        background: #ffffff;
-        border-radius: 14px;
+        background: #fff;
+        border-radius: 15px;
         box-shadow: 0 22px 55px rgba(15, 23, 42, 0.28);
     }
 
@@ -1256,73 +1668,148 @@ else
         align-items: flex-start;
         justify-content: space-between;
         gap: 10px;
-        padding: 14px 16px 10px;
+        padding: 15px 18px 12px;
         border-bottom: 1px solid #eef2f7;
+    }
+
+    .modal-eyebrow {
+        margin-bottom: 3px;
+        color: #6d28d9;
+        font-size: 0.62rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
     }
 
     .service-modal-header h4 {
         margin: 0 0 2px;
         color: #0f172a;
-        font-size: 0.95rem;
+        font-size: 1rem;
         font-weight: 800;
     }
 
     .service-modal-header p {
         margin: 0;
         color: #64748b;
-        font-size: 0.66rem;
+        font-size: 0.67rem;
     }
 
     .service-modal-body {
-        padding: 14px 16px;
+        padding: 16px 18px;
     }
 
-    .service-schedule-box {
-        padding: 10px;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 9px;
+    .form-section {
+        padding: 14px;
+        margin-bottom: 13px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
     }
 
-    .service-active-switch {
+    .form-section-heading {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 13px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .form-section-icon.schedule {
+        color: #0369a1;
+        background: #e0f2fe;
+    }
+
+    .form-section-icon.attendance {
+        color: #6d28d9;
+        background: #f3e8ff;
+    }
+
+    .form-section-icon.status {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .option-card {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
-        padding: 9px 10px;
+        gap: 12px;
+        padding: 11px 12px;
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         border-radius: 9px;
     }
 
-    .service-active-switch strong,
-    .service-active-switch span {
-        display: block;
-    }
+    .option-card strong,
+    .option-card span { display: block; }
 
-    .service-active-switch strong {
+    .option-card strong {
         color: #0f172a;
-        font-size: 0.68rem;
+        font-size: 0.7rem;
     }
 
-    .service-active-switch span {
-        margin-top: 1px;
+    .option-card span {
+        margin-top: 2px;
         color: #64748b;
+        font-size: 0.6rem;
+    }
+
+    .attendance-settings-box {
+        padding: 12px;
+        background: #faf5ff;
+        border: 1px solid #e9d5ff;
+        border-radius: 10px;
+    }
+
+    .attendance-subheading {
+        margin-bottom: 10px;
+        color: #6d28d9;
+        font-size: 0.68rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .score-input-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .score-input-grid span {
+        display: block;
+        margin-top: 3px;
+        color: #64748b;
+        font-size: 0.56rem;
+        text-align: center;
+    }
+
+    .scoring-help {
+        padding: 8px 10px;
+        background: #fff;
+        border: 1px dashed #ddd6fe;
+        border-radius: 8px;
+    }
+
+    .field-help {
+        margin-top: 4px;
+        color: #94a3b8;
         font-size: 0.58rem;
+        line-height: 1.3;
     }
 
     .service-modal-footer {
         display: flex;
         justify-content: flex-end;
         gap: 7px;
-        padding: 10px 16px 14px;
+        padding: 11px 18px 15px;
+        background: #fff;
         border-top: 1px solid #eef2f7;
     }
 
     @@media (max-width: 768px) {
-        .service-list {
-            max-height: none;
-        }
+        .service-list { max-height: none; }
 
         .service-row {
             align-items: flex-start;
@@ -1333,20 +1820,49 @@ else
             width: 100%;
             justify-content: space-between;
         }
-    }
-
-    @@media (max-width: 576px) {
-        .service-summary-grid {
-            grid-template-columns: 1fr;
-        }
 
         .service-modal-card {
             max-width: 96vw;
         }
+    }
+
+    @@media (max-width: 576px) {
+        .service-summary-grid { grid-template-columns: 1fr 1fr; }
 
         .service-modal-footer {
             display: grid;
             grid-template-columns: 1fr;
         }
+
+        .option-card {
+            align-items: flex-start;
+        }
+    }
+
+    .time-picker-12h {
+        display: grid;
+        grid-template-columns: minmax(72px, 1fr) auto minmax(72px, 1fr) minmax(78px, .85fr);
+        gap: 8px;
+        align-items: center;
+    }
+
+    .time-picker-12h .time-separator {
+        font-weight: 700;
+        color: #64748b;
+        text-align: center;
+    }
+
+    .time-picker-12h .period-select {
+        min-width: 78px;
+    }
+
+    @@media (max-width: 575.98px) {
+        .time-picker-12h {
+            grid-template-columns: minmax(64px, 1fr) auto minmax(64px, 1fr) minmax(74px, .85fr);
+            gap: 6px;
+        }
     }
 </style>
+
+
+

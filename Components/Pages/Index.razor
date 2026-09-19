@@ -18,6 +18,7 @@
 @inject PrayerFocusService PrayerFocusService
 @inject ApprovalRequestService ApprovalRequestService
 @inject ServiceRecordAccessService ServiceRecordAccessService
+@inject WorkerAttendanceScoringService WorkerAttendanceScoringService
 
 
 <PageTitle>BCC ServiceHub - Dashboard</PageTitle>
@@ -83,36 +84,44 @@
                 <div class="col-6 col-md-3 mb-3">
                     <div class="stat-card">
                         <div class="stat-image-container">
-                            <div class="workers-image">
-                                <div class="worker-avatar small">
-                                    <i class="fas fa-user"></i>
+                            <div class="church-membership-image">
+                                <div class="church-icon-large">
+                                    <i class="fas fa-user-check"></i>
                                 </div>
-                                <div class="worker-avatar medium">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div class="worker-avatar large">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div class="worker-avatar small">
-                                    <i class="fas fa-user"></i>
+                                <div class="membership-badge">
+                                    <span>MTD</span>
                                 </div>
                             </div>
                         </div>
-                        <a href="/admin/worker-update"
-   class="text-decoration-none text-dark">
-
-    <div class="stat-content"
-         style="cursor:pointer;">
-
-        <h3 class="stat-number">@totalWorkers</h3>
-
-        <p class="stat-label">
-            Total Workers
-        </p>
-
-    </div>
-
-</a>
+                        <a href="/admin/worker-attendance-report"
+                           class="text-decoration-none text-dark d-block">
+                            <div class="stat-content" style="cursor:pointer;">
+                                @if (myAttendanceScore?.IsExcluded == true)
+                                {
+                                    <h3 class="stat-number">
+                                        <i class="fas fa-chart-line"></i>
+                                    </h3>
+                                    <p class="stat-label">View Attendance</p>
+                                }
+                                else if (myAttendanceScore == null)
+                                {
+                                    <h3 class="stat-number">—</h3>
+                                    <p class="stat-label">My MTD Attendance</p>
+                                }
+                                else if (myAttendanceScore.AvailableWeight <= 0)
+                                {
+                                    <h3 class="stat-number">—</h3>
+                                    <p class="stat-label">My MTD Attendance</p>
+                                }
+                                else
+                                {
+                                    <h3 class="stat-number @GetAttendanceScoreClass(myAttendanceScore.Grade)">
+                                        @myAttendanceScore.MonthToDatePercentage.ToString("0.##")%
+                                    </h3>
+                                    <p class="stat-label">My MTD Attendance</p>
+                                }
+                            </div>
+                        </a>
                     </div>
                 </div>
 
@@ -180,7 +189,52 @@
             }
             else if (IsUsheringDepartment())
             {
-                <!-- Ushering Department Stats -->
+                <!-- Personal Worker Attendance MTD -->
+                <div class="col-6 col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-image-container">
+                            <div class="church-membership-image">
+                                <div class="church-icon-large">
+                                    <i class="fas fa-user-check"></i>
+                                </div>
+                                <div class="membership-badge">
+                                    <span>MTD</span>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="/admin/worker-attendance-report"
+                           class="text-decoration-none text-dark d-block">
+                            <div class="stat-content" style="cursor:pointer;">
+                                @if (myAttendanceScore?.IsExcluded == true)
+                                {
+                                    <h3 class="stat-number">
+                                        <i class="fas fa-chart-line"></i>
+                                    </h3>
+                                    <p class="stat-label">View Attendance</p>
+                                }
+                                else if (myAttendanceScore == null)
+                                {
+                                    <h3 class="stat-number">—</h3>
+                                    <p class="stat-label">My MTD Attendance</p>
+                                }
+                                else if (myAttendanceScore.AvailableWeight <= 0)
+                                {
+                                    <h3 class="stat-number">—</h3>
+                                    <p class="stat-label">My MTD Attendance</p>
+                                }
+                                else
+                                {
+                                    <h3 class="stat-number @GetAttendanceScoreClass(myAttendanceScore.Grade)">
+                                        @myAttendanceScore.MonthToDatePercentage.ToString("0.##")%
+                                    </h3>
+                                    <p class="stat-label">My MTD Attendance</p>
+                                }
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Church Attendance: congregation/service headcount -->
                 <div class="col-6 col-md-3 mb-3">
                     <div class="stat-card">
                         <div class="stat-image-container">
@@ -194,7 +248,7 @@
                             </div>
                         </div>
                         <div class="stat-content">
-                            <h3 class="stat-label">My Attendance</h3>
+                            <h3 class="stat-label">Church Attendance</h3>
                             <p class="stat-label">Coming Soon...</p>
                         </div>
                     </div>
@@ -272,10 +326,35 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="stat-content">
-                            <h3 class="stat-label">My Attendance</h3>
-                            <p class="stat-label">Coming Soon...</p>
-                        </div>
+                        <a href="/admin/worker-attendance-report"
+                           class="text-decoration-none text-dark d-block">
+                            <div class="stat-content" style="cursor:pointer;">
+                                @if (myAttendanceScore?.IsExcluded == true)
+                                {
+                                    <h3 class="stat-number">
+                                        <i class="fas fa-chart-line"></i>
+                                    </h3>
+                                    <p class="stat-label">View Attendance</p>
+                                }
+                                else if (myAttendanceScore == null)
+                                {
+                                    <h3 class="stat-number">—</h3>
+                                    <p class="stat-label">My MTD Attendance</p>
+                                }
+                                else if (myAttendanceScore.AvailableWeight <= 0)
+                                {
+                                    <h3 class="stat-number">—</h3>
+                                    <p class="stat-label">My MTD Attendance</p>
+                                }
+                                else
+                                {
+                                    <h3 class="stat-number @GetAttendanceScoreClass(myAttendanceScore.Grade)">
+                                        @myAttendanceScore.MonthToDatePercentage.ToString("0.##")%
+                                    </h3>
+                                    <p class="stat-label">My MTD Attendance</p>
+                                }
+                            </div>
+                        </a>
                     </div>
                 </div>
 
@@ -381,15 +460,30 @@
                 Personal Workspace
             </div>
 
-            <div class="row g-3">
-                <div class="col-6 col-sm-4 col-lg-3">
-                    <a href="/workforce/my-profile" class="action-card">
-                        <div class="action-image">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <span class="action-text">My Profile</span>
-                    </a>
-                </div>
+           <div class="row g-3">
+
+    <!-- Worker Attendance -->
+    <div class="col-6 col-sm-4 col-lg-3">
+        <a href="/worker-attendance" class="action-card">
+            <div class="action-image">
+                <i class="fas fa-user-check"></i>
+            </div>
+
+            <span class="action-text">
+                Attendance
+            </span>
+        </a>
+    </div>
+
+    <!-- My Profile -->
+    <div class="col-6 col-sm-4 col-lg-3">
+        <a href="/workforce/my-profile" class="action-card">
+            <div class="action-image">
+                <i class="fas fa-user"></i>
+            </div>
+            <span class="action-text">My Profile</span>
+        </a>
+    </div>
 
 
     @if (CanAccessMyTeamWorkspace())
@@ -472,110 +566,51 @@
     </a>
 </div>
 
-                @if (canAccessServiceRecords)
-                {
-                    <div class="col-6 col-sm-4 col-lg-3">
-                        <a href="/workspace/service-records"
-                           class="action-card">
+               @if (canAccessServiceRecords)
+{
+    <div class="col-6 col-sm-4 col-lg-3">
+        <a href="/workspace/service-records"
+           class="action-card">
 
-                            <div class="action-image">
-                                <i class="fas fa-clipboard-list"></i>
-                            </div>
+            <div class="action-image">
+                <i class="fas fa-clipboard-list"></i>
+            </div>
 
-                            <span class="action-text">
-                                Service Records
-                            </span>
+            <span class="action-text">
+                Service Records
+            </span>
 
-                            @if (serviceRecordAccess.CanApproveOffering &&
-                                 serviceRecordAccess.PendingOfferingApprovalCount > 0)
-                            {
-                                <span class="pending-badge"
-                                      title="Pending offering approvals">
-                                    @serviceRecordAccess.PendingOfferingApprovalCount
-                                </span>
-                            }
-                        </a>
-                    </div>
-                }
+            @if (serviceRecordAccess.CanApproveOffering &&
+                 serviceRecordAccess.PendingOfferingApprovalCount > 0)
+            {
+                <span class="pending-badge"
+                      title="Pending offering approvals">
+                    @serviceRecordAccess.PendingOfferingApprovalCount
+                </span>
+            }
+        </a>
+    </div>
+}
 
+<div class="col-6 col-sm-4 col-lg-3">
+    <a href="/workspace/reports"
+       class="action-card">
+
+        <div class="action-image">
+            <i class="fas fa-chart-line"></i>
+        </div>
+
+        <span class="action-text">
+            Reports
+        </span>
+    </a>
+</div>
             </div>
         </div>
 
         
-        <!-- REPORTS -->
-        @if (CanAccessReports())
-        {
-            <div class="menu-section">
-                <div class="menu-section-title">
-                    <i class="fas fa-chart-line"></i>
-                    Reports & Insights
-                </div>
-
-                <div class="row g-3">
-                    <div class="col-6 col-sm-4 col-lg-3">
-                        <a href="/reports" class="action-card">
-                            <div class="action-image">
-                                <i class="fas fa-chart-bar"></i>
-                            </div>
-                            <span class="action-text">Reports</span>
-                        </a>
-                    </div>
-
-                    <div class="col-6 col-sm-4 col-lg-3">
-                        <a href="/reports/offering" class="action-card">
-                            <div class="action-image">
-                                <i class="fas fa-coins"></i>
-                            </div>
-                            <span class="action-text">Offering Reports</span>
-                        </a>
-                    </div>
-
-                    <div class="col-6 col-sm-4 col-lg-3">
-                        <a href="/reports/attendance" class="action-card">
-                            <div class="action-image">
-                                <i class="fas fa-calendar-check"></i>
-                            </div>
-                            <span class="action-text">Attendance Reports</span>
-                        </a>
-                    </div>
-
-                    @if (AuthService.IsInRole("Church Admin") || AuthService.IsInRole("Pastor in Charge"))
-                    {
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/reports/financial" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-chart-pie"></i>
-                                </div>
-                                <span class="action-text">Financial Reports</span>
-                            </a>
-                        </div>
-
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/reports/analytics" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-chart-line"></i>
-                                </div>
-                                <span class="action-text">Church Analytics</span>
-                            </a>
-                        </div>
-                    }
-
-                    @if (CanViewGrowthReports())
-                    {
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/Workforce/reports" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-file-alt"></i>
-                                </div>
-                                <span class="action-text">Growth Reports</span>
-                            </a>
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-
-       <!-- ADMINISTRATION & SETUP -->
+   
+<!-- ADMINISTRATION & SETUP -->
 @if (CanAccessWorkerManagementWorkspace() ||
      CanAccessSetupWorkspace())
 {
@@ -1190,6 +1225,7 @@ private int myDeskCount;
     private List<Notification> notifications = new();
     private List<Activity> recentActivities = new();
     private ServiceRecordAccessModel serviceRecordAccess = new();
+    private WorkerMonthlyAttendanceScore? myAttendanceScore;
 
 
 private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
@@ -1295,6 +1331,7 @@ private async Task LoadMyDeskCountsAsync()
         try
         {
             await LoadUserStatistics();
+             await LoadMyAttendanceScoreAsync();
             await LoadOfferingStatistics();
             await LoadNotificationCounts();
             await LoadGrowthHubCounts();
@@ -1309,6 +1346,55 @@ todayVerse = await VerseService.GetTodayVerseAsync();
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading dashboard data: {ex.Message}");
+        }
+    }
+
+    private async Task LoadMyAttendanceScoreAsync()
+    {
+        if (!AuthService.IsAuthenticated || AuthService.CurrentWorker == null)
+        {
+            myAttendanceScore = null;
+            return;
+        }
+
+        try
+        {
+            var now = GetNigeriaNow();
+
+            myAttendanceScore =
+                await WorkerAttendanceScoringService.GetWorkerMonthlyScoreAsync(
+                    AuthService.CurrentWorker.Id,
+                    now.Year,
+                    now.Month);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unable to load personal attendance score: {ex.Message}");
+            myAttendanceScore = null;
+        }
+    }
+
+    private static DateTime GetNigeriaNow()
+    {
+        var utcNow = DateTime.UtcNow;
+
+        try
+        {
+            var timeZone = TimeZoneInfo.FindSystemTimeZoneById("Africa/Lagos");
+            return TimeZoneInfo.ConvertTimeFromUtc(utcNow, timeZone);
+        }
+        catch
+        {
+            try
+            {
+                var timeZone =
+                    TimeZoneInfo.FindSystemTimeZoneById("W. Central Africa Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(utcNow, timeZone);
+            }
+            catch
+            {
+                return utcNow.AddHours(1);
+            }
         }
     }
 
@@ -1713,6 +1799,17 @@ todayVerse = await VerseService.GetTodayVerseAsync();
         return totalFields > 0 ? (int)Math.Round((double)filledFields / totalFields * 100) : 0;
     }
 
+    private string GetAttendanceScoreClass(AttendanceGrade grade)
+    {
+        return grade switch
+        {
+            AttendanceGrade.Green => "text-success",
+            AttendanceGrade.Yellow => "text-warning",
+            AttendanceGrade.Red => "text-danger",
+            _ => string.Empty
+        };
+    }
+
     // Permission methods (copied exactly from sidebar)
     private bool IsChurchAdmin()
     {
@@ -1885,16 +1982,7 @@ todayVerse = await VerseService.GetTodayVerseAsync();
 
         return directorateName.Contains("fig");
     }
-
-    private bool CanAccessReports()
-    {
-        return AuthService.IsInRole("Pastor in Charge") ||
-               AuthService.IsInRole("Head of Directorate") ||
-               AuthService.IsInRole("Church Admin") ||
-               AuthService.CanAccessAdminPanel();
-    }
-
-    private bool CanAccessBudget()
+private bool CanAccessBudget()
     {
         return AuthService.IsInRole("Pastor in Charge") ||
                AuthService.IsInRole("Church Admin") ||

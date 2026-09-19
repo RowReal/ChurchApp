@@ -21,84 +21,83 @@
                     <span class="bcc-nav-text">Dashboard</span>
                 </a>
 
-               <!-- MY PROFILE -->
-<div class="bcc-nav-section">
-    <a href="/workforce/my-profile"
-       class="bcc-nav-item @GetNavItemClass("/workforce/my-profile")">
+                <!-- MY PROFILE -->
+                <div class="bcc-nav-section">
+                    <a href="/workforce/my-profile"
+                       class="bcc-nav-item @GetNavItemClass("/workforce/my-profile")">
 
-        <div class="bcc-nav-icon-container">
-            <i class="fas fa-user"></i>
-        </div>
+                        <div class="bcc-nav-icon-container">
+                            <i class="fas fa-user"></i>
+                        </div>
 
-        <span class="bcc-nav-text">My Profile</span>
-    </a>
-</div>
+                        <span class="bcc-nav-text">My Profile</span>
+                    </a>
+                </div>
 
-@if (CanAccessMyTeam())
-{
-    <div class="bcc-nav-section">
-        <a href="/workforce/my-team"
-           class="bcc-nav-item @GetNavItemClass("/workforce/my-team")">
+                @if (CanAccessMyTeam())
+                {
+                    <div class="bcc-nav-section">
+                        <a href="/workforce/my-team"
+                           class="bcc-nav-item @GetNavItemClass("/workforce/my-team")">
 
-            <div class="bcc-nav-icon-container">
-                <i class="fas fa-users-cog"></i>
-            </div>
+                            <div class="bcc-nav-icon-container">
+                                <i class="fas fa-users-cog"></i>
+                            </div>
 
-            <span class="bcc-nav-text">My Team</span>
-        </a>
-    </div>
-}
+                            <span class="bcc-nav-text">My Team</span>
+                        </a>
+                    </div>
+                }
 
                 @* My Approval Hub *@
-  
-<!-- PROFILE APPROVAL -->
-<!-- PROFILE APPROVAL -->
-@if (CanAccessProfileApproval())
-{
-    <div class="bcc-nav-section">
-        <a href="/workforce/my-inbox"
-           class="bcc-nav-item @GetNavItemClass("/workforce/my-inbox")">
 
-            <div class="bcc-nav-icon-container">
-                <i class="fas fa-inbox"></i>
-            </div>
+                <!-- PROFILE APPROVAL -->
+                <!-- PROFILE APPROVAL -->
+                @if (CanAccessProfileApproval())
+                {
+                    <div class="bcc-nav-section">
+                        <a href="/workforce/my-inbox"
+                           class="bcc-nav-item @GetNavItemClass("/workforce/my-inbox")">
 
-            <span class="bcc-nav-text">
-                Profile Approval
-            </span>
+                            <div class="bcc-nav-icon-container">
+                                <i class="fas fa-inbox"></i>
+                            </div>
 
-            @if (pendingApprovalCount > 0)
-            {
-                <span class="bcc-nav-badge">
-                    @pendingApprovalCount
-                </span>
-            }
-        </a>
-    </div>
-}
-<!-- MY TEAM -->
+                            <span class="bcc-nav-text">
+                                Profile Approval
+                            </span>
 
-<!-- APPROVAL REQUEST -->
-<div class="bcc-nav-section">
-    <a href="/workspace/my-desk"
-       class="bcc-nav-item @GetNavItemClass("/workspace/my-desk")">
+                            @if (pendingApprovalCount > 0)
+                            {
+                                <span class="bcc-nav-badge">
+                                    @pendingApprovalCount
+                                </span>
+                            }
+                        </a>
+                    </div>
+                }
+                <!-- MY TEAM -->
+                <!-- APPROVAL REQUEST -->
+                <div class="bcc-nav-section">
+                    <a href="/workspace/my-desk"
+                       class="bcc-nav-item @GetNavItemClass("/workspace/my-desk")">
 
-        <div class="bcc-nav-icon-container">
-            <i class="fas fa-clipboard-check"></i>
-        </div>
+                        <div class="bcc-nav-icon-container">
+                            <i class="fas fa-clipboard-check"></i>
+                        </div>
 
-        <span class="bcc-nav-text">
-            Approval Request
-        </span>
+                        <span class="bcc-nav-text">
+                            Approval Request
+                        </span>
 
-        @if (myDeskCount > 0)
-        {
-            <span class="bcc-nav-badge">
-                @myDeskCount
-            </span>
-        }
-    </a>
-</div>
+                        @if (myDeskCount > 0)
+                        {
+                            <span class="bcc-nav-badge">
+                                @myDeskCount
+                            </span>
+                        }
+                    </a>
+                </div>
 
                 <div class="bcc-nav-section">
                     <div class="bcc-nav-section-header" @onclick="ToggleGrowthHubMenu">
@@ -160,89 +159,44 @@
                     }
                 </div>
 
-              
 
-@if (serviceRecordAccess.HasAnyAccess)
-{
-    var pendingCount =
-        serviceRecordAccess.PendingOfferingApprovalCount +
-        serviceRecordAccess.PendingOfferingAmendmentCount;
 
-    <a href="/workspace/service-records"
-       class="bcc-nav-item @GetNavItemClass("/workspace/service-records")">
-
-        <div class="bcc-nav-icon-container">
-            <i class="fas fa-clipboard-list"></i>
-        </div>
-
-        <span class="bcc-nav-text">
-            Service Records
-        </span>
-
-        @if (pendingCount > 0)
-        {
-            <span class="bcc-nav-badge">
-                @pendingCount
-            </span>
-        }
-    </a>
-}
-@if (CanAccessReports())
+                @if (serviceRecordAccess.HasAnyAccess)
                 {
-                    <div class="bcc-nav-section">
-                        <div class="bcc-nav-section-header" @onclick="ToggleReportsMenu">
-                            <div class="bcc-nav-icon-container">
-                                <i class="fas fa-chart-line"></i>
-                            </div>
-                            <span class="bcc-nav-text">Reports</span>
-                            <span class="bcc-menu-arrow @(showReportsMenu ? "open" : "")"></span>
+                    var pendingCount =
+                    serviceRecordAccess.PendingOfferingApprovalCount +
+                    serviceRecordAccess.PendingOfferingAmendmentCount;
+
+                    <a href="/workspace/service-records"
+                       class="bcc-nav-item @GetNavItemClass("/workspace/service-records")">
+
+                        <div class="bcc-nav-icon-container">
+                            <i class="fas fa-clipboard-list"></i>
                         </div>
 
-                        @if (showReportsMenu)
+                        <span class="bcc-nav-text">
+                            Service Records
+                        </span>
+
+                        @if (pendingCount > 0)
                         {
-                            <div class="bcc-nav-submenu">
-                                <a href="/reports" class="bcc-nav-subitem @GetNavItemClass("/reports")">
-                                    <div class="bcc-nav-icon-container">
-                                        <i class="fas fa-chart-bar"></i>
-                                    </div>
-                                    <span class="bcc-nav-text">Offering & Attendance</span>
-                                </a>
-
-                                <a href="/reports/offering" class="bcc-nav-subitem @GetNavItemClass("/reports/offering")">
-                                    <div class="bcc-nav-icon-container">
-                                        <i class="fas fa-coins"></i>
-                                    </div>
-                                    <span class="bcc-nav-text">Offering Reports</span>
-                                </a>
-
-                                <a href="/reports/attendance" class="bcc-nav-subitem @GetNavItemClass("/reports/attendance")">
-                                    <div class="bcc-nav-icon-container">
-                                        <i class="fas fa-calendar-check"></i>
-                                    </div>
-                                    <span class="bcc-nav-text">Attendance Reports</span>
-                                </a>
-
-                                @if (AuthService.IsInRole("Church Admin") || AuthService.IsInRole("Pastor in Charge"))
-                                {
-                                    <a href="/reports/financial" class="bcc-nav-subitem @GetNavItemClass("/reports/financial")">
-                                        <div class="bcc-nav-icon-container">
-                                            <i class="fas fa-chart-pie"></i>
-                                        </div>
-                                        <span class="bcc-nav-text">Financial Reports</span>
-                                    </a>
-
-                                    <a href="/reports/analytics" class="bcc-nav-subitem @GetNavItemClass("/reports/analytics")">
-                                        <div class="bcc-nav-icon-container">
-                                            <i class="fas fa-chart-area"></i>
-                                        </div>
-                                        <span class="bcc-nav-text">Church Analytics</span>
-                                    </a>
-                                }
-                            </div>
+                            <span class="bcc-nav-badge">
+                                @pendingCount
+                            </span>
                         }
-                    </div>
+                    </a>
                 }
+                <div class="bcc-nav-section">
+                    <a href="/workspace/reports"
+                       class="bcc-nav-section-header @GetNavItemClass("/workspace/reports")">
 
+                        <div class="bcc-nav-icon-container">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+
+                        <span class="bcc-nav-text">Reports</span>
+                    </a>
+                </div>
                 @if (CanAccessBudget())
                 {
                     <a href="/budget" class="bcc-nav-item @GetNavItemClass("/budget")">
@@ -263,39 +217,39 @@
                     </a>
                 }
 
-               @if (CanAccessWorkerManagementWorkspace())
-{
-    <div class="bcc-nav-section">
-        <a href="/workspace/worker-management"
-           class="bcc-nav-item @GetNavItemClass("/workspace/worker-management")">
+                @if (CanAccessWorkerManagementWorkspace())
+                {
+                    <div class="bcc-nav-section">
+                        <a href="/workspace/worker-management"
+                           class="bcc-nav-item @GetNavItemClass("/workspace/worker-management")">
 
-            <div class="bcc-nav-icon-container">
-                <i class="fas fa-users-cog"></i>
-            </div>
+                            <div class="bcc-nav-icon-container">
+                                <i class="fas fa-users-cog"></i>
+                            </div>
 
-            <span class="bcc-nav-text">
-                Worker Management
-            </span>
-        </a>
-    </div>
-}
+                            <span class="bcc-nav-text">
+                                Worker Management
+                            </span>
+                        </a>
+                    </div>
+                }
 
-@if (CanAccessSetupWorkspace())
-{
-    <div class="bcc-nav-section">
-        <a href="/workspace/setup"
-           class="bcc-nav-item @GetNavItemClass("/workspace/setup")">
+                @if (CanAccessSetupWorkspace())
+                {
+                    <div class="bcc-nav-section">
+                        <a href="/workspace/setup"
+                           class="bcc-nav-item @GetNavItemClass("/workspace/setup")">
 
-            <div class="bcc-nav-icon-container">
-                <i class="fas fa-cogs"></i>
-            </div>
+                            <div class="bcc-nav-icon-container">
+                                <i class="fas fa-cogs"></i>
+                            </div>
 
-            <span class="bcc-nav-text">
-                Setup
-            </span>
-        </a>
-    </div>
-}
+                            <span class="bcc-nav-text">
+                                Setup
+                            </span>
+                        </a>
+                    </div>
+                }
             </nav>
         </div>
     </div>
@@ -322,110 +276,140 @@
     private int rejectedOfferingsCount = 0;
     private bool showApprovalHubMenu = false;
     private int pendingApprovalInboxCount = 0;
-private int returnedRequestCount = 0;
-private int myDeskCount = 0;
+    private int returnedRequestCount = 0;
+    private int myDeskCount = 0;
+    private bool isConfiguredClusterHead = false;
 
     private GrowthHubCounts growthHubCounts = new GrowthHubCounts();
     private ServiceRecordAccessModel serviceRecordAccess = new();
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadOrganizationalAccess();
         await LoadNotificationCounts();
         await LoadGrowthHubCounts();
         await LoadApprovalHubCounts();
-         await LoadServiceRecordAccess();
-    }
-    private bool CanAccessWorkerManagementWorkspace()
-{
-    if (!AuthService.IsAuthenticated ||
-        AuthService.CurrentWorker == null)
-    {
-        return false;
+        await LoadServiceRecordAccess();
     }
 
-    if (AuthService.IsInRole("Church Admin") ||
-        AuthService.IsInRole("Pastor in Charge"))
+    private async Task LoadOrganizationalAccess()
     {
-        return true;
-    }
+        isConfiguredClusterHead = false;
 
-    var currentWorker =
-        AuthService.CurrentWorker;
+        if (!AuthService.IsAuthenticated ||
+            AuthService.CurrentWorker == null)
+        {
+            return;
+        }
 
-    var isMeatDirectorate =
-        string.Equals(
-            currentWorker.Directorate?.Code,
-            "MEAT",
-            StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(
-            currentWorker.Directorate?.Name,
-            "MEAT",
-            StringComparison.OrdinalIgnoreCase);
-
-    var isMeatLeadership =
-        AuthService.IsInRole("Head of Directorate") ||
-        AuthService.IsInRole("Asst Head of Directorate") ||
-        AuthService.IsInRole("Assistant Head of Directorate");
-
-    return
-        isMeatDirectorate &&
-        isMeatLeadership;
-}
-
-private bool CanAccessSetupWorkspace()
-{
-    if (!AuthService.IsAuthenticated)
-        return false;
-
-    return
-        AuthService.IsInRole("Church Admin") ||
-        AuthService.IsInRole("Pastor in Charge");
-}
-    private async Task LoadServiceRecordAccess()
-{
-    if (AuthService.IsAuthenticated &&
-        AuthService.CurrentWorker != null)
-    {
         try
         {
-            serviceRecordAccess =
-                await ServiceRecordAccessService.GetAccessAsync(AuthService.CurrentWorker.Id);
+            var organizationalAccessService =
+                ScopedServices.GetRequiredService<OrganizationalAccessService>();
+
+            isConfiguredClusterHead =
+                await organizationalAccessService.IsClusterHeadAsync(
+                    AuthService.CurrentWorker.Id);
         }
         catch (Exception ex)
         {
             Console.WriteLine(
-                $"Error loading Service Records access: {ex.Message}");
+                $"Error loading organizational access: {ex.Message}");
 
+            isConfiguredClusterHead = false;
+        }
+    }
+    private bool CanAccessWorkerManagementWorkspace()
+    {
+        if (!AuthService.IsAuthenticated ||
+            AuthService.CurrentWorker == null)
+        {
+            return false;
+        }
+
+        if (AuthService.IsInRole("Church Admin") ||
+            AuthService.IsInRole("Pastor in Charge"))
+        {
+            return true;
+        }
+
+        var currentWorker =
+            AuthService.CurrentWorker;
+
+        var isMeatDirectorate =
+            string.Equals(
+                currentWorker.Directorate?.Code,
+                "MEAT",
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                currentWorker.Directorate?.Name,
+                "MEAT",
+                StringComparison.OrdinalIgnoreCase);
+
+        var isMeatLeadership =
+            AuthService.IsInRole("Head of Directorate") ||
+            AuthService.IsInRole("Asst Head of Directorate") ||
+            AuthService.IsInRole("Assistant Head of Directorate");
+
+        return
+            isMeatDirectorate &&
+            isMeatLeadership;
+    }
+
+    private bool CanAccessSetupWorkspace()
+    {
+        if (!AuthService.IsAuthenticated)
+            return false;
+
+        return
+            AuthService.IsInRole("Church Admin") ||
+            AuthService.IsInRole("Pastor in Charge");
+    }
+    private async Task LoadServiceRecordAccess()
+    {
+        if (AuthService.IsAuthenticated &&
+            AuthService.CurrentWorker != null)
+        {
+            try
+            {
+                serviceRecordAccess =
+                    await ServiceRecordAccessService.GetAccessAsync(AuthService.CurrentWorker.Id);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    $"Error loading Service Records access: {ex.Message}");
+
+                serviceRecordAccess =
+                    new ServiceRecordAccessModel();
+            }
+        }
+        else
+        {
             serviceRecordAccess =
                 new ServiceRecordAccessModel();
         }
     }
-    else
-    {
-        serviceRecordAccess =
-            new ServiceRecordAccessModel();
-    }
-}
     private async Task LoadApprovalHubCounts()
-{
-    if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
     {
-        try
+        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
         {
-            pendingApprovalInboxCount =
-                await ApprovalRequestService.GetPendingApprovalCountAsync(AuthService.CurrentWorker.Id);
+            try
+            {
+                pendingApprovalInboxCount =
+                    await ApprovalRequestService.GetPendingApprovalCountAsync(AuthService.CurrentWorker.Id);
 
-            returnedRequestCount =
-                await ApprovalRequestService.GetReturnedRequestCountAsync(AuthService.CurrentWorker.Id);
+                returnedRequestCount =
+                    await ApprovalRequestService.GetReturnedRequestCountAsync(AuthService.CurrentWorker.Id);
 
-            myDeskCount = pendingApprovalInboxCount + returnedRequestCount;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading approval hub counts: {ex.Message}");
+                myDeskCount = pendingApprovalInboxCount + returnedRequestCount;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading approval hub counts: {ex.Message}");
+            }
         }
     }
-}
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -435,17 +419,9 @@ private bool CanAccessSetupWorkspace()
         }
     }
     private void ToggleApprovalHubMenu()
-{
-    showApprovalHubMenu = !showApprovalHubMenu;
-}
-    private bool CanAccessReports()
     {
-        return AuthService.IsInRole("Pastor in Charge") ||
-               AuthService.IsInRole("Head of Directorate") ||
-               AuthService.IsInRole("Church Admin") ||
-               AuthService.CanAccessAdminPanel();
+        showApprovalHubMenu = !showApprovalHubMenu;
     }
-
     private bool CanViewGrowthReports()
     {
         return AuthService.IsInRole("Pastor in Charge") ||
@@ -716,15 +692,19 @@ private bool CanAccessSetupWorkspace()
     private bool CanAccessProfileApproval()
     {
         var worker = AuthService.CurrentWorker;
-        if (worker == null) return false;
 
-        var role = worker.Role?.ToLowerInvariant() ?? "";
+        if (worker == null)
+            return false;
 
-        return role.Contains("head of directorate") ||
-               role.Contains("asst head of directorate") ||
-               role.Contains("head of service") ||
-               role.Contains("pastor in charge") ||
-               role.Contains("senior pastor");
+        var role = worker.Role?.Trim().ToLowerInvariant() ?? "";
+
+        return
+            role == "head of directorate" ||
+            role == "asst head of directorate" ||
+            role == "assistant head of directorate" ||
+            role == "head of service" ||
+            role == "pastor in charge" ||
+            isConfiguredClusterHead;
     }
 
     private bool CanAccessMyTeam()

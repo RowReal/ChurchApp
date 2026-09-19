@@ -1,0 +1,1300 @@
+﻿@page "/worker-attendance"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+@using Microsoft.JSInterop
+
+@inject WorkerAttendanceService WorkerAttendanceService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Worker Attendance - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to mark worker attendance.</p>
+
+        <a href="/login" class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page attendance-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-5">
+                <div class="spinner-border text-primary mb-3"></div>
+                <h5 class="fw-bold">Loading Worker Attendance...</h5>
+                <p class="text-muted mb-0">
+                    Checking services currently available for attendance.
+                </p>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="worker360-page attendance-page">
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success profile-v2-alert alert-dismissible fade show">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+                <button type="button"
+                        class="btn-close"
+                        @onclick="ClearMessages">
+                </button>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger profile-v2-alert alert-dismissible fade show">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+                <button type="button"
+                        class="btn-close"
+                        @onclick="ClearMessages">
+                </button>
+            </div>
+        }
+
+        <div class="bcc-page-header attendance-page-header">
+            <div>
+                <div class="attendance-page-kicker">
+                    <i class="fas fa-user-check me-2"></i>
+                    BCC ServiceHub
+                </div>
+
+                <div class="bcc-page-title">
+                    Worker Attendance
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Select the service and use your current location to sign in or sign out.
+                </div>
+
+                <div class="attendance-page-date">
+                    <i class="fas fa-calendar-day me-2"></i>
+                    @GetNigeriaToday().ToString("dddd, dd MMMM yyyy")
+                </div>
+            </div>
+
+            <button type="button"
+                    class="bcc-btn attendance-light-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-1"></i>
+                Back
+            </button>
+        </div>
+
+        @if (currentWorker == null)
+        {
+            <div class="bcc-empty">
+                <i class="fas fa-user-slash"></i>
+                <h4>Worker Profile Not Available</h4>
+                <p>
+                    Your authenticated worker profile could not be loaded.
+                    Please log out and log in again.
+                </p>
+            </div>
+        }
+        else if (!availableServices.Any())
+        {
+            <div class="bcc-card">
+                <div class="bcc-card-body">
+                    <div class="attendance-empty-state">
+                        <div class="attendance-empty-icon">
+                            <i class="fas fa-calendar-times"></i>
+                        </div>
+
+                        <h4>No Service Available</h4>
+
+                        <p>
+                            There is currently no service open for worker attendance.
+                            A service will appear here during its configured attendance window.
+                        </p>
+
+                        <button type="button"
+                                class="bcc-btn bcc-btn-primary"
+                                @onclick="ReloadPageAsync">
+                            <i class="fas fa-sync-alt me-2"></i>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="row g-3">
+
+                <div class="col-12 col-xl-7">
+                    <div class="bcc-card h-100">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-fingerprint text-primary"></i>
+
+                            <div>
+                                <div class="bcc-card-title">
+                                    Mark Attendance
+                                </div>
+
+                                <small class="text-muted">
+                                    Your name, date and attendance time are captured automatically.
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body">
+
+                            <div class="attendance-form-section">
+                                <div class="attendance-section-header amber">
+                                    <i class="fas fa-church"></i>
+                                    <span>Service</span>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <div class="bcc-form-field">
+                                            <label class="bcc-form-label">
+                                                Select Service
+                                            </label>
+
+                                            <select class="form-select bcc-input"
+                                                    value="@selectedServiceId"
+                                                    @onchange="OnServiceChanged">
+                                                <option value="0">
+                                                    Select the service you are attending
+                                                </option>
+
+                                                @foreach (var service in availableServices)
+                                                {
+                                                    <option value="@service.Id">
+                                                        @service.Name
+                                                    </option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if (selectedService != null)
+                            {
+                                <div class="attendance-form-section">
+                                    <div class="attendance-section-header blue">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span>Attendance Details</span>
+                                    </div>
+
+                                    <div class="attendance-detail-grid">
+                                        <div class="attendance-detail-item">
+                                            <span>Worker</span>
+                                            <strong>@GetWorkerName()</strong>
+                                        </div>
+
+                                        <div class="attendance-detail-item">
+                                            <span>Service</span>
+                                            <strong>@selectedService.Name</strong>
+                                        </div>
+
+                                        <div class="attendance-detail-item">
+                                            <span>Service Time</span>
+                                            <strong>@GetServiceTimeText(selectedService)</strong>
+                                        </div>
+
+                                        <div class="attendance-detail-item">
+                                            <span>Date</span>
+                                            <strong>@GetNigeriaToday().ToString("dd MMM yyyy")</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="attendance-form-section mb-0">
+                                    <div class="attendance-section-header green">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        <span>Location Verification</span>
+                                    </div>
+
+                                    <div class="location-notice">
+                                        <div class="location-notice-icon">
+                                            <i class="fas fa-location-arrow"></i>
+                                        </div>
+
+                                        <div>
+                                            <strong>
+                                                Location permission is required
+                                            </strong>
+
+                                            <p>
+                                                When you press the attendance button,
+                                                your browser will check your current GPS position.
+                                                Attendance is accepted only within the authorised area.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    @if (!string.IsNullOrWhiteSpace(locationMessage))
+                                    {
+                                        <div class="location-result @locationMessageClass">
+                                            <i class="@locationMessageIcon"></i>
+                                            <span>@locationMessage</span>
+                                        </div>
+                                    }
+
+                                    <div class="attendance-action-area">
+                                        @if (attendance == null ||
+                                             !attendance.ClockInTime.HasValue)
+                                        {
+                                            <button type="button"
+                                                    class="attendance-main-btn sign-in"
+                                                    disabled="@isProcessing"
+                                                    @onclick="ClockInAsync">
+                                                @if (isProcessing)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                                    <span>Checking Location...</span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-sign-in-alt"></i>
+                                                    <span>SIGN IN</span>
+                                                }
+                                            </button>
+
+                                            <small>
+                                                Your first successful sign-in becomes your clock-in time.
+                                            </small>
+                                        }
+                                        else
+                                        {
+                                            <button type="button"
+                                                    class="attendance-main-btn sign-out"
+                                                    disabled="@isProcessing"
+                                                    @onclick="ClockOutAsync">
+                                                @if (isProcessing)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                                    <span>Checking Location...</span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-sign-out-alt"></i>
+                                                    <span>
+                                                        @(attendance.ClockOutTime.HasValue
+                                                            ? "UPDATE SIGN OUT"
+                                                            : "SIGN OUT")
+                                                    </span>
+                                                }
+                                            </button>
+
+                                            <small>
+                                                Your latest successful sign-out becomes your clock-out time.
+                                            </small>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-5">
+                    <div class="bcc-card h-100">
+                        <div class="bcc-card-header">
+                            <i class="fas fa-clipboard-check text-success"></i>
+
+                            <div>
+                                <div class="bcc-card-title">
+                                    Attendance Status
+                                </div>
+
+                                <small class="text-muted">
+                                    Your attendance record for the selected service.
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="bcc-card-body">
+
+                            @if (selectedService == null)
+                            {
+                                <div class="attendance-status-empty">
+                                    <div class="attendance-status-icon neutral">
+                                        <i class="fas fa-hand-pointer"></i>
+                                    </div>
+
+                                    <h5>Select a Service</h5>
+
+                                    <p>
+                                        Choose an available service to view your attendance status.
+                                    </p>
+                                </div>
+                            }
+                            else if (isLoadingAttendance)
+                            {
+                                <div class="attendance-status-empty">
+                                    <div class="spinner-border text-primary mb-3"></div>
+                                    <p>Loading attendance status...</p>
+                                </div>
+                            }
+                            else if (attendance == null ||
+                                     !attendance.ClockInTime.HasValue)
+                            {
+                                <div class="attendance-status-empty">
+                                    <div class="attendance-status-icon pending">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+
+                                    <h5>Not Signed In</h5>
+
+                                    <p>
+                                        No clock-in has been recorded for this service today.
+                                    </p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="attendance-status-summary">
+                                    <div class="attendance-status-banner success">
+                                        <i class="fas fa-check-circle"></i>
+
+                                        <div>
+                                            <strong>Attendance Recorded</strong>
+                                            <span>
+                                                Your clock-in has been successfully captured.
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="attendance-time-grid">
+                                        <div class="attendance-time-card">
+                                            <div class="time-icon in">
+                                                <i class="fas fa-sign-in-alt"></i>
+                                            </div>
+
+                                            <div>
+                                                <span>Clock In</span>
+                                                <strong>
+                                                    @attendance.ClockInTime.Value.ToString("hh:mm tt")
+                                                </strong>
+                                            </div>
+                                        </div>
+
+                                        <div class="attendance-time-card">
+                                            <div class="time-icon out">
+                                                <i class="fas fa-sign-out-alt"></i>
+                                            </div>
+
+                                            <div>
+                                                <span>Clock Out</span>
+
+                                                @if (attendance.ClockOutTime.HasValue)
+                                                {
+                                                    <strong>
+                                                        @attendance.ClockOutTime.Value.ToString("hh:mm tt")
+                                                    </strong>
+                                                }
+                                                else
+                                                {
+                                                    <strong class="text-muted">
+                                                        Not yet
+                                                    </strong>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    @if (attendance.ClockInDistanceMetres.HasValue)
+                                    {
+                                        <div class="attendance-location-summary">
+                                            <i class="fas fa-map-marker-alt"></i>
+
+                                            <div>
+                                                <span>Clock-in Location</span>
+                                                <strong>
+                                                    Approximately
+                                                    @Math.Round(attendance.ClockInDistanceMetres.Value)
+                                                    metres from authorised point
+                                                </strong>
+                                            </div>
+                                        </div>
+                                    }
+
+                                    @if (attendance.ClockOutTime.HasValue &&
+                                         attendance.ClockOutDistanceMetres.HasValue)
+                                    {
+                                        <div class="attendance-location-summary">
+                                            <i class="fas fa-map-marker-alt"></i>
+
+                                            <div>
+                                                <span>Clock-out Location</span>
+                                                <strong>
+                                                    Approximately
+                                                    @Math.Round(attendance.ClockOutDistanceMetres.Value)
+                                                    metres from authorised point
+                                                </strong>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private Worker? currentWorker;
+
+    private List<Service> availableServices = new();
+
+    private Service? selectedService;
+
+    private ChurchApp.Models.WorkerAttendance? attendance;
+
+    private int selectedServiceId;
+
+    private bool isLoading = true;
+
+    private bool isLoadingAttendance;
+
+    private bool isProcessing;
+
+    private string? successMessage;
+
+    private string? errorMessage;
+
+    private string? locationMessage;
+
+    private string locationMessageClass = "neutral";
+
+    private string locationMessageIcon = "fas fa-info-circle";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync();
+    }
+
+
+    private async Task LoadPageAsync()
+    {
+        try
+        {
+            isLoading = true;
+            ClearMessages();
+
+            currentWorker = AuthService.CurrentWorker;
+
+            if (currentWorker == null)
+            {
+                availableServices = new List<Service>();
+                return;
+            }
+
+            availableServices =
+                await WorkerAttendanceService
+                    .GetAvailableServicesAsync();
+
+            if (availableServices.Count == 1)
+            {
+                selectedServiceId =
+                    availableServices[0].Id;
+
+                selectedService =
+                    availableServices[0];
+
+                await LoadAttendanceAsync();
+            }
+            else if (selectedServiceId > 0)
+            {
+                selectedService =
+                    availableServices
+                        .FirstOrDefault(s =>
+                            s.Id == selectedServiceId);
+
+                if (selectedService != null)
+                {
+                    await LoadAttendanceAsync();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load worker attendance: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    private async Task ReloadPageAsync()
+    {
+        await LoadPageAsync();
+    }
+
+
+    private async Task OnServiceChanged(
+        ChangeEventArgs e)
+    {
+        ClearMessages();
+        locationMessage = null;
+        attendance = null;
+
+        if (!int.TryParse(
+                e.Value?.ToString(),
+                out var serviceId))
+        {
+            serviceId = 0;
+        }
+
+        selectedServiceId = serviceId;
+
+        selectedService =
+            availableServices
+                .FirstOrDefault(s =>
+                    s.Id == selectedServiceId);
+
+        if (selectedService != null)
+        {
+            await LoadAttendanceAsync();
+        }
+    }
+
+
+    private async Task LoadAttendanceAsync()
+    {
+        if (currentWorker == null ||
+            selectedService == null)
+        {
+            attendance = null;
+            return;
+        }
+
+        try
+        {
+            isLoadingAttendance = true;
+
+            attendance =
+                await WorkerAttendanceService
+                    .GetAttendanceAsync(
+                        currentWorker.Id,
+                        selectedService.Id,
+                        GetNigeriaToday());
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load attendance status: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingAttendance = false;
+        }
+    }
+
+
+    private async Task ClockInAsync()
+    {
+        if (currentWorker == null ||
+            selectedService == null)
+        {
+            errorMessage =
+                "Please select a service before signing in.";
+
+            return;
+        }
+
+        await ProcessAttendanceAsync(
+            isClockIn: true);
+    }
+
+
+    private async Task ClockOutAsync()
+    {
+        if (currentWorker == null ||
+            selectedService == null)
+        {
+            errorMessage =
+                "Please select a service before signing out.";
+
+            return;
+        }
+
+        await ProcessAttendanceAsync(
+            isClockIn: false);
+    }
+
+
+  private async Task ProcessAttendanceAsync(bool isClockIn)
+{
+    try
+    {
+        isProcessing = true;
+        ClearMessages();
+
+        locationMessage =
+            "Getting your current location...";
+
+        locationMessageClass =
+            "neutral";
+
+        locationMessageIcon =
+            "fas fa-location-arrow fa-spin";
+
+        var location =
+            await JS.InvokeAsync<BrowserLocationResult>(
+                "workerAttendance.getCurrentPosition");
+
+        if (!location.Success)
+        {
+            locationMessage =
+                location.Message;
+
+            locationMessageClass =
+                "error";
+
+            locationMessageIcon =
+                "fas fa-exclamation-triangle";
+
+            errorMessage =
+                location.Message;
+
+            return;
+        }
+
+        // Browser location was obtained successfully.
+        // The server will determine whether the GPS accuracy
+        // and attendance radius meet the configured requirements.
+        locationMessage =
+            $"Location obtained with approximately " +
+            $"{Math.Round(location.Accuracy)} metre accuracy. " +
+            $"Verifying attendance location...";
+
+        locationMessageClass =
+            "neutral";
+
+        locationMessageIcon =
+            "fas fa-map-marker-alt";
+
+        WorkerAttendanceResult result;
+
+        if (isClockIn)
+        {
+            result =
+                await WorkerAttendanceService
+                    .ClockInAsync(
+                        currentWorker!.Id,
+                        selectedService!.Id,
+                        location.Latitude,
+                        location.Longitude,
+                        location.Accuracy);
+        }
+        else
+        {
+            result =
+                await WorkerAttendanceService
+                    .ClockOutAsync(
+                        currentWorker!.Id,
+                        selectedService!.Id,
+                        location.Latitude,
+                        location.Longitude,
+                        location.Accuracy);
+        }
+
+        if (result.Success)
+        {
+            successMessage =
+                result.Message;
+
+            locationMessage =
+                result.Message;
+
+            locationMessageClass =
+                "success";
+
+            locationMessageIcon =
+                "fas fa-check-circle";
+
+            attendance =
+                result.Attendance;
+
+            await LoadAttendanceAsync();
+        }
+        else
+        {
+            locationMessage =
+                result.Message;
+
+            locationMessageClass =
+                "error";
+
+            locationMessageIcon =
+                "fas fa-exclamation-triangle";
+
+            errorMessage =
+                result.Message;
+        }
+    }
+    catch (JSException ex)
+    {
+        locationMessage =
+            $"Location error: {ex.Message}";
+
+        locationMessageClass =
+            "error";
+
+        locationMessageIcon =
+            "fas fa-exclamation-triangle";
+
+        errorMessage =
+            locationMessage;
+    }
+    catch (Exception ex)
+    {
+        locationMessage =
+            $"Attendance was not successful: {ex.Message}";
+
+        locationMessageClass =
+            "error";
+
+        locationMessageIcon =
+            "fas fa-exclamation-triangle";
+
+        errorMessage =
+            locationMessage;
+    }
+    finally
+    {
+        isProcessing = false;
+    }
+}
+
+
+    private string GetWorkerName()
+    {
+        if (currentWorker == null)
+            return "Worker";
+
+        var name =
+            string.Join(
+                " ",
+                new[]
+                {
+                    currentWorker.Title,
+                    currentWorker.FirstName,
+                    currentWorker.MiddleName,
+                    currentWorker.LastName
+                }
+                .Where(value =>
+                    !string.IsNullOrWhiteSpace(value)));
+
+        return string.IsNullOrWhiteSpace(name)
+            ? currentWorker.WorkerId
+            : name;
+    }
+
+
+    private string GetServiceTimeText(
+        Service service)
+    {
+        TimeSpan? startTime;
+        TimeSpan? endTime;
+
+        if (service.RecurrencePattern == "OneTime")
+        {
+            startTime =
+                service.SpecificStartTime;
+
+            endTime =
+                service.SpecificEndTime;
+        }
+        else
+        {
+            startTime =
+                service.StartTime;
+
+            endTime =
+                service.EndTime;
+        }
+
+        if (!startTime.HasValue ||
+            !endTime.HasValue)
+        {
+            return "Time not configured";
+        }
+
+        var start =
+            GetNigeriaToday()
+                .Add(startTime.Value);
+
+        var end =
+            GetNigeriaToday()
+                .Add(endTime.Value);
+
+        return
+            $"{start:hh:mm tt} - {end:hh:mm tt}";
+    }
+
+
+    private DateTime GetNigeriaToday()
+    {
+        return DateTime.UtcNow
+            .AddHours(1)
+            .Date;
+    }
+
+
+    private void ClearMessages()
+    {
+        successMessage = null;
+        errorMessage = null;
+    }
+
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+
+    private sealed class BrowserLocationResult
+    {
+        public bool Success { get; set; }
+
+        public double Latitude { get; set; }
+
+        public double Longitude { get; set; }
+
+        public double Accuracy { get; set; }
+
+        public string Message { get; set; } =
+            string.Empty;
+    }
+}
+
+<style>
+    .attendance-page {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .attendance-page-header {
+        margin-bottom: 16px;
+    }
+
+    .attendance-page-kicker {
+        margin-bottom: 4px;
+        color: #4f46e5;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .attendance-page-date {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 8px;
+        padding: 5px 9px;
+        color: #475569;
+        font-size: 0.7rem;
+        font-weight: 700;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .attendance-light-btn {
+        min-height: 34px;
+        padding: 7px 12px;
+        color: #475569;
+        font-size: 0.78rem;
+        background: #ffffff;
+        border: 1px solid #dbe2ea;
+    }
+
+    .attendance-light-btn:hover {
+        color: #1e293b;
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+
+    .attendance-form-section {
+        margin-bottom: 18px;
+        padding: 14px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+    }
+
+    .attendance-section-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: -14px -14px 14px;
+        padding: 9px 12px;
+        font-size: 0.76rem;
+        font-weight: 800;
+        border-bottom: 1px solid;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .attendance-section-header.amber {
+        color: #92400e;
+        background: #fffbeb;
+        border-color: #fde68a;
+    }
+
+    .attendance-section-header.blue {
+        color: #1e40af;
+        background: #eff6ff;
+        border-color: #bfdbfe;
+    }
+
+    .attendance-section-header.green {
+        color: #166534;
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+    }
+
+    .attendance-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .attendance-detail-item {
+        padding: 10px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .attendance-detail-item span {
+        display: block;
+        margin-bottom: 2px;
+        color: #64748b;
+        font-size: 0.63rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .attendance-detail-item strong {
+        color: #0f172a;
+        font-size: 0.82rem;
+    }
+
+    .location-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 11px;
+        padding: 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+
+    .location-notice-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        color: #4f46e5;
+        background: #eef2ff;
+        border-radius: 10px;
+    }
+
+    .location-notice strong {
+        display: block;
+        margin-bottom: 2px;
+        color: #0f172a;
+        font-size: 0.78rem;
+    }
+
+    .location-notice p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.69rem;
+        line-height: 1.5;
+    }
+
+    .location-result {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        padding: 9px 11px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        border-radius: 9px;
+    }
+
+    .location-result.neutral {
+        color: #475569;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+
+    .location-result.success {
+        color: #166534;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+
+    .location-result.error {
+        color: #991b1b;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+
+    .attendance-action-area {
+        margin-top: 14px;
+        text-align: center;
+    }
+
+    .attendance-main-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 54px;
+        padding: 12px 18px;
+        color: #ffffff;
+        font-size: 0.92rem;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        border: 0;
+        border-radius: 11px;
+        box-shadow: 0 5px 14px rgba(15, 23, 42, 0.12);
+        transition:
+            transform 0.15s ease,
+            box-shadow 0.15s ease,
+            opacity 0.15s ease;
+    }
+
+    .attendance-main-btn.sign-in {
+        background: #16a34a;
+    }
+
+    .attendance-main-btn.sign-out {
+        background: #dc2626;
+    }
+
+    .attendance-main-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 7px 18px rgba(15, 23, 42, 0.16);
+    }
+
+    .attendance-main-btn:disabled {
+        opacity: 0.7;
+    }
+
+    .attendance-action-area small {
+        display: block;
+        margin-top: 7px;
+        color: #64748b;
+        font-size: 0.66rem;
+    }
+
+    .attendance-status-empty,
+    .attendance-empty-state {
+        padding: 30px 20px;
+        text-align: center;
+    }
+
+    .attendance-status-icon,
+    .attendance-empty-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 58px;
+        height: 58px;
+        margin: 0 auto 12px;
+        border-radius: 16px;
+        font-size: 1.35rem;
+    }
+
+    .attendance-status-icon.neutral,
+    .attendance-empty-icon {
+        color: #4f46e5;
+        background: #eef2ff;
+    }
+
+    .attendance-status-icon.pending {
+        color: #b45309;
+        background: #fef3c7;
+    }
+
+    .attendance-status-empty h5,
+    .attendance-empty-state h4 {
+        margin-bottom: 5px;
+        color: #0f172a;
+        font-weight: 800;
+    }
+
+    .attendance-status-empty p,
+    .attendance-empty-state p {
+        max-width: 520px;
+        margin: 0 auto 15px;
+        color: #64748b;
+        font-size: 0.76rem;
+    }
+
+    .attendance-status-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        padding: 11px 12px;
+        border-radius: 10px;
+    }
+
+    .attendance-status-banner.success {
+        color: #166534;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+
+    .attendance-status-banner > i {
+        font-size: 1.2rem;
+    }
+
+    .attendance-status-banner strong,
+    .attendance-status-banner span {
+        display: block;
+    }
+
+    .attendance-status-banner strong {
+        font-size: 0.78rem;
+    }
+
+    .attendance-status-banner span {
+        margin-top: 1px;
+        font-size: 0.66rem;
+    }
+
+    .attendance-time-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .attendance-time-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+    }
+
+    .time-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        border-radius: 9px;
+    }
+
+    .time-icon.in {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .time-icon.out {
+        color: #991b1b;
+        background: #fee2e2;
+    }
+
+    .attendance-time-card span,
+    .attendance-time-card strong {
+        display: block;
+    }
+
+    .attendance-time-card span {
+        color: #64748b;
+        font-size: 0.62rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .attendance-time-card strong {
+        margin-top: 2px;
+        color: #0f172a;
+        font-size: 0.92rem;
+    }
+
+    .attendance-location-summary {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        margin-top: 10px;
+        padding: 10px 11px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .attendance-location-summary > i {
+        margin-top: 2px;
+        color: #4f46e5;
+    }
+
+    .attendance-location-summary span,
+    .attendance-location-summary strong {
+        display: block;
+    }
+
+    .attendance-location-summary span {
+        color: #64748b;
+        font-size: 0.61rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .attendance-location-summary strong {
+        margin-top: 2px;
+        color: #334155;
+        font-size: 0.7rem;
+    }
+
+    @@media (max-width: 768px) {
+        .attendance-detail-grid,
+        .attendance-time-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .attendance-page-header {
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .attendance-main-btn {
+            min-height: 58px;
+        }
+    }
+</style>

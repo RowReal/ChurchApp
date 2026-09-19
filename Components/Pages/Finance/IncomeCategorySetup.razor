@@ -1,0 +1,2172 @@
+﻿@page "/finance/income-categories"
+@rendermode InteractiveServer
+
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+
+@inject IncomeCategoryService IncomeCategoryService
+@inject AuthService AuthService
+
+<PageTitle>Income Category Setup</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="finance-access-card">
+        <div class="finance-access-icon">
+            <i class="bi bi-shield-lock"></i>
+        </div>
+
+        <h4>Authentication Required</h4>
+
+        <p>
+            Please sign in to access the Finance Setup workspace.
+        </p>
+    </div>
+}
+else if (!AuthService.CanAccessAdminPanel())
+{
+    <div class="finance-access-card">
+        <div class="finance-access-icon denied">
+            <i class="bi bi-exclamation-triangle"></i>
+        </div>
+
+        <h4>Access Restricted</h4>
+
+        <p>
+            You do not have permission to manage income categories.
+        </p>
+    </div>
+}
+else
+{
+    <div class="worker360-page finance-page">
+
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-tags me-2"></i>
+                    Finance Configuration
+                </div>
+                <div class="bcc-page-title">Income Category Setup</div>
+                <div class="bcc-page-subtitle">
+                    Create broad classifications for offerings, tithes, donations, projects and other church income.
+                </div>
+            </div>
+            <div class="finance-header-actions">
+                <button type="button" class="bcc-btn bcc-btn-primary finance-compact-btn" @onclick="StartNewCategory">
+                    <i class="fas fa-plus me-2"></i> New Category
+                </button>
+                <a href="/workspace/setup" class="bcc-btn profile-form-secondary-btn finance-compact-btn">
+                    <i class="fas fa-arrow-left me-2"></i> Setup Workspace
+                </a>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="finance-alert finance-alert-success">
+                <div class="finance-alert-icon">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+
+                <div class="flex-grow-1">
+                    <strong>Successful</strong>
+                    <div>@successMessage</div>
+                </div>
+
+                <button type="button"
+                        class="finance-alert-close"
+                        @onclick="ClearMessages">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="finance-alert finance-alert-danger">
+                <div class="finance-alert-icon">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                </div>
+
+                <div class="flex-grow-1">
+                    <strong>Unable to complete request</strong>
+                    <div>@errorMessage</div>
+                </div>
+
+                <button type="button"
+                        class="finance-alert-close"
+                        @onclick="ClearMessages">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        }
+
+    <section class="finance-summary-grid">
+
+        <div class="finance-summary-card summary-blue">
+            <div class="finance-summary-icon">
+                <i class="bi bi-tags"></i>
+            </div>
+
+            <div>
+                <span>Total Categories</span>
+                <strong>@incomeCategories.Count</strong>
+                <small>All configured categories</small>
+            </div>
+        </div>
+
+        <div class="finance-summary-card summary-green">
+            <div class="finance-summary-icon">
+                <i class="bi bi-check2-circle"></i>
+            </div>
+
+            <div>
+                <span>Active Categories</span>
+                <strong>@incomeCategories.Count(x => x.IsActive)</strong>
+                <small>Available for income setup</small>
+            </div>
+        </div>
+
+        <div class="finance-summary-card summary-purple">
+            <div class="finance-summary-icon">
+                <i class="bi bi-list-check"></i>
+            </div>
+
+            <div>
+                <span>Income Types</span>
+                <strong>
+                    @incomeCategories.Sum(x => x.IncomeTypes?.Count ?? 0)
+                </strong>
+                <small>Types linked to categories</small>
+            </div>
+        </div>
+
+        <div class="finance-summary-card summary-gold">
+            <div class="finance-summary-icon">
+                <i class="bi bi-eye-slash"></i>
+            </div>
+
+            <div>
+                <span>Inactive</span>
+                <strong>@incomeCategories.Count(x => !x.IsActive)</strong>
+                <small>Unavailable categories</small>
+            </div>
+        </div>
+
+    </section>
+
+    <div class="finance-workspace-grid">
+
+        <section class="finance-panel finance-form-panel">
+
+            <div class="finance-panel-header">
+                <div>
+                    <div class="finance-section-label">
+                        Category Configuration
+                    </div>
+
+                    <h4>
+                        @(categoryModel.Id == 0
+                                                ? "New Income Category"
+                                                : "Edit Income Category")
+                    </h4>
+
+                        <p>
+                            Define a broad classification used to group
+                            related income types.
+                        </p>
+                    </div>
+
+                @if (categoryModel.Id != 0)
+                    {
+                        <span class="finance-edit-badge">
+                            <i class="bi bi-pencil-square me-1"></i>
+                            Editing
+                        </span>
+                    }
+                </div>
+
+                <EditForm Model="@categoryModel"
+                          OnValidSubmit="@SaveCategory"
+                          FormName="IncomeCategorySetupForm">
+
+                    <DataAnnotationsValidator />
+
+                    <div class="finance-validation-summary">
+                        <ValidationSummary />
+                    </div>
+
+                    <div class="finance-form-section">
+                        <div class="finance-form-section-title">
+                            <i class="bi bi-tag"></i>
+
+                            <div>
+                                <strong>Category Information</strong>
+                                <span>
+                                    Enter the category name, code and description
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+
+                            <div class="col-12">
+                                <label class="form-label">
+                                    Category Name
+                                    <span class="required-mark">*</span>
+                                </label>
+
+                                <InputText class="form-control finance-control"
+                                           @bind-Value="categoryModel.Name"
+                                           placeholder="e.g. Offering" />
+
+                                <ValidationMessage For="@(() => categoryModel.Name)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Category Code
+                                </label>
+
+                                <InputText class="form-control finance-control"
+                                           @bind-Value="categoryModel.Code"
+                                           maxlength="20"
+                                           placeholder="e.g. OFF" />
+
+                                <small class="finance-field-hint">
+                                    Use a short, recognisable code.
+                                </small>
+
+                                <ValidationMessage For="@(() => categoryModel.Code)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Display Order
+                                </label>
+
+                                <InputNumber class="form-control finance-control"
+                                             @bind-Value="categoryModel.DisplayOrder" />
+
+                                <small class="finance-field-hint">
+                                    Lower numbers appear first.
+                                </small>
+
+                                <ValidationMessage For="@(() => categoryModel.DisplayOrder)" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">
+                                    Description
+                                </label>
+
+                                <InputTextArea class="form-control finance-control finance-textarea"
+                                               @bind-Value="categoryModel.Description"
+                                               placeholder="Describe the income grouped under this category" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="finance-status-switch">
+                                    <InputCheckbox class="form-check-input"
+                                                   @bind-Value="categoryModel.IsActive" />
+
+                                    <span>
+                                        <strong>Active Category</strong>
+                                        <small>
+                                            Active categories can be selected when creating income types
+                                        </small>
+                                    </span>
+                                </label>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="finance-form-actions">
+
+                        <button type="submit"
+                                class="btn finance-primary-button"
+                                disabled="@isSaving">
+
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>Saving...</span>
+                            }
+                            else if (categoryModel.Id == 0)
+                            {
+                                <i class="bi bi-check-circle me-2"></i>
+                                <span>Save Category</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle me-2"></i>
+                                <span>Update Category</span>
+                            }
+                    </button>
+
+                    <button type="button"
+                            class="btn finance-secondary-button"
+                            disabled="@isSaving"
+                            @onclick="ResetForm">
+
+                        <i class="bi bi-arrow-counterclockwise me-2"></i>
+
+                        @(categoryModel.Id == 0
+                                                ? "Clear Form"
+                                                : "Cancel Editing")
+                    </button>
+
+                    </div>
+
+                </EditForm>
+            </section>
+
+            <section class="finance-panel finance-list-panel">
+
+                <div class="finance-panel-header">
+                    <div>
+                        <div class="finance-section-label">
+                            Category Register
+                        </div>
+
+                        <h4>Configured Income Categories</h4>
+
+                        <p>
+                            Review categories, linked income types and
+                            operational status.
+                        </p>
+                    </div>
+
+                    <span class="finance-count-badge">
+                        @FilteredCategories.Count category(s)
+                    </span>
+                </div>
+
+                <div class="finance-list-toolbar">
+
+                    <div class="finance-search-box">
+                        <i class="bi bi-search"></i>
+
+                        <input class="form-control"
+                               value="@searchText"
+                               @oninput="HandleSearch"
+                               placeholder="Search category, code or description" />
+
+                    @if (!string.IsNullOrWhiteSpace(searchText))
+                        {
+                            <button type="button"
+                                    @onclick="ClearSearch"
+                                    title="Clear search">
+                                <i class="bi bi-x-circle-fill"></i>
+                            </button>
+                        }
+                    </div>
+
+                    <select class="form-select finance-status-filter"
+                            value="@statusFilter"
+                            @onchange="HandleStatusFilter">
+
+                        <option value="All">All categories</option>
+                        <option value="Active">Active categories</option>
+                        <option value="Inactive">Inactive categories</option>
+                    </select>
+
+                    <button type="button"
+                            class="btn finance-refresh-button"
+                            disabled="@isLoading"
+                            @onclick="LoadCategories">
+
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+
+                </div>
+
+                @if (isLoading)
+                {
+                    <div class="finance-loading-state">
+                        <div class="spinner-border" role="status"></div>
+                        <strong>Loading income categories...</strong>
+                        <span>Please wait while the category register is prepared.</span>
+                    </div>
+                }
+                else if (FilteredCategories.Count == 0)
+                {
+                    <div class="finance-empty-state">
+                        <div class="finance-empty-icon">
+                            <i class="bi bi-tags"></i>
+                        </div>
+
+                        <h5>No income category found</h5>
+
+                        <p>
+                            No category matches the current search or status filter.
+                        </p>
+
+                        <button type="button"
+                                class="btn finance-secondary-button"
+                                @onclick="ClearFilters">
+
+                            <i class="bi bi-funnel me-2"></i>
+                            Clear Filters
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="finance-table-wrapper">
+                        <table class="table finance-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Code</th>
+                                    <th>Description</th>
+                                    <th>Order</th>
+                                    <th>Income Types</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var category in FilteredCategories)
+                                {
+                                    <tr class="@GetEditingRowClass(category.Id)">
+
+                                        <td>
+                                            <div class="finance-category-cell">
+                                                <div class="finance-category-avatar">
+                                                    @GetCategoryInitials(category.Name)
+                                                </div>
+
+                                                <strong>@category.Name</strong>
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(category.Code))
+                                            {
+                                                <span class="finance-code-badge">
+                                                    @category.Code
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="finance-muted-value">
+                                                    Not assigned
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            <span title="@category.Description">
+                                                @TruncateText(category.Description, 55)
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            <span class="finance-order-badge">
+                                                @category.DisplayOrder
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            <span class="finance-type-count">
+                                                @(category.IncomeTypes?.Count ?? 0)
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            @if (category.IsActive)
+                                            {
+                                                <span class="finance-status-badge status-active">
+                                                    <span></span>
+                                                    Active
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="finance-status-badge status-inactive">
+                                                    <span></span>
+                                                    Inactive
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            <div class="finance-action-group">
+
+                                                <button type="button"
+                                                        class="finance-action-button action-edit"
+                                                        title="Edit category"
+                                                        @onclick="() => EditCategory(category)">
+
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </button>
+
+                                                <button type="button"
+                                                        class="finance-action-button @(category.IsActive ? "action-disable" : "action-enable")"
+                                                        title="@(category.IsActive ? "Deactivate category" : "Activate category")"
+                                                        @onclick="() => ToggleStatus(category)">
+
+                                                    @if (category.IsActive)
+                                                    {
+                                                        <i class="bi bi-toggle-on"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="bi bi-toggle-off"></i>
+                                                    }
+
+                                                </button>
+
+                                            </div>
+                                        </td>
+
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+            </section>
+
+        </div>
+    </div>
+}
+
+@code {
+    private List<IncomeCategory> incomeCategories = new();
+    private IncomeCategory categoryModel = CreateEmptyModel();
+
+    private string searchText = string.Empty;
+    private string statusFilter = "All";
+
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    private bool isLoading = true;
+    private bool isSaving;
+
+    private List<IncomeCategory> FilteredCategories
+    {
+        get
+        {
+            IEnumerable<IncomeCategory> query = incomeCategories;
+
+            if (statusFilter == "Active")
+            {
+                query = query.Where(x => x.IsActive);
+            }
+            else if (statusFilter == "Inactive")
+            {
+                query = query.Where(x => !x.IsActive);
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var term = searchText.Trim();
+
+                query = query.Where(x =>
+                    x.Name.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase) ||
+
+                    (x.Code?.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase) ?? false) ||
+
+                    (x.Description?.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            return query
+                .OrderByDescending(x => x.IsActive)
+                .ThenBy(x => x.DisplayOrder)
+                .ThenBy(x => x.Name)
+                .ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated &&
+            AuthService.CanAccessAdminPanel())
+        {
+            await LoadCategories();
+        }
+        else
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadCategories()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            incomeCategories =
+                await IncomeCategoryService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load income categories: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveCategory()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            ClearMessages();
+
+            ServiceResult<IncomeCategory> result;
+
+            if (categoryModel.Id == 0)
+            {
+                result = await IncomeCategoryService.CreateAsync(
+                    categoryModel,
+                    GetCurrentUserName());
+            }
+            else
+            {
+                result = await IncomeCategoryService.UpdateAsync(
+                    categoryModel,
+                    GetCurrentUserName());
+            }
+
+            if (!result.Success)
+            {
+                errorMessage = result.Message;
+                return;
+            }
+
+            successMessage = result.Message;
+            categoryModel = CreateEmptyModel();
+
+            await LoadCategories();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to save the income category: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void EditCategory(IncomeCategory category)
+    {
+        ClearMessages();
+
+        categoryModel = new IncomeCategory
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Code = category.Code,
+            Description = category.Description,
+            DisplayOrder = category.DisplayOrder,
+            IsActive = category.IsActive,
+            CreatedDate = category.CreatedDate,
+            CreatedBy = category.CreatedBy,
+            LastModifiedDate = category.LastModifiedDate,
+            LastModifiedBy = category.LastModifiedBy
+        };
+    }
+
+    private async Task ToggleStatus(IncomeCategory category)
+    {
+        try
+        {
+            ClearMessages();
+
+            var result =
+                await IncomeCategoryService.ToggleStatusAsync(
+                    category.Id,
+                    GetCurrentUserName());
+
+            if (!result.Success)
+            {
+                errorMessage = result.Message;
+                return;
+            }
+
+            successMessage = result.Message;
+
+            if (categoryModel.Id == category.Id)
+            {
+                categoryModel = CreateEmptyModel();
+            }
+
+            await LoadCategories();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to change the category status: {ex.Message}";
+        }
+    }
+
+    private void StartNewCategory()
+    {
+        ResetForm();
+    }
+
+    private void ResetForm()
+    {
+        categoryModel = CreateEmptyModel();
+        ClearMessages();
+    }
+
+    private static IncomeCategory CreateEmptyModel()
+    {
+        return new IncomeCategory
+        {
+            DisplayOrder = 0,
+            IsActive = true
+        };
+    }
+
+    private void HandleSearch(ChangeEventArgs args)
+    {
+        searchText = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private void HandleStatusFilter(ChangeEventArgs args)
+    {
+        statusFilter = args.Value?.ToString() ?? "All";
+    }
+
+    private void ClearSearch()
+    {
+        searchText = string.Empty;
+    }
+
+    private void ClearFilters()
+    {
+        searchText = string.Empty;
+        statusFilter = "All";
+    }
+
+    private void ClearMessages()
+    {
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
+
+    private static string GetCurrentUserName()
+    {
+        return "System User";
+    }
+
+    private string GetEditingRowClass(int categoryId)
+    {
+        return categoryModel.Id == categoryId
+            ? "finance-editing-row"
+            : string.Empty;
+    }
+
+    private static string GetCategoryInitials(string categoryName)
+    {
+        if (string.IsNullOrWhiteSpace(categoryName))
+        {
+            return "IC";
+        }
+
+        var words = categoryName
+            .Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries)
+            .Take(2)
+            .ToArray();
+
+        return string.Concat(words.Select(x => x[0]))
+            .ToUpperInvariant();
+    }
+
+    private static string TruncateText(
+        string? text,
+        int maximumLength)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "No description";
+        }
+
+        return text.Length <= maximumLength
+            ? text
+            : $"{text[..maximumLength]}...";
+    }
+}
+
+<style>
+    .finance-page {
+        max-width: 1300px;
+        margin: 0 auto
+    }
+
+        .finance-page .bcc-page-header {
+            margin-bottom: 16px
+        }
+
+    .finance-header-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap
+    }
+
+    .finance-compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: .78rem
+    }
+
+    .finance-access-card {
+        max-width: 520px;
+        margin: 70px auto;
+        padding: 28px;
+        text-align: center;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #7c3aed;
+        border-radius: 12px
+    }
+
+    .finance-access-icon {
+        width: 52px;
+        height: 52px;
+        margin: 0 auto 12px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-size: 1.35rem
+    }
+
+        .finance-access-icon.denied {
+            background: #fef2f2;
+            color: #b91c1c
+        }
+
+    .finance-access-card h4 {
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 800
+    }
+
+    .finance-access-card p {
+        color: #64748b;
+        font-size: .75rem
+    }
+
+    .finance-alert {
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        border: 1px solid;
+        border-radius: 9px;
+        display: flex;
+        gap: 9px;
+        font-size: .68rem
+    }
+
+    .finance-alert-success {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #166534
+    }
+
+    .finance-alert-danger {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b
+    }
+
+    .finance-alert-close {
+        margin-left: auto;
+        border: 0;
+        background: transparent;
+        color: inherit
+    }
+
+    .finance-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4,minmax(0,1fr));
+        gap: 12px;
+        margin-bottom: 16px
+    }
+
+    .finance-summary-card {
+        min-height: 92px;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 2px 8px rgba(15,23,42,.035)
+    }
+
+    .finance-summary-icon {
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+        border-radius: 11px;
+        display: grid;
+        place-items: center;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-size: 1rem
+    }
+
+    .finance-summary-card > div:last-child span {
+        display: block;
+        color: #64748b;
+        font-size: .62rem;
+        font-weight: 750;
+        text-transform: uppercase
+    }
+
+    .finance-summary-card > div:last-child strong {
+        display: block;
+        color: #0f172a;
+        font-size: 1.25rem;
+        font-weight: 850
+    }
+
+    .finance-summary-card > div:last-child small {
+        display: block;
+        color: #94a3b8;
+        font-size: .63rem
+    }
+
+    .summary-green .finance-summary-icon {
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .summary-gold .finance-summary-icon {
+        background: #fffbeb;
+        color: #b45309
+    }
+
+    .finance-workspace-grid {
+        display: grid;
+        grid-template-columns: minmax(350px,.85fr) minmax(600px,1.45fr);
+        gap: 16px;
+        align-items: start
+    }
+
+    .finance-panel {
+        min-width: 0;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #7c3aed;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(15,23,42,.035)
+    }
+
+    .finance-list-panel {
+        border-top-color: #a78bfa
+    }
+
+    .finance-panel-header {
+        padding: 14px 16px 12px;
+        border-bottom: 1px solid #e8edf3;
+        display: flex;
+        justify-content: space-between;
+        gap: 14px
+    }
+
+    .finance-section-label {
+        margin-bottom: 3px;
+        color: #7c3aed;
+        font-size: .64rem;
+        font-weight: 800;
+        letter-spacing: .065em;
+        text-transform: uppercase
+    }
+
+    .finance-panel-header h4 {
+        margin: 0 0 3px;
+        color: #0f172a;
+        font-size: .88rem;
+        font-weight: 800
+    }
+
+    .finance-panel-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: .69rem
+    }
+
+    .finance-edit-badge, .finance-count-badge {
+        height: max-content;
+        padding: 5px 9px;
+        border: 1px solid #ddd6fe;
+        border-radius: 999px;
+        background: #f5f3ff;
+        color: #6d28d9;
+        font-size: .66rem;
+        font-weight: 750
+    }
+
+    .finance-form-section {
+        padding: 16px;
+        border-bottom: 1px solid #edf1f5
+    }
+
+    .finance-form-section-title {
+        margin-bottom: 13px;
+        display: flex;
+        align-items: center;
+        gap: 9px
+    }
+
+        .finance-form-section-title > i {
+            width: 31px;
+            height: 31px;
+            display: grid;
+            place-items: center;
+            border-radius: 9px;
+            background: #f5f3ff;
+            color: #7c3aed
+        }
+
+        .finance-form-section-title strong {
+            display: block;
+            color: #0f172a;
+            font-size: .78rem
+        }
+
+        .finance-form-section-title span {
+            display: block;
+            color: #64748b;
+            font-size: .64rem
+        }
+
+    .finance-page .form-label {
+        margin-bottom: 5px;
+        color: #334155;
+        font-size: .7rem;
+        font-weight: 750
+    }
+
+    .required-mark {
+        color: #dc2626
+    }
+
+    .finance-control, .finance-status-filter {
+        min-height: 38px;
+        border: 1px solid #dbe2ea;
+        border-radius: 8px;
+        font-size: .75rem;
+        box-shadow: none
+    }
+
+        .finance-control:focus, .finance-status-filter:focus {
+            border-color: #a78bfa;
+            box-shadow: 0 0 0 3px rgba(124,58,237,.1)
+        }
+
+    .finance-textarea {
+        min-height: 76px
+    }
+
+    .finance-field-hint {
+        display: block;
+        margin-top: 4px;
+        color: #94a3b8;
+        font-size: .61rem
+    }
+
+    .finance-input-prefix {
+        border-color: #dbe2ea;
+        background: #f8fafc;
+        color: #6d28d9;
+        font-size: .72rem;
+        font-weight: 800
+    }
+
+    .finance-option-grid {
+        display: grid;
+        gap: 8px
+    }
+
+    .finance-option-card, .finance-status-switch {
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        cursor: pointer
+    }
+
+        .finance-option-card:hover {
+            border-color: #c4b5fd;
+            background: #faf9ff
+        }
+
+    .finance-option-icon {
+        width: 31px;
+        height: 31px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: #f5f3ff;
+        color: #7c3aed
+    }
+
+    .finance-option-card strong, .finance-status-switch strong {
+        display: block;
+        color: #1e293b;
+        font-size: .7rem
+    }
+
+    .finance-option-card small, .finance-status-switch small {
+        display: block;
+        color: #64748b;
+        font-size: .61rem
+    }
+
+    .finance-locked-notice {
+        margin-bottom: 12px;
+        padding: 9px 10px;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        background: #fffbeb;
+        color: #854d0e;
+        display: flex;
+        gap: 8px
+    }
+
+    .finance-form-actions {
+        padding: 14px 16px;
+        display: flex;
+        gap: 8px;
+        background: #fafbfc
+    }
+
+    .finance-primary-button, .finance-hero-button {
+        min-height: 36px;
+        padding: 7px 13px;
+        border: 1px solid #7c3aed;
+        border-radius: 8px;
+        background: #7c3aed;
+        color: #fff;
+        font-size: .7rem;
+        font-weight: 750
+    }
+
+    .finance-secondary-button {
+        min-height: 36px;
+        padding: 7px 13px;
+        border: 1px solid #d8dee7;
+        border-radius: 8px;
+        background: #fff;
+        color: #475569;
+        font-size: .7rem;
+        font-weight: 750
+    }
+
+    .finance-list-toolbar {
+        padding: 12px 14px;
+        border-bottom: 1px solid #e8edf3;
+        background: #fafbfc;
+        display: grid;
+        grid-template-columns: minmax(220px,1fr) 165px 38px;
+        gap: 8px
+    }
+
+    .finance-search-box {
+        position: relative
+    }
+
+        .finance-search-box > i {
+            position: absolute;
+            top: 50%;
+            left: 12px;
+            transform: translateY(-50%);
+            color: #94a3b8
+        }
+
+        .finance-search-box input {
+            min-height: 36px;
+            padding-left: 34px;
+            border: 1px solid #dbe2ea;
+            border-radius: 8px;
+            font-size: .7rem
+        }
+
+    .finance-refresh-button {
+        width: 38px;
+        height: 36px;
+        padding: 0;
+        border: 1px solid #ddd6fe;
+        border-radius: 8px;
+        background: #f5f3ff;
+        color: #7c3aed
+    }
+
+    .finance-table-wrapper {
+        overflow-x: auto
+    }
+
+    .finance-table {
+        min-width: 830px;
+        margin: 0
+    }
+
+        .finance-table thead th {
+            padding: 10px 12px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: .61rem;
+            font-weight: 800;
+            text-transform: uppercase
+        }
+
+        .finance-table tbody td {
+            padding: 11px 12px;
+            border-color: #edf1f5;
+            color: #334155;
+            font-size: .68rem;
+            vertical-align: middle
+        }
+
+        .finance-table tbody tr:hover {
+            background: #fcfbff
+        }
+
+    .finance-editing-row {
+        background: #f7f3ff !important
+    }
+
+    .finance-account-cell, .finance-category-cell {
+        display: flex;
+        align-items: center;
+        gap: 9px
+    }
+
+    .finance-account-avatar, .finance-category-avatar {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-weight: 850
+    }
+
+    .finance-code-badge, .finance-currency-badge, .finance-order-badge, .finance-type-count {
+        padding: 4px 7px;
+        border-radius: 7px;
+        background: #f5f3ff;
+        color: #6d28d9;
+        font-size: .61rem;
+        font-weight: 800
+    }
+
+    .finance-use-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px
+    }
+
+    .finance-use-badge {
+        padding: 3px 6px;
+        border-radius: 6px;
+        font-size: .56rem;
+        font-weight: 750
+    }
+
+    .use-income {
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .use-expense {
+        background: #fff7ed;
+        color: #c2410c
+    }
+
+    .use-remittance {
+        background: #f5f3ff;
+        color: #6d28d9
+    }
+
+    .use-none {
+        background: #f1f5f9;
+        color: #64748b
+    }
+
+    .finance-status-badge {
+        padding: 4px 7px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: .59rem;
+        font-weight: 750
+    }
+
+    .status-active {
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .status-inactive {
+        background: #f1f5f9;
+        color: #64748b
+    }
+
+    .finance-action-group {
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px
+    }
+
+    .finance-action-button {
+        width: 29px;
+        height: 29px;
+        padding: 0;
+        border-radius: 7px;
+        display: grid;
+        place-items: center
+    }
+
+    .action-edit {
+        border: 1px solid #ddd6fe;
+        background: #f5f3ff;
+        color: #7c3aed
+    }
+
+    .action-enable {
+        border: 1px solid #bbf7d0;
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .action-disable {
+        border: 1px solid #fecaca;
+        background: #fef2f2;
+        color: #b91c1c
+    }
+
+    .action-lock {
+        border: 1px solid #fde68a;
+        background: #fffbeb;
+        color: #a16207
+    }
+
+    .finance-loading-state, .finance-empty-state {
+        min-height: 290px;
+        padding: 35px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center
+    }
+
+    .finance-empty-icon {
+        width: 58px;
+        height: 58px;
+        margin-bottom: 12px;
+        border-radius: 17px;
+        display: grid;
+        place-items: center;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-size: 1.35rem
+    }
+
+    .finance-loading-state .spinner-border {
+        color: #7c3aed
+    }
+
+    .finance-validation-summary, .validation-message {
+        color: #b91c1c;
+        font-size: .65rem
+    }
+
+    .finance-muted-value, .finance-balance-text, .finance-lock-label {
+        color: #94a3b8;
+        font-size: .61rem
+    }
+
+    .finance-hero {
+        display: none
+    }
+
+    @@media(max - width:1150px) {
+        .finance-workspace-grid {
+            grid-template-columns: 1fr
+        }
+    }
+
+    @@media(max - width:850px) {
+        .finance-summary-grid {
+            grid-template-columns: repeat(2,1fr)
+        }
+
+        .finance-page .bcc-page-header {
+            align-items: flex-start;
+            flex-direction: column
+        }
+    }
+
+    @@media(max - width:650px) {
+        .finance-summary-grid {
+            grid-template-columns: 1fr
+        }
+
+        .finance-list-toolbar {
+            grid-template-columns: 1fr
+        }
+
+        .finance-refresh-button {
+            width: 100%
+        }
+
+        .finance-form-actions {
+            flex-direction: column
+        }
+
+            .finance-form-actions .btn {
+                width: 100%
+            }
+    }
+
+    .finance-summary-card {
+        border-top: 5px solid transparent !important;
+        box-shadow: 0 8px 20px rgba(0,0,0,.10) !important;
+    }
+
+    .summary-blue {
+        border-top-color: #2563eb !important;
+    }
+
+        .summary-blue .finance-summary-icon {
+            background: #2563eb !important;
+            color: #fff !important;
+        }
+
+    .summary-green {
+        border-top-color: #16a34a !important;
+    }
+
+        .summary-green .finance-summary-icon {
+            background: #16a34a !important;
+            color: #fff !important;
+        }
+
+    .summary-orange {
+        border-top-color: #ea580c !important;
+    }
+
+        .summary-orange .finance-summary-icon {
+            background: #ea580c !important;
+            color: #fff !important;
+        }
+
+    .summary-purple {
+        border-top-color: #7c3aed !important;
+    }
+
+        .summary-purple .finance-summary-icon {
+            background: #7c3aed !important;
+            color: #fff !important;
+        }
+
+    .finance-action-btn, .btn-action {
+        background: #7c3aed !important;
+        color: #fff !important;
+        border: none !important;
+        box-shadow: 0 6px 16px rgba(124,58,237,.25) !important;
+    }
+
+        .finance-action-btn.btn-success, .btn-success {
+            background: #16a34a !important;
+        }
+
+        .finance-action-btn.btn-danger, .btn-danger {
+            background: #dc2626 !important;
+        }
+</style>
+
+<style>
+    .finance-page {
+        max-width: 1300px;
+        margin: 0 auto
+    }
+
+        .finance-page .bcc-page-header {
+            margin-bottom: 16px
+        }
+
+    .finance-header-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap
+    }
+
+    .finance-compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: .78rem
+    }
+
+    .finance-access-card {
+        max-width: 520px;
+        margin: 70px auto;
+        padding: 28px;
+        text-align: center;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #7c3aed;
+        border-radius: 12px
+    }
+
+    .finance-access-icon {
+        width: 52px;
+        height: 52px;
+        margin: 0 auto 12px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-size: 1.35rem
+    }
+
+        .finance-access-icon.denied {
+            background: #fef2f2;
+            color: #b91c1c
+        }
+
+    .finance-access-card h4 {
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 800
+    }
+
+    .finance-access-card p {
+        color: #64748b;
+        font-size: .75rem
+    }
+
+    .finance-alert {
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        border: 1px solid;
+        border-radius: 9px;
+        display: flex;
+        gap: 9px;
+        font-size: .68rem
+    }
+
+    .finance-alert-success {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #166534
+    }
+
+    .finance-alert-danger {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b
+    }
+
+    .finance-alert-close {
+        margin-left: auto;
+        border: 0;
+        background: transparent;
+        color: inherit
+    }
+
+    .finance-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4,minmax(0,1fr));
+        gap: 12px;
+        margin-bottom: 16px
+    }
+
+    .finance-summary-card {
+        min-height: 92px;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 2px 8px rgba(15,23,42,.035)
+    }
+
+    .finance-summary-icon {
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+        border-radius: 11px;
+        display: grid;
+        place-items: center;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-size: 1rem
+    }
+
+    .finance-summary-card > div:last-child span {
+        display: block;
+        color: #64748b;
+        font-size: .62rem;
+        font-weight: 750;
+        text-transform: uppercase
+    }
+
+    .finance-summary-card > div:last-child strong {
+        display: block;
+        color: #0f172a;
+        font-size: 1.25rem;
+        font-weight: 850
+    }
+
+    .finance-summary-card > div:last-child small {
+        display: block;
+        color: #94a3b8;
+        font-size: .63rem
+    }
+
+    .summary-green .finance-summary-icon {
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .summary-gold .finance-summary-icon {
+        background: #fffbeb;
+        color: #b45309
+    }
+
+    .finance-workspace-grid {
+        display: grid;
+        grid-template-columns: minmax(350px,.85fr) minmax(600px,1.45fr);
+        gap: 16px;
+        align-items: start
+    }
+
+    .finance-panel {
+        min-width: 0;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #7c3aed;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(15,23,42,.035)
+    }
+
+    .finance-list-panel {
+        border-top-color: #a78bfa
+    }
+
+    .finance-panel-header {
+        padding: 14px 16px 12px;
+        border-bottom: 1px solid #e8edf3;
+        display: flex;
+        justify-content: space-between;
+        gap: 14px
+    }
+
+    .finance-section-label {
+        margin-bottom: 3px;
+        color: #7c3aed;
+        font-size: .64rem;
+        font-weight: 800;
+        letter-spacing: .065em;
+        text-transform: uppercase
+    }
+
+    .finance-panel-header h4 {
+        margin: 0 0 3px;
+        color: #0f172a;
+        font-size: .88rem;
+        font-weight: 800
+    }
+
+    .finance-panel-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: .69rem
+    }
+
+    .finance-edit-badge, .finance-count-badge {
+        height: max-content;
+        padding: 5px 9px;
+        border: 1px solid #ddd6fe;
+        border-radius: 999px;
+        background: #f5f3ff;
+        color: #6d28d9;
+        font-size: .66rem;
+        font-weight: 750
+    }
+
+    .finance-form-section {
+        padding: 16px;
+        border-bottom: 1px solid #edf1f5
+    }
+
+    .finance-form-section-title {
+        margin-bottom: 13px;
+        display: flex;
+        align-items: center;
+        gap: 9px
+    }
+
+        .finance-form-section-title > i {
+            width: 31px;
+            height: 31px;
+            display: grid;
+            place-items: center;
+            border-radius: 9px;
+            background: #f5f3ff;
+            color: #7c3aed
+        }
+
+        .finance-form-section-title strong {
+            display: block;
+            color: #0f172a;
+            font-size: .78rem
+        }
+
+        .finance-form-section-title span {
+            display: block;
+            color: #64748b;
+            font-size: .64rem
+        }
+
+    .finance-page .form-label {
+        margin-bottom: 5px;
+        color: #334155;
+        font-size: .7rem;
+        font-weight: 750
+    }
+
+    .required-mark {
+        color: #dc2626
+    }
+
+    .finance-control, .finance-status-filter {
+        min-height: 38px;
+        border: 1px solid #dbe2ea;
+        border-radius: 8px;
+        font-size: .75rem;
+        box-shadow: none
+    }
+
+        .finance-control:focus, .finance-status-filter:focus {
+            border-color: #a78bfa;
+            box-shadow: 0 0 0 3px rgba(124,58,237,.1)
+        }
+
+    .finance-textarea {
+        min-height: 76px
+    }
+
+    .finance-field-hint {
+        display: block;
+        margin-top: 4px;
+        color: #94a3b8;
+        font-size: .61rem
+    }
+
+    .finance-input-prefix {
+        border-color: #dbe2ea;
+        background: #f8fafc;
+        color: #6d28d9;
+        font-size: .72rem;
+        font-weight: 800
+    }
+
+    .finance-option-grid {
+        display: grid;
+        gap: 8px
+    }
+
+    .finance-option-card, .finance-status-switch {
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        cursor: pointer
+    }
+
+        .finance-option-card:hover {
+            border-color: #c4b5fd;
+            background: #faf9ff
+        }
+
+    .finance-option-icon {
+        width: 31px;
+        height: 31px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: #f5f3ff;
+        color: #7c3aed
+    }
+
+    .finance-option-card strong, .finance-status-switch strong {
+        display: block;
+        color: #1e293b;
+        font-size: .7rem
+    }
+
+    .finance-option-card small, .finance-status-switch small {
+        display: block;
+        color: #64748b;
+        font-size: .61rem
+    }
+
+    .finance-locked-notice {
+        margin-bottom: 12px;
+        padding: 9px 10px;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        background: #fffbeb;
+        color: #854d0e;
+        display: flex;
+        gap: 8px
+    }
+
+    .finance-form-actions {
+        padding: 14px 16px;
+        display: flex;
+        gap: 8px;
+        background: #fafbfc
+    }
+
+    .finance-primary-button, .finance-hero-button {
+        min-height: 36px;
+        padding: 7px 13px;
+        border: 1px solid #7c3aed;
+        border-radius: 8px;
+        background: #7c3aed;
+        color: #fff;
+        font-size: .7rem;
+        font-weight: 750
+    }
+
+    .finance-secondary-button {
+        min-height: 36px;
+        padding: 7px 13px;
+        border: 1px solid #d8dee7;
+        border-radius: 8px;
+        background: #fff;
+        color: #475569;
+        font-size: .7rem;
+        font-weight: 750
+    }
+
+    .finance-list-toolbar {
+        padding: 12px 14px;
+        border-bottom: 1px solid #e8edf3;
+        background: #fafbfc;
+        display: grid;
+        grid-template-columns: minmax(220px,1fr) 165px 38px;
+        gap: 8px
+    }
+
+    .finance-search-box {
+        position: relative
+    }
+
+        .finance-search-box > i {
+            position: absolute;
+            top: 50%;
+            left: 12px;
+            transform: translateY(-50%);
+            color: #94a3b8
+        }
+
+        .finance-search-box input {
+            min-height: 36px;
+            padding-left: 34px;
+            border: 1px solid #dbe2ea;
+            border-radius: 8px;
+            font-size: .7rem
+        }
+
+    .finance-refresh-button {
+        width: 38px;
+        height: 36px;
+        padding: 0;
+        border: 1px solid #ddd6fe;
+        border-radius: 8px;
+        background: #f5f3ff;
+        color: #7c3aed
+    }
+
+    .finance-table-wrapper {
+        overflow-x: auto
+    }
+
+    .finance-table {
+        min-width: 830px;
+        margin: 0
+    }
+
+        .finance-table thead th {
+            padding: 10px 12px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: .61rem;
+            font-weight: 800;
+            text-transform: uppercase
+        }
+
+        .finance-table tbody td {
+            padding: 11px 12px;
+            border-color: #edf1f5;
+            color: #334155;
+            font-size: .68rem;
+            vertical-align: middle
+        }
+
+        .finance-table tbody tr:hover {
+            background: #fcfbff
+        }
+
+    .finance-editing-row {
+        background: #f7f3ff !important
+    }
+
+    .finance-account-cell, .finance-category-cell {
+        display: flex;
+        align-items: center;
+        gap: 9px
+    }
+
+    .finance-account-avatar, .finance-category-avatar {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-weight: 850
+    }
+
+    .finance-code-badge, .finance-currency-badge, .finance-order-badge, .finance-type-count {
+        padding: 4px 7px;
+        border-radius: 7px;
+        background: #f5f3ff;
+        color: #6d28d9;
+        font-size: .61rem;
+        font-weight: 800
+    }
+
+    .finance-use-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px
+    }
+
+    .finance-use-badge {
+        padding: 3px 6px;
+        border-radius: 6px;
+        font-size: .56rem;
+        font-weight: 750
+    }
+
+    .use-income {
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .use-expense {
+        background: #fff7ed;
+        color: #c2410c
+    }
+
+    .use-remittance {
+        background: #f5f3ff;
+        color: #6d28d9
+    }
+
+    .use-none {
+        background: #f1f5f9;
+        color: #64748b
+    }
+
+    .finance-status-badge {
+        padding: 4px 7px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: .59rem;
+        font-weight: 750
+    }
+
+    .status-active {
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .status-inactive {
+        background: #f1f5f9;
+        color: #64748b
+    }
+
+    .finance-action-group {
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px
+    }
+
+    .finance-action-button {
+        width: 29px;
+        height: 29px;
+        padding: 0;
+        border-radius: 7px;
+        display: grid;
+        place-items: center
+    }
+
+    .action-edit {
+        border: 1px solid #ddd6fe;
+        background: #f5f3ff;
+        color: #7c3aed
+    }
+
+    .action-enable {
+        border: 1px solid #bbf7d0;
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .action-disable {
+        border: 1px solid #fecaca;
+        background: #fef2f2;
+        color: #b91c1c
+    }
+
+    .action-lock {
+        border: 1px solid #fde68a;
+        background: #fffbeb;
+        color: #a16207
+    }
+
+    .finance-loading-state, .finance-empty-state {
+        min-height: 290px;
+        padding: 35px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center
+    }
+
+    .finance-empty-icon {
+        width: 58px;
+        height: 58px;
+        margin-bottom: 12px;
+        border-radius: 17px;
+        display: grid;
+        place-items: center;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-size: 1.35rem
+    }
+
+    .finance-loading-state .spinner-border {
+        color: #7c3aed
+    }
+
+    .finance-validation-summary, .validation-message {
+        color: #b91c1c;
+        font-size: .65rem
+    }
+
+    .finance-muted-value, .finance-balance-text, .finance-lock-label {
+        color: #94a3b8;
+        font-size: .61rem
+    }
+
+    .finance-hero {
+        display: none
+    }
+    @@media(max - width:1150px) {
+        .finance-workspace-grid
+
+    {
+        grid-template-columns: 1fr
+    }
+
+    } @@media(max - width:850px)
+
+    {
+        .finance-summary-grid
+
+    {
+        grid-template-columns: repeat(2,1fr)
+    }
+
+    .finance-page .bcc-page-header {
+        align-items: flex-start;
+        flex-direction: column
+    }
+
+    } @@media(max - width:650px)
+
+    {
+        .finance-summary-grid
+
+    {
+        grid-template-columns: 1fr
+    }
+
+    .finance-list-toolbar {
+        grid-template-columns: 1fr
+    }
+
+    .finance-refresh-button {
+        width: 100%
+    }
+
+    .finance-form-actions {
+        flex-direction: column
+    }
+
+        .finance-form-actions .btn {
+            width: 100%
+        }
+
+    }</style>

@@ -1,0 +1,2210 @@
+﻿@page "/admin/worker-attendance-report"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+
+@inject WorkerAttendanceScoringService ScoringService
+@inject OrganizationalAccessService OrganizationalAccessService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject WorkerAttendanceExportService ExportService
+@inject IJSRuntime JS
+
+<PageTitle>Worker Attendance Report - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to view worker attendance reports.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">
+                    Loading worker attendance report...
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (!canAccessReport)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>
+            You do not have permission to view the Worker Attendance Report.
+        </p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page attendance-report-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        <!-- ======================================================
+             HERO / PAGE HEADER
+             ====================================================== -->
+        <div class="bcc-page-header attendance-report-header">
+
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-chart-column me-2"></i>
+                    Workforce Management
+                </div>
+
+                <div class="bcc-page-title">
+                    Worker Attendance Report
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Review attendance performance, punctuality and monthly scores.
+                </div>
+            </div>
+
+            <div class="report-header-actions">
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        disabled="@(!filteredResults.Any() || isExporting)"
+                        title="Export the current filtered report to CSV"
+                        @onclick="ExportCsv">
+                    <i class="fas fa-file-csv me-2"></i>
+                    CSV
+                </button>
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        disabled="@(!filteredResults.Any() || isExporting)"
+                        title="Export the current filtered report to Excel"
+                        @onclick="ExportExcel">
+                    <i class="fas fa-file-excel me-2"></i>
+                    Excel
+                </button>
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+
+            </div>
+        </div>
+
+
+        <!-- ======================================================
+             REPORT PARAMETERS
+             ====================================================== -->
+        <div class="bcc-card mb-3">
+            <div class="bcc-card-body p-3">
+
+                <div class="compact-section-heading">
+                    <div>
+                        <h6>
+                            <i class="fas fa-sliders-h me-2"></i>
+                            Report Parameters
+                        </h6>
+
+                        <p>
+                            Select the reporting period and filters, then generate the report.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-2">
+
+                    <!-- MONTH -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label compact-label">
+                            Month
+                        </label>
+
+                        <select class="form-select form-select-sm"
+                                @bind="selectedMonth">
+                            @foreach (var month in months)
+                            {
+                                <option value="@month.Number">
+                                    @month.Name
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- YEAR -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label compact-label">
+                            Year
+                        </label>
+
+                        <select class="form-select form-select-sm"
+                                @bind="selectedYear">
+                            @foreach (var year in availableYears)
+                            {
+                                <option value="@year">
+                                    @year
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- WORKER CATEGORY -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label compact-label">
+                            Worker Category
+                        </label>
+
+                        <select class="form-select form-select-sm"
+                                @bind="selectedCategory">
+                            <option value="All">All</option>
+                            <option value="Leaders">Leaders Only</option>
+                            <option value="Workers">Workers Only</option>
+                        </select>
+                    </div>
+
+                    <!-- SERVICE -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label compact-label">
+                            Service
+                        </label>
+
+                        <select class="form-select form-select-sm"
+                                @bind="selectedService">
+                            <option value="All">All Services</option>
+
+                            @foreach (var serviceName in availableServiceNames)
+                            {
+                                <option value="@serviceName">
+                                    @serviceName
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- DIRECTORATE -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label compact-label">
+                            Directorate
+                        </label>
+
+                        <select class="form-select form-select-sm"
+                                value="@selectedDirectorate"
+                                @onchange="OnDirectorateChanged">
+                            <option value="All">All Directorates</option>
+
+                            @foreach (var directorate in availableDirectorates)
+                            {
+                                <option value="@directorate">
+                                    @directorate
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- DEPARTMENT -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label compact-label">
+                            Department
+                        </label>
+
+                        <select class="form-select form-select-sm"
+                                @bind="selectedDepartment">
+                            <option value="All">All Departments</option>
+
+                            @foreach (var department in AvailableDepartments)
+                            {
+                                <option value="@department">
+                                    @department
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- GRADE -->
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label compact-label">
+                            Attendance Grade
+                        </label>
+
+                        <select class="form-select form-select-sm"
+                                @bind="selectedGrade">
+                            <option value="All">All Grades</option>
+                            <option value="Green">Green</option>
+                            <option value="Yellow">Yellow</option>
+                            <option value="Red">Red</option>
+                        </select>
+                    </div>
+
+                    <!-- SEARCH -->
+                    <div class="col-12 col-md-6 col-xl-5">
+                        <label class="form-label compact-label">
+                            Search Worker
+                        </label>
+
+                        <div class="report-search">
+                            <i class="fas fa-search"></i>
+
+                            <input class="form-control form-control-sm"
+                                   @bind="searchTerm"
+                                   @bind:event="oninput"
+                                   placeholder="Search by worker name or role" />
+                        </div>
+                    </div>
+
+                    <!-- BUTTONS -->
+                    <div class="col-12 col-xl-4">
+                        <label class="form-label compact-label d-none d-xl-block">
+                            &nbsp;
+                        </label>
+
+                        <div class="parameter-actions">
+
+                            <button type="button"
+                                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                                    disabled="@isGenerating"
+                                    @onclick="ResetParameters">
+                                <i class="fas fa-redo me-2"></i>
+                                Reset
+                            </button>
+
+                            <button type="button"
+                                    class="bcc-btn bcc-btn-primary compact-btn"
+                                    disabled="@isGenerating"
+                                    @onclick="GenerateReport">
+
+                                @if (isGenerating)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Generating...</span>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-chart-bar me-2"></i>
+                                    <span>Generate Report</span>
+                                }
+
+                            </button>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ======================================================
+             REPORT PERIOD
+             ====================================================== -->
+        @if (reportGenerated)
+        {
+            <div class="report-period-strip">
+
+                <div>
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    <strong>@GetSelectedMonthName() @selectedYear</strong>
+                </div>
+
+                <div>
+                    @GetCategoryDescription()
+                </div>
+
+                <div>
+                    Generated @DateTime.Now.ToString("dd MMM yyyy, hh:mm tt")
+                </div>
+
+            </div>
+
+
+            <!-- ==================================================
+                 SUMMARY CARDS
+                 ================================================== -->
+            <div class="attendance-summary-grid">
+
+                <div class="attendance-summary-card">
+                    <div class="summary-icon summary-icon-primary">
+                        <i class="fas fa-users"></i>
+                    </div>
+
+                    <div>
+                        <span>Assessed</span>
+                        <strong>@filteredResults.Count</strong>
+                    </div>
+                </div>
+
+                <div class="attendance-summary-card">
+                    <div class="summary-icon summary-icon-leader">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+
+                    <div>
+                        <span>Leaders</span>
+                        <strong>@LeaderCount</strong>
+                    </div>
+                </div>
+
+                <div class="attendance-summary-card">
+                    <div class="summary-icon summary-icon-worker">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+
+                    <div>
+                        <span>Workers</span>
+                        <strong>@WorkerCount</strong>
+                    </div>
+                </div>
+
+                <div class="attendance-summary-card">
+                    <div class="summary-icon summary-icon-green">
+                        <i class="fas fa-circle-check"></i>
+                    </div>
+
+                    <div>
+                        <span>Green</span>
+                        <strong>@GreenCount</strong>
+                    </div>
+                </div>
+
+                <div class="attendance-summary-card">
+                    <div class="summary-icon summary-icon-yellow">
+                        <i class="fas fa-circle-exclamation"></i>
+                    </div>
+
+                    <div>
+                        <span>Yellow</span>
+                        <strong>@YellowCount</strong>
+                    </div>
+                </div>
+
+                <div class="attendance-summary-card">
+                    <div class="summary-icon summary-icon-red">
+                        <i class="fas fa-circle-xmark"></i>
+                    </div>
+
+                    <div>
+                        <span>Red</span>
+                        <strong>@RedCount</strong>
+                    </div>
+                </div>
+
+                <div class="attendance-summary-card">
+                    <div class="summary-icon summary-icon-average">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+
+                    <div>
+                        <span>Average MTD</span>
+                        <strong>@AveragePercentage.ToString("0.##")%</strong>
+                    </div>
+                </div>
+
+            </div>
+
+
+            <!-- ==================================================
+                 REPORT TABLE
+                 ================================================== -->
+            <div class="bcc-card">
+
+                <div class="bcc-card-body p-3">
+
+                    <div class="report-table-heading">
+
+                        <div>
+                            <h6>
+                                Attendance Performance
+                            </h6>
+
+                            <p>
+                                @filteredResults.Count record(s)
+                            </p>
+                        </div>
+
+                        <div class="report-legend">
+
+                            <span>
+                                <i class="legend-dot legend-green"></i>
+                                Green
+                            </span>
+
+                            <span>
+                                <i class="legend-dot legend-yellow"></i>
+                                Yellow
+                            </span>
+
+                            <span>
+                                <i class="legend-dot legend-red"></i>
+                                Red
+                            </span>
+
+                        </div>
+                    </div>
+
+
+                    @if (!filteredResults.Any())
+                    {
+                        <div class="bcc-empty py-4">
+                            <i class="fas fa-chart-bar"></i>
+                            <h4>No Attendance Records</h4>
+                            <p>
+                                No workers matched the selected report parameters.
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+
+                            <table class="table align-middle mb-0 attendance-report-table">
+
+                                <thead>
+                                    <tr>
+                                        <th>Worker</th>
+                                        <th>Role</th>
+                                        <th>Category</th>
+                                        <th>Directorate</th>
+                                        <th>Department</th>
+
+                                        @if (ShouldShowService("Sunday"))
+                                        {
+                                            <th class="text-center">
+                                                Sunday
+                                            </th>
+                                        }
+
+                                        @if (ShouldShowService("Mid Week"))
+                                        {
+                                            <th class="text-center">
+                                                Mid Week
+                                            </th>
+                                        }
+
+                                        @if (ShouldShowService("Communion"))
+                                        {
+                                            <th class="text-center">
+                                                Communion
+                                            </th>
+                                        }
+
+                                        @if (ShouldShowService("Prayer"))
+                                        {
+                                            <th class="text-center">
+                                                Prayer Rain
+                                            </th>
+                                        }
+
+                                        <th class="text-center">
+                                            MTD %
+                                        </th>
+
+                                        <th class="text-center">
+                                            Grade
+                                        </th>
+
+                                        <th class="text-end">
+                                            Details
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+
+                                    @foreach (var worker in filteredResults)
+                                    {
+                                        <tr>
+
+                                            <td>
+                                                <div class="worker-name-cell">
+
+                                                    <div class="worker-avatar">
+                                                        @GetInitials(worker.WorkerName)
+                                                    </div>
+
+                                                    <div>
+                                                        <strong>
+                                                            @worker.WorkerName
+                                                        </strong>
+
+                                                        <span>
+                                                            Worker ID: @worker.WorkerId
+                                                        </span>
+                                                    </div>
+
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                @(string.IsNullOrWhiteSpace(worker.WorkerRole)
+                                                    ? "—"
+                                                    : worker.WorkerRole)
+                                            </td>
+
+                                            <td>
+                                                <span class="category-badge
+                                                    @(worker.Category == AttendancePersonCategory.Leader
+                                                        ? "category-leader"
+                                                        : "category-worker")">
+
+                                                    @(worker.Category == AttendancePersonCategory.Leader
+                                                        ? "Leader"
+                                                        : "Worker")
+
+                                                </span>
+                                            </td>
+
+                                            <td>
+                                                @(string.IsNullOrWhiteSpace(worker.DirectorateName)
+                                                    ? "—"
+                                                    : worker.DirectorateName)
+                                            </td>
+
+                                            <td>
+                                                @(string.IsNullOrWhiteSpace(worker.DepartmentName)
+                                                    ? "—"
+                                                    : worker.DepartmentName)
+                                            </td>
+
+                                            @if (ShouldShowService("Sunday"))
+                                            {
+                                                <td class="text-center">
+                                                    @GetServicePercentageDisplay(
+                                                        worker,
+                                                        "Sunday")
+                                                </td>
+                                            }
+
+                                            @if (ShouldShowService("Mid Week"))
+                                            {
+                                                <td class="text-center">
+                                                    @GetServicePercentageDisplay(
+                                                        worker,
+                                                        "Mid Week")
+                                                </td>
+                                            }
+
+                                            @if (ShouldShowService("Communion"))
+                                            {
+                                                <td class="text-center">
+                                                    @GetServicePercentageDisplay(
+                                                        worker,
+                                                        "Communion")
+                                                </td>
+                                            }
+
+                                            @if (ShouldShowService("Prayer"))
+                                            {
+                                                <td class="text-center">
+                                                    @GetServicePercentageDisplay(
+                                                        worker,
+                                                        "Prayer")
+                                                </td>
+                                            }
+
+                                            <td class="text-center">
+                                                <strong class="percentage-value">
+                                                    @GetPercentageDisplay(worker)
+                                                </strong>
+                                            </td>
+
+                                            <td class="text-center">
+
+                                                @if (worker.Grade == AttendanceGrade.NoOpportunity)
+                                                {
+                                                    <span class="grade-badge grade-none">
+                                                        Not Due
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="grade-badge @GetGradeCss(worker.Grade)">
+                                                        <i class="fas fa-circle"></i>
+                                                        @worker.Grade
+                                                    </span>
+                                                }
+
+                                            </td>
+
+                                            <td class="text-end">
+
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        title="View attendance details"
+                                                        @onclick="() => ToggleWorkerDetails(worker.WorkerDatabaseId)">
+
+                                                    <i class="fas
+                                                        @(expandedWorkerId == worker.WorkerDatabaseId
+                                                            ? "fa-chevron-up"
+                                                            : "fa-eye")">
+                                                    </i>
+
+                                                </button>
+
+                                            </td>
+
+                                        </tr>
+
+
+                                        @if (expandedWorkerId == worker.WorkerDatabaseId)
+                                        {
+                                            <tr class="worker-detail-row">
+
+                                                <td colspan="@GetReportColumnCount()">
+
+                                                    <div class="worker-detail-panel">
+
+                                                        <div class="detail-panel-heading">
+                                                            <div>
+                                                                <strong>
+                                                                    Attendance Details
+                                                                </strong>
+
+                                                                <span>
+                                                                    @worker.WorkerName · @GetSelectedMonthName() @selectedYear
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+
+                                                        @if (!GetVisibleServiceScores(worker).Any())
+                                                        {
+                                                            <div class="text-muted small py-2">
+                                                                No service occurrence is available for the selected filter.
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            @foreach (var service in GetVisibleServiceScores(worker))
+                                                            {
+                                                                <div class="service-detail-block">
+
+                                                                    <div class="service-detail-title">
+
+                                                                        <div>
+                                                                            <strong>
+                                                                                @service.ServiceName
+                                                                            </strong>
+
+                                                                            <span>
+                                                                                Weight:
+                                                                                @service.MonthlyWeight.ToString("0.##")%
+                                                                                ·
+                                                                                @service.AttendedOccurrences/@service.AvailableOccurrences attended
+                                                                            </span>
+                                                                        </div>
+
+                                                                        <div class="service-score">
+                                                                            @GetServiceOverallDisplay(service)
+                                                                        </div>
+
+                                                                    </div>
+
+
+                                                                    <div class="table-responsive">
+
+                                                                        <table class="table table-sm detail-table mb-0">
+
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>Date</th>
+                                                                                    <th>Service Time</th>
+                                                                                    <th>Clock In</th>
+                                                                                    <th class="text-center">Raw Score</th>
+                                                                                    <th class="text-center">Weight</th>
+                                                                                    <th class="text-center">Earned</th>
+                                                                                    <th>Status</th>
+                                                                                </tr>
+                                                                            </thead>
+
+                                                                            <tbody>
+
+                                                                                @foreach (var occurrence in service.Occurrences)
+                                                                                {
+                                                                                    <tr class="@(!occurrence.IsDue ? "future-occurrence" : string.Empty)">
+
+                                                                                        <td>
+                                                                                            @occurrence.AttendanceDate.ToString("dd MMM yyyy")
+                                                                                        </td>
+
+                                                                                        <td>
+                                                                                            @occurrence.ServiceStart.ToString("hh:mm tt")
+                                                                                        </td>
+
+                                                                                        <td>
+                                                                                            @(occurrence.ClockInTime.HasValue
+                                                                                                ? occurrence.ClockInTime.Value.ToString("hh:mm tt")
+                                                                                                : "—")
+                                                                                        </td>
+
+                                                                                        <td class="text-center">
+                                                                                            @(occurrence.IsDue
+                                                                                                ? occurrence.Score.ToString()
+                                                                                                : "—")
+                                                                                        </td>
+
+                                                                                        <td class="text-center">
+                                                                                            @occurrence.OccurrenceWeight.ToString("0.##")%
+                                                                                        </td>
+
+                                                                                        <td class="text-center">
+                                                                                            @(occurrence.IsDue
+                                                                                                ? $"{occurrence.EarnedWeight:0.##}%"
+                                                                                                : "—")
+                                                                                        </td>
+
+                                                                                        <td>
+                                                                                            @GetOccurrenceStatusDisplay(occurrence)
+                                                                                        </td>
+
+                                                                                    </tr>
+                                                                                }
+
+                                                                            </tbody>
+
+                                                                        </table>
+
+                                                                    </div>
+
+                                                                </div>
+                                                            }
+                                                        }
+
+                                                    </div>
+
+                                                </td>
+
+                                            </tr>
+                                        }
+                                    }
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+                    }
+
+                </div>
+            </div>
+        }
+    </div>
+}
+
+
+@code {
+
+    // =============================================================
+    // STATE
+    // =============================================================
+
+    private bool isLoading = true;
+    private bool isGenerating;
+    private bool isExporting;
+    private bool canAccessReport;
+    private bool reportGenerated;
+
+    private string errorMessage = string.Empty;
+
+    private int selectedMonth;
+    private int selectedYear;
+
+    private string selectedCategory = "All";
+    private string selectedService = "All";
+    private string selectedDirectorate = "All";
+    private string selectedDepartment = "All";
+    private string selectedGrade = "All";
+    private string searchTerm = string.Empty;
+
+    private int? expandedWorkerId;
+
+    private List<WorkerMonthlyAttendanceScore> reportResults = new();
+    private List<string> availableServiceNames = new();
+    private List<string> availableDirectorates = new();
+
+    private readonly List<MonthOption> months =
+        Enumerable.Range(1, 12)
+            .Select(month => new MonthOption
+            {
+                Number = month,
+                Name = new DateTime(2000, month, 1)
+                    .ToString("MMMM")
+            })
+            .ToList();
+
+    private List<int> availableYears = new();
+
+
+    // =============================================================
+    // INITIAL LOAD
+    // =============================================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+
+            var now = GetNigeriaNow();
+
+            selectedMonth = now.Month;
+            selectedYear = now.Year;
+
+            availableYears =
+                Enumerable.Range(now.Year - 5, 6)
+                    .OrderByDescending(x => x)
+                    .ToList();
+
+            canAccessReport =
+                IsUserAuthorizedForAttendanceReport();
+
+            if (!canAccessReport)
+                return;
+
+            await LoadReportAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load Worker Attendance Report: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    // =============================================================
+    // AUTHORISATION
+    // =============================================================
+
+    private bool IsUserAuthorizedForAttendanceReport()
+    {
+        return AuthService.IsAuthenticated &&
+               AuthService.CurrentWorker != null;
+    }
+
+
+    // =============================================================
+    // GENERATE REPORT
+    // =============================================================
+
+    private async Task GenerateReport()
+    {
+        try
+        {
+            isGenerating = true;
+            errorMessage = string.Empty;
+            expandedWorkerId = null;
+
+            await LoadReportAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to generate attendance report: {ex.Message}";
+        }
+        finally
+        {
+            isGenerating = false;
+        }
+    }
+
+    private async Task LoadReportAsync()
+    {
+        if (AuthService.CurrentWorker == null)
+        {
+            reportResults = new();
+            reportGenerated = true;
+            return;
+        }
+
+        var visibleWorkerIds =
+            await OrganizationalAccessService
+                .GetVisibleWorkerIdsAsync(
+                    AuthService.CurrentWorker.Id);
+
+        reportResults =
+            await ScoringService
+                .GetWorkersMonthlyScoresAsync(
+                    visibleWorkerIds,
+                    selectedYear,
+                    selectedMonth);
+
+        availableDirectorates =
+            reportResults
+                .Select(x => x.DirectorateName)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToList();
+
+        if (selectedDirectorate != "All" &&
+            !availableDirectorates.Contains(
+                selectedDirectorate,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            selectedDirectorate = "All";
+            selectedDepartment = "All";
+        }
+
+        if (selectedDepartment != "All" &&
+            !AvailableDepartments.Contains(
+                selectedDepartment,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            selectedDepartment = "All";
+        }
+
+        availableServiceNames =
+            reportResults
+                .SelectMany(x => x.ServiceScores)
+                .Select(x => x.ServiceName)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToList();
+
+        if (selectedService != "All" &&
+            !availableServiceNames.Contains(
+                selectedService,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            selectedService = "All";
+        }
+
+        reportGenerated = true;
+    }
+
+
+    // =============================================================
+    // DIRECTORATE / DEPARTMENT OPTIONS
+    // =============================================================
+
+    private List<string> AvailableDepartments
+    {
+        get
+        {
+            IEnumerable<WorkerMonthlyAttendanceScore> query = reportResults;
+
+            if (selectedDirectorate != "All")
+            {
+                query = query.Where(x =>
+                    string.Equals(
+                        x.DirectorateName,
+                        selectedDirectorate,
+                        StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query
+                .Select(x => x.DepartmentName)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToList();
+        }
+    }
+
+    private void OnDirectorateChanged(ChangeEventArgs e)
+    {
+        selectedDirectorate = e.Value?.ToString() ?? "All";
+        selectedDepartment = "All";
+        expandedWorkerId = null;
+    }
+
+
+    // =============================================================
+    // FILTERED RESULTS
+    // =============================================================
+
+    private List<WorkerMonthlyAttendanceScore> filteredResults
+    {
+        get
+        {
+            IEnumerable<WorkerMonthlyAttendanceScore> query =
+                reportResults;
+
+            // CATEGORY
+            if (selectedCategory == "Leaders")
+            {
+                query =
+                    query.Where(x =>
+                        x.Category ==
+                        AttendancePersonCategory.Leader);
+            }
+            else if (selectedCategory == "Workers")
+            {
+                query =
+                    query.Where(x =>
+                        x.Category ==
+                        AttendancePersonCategory.Worker);
+            }
+
+            // DIRECTORATE
+            if (selectedDirectorate != "All")
+            {
+                query =
+                    query.Where(x =>
+                        string.Equals(
+                            x.DirectorateName,
+                            selectedDirectorate,
+                            StringComparison.OrdinalIgnoreCase));
+            }
+
+            // DEPARTMENT
+            if (selectedDepartment != "All")
+            {
+                query =
+                    query.Where(x =>
+                        string.Equals(
+                            x.DepartmentName,
+                            selectedDepartment,
+                            StringComparison.OrdinalIgnoreCase));
+            }
+
+            // GRADE
+            if (selectedGrade != "All")
+            {
+                query =
+                    query.Where(x =>
+                        string.Equals(
+                            x.Grade.ToString(),
+                            selectedGrade,
+                            StringComparison.OrdinalIgnoreCase));
+            }
+
+            // SERVICE
+            if (selectedService != "All")
+            {
+                query =
+                    query.Where(x =>
+                        x.ServiceScores.Any(s =>
+                            string.Equals(
+                                s.ServiceName,
+                                selectedService,
+                                StringComparison.OrdinalIgnoreCase)));
+            }
+
+            // SEARCH
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var term =
+                    searchTerm.Trim();
+
+                query =
+                    query.Where(x =>
+                        (x.WorkerName?.Contains(
+                            term,
+                            StringComparison.OrdinalIgnoreCase)
+                         ?? false)
+                        ||
+                        (x.WorkerRole?.Contains(
+                            term,
+                            StringComparison.OrdinalIgnoreCase)
+                         ?? false));
+            }
+
+            return query
+                .OrderByDescending(x =>
+                    x.MonthToDatePercentage)
+                .ThenBy(x =>
+                    x.WorkerName)
+                .ToList();
+        }
+    }
+
+
+    // =============================================================
+    // SUMMARY
+    // =============================================================
+
+    private int LeaderCount =>
+        filteredResults.Count(x =>
+            x.Category ==
+            AttendancePersonCategory.Leader);
+
+    private int WorkerCount =>
+        filteredResults.Count(x =>
+            x.Category ==
+            AttendancePersonCategory.Worker);
+
+    private int GreenCount =>
+        filteredResults.Count(x =>
+            x.Grade ==
+            AttendanceGrade.Green);
+
+    private int YellowCount =>
+        filteredResults.Count(x =>
+            x.Grade ==
+            AttendanceGrade.Yellow);
+
+    private int RedCount =>
+        filteredResults.Count(x =>
+            x.Grade ==
+            AttendanceGrade.Red);
+
+    private decimal AveragePercentage =>
+        filteredResults.Any()
+            ? Math.Round(
+                filteredResults
+                    .Average(x =>
+                        x.MonthToDatePercentage),
+                2)
+            : 0m;
+
+
+    // =============================================================
+    // SERVICE DISPLAY
+    // =============================================================
+
+    private bool ShouldShowService(string serviceKeyword)
+    {
+        if (selectedService == "All")
+            return true;
+
+        return selectedService.Contains(
+            serviceKeyword,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetServicePercentageDisplay(
+        WorkerMonthlyAttendanceScore worker,
+        string serviceKeyword)
+    {
+        var service =
+            worker.ServiceScores
+                .FirstOrDefault(x =>
+                    x.ServiceName.Contains(
+                        serviceKeyword,
+                        StringComparison.OrdinalIgnoreCase));
+
+        if (service == null)
+            return "—";
+
+        if (service.AvailableWeight <= 0)
+            return "—";
+
+        return $"{service.ServicePercentage:0.##}%";
+    }
+
+    private string GetServiceOverallDisplay(
+        ServiceMonthlyAttendanceScore service)
+    {
+        if (service.AvailableWeight <= 0)
+            return "Not Due";
+
+        return $"{service.ServicePercentage:0.##}%";
+    }
+
+    private List<ServiceMonthlyAttendanceScore>
+        GetVisibleServiceScores(
+            WorkerMonthlyAttendanceScore worker)
+    {
+        if (selectedService == "All")
+        {
+            return worker.ServiceScores
+                .OrderBy(x => x.ServiceName)
+                .ToList();
+        }
+
+        return worker.ServiceScores
+            .Where(x =>
+                string.Equals(
+                    x.ServiceName,
+                    selectedService,
+                    StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.ServiceName)
+            .ToList();
+    }
+
+
+    // =============================================================
+    // DISPLAY HELPERS
+    // =============================================================
+
+    private string GetPercentageDisplay(
+        WorkerMonthlyAttendanceScore worker)
+    {
+        if (worker.AvailableWeight <= 0)
+            return "—";
+
+        return $"{worker.MonthToDatePercentage:0.##}%";
+    }
+
+    private string GetGradeCss(
+        AttendanceGrade grade)
+    {
+        return grade switch
+        {
+            AttendanceGrade.Green => "grade-green",
+            AttendanceGrade.Yellow => "grade-yellow",
+            AttendanceGrade.Red => "grade-red",
+            _ => "grade-none"
+        };
+    }
+
+    private string GetOccurrenceStatusDisplay(
+        AttendanceOccurrenceScore occurrence)
+    {
+        if (!occurrence.IsDue)
+            return "Not Yet Due";
+
+        return occurrence.Status switch
+        {
+            AttendanceOccurrenceStatus.FullScore =>
+                "Full Score",
+
+            AttendanceOccurrenceStatus.IntermediateScore =>
+                "Intermediate",
+
+            AttendanceOccurrenceStatus.Late =>
+                "Late",
+
+            AttendanceOccurrenceStatus.Absent =>
+                "Absent",
+
+            _ =>
+                occurrence.Status.ToString()
+        };
+    }
+
+    private string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "W";
+
+        var parts =
+            name.Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length == 1)
+        {
+            return parts[0][..1]
+                .ToUpperInvariant();
+        }
+
+        return
+            $"{parts[0][..1]}{parts[^1][..1]}"
+                .ToUpperInvariant();
+    }
+
+    private string GetSelectedMonthName()
+    {
+        return months
+            .FirstOrDefault(x =>
+                x.Number == selectedMonth)?
+            .Name ?? string.Empty;
+    }
+
+    private string GetCategoryDescription()
+    {
+        return selectedCategory switch
+        {
+            "Leaders" => "Leaders Only",
+            "Workers" => "Workers Only",
+            _ => "All Scored Workers"
+        };
+    }
+
+
+    // =============================================================
+    // DETAILS
+    // =============================================================
+
+    private void ToggleWorkerDetails(int workerId)
+    {
+        expandedWorkerId =
+            expandedWorkerId == workerId
+                ? null
+                : workerId;
+    }
+
+    private int GetReportColumnCount()
+    {
+        var serviceColumns = 0;
+
+        if (ShouldShowService("Sunday"))
+            serviceColumns++;
+
+        if (ShouldShowService("Mid Week"))
+            serviceColumns++;
+
+        if (ShouldShowService("Communion"))
+            serviceColumns++;
+
+        if (ShouldShowService("Prayer"))
+            serviceColumns++;
+
+        // Worker + Role + Category + Directorate + Department + MTD + Grade + Details
+        return 8 + serviceColumns;
+    }
+
+
+    // =============================================================
+    // RESET
+    // =============================================================
+
+    private async Task ResetParameters()
+    {
+        var now = GetNigeriaNow();
+
+        selectedMonth = now.Month;
+        selectedYear = now.Year;
+
+        selectedCategory = "All";
+        selectedService = "All";
+        selectedDirectorate = "All";
+        selectedDepartment = "All";
+        selectedGrade = "All";
+        searchTerm = string.Empty;
+
+        expandedWorkerId = null;
+
+        await LoadReportAsync();
+    }
+
+
+    // =============================================================
+    // EXPORTS
+    // =============================================================
+
+    private WorkerAttendanceExportRequest BuildExportRequest()
+    {
+        return new WorkerAttendanceExportRequest
+        {
+            Results = filteredResults,
+            Year = selectedYear,
+            MonthName = GetSelectedMonthName(),
+            SelectedCategory = selectedCategory,
+            SelectedService = selectedService,
+            SelectedDirectorate = selectedDirectorate,
+            SelectedDepartment = selectedDepartment,
+            SelectedGrade = selectedGrade,
+            SearchTerm = searchTerm,
+            GeneratedAt = GetNigeriaNow()
+        };
+    }
+
+    private async Task ExportCsv()
+    {
+        await ExportFileAsync(
+            () => ExportService.CreateCsv(BuildExportRequest()),
+            $"BCC_Worker_Attendance_{selectedYear}_{selectedMonth:00}.csv",
+            "text/csv;charset=utf-8");
+    }
+
+    private async Task ExportExcel()
+    {
+        await ExportFileAsync(
+            () => ExportService.CreateExcel(BuildExportRequest()),
+            $"BCC_Worker_Attendance_{selectedYear}_{selectedMonth:00}.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+
+    private async Task ExportFileAsync(
+        Func<byte[]> createFile,
+        string fileName,
+        string contentType)
+    {
+        try
+        {
+            isExporting = true;
+            errorMessage = string.Empty;
+
+            var bytes = createFile();
+            var base64 = Convert.ToBase64String(bytes);
+
+            await JS.InvokeVoidAsync(
+                "downloadFileFromBytes",
+                fileName,
+                contentType,
+                base64);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to export report: {ex.Message}";
+        }
+        finally
+        {
+            isExporting = false;
+        }
+    }
+
+
+    // =============================================================
+    // NAVIGATION
+    // =============================================================
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+
+    // =============================================================
+    // NIGERIA TIME
+    // =============================================================
+
+    private DateTime GetNigeriaNow()
+    {
+        var utcNow =
+            DateTime.UtcNow;
+
+        try
+        {
+            var timeZone =
+                TimeZoneInfo.FindSystemTimeZoneById(
+                    "Africa/Lagos");
+
+            return TimeZoneInfo
+                .ConvertTimeFromUtc(
+                    utcNow,
+                    timeZone);
+        }
+        catch
+        {
+            try
+            {
+                var timeZone =
+                    TimeZoneInfo.FindSystemTimeZoneById(
+                        "W. Central Africa Standard Time");
+
+                return TimeZoneInfo
+                    .ConvertTimeFromUtc(
+                        utcNow,
+                        timeZone);
+            }
+            catch
+            {
+                return utcNow.AddHours(1);
+            }
+        }
+    }
+
+
+    // =============================================================
+    // MONTH OPTION
+    // =============================================================
+
+    private class MonthOption
+    {
+        public int Number { get; set; }
+
+        public string Name { get; set; } =
+            string.Empty;
+    }
+}
+
+
+<style>
+
+    /* ============================================================
+       PAGE
+       ============================================================ */
+
+    .attendance-report-page {
+        max-width: 1500px;
+        margin: 0 auto;
+    }
+
+    .attendance-report-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+
+    /* ============================================================
+       HEADER ACTIONS
+       ============================================================ */
+
+    .report-header-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+
+    /* ============================================================
+       SECTION HEADING
+       ============================================================ */
+
+    .compact-section-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .compact-section-heading h6 {
+        margin: 0 0 2px;
+        color: #0f172a;
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .compact-section-heading p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.72rem;
+    }
+
+
+    /* ============================================================
+       PARAMETERS
+       ============================================================ */
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: 0.69rem;
+        font-weight: 700;
+    }
+
+    .attendance-report-page .form-control,
+    .attendance-report-page .form-select {
+        min-height: 32px;
+        font-size: 0.78rem;
+    }
+
+    .parameter-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 7px;
+    }
+
+
+    /* ============================================================
+       SEARCH
+       ============================================================ */
+
+    .report-search {
+        position: relative;
+        width: 100%;
+    }
+
+    .report-search > i {
+        position: absolute;
+        top: 50%;
+        left: 11px;
+        z-index: 2;
+        color: #94a3b8;
+        transform: translateY(-50%);
+    }
+
+    .report-search .form-control {
+        padding-left: 32px;
+    }
+
+
+    /* ============================================================
+       PERIOD STRIP
+       ============================================================ */
+
+    .report-period-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+
+        margin-bottom: 12px;
+        padding: 8px 12px;
+
+        color: #475569;
+        background: #f8fafc;
+
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+
+        font-size: 0.72rem;
+    }
+
+
+    /* ============================================================
+       SUMMARY
+       ============================================================ */
+
+    .attendance-summary-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(7, minmax(0, 1fr));
+
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .attendance-summary-card {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+
+        min-width: 0;
+        padding: 10px;
+
+        background: #ffffff;
+
+        border: 1px solid #e2e8f0;
+        border-radius: 11px;
+
+        box-shadow:
+            0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .attendance-summary-card > div:last-child {
+        min-width: 0;
+    }
+
+    .attendance-summary-card span {
+        display: block;
+
+        overflow: hidden;
+
+        color: #64748b;
+
+        font-size: 0.64rem;
+        font-weight: 700;
+
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .attendance-summary-card strong {
+        display: block;
+
+        margin-top: 1px;
+
+        color: #0f172a;
+
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .summary-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        flex: 0 0 31px;
+
+        width: 31px;
+        height: 31px;
+
+        border-radius: 9px;
+
+        font-size: 0.78rem;
+    }
+
+    .summary-icon-primary {
+        color: #4338ca;
+        background: #eef2ff;
+    }
+
+    .summary-icon-leader {
+        color: #7c3aed;
+        background: #f5f3ff;
+    }
+
+    .summary-icon-worker {
+        color: #0369a1;
+        background: #f0f9ff;
+    }
+
+    .summary-icon-green {
+        color: #15803d;
+        background: #f0fdf4;
+    }
+
+    .summary-icon-yellow {
+        color: #a16207;
+        background: #fefce8;
+    }
+
+    .summary-icon-red {
+        color: #b91c1c;
+        background: #fef2f2;
+    }
+
+    .summary-icon-average {
+        color: #0f766e;
+        background: #f0fdfa;
+    }
+
+
+    /* ============================================================
+       REPORT TABLE HEADER
+       ============================================================ */
+
+    .report-table-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 12px;
+        margin-bottom: 10px;
+    }
+
+    .report-table-heading h6 {
+        margin: 0 0 2px;
+
+        color: #0f172a;
+
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .report-table-heading p {
+        margin: 0;
+
+        color: #64748b;
+
+        font-size: 0.7rem;
+    }
+
+
+    /* ============================================================
+       LEGEND
+       ============================================================ */
+
+    .report-legend {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        color: #64748b;
+
+        font-size: 0.66rem;
+        font-weight: 700;
+    }
+
+    .legend-dot {
+        display: inline-block;
+
+        width: 7px;
+        height: 7px;
+
+        margin-right: 3px;
+
+        border-radius: 50%;
+    }
+
+    .legend-green {
+        background: #16a34a;
+    }
+
+    .legend-yellow {
+        background: #ca8a04;
+    }
+
+    .legend-red {
+        background: #dc2626;
+    }
+
+
+    /* ============================================================
+       REPORT TABLE
+       ============================================================ */
+
+    .attendance-report-table thead th {
+        padding: 8px 9px;
+
+        color: #475569;
+        background: #f8fafc;
+
+        border-bottom: 1px solid #e2e8f0;
+
+        font-size: 0.62rem;
+        font-weight: 800;
+
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .attendance-report-table tbody td {
+        padding: 8px 9px;
+
+        color: #334155;
+
+        font-size: 0.74rem;
+
+        vertical-align: middle;
+    }
+
+    .attendance-report-table tbody tr:not(.worker-detail-row):hover {
+        background: #fafbff;
+    }
+
+
+    /* ============================================================
+       WORKER
+       ============================================================ */
+
+    .worker-name-cell {
+        display: flex;
+        align-items: center;
+
+        gap: 8px;
+
+        min-width: 165px;
+    }
+
+    .worker-avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        flex: 0 0 32px;
+
+        width: 32px;
+        height: 32px;
+
+        color: #4338ca;
+        background: #eef2ff;
+
+        border-radius: 9px;
+
+        font-size: 0.68rem;
+        font-weight: 800;
+    }
+
+    .worker-name-cell strong,
+    .worker-name-cell span {
+        display: block;
+    }
+
+    .worker-name-cell strong {
+        color: #0f172a;
+
+        font-size: 0.75rem;
+        font-weight: 800;
+    }
+
+    .worker-name-cell span {
+        margin-top: 1px;
+
+        color: #94a3b8;
+
+        font-size: 0.62rem;
+    }
+
+
+    /* ============================================================
+       CATEGORY
+       ============================================================ */
+
+    .category-badge {
+        display: inline-flex;
+        align-items: center;
+
+        padding: 3px 7px;
+
+        border-radius: 999px;
+
+        font-size: 0.62rem;
+        font-weight: 800;
+    }
+
+    .category-leader {
+        color: #6d28d9;
+        background: #f5f3ff;
+    }
+
+    .category-worker {
+        color: #0369a1;
+        background: #f0f9ff;
+    }
+
+
+    /* ============================================================
+       PERCENTAGE
+       ============================================================ */
+
+    .percentage-value {
+        color: #0f172a;
+
+        font-size: 0.77rem;
+        font-weight: 800;
+    }
+
+
+    /* ============================================================
+       GRADE
+       ============================================================ */
+
+    .grade-badge {
+        display: inline-flex;
+        align-items: center;
+
+        gap: 4px;
+
+        padding: 3px 7px;
+
+        border-radius: 999px;
+
+        font-size: 0.62rem;
+        font-weight: 800;
+
+        white-space: nowrap;
+    }
+
+    .grade-badge i {
+        font-size: 0.42rem;
+    }
+
+    .grade-green {
+        color: #15803d;
+        background: #f0fdf4;
+    }
+
+    .grade-yellow {
+        color: #a16207;
+        background: #fefce8;
+    }
+
+    .grade-red {
+        color: #b91c1c;
+        background: #fef2f2;
+    }
+
+    .grade-none {
+        color: #64748b;
+        background: #f1f5f9;
+    }
+
+
+    /* ============================================================
+       DETAIL PANEL
+       ============================================================ */
+
+    .worker-detail-row > td {
+        padding: 0 !important;
+
+        background: #f8fafc;
+    }
+
+    .worker-detail-panel {
+        padding: 13px 16px 16px;
+
+        border-top: 1px solid #e2e8f0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .detail-panel-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        margin-bottom: 10px;
+    }
+
+    .detail-panel-heading strong,
+    .detail-panel-heading span {
+        display: block;
+    }
+
+    .detail-panel-heading strong {
+        color: #0f172a;
+
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .detail-panel-heading span {
+        margin-top: 1px;
+
+        color: #64748b;
+
+        font-size: 0.66rem;
+    }
+
+
+    /* ============================================================
+       SERVICE DETAIL
+       ============================================================ */
+
+    .service-detail-block {
+        overflow: hidden;
+
+        margin-bottom: 10px;
+
+        background: #ffffff;
+
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .service-detail-block:last-child {
+        margin-bottom: 0;
+    }
+
+    .service-detail-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 10px;
+
+        padding: 8px 10px;
+
+        background: #fafbff;
+
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .service-detail-title strong,
+    .service-detail-title span {
+        display: block;
+    }
+
+    .service-detail-title strong {
+        color: #0f172a;
+
+        font-size: 0.73rem;
+        font-weight: 800;
+    }
+
+    .service-detail-title span {
+        margin-top: 1px;
+
+        color: #64748b;
+
+        font-size: 0.63rem;
+    }
+
+    .service-score {
+        color: #4338ca;
+
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+
+    /* ============================================================
+       DETAIL TABLE
+       ============================================================ */
+
+    .detail-table thead th {
+        padding: 6px 8px;
+
+        color: #64748b;
+        background: #ffffff;
+
+        font-size: 0.59rem;
+        font-weight: 800;
+
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .detail-table tbody td {
+        padding: 6px 8px;
+
+        font-size: 0.68rem;
+    }
+
+    .future-occurrence {
+        opacity: 0.55;
+    }
+
+
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+
+    @@media (max-width: 1200px) {
+
+        .attendance-summary-grid {
+            grid-template-columns:
+                repeat(4, minmax(0, 1fr));
+        }
+
+    }
+
+
+    @@media (max-width: 768px) {
+
+        .report-header-actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .parameter-actions {
+            justify-content: flex-start;
+            margin-top: 5px;
+        }
+
+        .attendance-summary-grid {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+
+        .report-table-heading {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .report-period-strip {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .attendance-report-table thead th,
+        .attendance-report-table tbody td {
+            white-space: nowrap;
+        }
+
+    }
+
+
+    @@media (max-width: 576px) {
+
+        .attendance-summary-grid {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+
+        .report-header-actions .bcc-btn {
+            flex: 1 1 auto;
+        }
+
+        .service-detail-title {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+    }
+
+</style>

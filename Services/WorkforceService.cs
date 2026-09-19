@@ -82,9 +82,14 @@ namespace ChurchApp.Services
                 .Where(p =>
                     p.Status == "Pending" &&
                     (
-                        p.ApproverWorkerId == approverWorkerId ||
                         p.EligibleApprovers.Any(a =>
-                            a.ApproverWorkerId == approverWorkerId)
+                            a.ApproverWorkerId == approverWorkerId &&
+                            !a.HasActed)
+                        ||
+                        (
+                            !p.EligibleApprovers.Any(a => !a.HasActed) &&
+                            p.ApproverWorkerId == approverWorkerId
+                        )
                     ))
                 .OrderByDescending(p => p.SubmittedDate)
                 .ToListAsync();
@@ -238,11 +243,17 @@ namespace ChurchApp.Services
             await using var transaction =
                 await _context.Database.BeginTransactionAsync();
 
+            ProfileUpdateRequest? request = null;
+            Worker? requester = null;
+            List<int>? nextApproverIds = null;
+            bool finalApprovalCompleted = false;
+
             try
             {
-                var request =
+                request =
                     await _context.ProfileUpdateRequests
                         .Include(p => p.Worker)
+                            .ThenInclude(w => w.Directorate)
                         .Include(p => p.EligibleApprovers)
                         .FirstOrDefaultAsync(p =>
                             p.Id == requestId);
@@ -252,6 +263,8 @@ namespace ChurchApp.Services
                     throw new InvalidOperationException(
                         "Profile update request was not found.");
                 }
+
+                requester = request.Worker;
 
                 if (!string.Equals(
                         request.Status,
@@ -265,10 +278,15 @@ namespace ChurchApp.Services
                 var eligibleAssignment =
                     request.EligibleApprovers
                         .FirstOrDefault(a =>
-                            a.ApproverWorkerId ==
-                                approvedByWorkerId);
+                            a.ApproverWorkerId == approvedByWorkerId &&
+                            !a.HasActed);
+
+                var hasActiveAssignments =
+                    request.EligibleApprovers.Any(a =>
+                        !a.HasActed);
 
                 var isLegacyApprover =
+                    !hasActiveAssignments &&
                     request.ApproverWorkerId ==
                         approvedByWorkerId;
 
@@ -279,7 +297,97 @@ namespace ChurchApp.Services
                         "You are not authorised to process this profile update request.");
                 }
 
-                if (isApproved)
+                if (eligibleAssignment != null)
+                {
+                    eligibleAssignment.HasActed = true;
+                    eligibleAssignment.Decision =
+                        isApproved
+                            ? "Approved"
+                            : "Rejected";
+                    eligibleAssignment.DecisionDate =
+                        DateTime.UtcNow;
+                }
+
+                if (!isApproved)
+                {
+                    request.Status = "Rejected";
+
+                    _context.RejectionNotifications.Add(
+                        new RejectionNotification
+                        {
+                            ProfileUpdateRequestId = requestId,
+                            WorkerId = request.WorkerId,
+                            RejectionReason = notes.Trim(),
+                            RejectedByWorkerId =
+                                approvedByWorkerId,
+                            RejectedDate = DateTime.UtcNow
+                        });
+
+                    request.ApprovedByWorkerId =
+                        approvedByWorkerId;
+                    request.ApprovalNotes =
+                        notes.Trim();
+                    request.ApprovedDate =
+                        DateTime.UtcNow;
+                    request.LastUpdated =
+                        DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return true;
+                }
+
+                // Ordinary workers first go to their Directorate Head.
+                // After that approval, the same request moves to the
+                // Cluster Head responsible for the requester's Directorate.
+                var needsClusterFinalApproval =
+                    await RequiresClusterFinalApprovalAfterCurrentStageAsync(
+                        requester,
+                        approvedByWorkerId);
+
+                if (needsClusterFinalApproval)
+                {
+                    nextApproverIds =
+                        await GetClusterHeadApproverIdsAsync(
+                            requester);
+
+                    foreach (var approverId in
+                             nextApproverIds.Distinct())
+                    {
+                        var alreadyAssigned =
+                            request.EligibleApprovers.Any(a =>
+                                a.ApproverWorkerId == approverId &&
+                                !a.HasActed);
+
+                        if (!alreadyAssigned)
+                        {
+                            request.EligibleApprovers.Add(
+                                new ProfileUpdateApprover
+                                {
+                                    ApproverWorkerId =
+                                        approverId
+                                });
+                        }
+                    }
+
+                    request.ApproverWorkerId =
+                        nextApproverIds.First();
+
+                    request.Status = "Pending";
+                    request.ApprovedByWorkerId = null;
+                    request.ApprovedDate = null;
+                    request.ApprovalNotes =
+                        string.IsNullOrWhiteSpace(notes)
+                            ? "Directorate Head approval completed. Awaiting Cluster Head final approval."
+                            : notes.Trim();
+                    request.LastUpdated =
+                        DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                else
                 {
                     ProposedChanges? changes;
 
@@ -303,75 +411,24 @@ namespace ChurchApp.Services
                     }
 
                     ApplyChangesToWorker(
-                        request.Worker,
+                        requester,
                         changes);
 
                     request.Status = "Approved";
-                }
-                else
-                {
-                    request.Status = "Rejected";
-
-                    _context.RejectionNotifications.Add(
-                        new RejectionNotification
-                        {
-                            ProfileUpdateRequestId = requestId,
-                            WorkerId = request.WorkerId,
-                            RejectionReason = notes.Trim(),
-                            RejectedByWorkerId =
-                                approvedByWorkerId,
-                            RejectedDate = DateTime.UtcNow
-                        });
-                }
-
-                if (eligibleAssignment != null)
-                {
-                    eligibleAssignment.HasActed = true;
-                    eligibleAssignment.Decision =
-                        isApproved
-                            ? "Approved"
-                            : "Rejected";
-
-                    eligibleAssignment.DecisionDate =
+                    request.ApprovedByWorkerId =
+                        approvedByWorkerId;
+                    request.ApprovalNotes =
+                        notes?.Trim();
+                    request.ApprovedDate =
                         DateTime.UtcNow;
+                    request.LastUpdated =
+                        DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    finalApprovalCompleted = true;
                 }
-
-                request.ApprovedByWorkerId =
-                    approvedByWorkerId;
-
-                request.ApprovalNotes =
-                    notes?.Trim();
-
-                request.ApprovedDate =
-                    DateTime.UtcNow;
-
-                request.LastUpdated =
-                    DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                // Notify the worker only after the approval has been
-                // committed successfully. Email failure must not undo
-                // a valid approval.
-                if (isApproved)
-                {
-                    try
-                    {
-                        await SendProfileUpdateApprovedEmailAsync(
-                            request,
-                            approvedByWorkerId,
-                            notes);
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(
-                            $"Profile update request {request.Id} was approved, " +
-                            $"but the worker notification email could not be sent: {ex.Message}");
-                    }
-                }
-
-                return true;
             }
             catch (DbUpdateException ex)
             {
@@ -390,6 +447,49 @@ namespace ChurchApp.Services
                 await transaction.RollbackAsync();
                 throw;
             }
+
+            // Notifications are deliberately sent after the database
+            // transaction has committed. Email failure must never undo
+            // a valid approval decision.
+            if (request != null &&
+                requester != null &&
+                nextApproverIds != null &&
+                nextApproverIds.Count > 0)
+            {
+                try
+                {
+                    await SendProfileUpdateApprovalEmailsAsync(
+                        request,
+                        requester,
+                        nextApproverIds);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        $"Profile update request {request.Id} moved to the next approval stage, " +
+                        $"but the approver email could not be sent: {ex.Message}");
+                }
+            }
+
+            if (request != null &&
+                finalApprovalCompleted)
+            {
+                try
+                {
+                    await SendProfileUpdateApprovedEmailAsync(
+                        request,
+                        approvedByWorkerId,
+                        notes);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        $"Profile update request {request.Id} was approved, " +
+                        $"but the worker notification email could not be sent: {ex.Message}");
+                }
+            }
+
+            return true;
         }
 
         public async Task<bool>
@@ -581,32 +681,83 @@ namespace ChurchApp.Services
                 return "No approval required";
             }
 
-            var approverIds =
-                await DetermineApproverIdsAsync(worker);
+            if (await IsConfiguredClusterHeadAsync(worker.Id))
+            {
+                var pastor =
+                    await FindActiveWorkerByRoleAsync(
+                        "Pastor in Charge");
 
-            var approvers =
+                return pastor == null
+                    ? "No Pastor in Charge configured"
+                    : $"{pastor.FirstName} {pastor.LastName} (Pastor in Charge)";
+            }
+
+            if (IsRole(worker.Role, "Church Admin"))
+            {
+                var pastor =
+                    await FindActiveWorkerByRoleAsync(
+                        "Pastor in Charge");
+
+                return pastor == null
+                    ? "No Pastor in Charge configured"
+                    : $"{pastor.FirstName} {pastor.LastName} (Pastor in Charge)";
+            }
+
+            if (IsRole(worker.Role, "Head of Directorate"))
+            {
+                var clusterHeadIds =
+                    await GetClusterHeadApproverIdsAsync(worker);
+
+                var clusterHead =
+                    await _context.Workers
+                        .AsNoTracking()
+                        .Where(w =>
+                            clusterHeadIds.Contains(w.Id))
+                        .Select(w => new
+                        {
+                            w.FirstName,
+                            w.LastName
+                        })
+                        .FirstAsync();
+
+                return $"{clusterHead.FirstName} {clusterHead.LastName} (Cluster Head) - Final Approval";
+            }
+
+            var directorateHeadIds =
+                await GetDirectorateHeadApproverIdsAsync(worker);
+
+            var directorateHead =
                 await _context.Workers
                     .AsNoTracking()
                     .Where(w =>
-                        approverIds.Contains(w.Id))
-                    .Select(w =>
-                        new
-                        {
-                            w.FirstName,
-                            w.LastName,
-                            w.Role
-                        })
-                    .ToListAsync();
+                        directorateHeadIds.Contains(w.Id))
+                    .Select(w => new
+                    {
+                        w.FirstName,
+                        w.LastName
+                    })
+                    .FirstAsync();
 
-            if (approvers.Count == 0)
-            {
-                return "No approver configured";
-            }
+            var finalClusterHeadIds =
+                await GetClusterHeadApproverIdsAsync(worker);
 
-            return string.Join(
-                " or ",
-                approvers.Select(a =>
-                    $"{a.FirstName} {a.LastName} ({a.Role})"));
+            var finalClusterHead =
+                await _context.Workers
+                    .AsNoTracking()
+                    .Where(w =>
+                        finalClusterHeadIds.Contains(w.Id))
+                    .Select(w => new
+                    {
+                        w.FirstName,
+                        w.LastName
+                    })
+                    .FirstAsync();
+
+            return
+                $"{directorateHead.FirstName} {directorateHead.LastName} " +
+                $"(Head of Directorate), then " +
+                $"{finalClusterHead.FirstName} {finalClusterHead.LastName} " +
+                $"(Cluster Head - Final Approval)";
         }
 
         private async Task
@@ -963,141 +1114,294 @@ namespace ChurchApp.Services
         private async Task<List<int>>
             DetermineApproverIdsAsync(Worker worker)
         {
-            var pastorInCharge =
-                await FindActiveWorkerByRoleAsync(
-                    "Pastor in Charge");
-
-            var meatHead =
-                await _context.Workers
-                    .AsNoTracking()
-                    .Include(w => w.Directorate)
-                    .FirstOrDefaultAsync(w =>
-                        w.IsActive &&
-                        w.Id != worker.Id &&
-                        w.Role != null &&
-                        w.Directorate != null &&
-                        w.Directorate.Code != null &&
-                        w.Role.Trim().ToLower() ==
-                            "head of directorate" &&
-                        w.Directorate.Code.Trim().ToUpper() ==
-                            "MEAT");
-
-            var isMeatHead =
-                IsRole(
-                    worker.Role,
-                    "Head of Directorate") &&
-                string.Equals(
-                    worker.Directorate?.Code?.Trim(),
-                    "MEAT",
-                    StringComparison.OrdinalIgnoreCase);
-
-            var routesToPastor =
-                isMeatHead ||
-                IsRole(worker.Role, "Church Admin") ||
-                IsRole(worker.Role, "Head of Service") ||
-                IsRole(worker.Role, "Assistant Head of Service") ||
-                IsRole(worker.Role, "Asst Head of Service");
-
-            if (routesToPastor)
+            // Pastor in Charge is the overall church leader and
+            // never requires approval for a self-profile update.
+            if (IsRole(worker.Role, "Pastor in Charge"))
             {
+                return new List<int>();
+            }
+
+            // A configured Cluster Head routes upward to Pastor in Charge.
+            // Cluster responsibility is determined from SupervisoryCluster,
+            // not from a hard-coded person's name.
+            if (await IsConfiguredClusterHeadAsync(worker.Id))
+            {
+                var pastorInCharge =
+                    await FindActiveWorkerByRoleAsync(
+                        "Pastor in Charge");
+
                 return RequireApprover(
                     pastorInCharge,
                     "No active Pastor in Charge is configured.");
             }
 
+            // Church Admin also routes to Pastor in Charge.
+            if (IsRole(worker.Role, "Church Admin"))
+            {
+                var pastorInCharge =
+                    await FindActiveWorkerByRoleAsync(
+                        "Pastor in Charge");
+
+                return RequireApprover(
+                    pastorInCharge,
+                    "No active Pastor in Charge is configured.");
+            }
+
+            // A Directorate Head goes directly to the Cluster Head
+            // responsible for that Directorate. That approval is final.
+            if (IsRole(worker.Role, "Head of Directorate"))
+            {
+                return await GetClusterHeadApproverIdsAsync(
+                    worker);
+            }
+
+            // Everyone else starts with the Head of Directorate.
+            // After that approval, ProcessProfileUpdateAsync moves the
+            // same request to the relevant Cluster Head for final approval.
+            return await GetDirectorateHeadApproverIdsAsync(
+                worker);
+        }
+
+        private async Task<bool>
+            RequiresClusterFinalApprovalAfterCurrentStageAsync(
+                Worker requester,
+                int currentApproverWorkerId)
+        {
             if (IsRole(
-                    worker.Role,
+                    requester.Role,
+                    "Pastor in Charge") ||
+                IsRole(
+                    requester.Role,
+                    "Church Admin") ||
+                IsRole(
+                    requester.Role,
                     "Head of Directorate"))
             {
-                return RequireApprover(
-                    meatHead,
-                    "No active Head of Directorate for MEAT is configured.");
+                return false;
             }
 
-            Worker? directorateHead = null;
-            Worker? assistantHead = null;
-
-            if (worker.DirectorateId.HasValue)
+            if (await IsConfiguredClusterHeadAsync(
+                    requester.Id))
             {
-                directorateHead =
+                return false;
+            }
+
+            if (!requester.DirectorateId.HasValue)
+            {
+                return false;
+            }
+
+            var directorate =
+                await _context.Directorates
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(d =>
+                        d.Id ==
+                            requester.DirectorateId.Value &&
+                        d.IsActive);
+
+            if (directorate == null)
+            {
+                return false;
+            }
+
+            var directorateHeadWorkerId = directorate.HeadWorkerId;
+
+            if (!directorateHeadWorkerId.HasValue)
+            {
+                directorateHeadWorkerId =
                     await _context.Workers
                         .AsNoTracking()
-                        .FirstOrDefaultAsync(w =>
+                        .Where(w =>
                             w.IsActive &&
-                            w.Id != worker.Id &&
-                            w.DirectorateId ==
-                                worker.DirectorateId &&
+                            w.DirectorateId == directorate.Id &&
                             w.Role != null &&
                             w.Role.Trim().ToLower() ==
-                                "head of directorate");
+                                "head of directorate")
+                        .Select(w => (int?)w.Id)
+                        .FirstOrDefaultAsync();
+            }
 
-                assistantHead =
+            if (directorateHeadWorkerId != currentApproverWorkerId)
+            {
+                return false;
+            }
+
+            // If the Directorate Head is also the configured Cluster Head,
+            // one approval satisfies both responsibilities. Do not create
+            // a second approval stage for the same person.
+            var clusterHeadId =
+                await _context.SupervisoryClusters
+                    .AsNoTracking()
+                    .Where(c =>
+                        c.IsActive &&
+                        c.Directorates.Any(cd =>
+                            cd.DirectorateId ==
+                                requester.DirectorateId.Value))
+                    .Select(c => c.HeadWorkerId)
+                    .FirstOrDefaultAsync();
+
+            return clusterHeadId.HasValue &&
+                   clusterHeadId.Value != currentApproverWorkerId;
+        }
+
+        private async Task<List<int>>
+            GetDirectorateHeadApproverIdsAsync(
+                Worker worker)
+        {
+            if (!worker.DirectorateId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "The worker is not assigned to a Directorate.");
+            }
+
+            var directorate =
+                await _context.Directorates
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(d =>
+                        d.Id ==
+                            worker.DirectorateId.Value &&
+                        d.IsActive);
+
+            if (directorate == null)
+            {
+                throw new InvalidOperationException(
+                    "The worker's Directorate could not be found or is inactive.");
+            }
+
+            int? directorateHeadWorkerId =
+                directorate.HeadWorkerId;
+
+            // Primary source of authority is Directorate.HeadWorkerId.
+            // For older Directorate records where that assignment has not
+            // yet been populated, retain a safe compatibility fallback to
+            // the active worker explicitly carrying the Head of Directorate
+            // role in that same Directorate.
+            if (!directorateHeadWorkerId.HasValue)
+            {
+                directorateHeadWorkerId =
                     await _context.Workers
                         .AsNoTracking()
-                        .FirstOrDefaultAsync(w =>
+                        .Where(w =>
                             w.IsActive &&
-                            w.Id != worker.Id &&
-                            w.DirectorateId ==
-                                worker.DirectorateId &&
+                            w.DirectorateId == directorate.Id &&
                             w.Role != null &&
-                            (
-                                w.Role.Trim().ToLower() ==
-                                    "assistant head of directorate" ||
-                                w.Role.Trim().ToLower() ==
-                                    "asst head of directorate"
-                            ));
+                            w.Role.Trim().ToLower() ==
+                                "head of directorate")
+                        .Select(w => (int?)w.Id)
+                        .FirstOrDefaultAsync();
             }
 
-            var isAssistantHead =
-                IsRole(
-                    worker.Role,
-                    "Assistant Head of Directorate") ||
-                IsRole(
-                    worker.Role,
-                    "Asst Head of Directorate");
-
-            if (isAssistantHead)
+            if (!directorateHeadWorkerId.HasValue)
             {
-                if (directorateHead != null)
-                {
-                    return new List<int>
+                throw new InvalidOperationException(
+                    $"No Head of Directorate is configured for {directorate.Name}.");
+            }
+
+            var headIsActive =
+                await _context.Workers
+                    .AsNoTracking()
+                    .AnyAsync(w =>
+                        w.Id == directorateHeadWorkerId.Value &&
+                        w.IsActive);
+
+            if (!headIsActive)
+            {
+                throw new InvalidOperationException(
+                    $"The configured Head of Directorate for {directorate.Name} is not active.");
+            }
+
+            if (directorateHeadWorkerId.Value ==
+                worker.Id)
+            {
+                // If this worker is themselves the Directorate Head, their
+                // request must move upward rather than self-approve.
+                return await GetClusterHeadApproverIdsAsync(worker);
+            }
+
+            return new List<int>
+            {
+                directorateHeadWorkerId.Value
+            };
+        }
+
+        private async Task<List<int>>
+            GetClusterHeadApproverIdsAsync(
+                Worker worker)
+        {
+            if (!worker.DirectorateId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "The worker is not assigned to a Directorate, so the Cluster Head cannot be determined.");
+            }
+
+            var cluster =
+                await _context.SupervisoryClusters
+                    .AsNoTracking()
+                    .Where(c =>
+                        c.IsActive &&
+                        c.Directorates.Any(cd =>
+                            cd.DirectorateId ==
+                                worker.DirectorateId.Value))
+                    .Select(c => new
                     {
-                        directorateHead.Id
-                    };
-                }
+                        c.Id,
+                        c.Name,
+                        c.HeadWorkerId
+                    })
+                    .FirstOrDefaultAsync();
+
+            if (cluster == null)
+            {
+                throw new InvalidOperationException(
+                    "No active Supervisory Cluster is configured for the worker's Directorate.");
+            }
+
+            if (!cluster.HeadWorkerId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    $"No Cluster Head is configured for {cluster.Name}.");
+            }
+
+            var clusterHeadIsActive =
+                await _context.Workers
+                    .AsNoTracking()
+                    .AnyAsync(w =>
+                        w.Id ==
+                            cluster.HeadWorkerId.Value &&
+                        w.IsActive);
+
+            if (!clusterHeadIsActive)
+            {
+                throw new InvalidOperationException(
+                    $"The configured Cluster Head for {cluster.Name} is not active.");
+            }
+
+            if (cluster.HeadWorkerId.Value ==
+                worker.Id)
+            {
+                var pastorInCharge =
+                    await FindActiveWorkerByRoleAsync(
+                        "Pastor in Charge");
 
                 return RequireApprover(
-                    meatHead,
-                    "No active Head of Directorate for MEAT is configured.");
+                    pastorInCharge,
+                    "No active Pastor in Charge is configured.");
             }
 
-            // Ordinary workers and Heads of Department:
-            // either the Directorate Head or Assistant Head may act.
-            var approvers =
-                new List<int>();
-
-            if (directorateHead != null)
+            return new List<int>
             {
-                approvers.Add(
-                    directorateHead.Id);
-            }
+                cluster.HeadWorkerId.Value
+            };
+        }
 
-            if (assistantHead != null)
-            {
-                approvers.Add(
-                    assistantHead.Id);
-            }
-
-            if (approvers.Count > 0)
-            {
-                return approvers
-                    .Distinct()
-                    .ToList();
-            }
-
-            return RequireApprover(
-                meatHead,
-                "No eligible profile update approver is configured.");
+        private async Task<bool>
+            IsConfiguredClusterHeadAsync(int workerId)
+        {
+            return await _context.SupervisoryClusters
+                .AsNoTracking()
+                .AnyAsync(c =>
+                    c.IsActive &&
+                    c.HeadWorkerId == workerId);
         }
 
         private async Task<Worker?>
@@ -1306,4 +1610,3 @@ namespace ChurchApp.Services
         }
     }
 }
-

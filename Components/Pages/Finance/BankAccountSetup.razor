@@ -1,0 +1,1884 @@
+﻿@page "/finance/bank-accounts"
+@rendermode InteractiveServer
+
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+@using System.Globalization
+
+@inject BankAccountService BankAccountService
+@inject AuthService AuthService
+
+<PageTitle>Bank Account Setup</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="finance-access-card">
+        <div class="finance-access-icon">
+            <i class="bi bi-shield-lock"></i>
+        </div>
+
+        <h4>Authentication Required</h4>
+
+        <p>
+            Please sign in to access the Finance Setup workspace.
+        </p>
+    </div>
+}
+else if (!AuthService.CanAccessAdminPanel())
+{
+    <div class="finance-access-card">
+        <div class="finance-access-icon denied">
+            <i class="bi bi-exclamation-triangle"></i>
+        </div>
+
+        <h4>Access Restricted</h4>
+
+        <p>
+            You do not have permission to manage church bank accounts.
+        </p>
+    </div>
+}
+else
+{
+    <div class="worker360-page finance-page">
+
+        <!-- Compact Finance Hero -->
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-university me-2"></i>
+                    Finance Configuration
+                </div>
+
+                <div class="bcc-page-title">
+                    Bank Account Setup
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Configure church bank accounts and define their permitted uses.
+                </div>
+            </div>
+
+            <div class="finance-header-actions">
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary finance-compact-btn"
+                        @onclick="StartNewAccount">
+                    <i class="fas fa-plus me-2"></i>
+                    New Account
+                </button>
+
+                <a href="/workspace/setup"
+                   class="bcc-btn profile-form-secondary-btn finance-compact-btn">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Setup Workspace
+                </a>
+            </div>
+        </div>
+
+        <!-- Notification Area -->
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="finance-alert finance-alert-success">
+                <div class="finance-alert-icon">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+
+                <div class="flex-grow-1">
+                    <strong>Successful</strong>
+                    <div>@successMessage</div>
+                </div>
+
+                <button type="button"
+                        class="finance-alert-close"
+                        @onclick="ClearMessages">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="finance-alert finance-alert-danger">
+                <div class="finance-alert-icon">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                </div>
+
+                <div class="flex-grow-1">
+                    <strong>Unable to complete request</strong>
+                    <div>@errorMessage</div>
+                </div>
+
+                <button type="button"
+                        class="finance-alert-close"
+                        @onclick="ClearMessages">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        }
+
+        <!-- Summary Cards -->
+        <section class="finance-summary-grid">
+
+            <div class="finance-summary-card summary-blue">
+                <div class="finance-summary-icon">
+                    <i class="bi bi-bank"></i>
+                </div>
+
+                <div>
+                    <span>Total Accounts</span>
+                    <strong>@bankAccounts.Count</strong>
+                    <small>All configured accounts</small>
+                </div>
+            </div>
+
+            <div class="finance-summary-card summary-green">
+                <div class="finance-summary-icon">
+                    <i class="bi bi-check2-circle"></i>
+                </div>
+
+                <div>
+                    <span>Active Accounts</span>
+                    <strong>@bankAccounts.Count(x => x.IsActive)</strong>
+                    <small>Available for transactions</small>
+                </div>
+            </div>
+
+            <div class="finance-summary-card summary-purple">
+                <div class="finance-summary-icon">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+
+                <div>
+                    <span>Income Accounts</span>
+                    <strong>@bankAccounts.Count(x => x.CanReceiveIncome && x.IsActive)</strong>
+                    <small>Enabled to receive income</small>
+                </div>
+            </div>
+
+        <div class="finance-summary-card summary-gold">
+            <div class="finance-summary-icon">
+                <i class="bi bi-currency-exchange"></i>
+            </div>
+
+            <div>
+                <span>Currencies</span>
+
+                <strong>
+                    @(bankAccounts
+                                        .Select(x => x.Currency)
+                                        .Distinct()
+                                        .Count())
+                </strong>
+
+                    <small>Configured currencies</small>
+                </div>
+            </div>
+
+        </section>
+
+        <div class="finance-workspace-grid">
+
+            <!-- Setup Form -->
+            <section class="finance-panel finance-form-panel"
+                     id="bank-account-form">
+
+                <div class="finance-panel-header">
+                    <div>
+                        <div class="finance-section-label">
+                            Account Configuration
+                        </div>
+
+                        <h4>
+                            @if (bankAccountModel.Id == 0)
+                            {
+                                <span>New Bank Account</span>
+                            }
+                            else
+                            {
+                                <span>Edit Bank Account</span>
+                            }
+                        </h4>
+
+                        <p>
+                            Enter the account details and define how the
+                            account may be used.
+                        </p>
+                    </div>
+
+                    @if (bankAccountModel.Id != 0)
+                    {
+                        <span class="finance-edit-badge">
+                            <i class="bi bi-pencil-square me-1"></i>
+                            Editing
+                        </span>
+                    }
+                </div>
+
+                <EditForm Model="@bankAccountModel"
+                          OnValidSubmit="@SaveBankAccount"
+                          FormName="BankAccountSetupForm">
+
+                    <DataAnnotationsValidator />
+
+                    <div class="finance-validation-summary">
+                        <ValidationSummary />
+                    </div>
+
+                    <div class="finance-form-section">
+                        <div class="finance-form-section-title">
+                            <i class="bi bi-building"></i>
+
+                            <div>
+                                <strong>Account Identity</strong>
+                                <span>
+                                    Basic bank and account information
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Bank Name
+                                    <span class="required-mark">*</span>
+                                </label>
+
+                                <InputText class="form-control finance-control"
+                                           @bind-Value="bankAccountModel.BankName"
+                                           placeholder="e.g. Fidelity Bank" />
+
+                                <ValidationMessage For="@(() => bankAccountModel.BankName)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Account Short Name
+                                    <span class="required-mark">*</span>
+                                </label>
+
+                                <InputText class="form-control finance-control"
+                                           @bind-Value="bankAccountModel.ShortName"
+                                           placeholder="e.g. Tithe and Offering" />
+
+                                <ValidationMessage For="@(() => bankAccountModel.ShortName)" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">
+                                    Account Title
+                                    <span class="required-mark">*</span>
+                                </label>
+
+                                <InputText class="form-control finance-control"
+                                           @bind-Value="bankAccountModel.AccountTitle"
+                                           placeholder="Enter the official account title" />
+
+                                <ValidationMessage For="@(() => bankAccountModel.AccountTitle)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Account Number
+                                    <span class="required-mark">*</span>
+                                </label>
+
+                                <InputText class="form-control finance-control"
+                                           @bind-Value="bankAccountModel.AccountNumber"
+                                           maxlength="10"
+                                           inputmode="numeric"
+                                           autocomplete="off"
+                                           placeholder="10-digit account number" />
+
+                                <ValidationMessage For="@(() => bankAccountModel.AccountNumber)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Currency
+                                    <span class="required-mark">*</span>
+                                </label>
+
+                                <InputSelect class="form-select finance-control"
+                                             @bind-Value="bankAccountModel.Currency">
+
+                                    @foreach (var currency in Enum.GetValues<AccountCurrency>())
+                                    {
+                                        <option value="@currency">
+                                            @GetCurrencyDisplay(currency)
+                                        </option>
+                                    }
+
+                                </InputSelect>
+
+                                <ValidationMessage For="@(() => bankAccountModel.Currency)" />
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="finance-form-section">
+                        <div class="finance-form-section-title">
+                            <i class="bi bi-sliders"></i>
+
+                            <div>
+                                <strong>Operational Use</strong>
+                                <span>
+                                    Select the transactions permitted on this account
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="finance-option-grid">
+
+                            <label class="finance-option-card">
+                                <InputCheckbox class="form-check-input"
+                                               @bind-Value="bankAccountModel.CanReceiveIncome" />
+
+                                <span class="finance-option-icon option-income">
+                                    <i class="bi bi-arrow-down-circle"></i>
+                                </span>
+
+                                <span>
+                                    <strong>Receive Income</strong>
+                                    <small>
+                                        Allow income records to be posted to this account
+                                    </small>
+                                </span>
+                            </label>
+
+                            <label class="finance-option-card">
+                                <InputCheckbox class="form-check-input"
+                                               @bind-Value="bankAccountModel.CanFundExpenditure" />
+
+                                <span class="finance-option-icon option-expense">
+                                    <i class="bi bi-credit-card"></i>
+                                </span>
+
+                                <span>
+                                    <strong>Fund Expenditure</strong>
+                                    <small>
+                                        Allow approved expenditure to be paid from this account
+                                    </small>
+                                </span>
+                            </label>
+
+                            <label class="finance-option-card">
+                                <InputCheckbox class="form-check-input"
+                                               @bind-Value="bankAccountModel.CanPayRemittance" />
+
+                                <span class="finance-option-icon option-remittance">
+                                    <i class="bi bi-send-check"></i>
+                                </span>
+
+                                <span>
+                                    <strong>Pay Remittance</strong>
+                                    <small>
+                                        Allow remittance payments to be made from this account
+                                    </small>
+                                </span>
+                            </label>
+
+                        </div>
+                    </div>
+
+                    <div class="finance-form-section">
+                        <div class="finance-form-section-title">
+                            <i class="bi bi-wallet2"></i>
+
+                            <div>
+                                <strong>Opening Balance</strong>
+                                <span>
+                                    Initial account balance when the finance module commences
+                                </span>
+                            </div>
+                        </div>
+
+                        @if (bankAccountModel.IsOpeningBalanceLocked)
+                        {
+                            <div class="finance-locked-notice">
+                                <i class="bi bi-lock-fill"></i>
+
+                                <div>
+                                    <strong>Opening balance is locked</strong>
+                                    <span>
+                                        It can no longer be changed from this page.
+                                    </span>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="row g-3">
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Opening Balance
+                                </label>
+
+                                <div class="input-group">
+                                    <span class="input-group-text finance-input-prefix">
+                                        @GetCurrencySymbol(bankAccountModel.Currency)
+                                    </span>
+
+                                    <InputNumber class="form-control finance-control"
+                                                 @bind-Value="bankAccountModel.OpeningBalance"
+                                                 disabled="@bankAccountModel.IsOpeningBalanceLocked" />
+                                </div>
+
+                                <ValidationMessage For="@(() => bankAccountModel.OpeningBalance)" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Opening Balance Date
+                                </label>
+
+                                <InputDate class="form-control finance-control"
+                                           @bind-Value="bankAccountModel.OpeningBalanceDate"
+                                           disabled="@bankAccountModel.IsOpeningBalanceLocked" />
+
+                                <ValidationMessage For="@(() => bankAccountModel.OpeningBalanceDate)" />
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="finance-form-section">
+                        <div class="finance-form-section-title">
+                            <i class="bi bi-card-text"></i>
+
+                            <div>
+                                <strong>Additional Information</strong>
+                                <span>
+                                    Purpose, notes and account status
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+
+                            <div class="col-12">
+                                <label class="form-label">
+                                    Account Purpose
+                                </label>
+
+                                <InputTextArea class="form-control finance-control finance-textarea"
+                                               @bind-Value="bankAccountModel.AccountPurpose"
+                                               placeholder="Describe the principal purpose of this bank account" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">
+                                    Remarks
+                                </label>
+
+                                <InputTextArea class="form-control finance-control finance-textarea"
+                                               @bind-Value="bankAccountModel.Remarks"
+                                               placeholder="Enter any additional notes" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="finance-status-switch">
+                                    <InputCheckbox class="form-check-input"
+                                                   @bind-Value="bankAccountModel.IsActive" />
+
+                                    <span>
+                                        <strong>Active Account</strong>
+                                        <small>
+                                            Active accounts are available for finance transactions
+                                        </small>
+                                    </span>
+                                </label>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="finance-form-actions">
+
+                        <button type="submit"
+                                class="btn finance-primary-button"
+                                disabled="@isSaving">
+
+                            @if (isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>Saving...</span>
+                            }
+                            else if (bankAccountModel.Id == 0)
+                            {
+                                <i class="bi bi-check-circle me-2"></i>
+                                <span>Save Bank Account</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle me-2"></i>
+                                <span>Update Bank Account</span>
+                            }
+
+                        </button>
+
+                        <button type="button"
+                                class="btn finance-secondary-button"
+                                disabled="@isSaving"
+                                @onclick="ResetForm">
+
+                            <i class="bi bi-arrow-counterclockwise me-2"></i>
+
+                            @if (bankAccountModel.Id == 0)
+                            {
+                                <span>Clear Form</span>
+                            }
+                            else
+                            {
+                                <span>Cancel Editing</span>
+                            }
+
+                        </button>
+
+                    </div>
+
+                </EditForm>
+            </section>
+
+            <!-- Account List -->
+            <section class="finance-panel finance-list-panel">
+
+                <div class="finance-panel-header finance-list-header">
+                    <div>
+                        <div class="finance-section-label">
+                            Account Register
+                        </div>
+
+                        <h4>Configured Bank Accounts</h4>
+
+                        <p>
+                            Review, edit and manage the operational status
+                            of church bank accounts.
+                        </p>
+                    </div>
+
+                    <span class="finance-count-badge">
+                        @FilteredBankAccounts.Count account(s)
+                    </span>
+                </div>
+
+                <div class="finance-list-toolbar">
+
+                    <div class="finance-search-box">
+                        <i class="bi bi-search"></i>
+
+                        <input class="form-control"
+                               value="@searchText"
+                               @oninput="HandleSearch"
+                               placeholder="Search bank, title or account number" />
+
+                        @if (!string.IsNullOrWhiteSpace(searchText))
+                        {
+                            <button type="button"
+                                    title="Clear search"
+                                    @onclick="ClearSearch">
+                                <i class="bi bi-x-circle-fill"></i>
+                            </button>
+                        }
+                    </div>
+
+                    <select class="form-select finance-status-filter"
+                            value="@statusFilter"
+                            @onchange="HandleStatusFilter">
+
+                        <option value="All">All accounts</option>
+                        <option value="Active">Active accounts</option>
+                        <option value="Inactive">Inactive accounts</option>
+
+                    </select>
+
+                    <button type="button"
+                            class="btn finance-refresh-button"
+                            disabled="@isLoading"
+                            @onclick="LoadBankAccounts">
+
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+
+                </div>
+
+                @if (isLoading)
+                {
+                    <div class="finance-loading-state">
+                        <div class="spinner-border" role="status"></div>
+                        <strong>Loading bank accounts...</strong>
+                        <span>Please wait while the account register is prepared.</span>
+                    </div>
+                }
+                else if (FilteredBankAccounts.Count == 0)
+                {
+                    <div class="finance-empty-state">
+                        <div class="finance-empty-icon">
+                            <i class="bi bi-bank"></i>
+                        </div>
+
+                        <h5>No bank account found</h5>
+
+                        @if (string.IsNullOrWhiteSpace(searchText) &&
+                                        statusFilter == "All")
+                        {
+                            <p>
+                                No bank account has been configured yet.
+                                Use the form to create the first account.
+                            </p>
+                        }
+                        else
+                        {
+                            <p>
+                                No account matches the selected search or status filter.
+                            </p>
+                        }
+
+                        <button type="button"
+                                class="btn finance-secondary-button"
+                                @onclick="ClearFilters">
+
+                            <i class="bi bi-funnel me-2"></i>
+                            Clear Filters
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="finance-table-wrapper">
+                        <table class="table finance-table">
+                            <thead>
+                                <tr>
+                                    <th>Account</th>
+                                    <th>Bank Details</th>
+                                    <th>Currency</th>
+                                    <th>Permitted Use</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var account in FilteredBankAccounts)
+                                {
+                                    <tr class="@GetEditingRowClass(account.Id)">
+
+                                        <td>
+                                            <div class="finance-account-cell">
+                                                <div class="finance-bank-avatar">
+                                                    @GetBankInitials(account.BankName)
+                                                </div>
+
+                                                <div>
+                                                    <strong>@account.ShortName</strong>
+                                                    <span>@account.AccountTitle</span>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <div class="finance-bank-details">
+                                                <strong>@account.BankName</strong>
+
+                                                <span class="finance-account-number">
+                                                    @FormatAccountNumber(account.AccountNumber)
+                                                </span>
+
+                                                @if (!string.IsNullOrWhiteSpace(account.AccountPurpose))
+                                                {
+                                                    <small title="@account.AccountPurpose">
+                                                        @TruncateText(account.AccountPurpose, 46)
+                                                    </small>
+                                                }
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <span class="finance-currency-badge">
+                                                @account.Currency
+                                            </span>
+
+                                            @if (account.OpeningBalance != 0)
+                                            {
+                                                <small class="finance-balance-text">
+                                                    @FormatMoney(account.OpeningBalance, account.Currency)
+                                                </small>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            <div class="finance-use-badges">
+
+                                                @if (account.CanReceiveIncome)
+                                                {
+                                                    <span class="finance-use-badge use-income"
+                                                          title="Can receive income">
+                                                        <i class="bi bi-arrow-down-circle"></i>
+                                                        Income
+                                                    </span>
+                                                }
+
+                                                @if (account.CanFundExpenditure)
+                                                {
+                                                    <span class="finance-use-badge use-expense"
+                                                          title="Can fund expenditure">
+                                                        <i class="bi bi-credit-card"></i>
+                                                        Expense
+                                                    </span>
+                                                }
+
+                                                @if (account.CanPayRemittance)
+                                                {
+                                                    <span class="finance-use-badge use-remittance"
+                                                          title="Can pay remittance">
+                                                        <i class="bi bi-send-check"></i>
+                                                        Remittance
+                                                    </span>
+                                                }
+
+                                                @if (!account.CanReceiveIncome &&
+                                                                                    !account.CanFundExpenditure &&
+                                                                                    !account.CanPayRemittance)
+                                                {
+                                                    <span class="finance-use-badge use-none">
+                                                        No transaction use
+                                                    </span>
+                                                }
+
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            @if (account.IsActive)
+                                            {
+                                                <span class="finance-status-badge status-active">
+                                                    <span></span>
+                                                    Active
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="finance-status-badge status-inactive">
+                                                    <span></span>
+                                                    Inactive
+                                                </span>
+                                            }
+
+                                            @if (account.IsOpeningBalanceLocked)
+                                            {
+                                                <span class="finance-lock-label">
+                                                    <i class="bi bi-lock-fill"></i>
+                                                    Balance locked
+                                                </span>
+                                            }
+                                        </td>
+
+                                        <td>
+                                            <div class="finance-action-group">
+
+                                                <button type="button"
+                                                        class="finance-action-button action-edit"
+                                                        title="Edit account"
+                                                        @onclick="() => EditAccount(account)">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </button>
+
+                                                <button type="button"
+                                                        class="finance-action-button @(account.IsActive ? "action-disable" : "action-enable")"
+                                                        title="@(account.IsActive ? "Deactivate account" : "Activate account")"
+                                                        @onclick="() => ToggleAccountStatus(account)">
+
+                                                    @if (account.IsActive)
+                                                    {
+                                                        <i class="bi bi-toggle-on"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="bi bi-toggle-off"></i>
+                                                    }
+
+                                                </button>
+
+                                                @if (!account.IsOpeningBalanceLocked &&
+                                                                                    account.OpeningBalanceDate.HasValue)
+                                                {
+                                                    <button type="button"
+                                                            class="finance-action-button action-lock"
+                                                            title="Lock opening balance"
+                                                            @onclick="() => LockOpeningBalance(account)">
+                                                        <i class="bi bi-lock"></i>
+                                                    </button>
+                                                }
+
+                                            </div>
+                                        </td>
+
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+            </section>
+        </div>
+    </div>
+}
+
+@code {
+    private List<BankAccount> bankAccounts = new();
+    private BankAccount bankAccountModel = CreateEmptyModel();
+
+    private string searchText = string.Empty;
+    private string statusFilter = "All";
+
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+
+    private bool isLoading = true;
+    private bool isSaving;
+
+    private List<BankAccount> FilteredBankAccounts
+    {
+        get
+        {
+            IEnumerable<BankAccount> query = bankAccounts;
+
+            if (statusFilter == "Active")
+            {
+                query = query.Where(x => x.IsActive);
+            }
+            else if (statusFilter == "Inactive")
+            {
+                query = query.Where(x => !x.IsActive);
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var term = searchText.Trim();
+
+                query = query.Where(x =>
+                    x.BankName.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase) ||
+
+                    x.AccountTitle.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase) ||
+
+                    x.ShortName.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase) ||
+
+                    x.AccountNumber.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase) ||
+
+                    (x.AccountPurpose?.Contains(
+                        term,
+                        StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            return query
+                .OrderByDescending(x => x.IsActive)
+                .ThenBy(x => x.BankName)
+                .ThenBy(x => x.ShortName)
+                .ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated &&
+            AuthService.CanAccessAdminPanel())
+        {
+            await LoadBankAccounts();
+        }
+        else
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadBankAccounts()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            bankAccounts =
+                await BankAccountService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load bank accounts: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveBankAccount()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            ClearMessages();
+
+            ServiceResult<BankAccount> result;
+
+            if (bankAccountModel.Id == 0)
+            {
+                result = await BankAccountService.CreateAsync(
+                    bankAccountModel,
+                    GetCurrentUserName());
+            }
+            else
+            {
+                result = await BankAccountService.UpdateAsync(
+                    bankAccountModel,
+                    GetCurrentUserName());
+            }
+
+            if (!result.Success)
+            {
+                errorMessage = result.Message;
+                return;
+            }
+
+            successMessage = result.Message;
+
+            bankAccountModel = CreateEmptyModel();
+
+            await LoadBankAccounts();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to save the bank account: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void EditAccount(BankAccount account)
+    {
+        ClearMessages();
+
+        bankAccountModel = new BankAccount
+        {
+            Id = account.Id,
+            BankName = account.BankName,
+            AccountTitle = account.AccountTitle,
+            AccountNumber = account.AccountNumber,
+            ShortName = account.ShortName,
+            Currency = account.Currency,
+            AccountPurpose = account.AccountPurpose,
+            CanReceiveIncome = account.CanReceiveIncome,
+            CanFundExpenditure = account.CanFundExpenditure,
+            CanPayRemittance = account.CanPayRemittance,
+            OpeningBalance = account.OpeningBalance,
+            OpeningBalanceDate = account.OpeningBalanceDate,
+            IsOpeningBalanceLocked = account.IsOpeningBalanceLocked,
+            OpeningBalanceLockedDate = account.OpeningBalanceLockedDate,
+            OpeningBalanceLockedBy = account.OpeningBalanceLockedBy,
+            IsActive = account.IsActive,
+            Remarks = account.Remarks,
+            CreatedDate = account.CreatedDate,
+            CreatedBy = account.CreatedBy,
+            LastModifiedDate = account.LastModifiedDate,
+            LastModifiedBy = account.LastModifiedBy
+        };
+    }
+
+    private async Task ToggleAccountStatus(BankAccount account)
+    {
+        try
+        {
+            ClearMessages();
+
+            var result =
+                await BankAccountService.ToggleStatusAsync(
+                    account.Id,
+                    GetCurrentUserName());
+
+            if (!result.Success)
+            {
+                errorMessage = result.Message;
+                return;
+            }
+
+            successMessage = result.Message;
+
+            if (bankAccountModel.Id == account.Id)
+            {
+                ResetForm();
+            }
+
+            await LoadBankAccounts();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to change the account status: {ex.Message}";
+        }
+    }
+
+    private async Task LockOpeningBalance(BankAccount account)
+    {
+        try
+        {
+            ClearMessages();
+
+            var result =
+                await BankAccountService.LockOpeningBalanceAsync(
+                    account.Id,
+                    GetCurrentUserName());
+
+            if (!result.Success)
+            {
+                errorMessage = result.Message;
+                return;
+            }
+
+            successMessage = result.Message;
+
+            if (bankAccountModel.Id == account.Id)
+            {
+                ResetForm();
+            }
+
+            await LoadBankAccounts();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to lock the opening balance: {ex.Message}";
+        }
+    }
+
+    private void StartNewAccount()
+    {
+        ResetForm();
+    }
+
+    private void ResetForm()
+    {
+        bankAccountModel = CreateEmptyModel();
+        ClearMessages();
+    }
+
+    private static BankAccount CreateEmptyModel()
+    {
+        return new BankAccount
+        {
+            Currency = AccountCurrency.NGN,
+            CanReceiveIncome = true,
+            CanFundExpenditure = true,
+            CanPayRemittance = true,
+            IsActive = true,
+            OpeningBalance = 0
+        };
+    }
+
+    private void HandleSearch(ChangeEventArgs args)
+    {
+        searchText = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private void HandleStatusFilter(ChangeEventArgs args)
+    {
+        statusFilter = args.Value?.ToString() ?? "All";
+    }
+
+    private void ClearSearch()
+    {
+        searchText = string.Empty;
+    }
+
+    private void ClearFilters()
+    {
+        searchText = string.Empty;
+        statusFilter = "All";
+    }
+
+    private void ClearMessages()
+    {
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
+
+    private static string GetCurrentUserName()
+    {
+        // Replace this later with the correct authenticated worker
+        // property from your existing AuthService.
+        return "System User";
+    }
+
+    private string GetEditingRowClass(int accountId)
+    {
+        return bankAccountModel.Id == accountId
+            ? "finance-editing-row"
+            : string.Empty;
+    }
+
+    private static string FormatAccountNumber(string accountNumber)
+    {
+        if (string.IsNullOrWhiteSpace(accountNumber))
+        {
+            return "—";
+        }
+
+        if (accountNumber.Length == 10)
+        {
+            return $"{accountNumber[..3]} {accountNumber.Substring(3, 3)} {accountNumber.Substring(6, 4)}";
+        }
+
+        return accountNumber;
+    }
+
+    private static string GetCurrencyDisplay(AccountCurrency currency)
+    {
+        return currency switch
+        {
+            AccountCurrency.NGN => "NGN – Nigerian Naira",
+            AccountCurrency.USD => "USD – US Dollar",
+            AccountCurrency.GBP => "GBP – Pound Sterling",
+            AccountCurrency.EUR => "EUR – Euro",
+            _ => currency.ToString()
+        };
+    }
+
+    private static string GetCurrencySymbol(AccountCurrency currency)
+    {
+        return currency switch
+        {
+            AccountCurrency.NGN => "₦",
+            AccountCurrency.USD => "$",
+            AccountCurrency.GBP => "£",
+            AccountCurrency.EUR => "€",
+            _ => currency.ToString()
+        };
+    }
+
+    private static string FormatMoney(
+        decimal amount,
+        AccountCurrency currency)
+    {
+        return $"{GetCurrencySymbol(currency)}{amount:N2}";
+    }
+
+    private static string GetBankInitials(string bankName)
+    {
+        if (string.IsNullOrWhiteSpace(bankName))
+        {
+            return "BK";
+        }
+
+        var ignoredWords = new[]
+        {
+            "bank",
+            "plc",
+            "limited",
+            "ltd"
+        };
+
+        var words = bankName
+            .Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries)
+            .Where(x =>
+                !ignoredWords.Contains(
+                    x.ToLowerInvariant()))
+            .Take(2)
+            .ToArray();
+
+        if (words.Length == 0)
+        {
+            return bankName[..Math.Min(2, bankName.Length)]
+                .ToUpperInvariant();
+        }
+
+        return string.Concat(
+            words.Select(x => x[0]))
+            .ToUpperInvariant();
+    }
+
+    private static string TruncateText(
+        string? text,
+        int maximumLength)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        return text.Length <= maximumLength
+            ? text
+            : $"{text[..maximumLength]}...";
+    }
+}
+
+<style>
+    .finance-page {
+        max-width: 1300px;
+        margin: 0 auto
+    }
+
+        .finance-page .bcc-page-header {
+            margin-bottom: 16px
+        }
+
+    .finance-header-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap
+    }
+
+    .finance-compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: .78rem
+    }
+
+    .finance-access-card {
+        max-width: 520px;
+        margin: 70px auto;
+        padding: 28px;
+        text-align: center;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #7c3aed;
+        border-radius: 12px
+    }
+
+    .finance-access-icon {
+        width: 52px;
+        height: 52px;
+        margin: 0 auto 12px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-size: 1.35rem
+    }
+
+        .finance-access-icon.denied {
+            background: #fef2f2;
+            color: #b91c1c
+        }
+
+    .finance-access-card h4 {
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 800
+    }
+
+    .finance-access-card p {
+        color: #64748b;
+        font-size: .75rem
+    }
+
+    .finance-alert {
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        border: 1px solid;
+        border-radius: 9px;
+        display: flex;
+        gap: 9px;
+        font-size: .68rem
+    }
+
+    .finance-alert-success {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #166534
+    }
+
+    .finance-alert-danger {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b
+    }
+
+    .finance-alert-close {
+        margin-left: auto;
+        border: 0;
+        background: transparent;
+        color: inherit
+    }
+
+    .finance-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4,minmax(0,1fr));
+        gap: 12px;
+        margin-bottom: 16px
+    }
+
+    .finance-summary-card {
+        min-height: 92px;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 2px 8px rgba(15,23,42,.035)
+    }
+
+    .finance-summary-icon {
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+        border-radius: 11px;
+        display: grid;
+        place-items: center;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-size: 1rem
+    }
+
+    .finance-summary-card > div:last-child span {
+        display: block;
+        color: #64748b;
+        font-size: .62rem;
+        font-weight: 750;
+        text-transform: uppercase
+    }
+
+    .finance-summary-card > div:last-child strong {
+        display: block;
+        color: #0f172a;
+        font-size: 1.25rem;
+        font-weight: 850
+    }
+
+    .finance-summary-card > div:last-child small {
+        display: block;
+        color: #94a3b8;
+        font-size: .63rem
+    }
+
+    .summary-green .finance-summary-icon {
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .summary-gold .finance-summary-icon {
+        background: #fffbeb;
+        color: #b45309
+    }
+
+    .finance-workspace-grid {
+        display: grid;
+        grid-template-columns: minmax(350px,.85fr) minmax(600px,1.45fr);
+        gap: 16px;
+        align-items: start
+    }
+
+    .finance-panel {
+        min-width: 0;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #7c3aed;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(15,23,42,.035)
+    }
+
+    .finance-list-panel {
+        border-top-color: #a78bfa
+    }
+
+    .finance-panel-header {
+        padding: 14px 16px 12px;
+        border-bottom: 1px solid #e8edf3;
+        display: flex;
+        justify-content: space-between;
+        gap: 14px
+    }
+
+    .finance-section-label {
+        margin-bottom: 3px;
+        color: #7c3aed;
+        font-size: .64rem;
+        font-weight: 800;
+        letter-spacing: .065em;
+        text-transform: uppercase
+    }
+
+    .finance-panel-header h4 {
+        margin: 0 0 3px;
+        color: #0f172a;
+        font-size: .88rem;
+        font-weight: 800
+    }
+
+    .finance-panel-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: .69rem
+    }
+
+    .finance-edit-badge, .finance-count-badge {
+        height: max-content;
+        padding: 5px 9px;
+        border: 1px solid #ddd6fe;
+        border-radius: 999px;
+        background: #f5f3ff;
+        color: #6d28d9;
+        font-size: .66rem;
+        font-weight: 750
+    }
+
+    .finance-form-section {
+        padding: 16px;
+        border-bottom: 1px solid #edf1f5
+    }
+
+    .finance-form-section-title {
+        margin-bottom: 13px;
+        display: flex;
+        align-items: center;
+        gap: 9px
+    }
+
+        .finance-form-section-title > i {
+            width: 31px;
+            height: 31px;
+            display: grid;
+            place-items: center;
+            border-radius: 9px;
+            background: #f5f3ff;
+            color: #7c3aed
+        }
+
+        .finance-form-section-title strong {
+            display: block;
+            color: #0f172a;
+            font-size: .78rem
+        }
+
+        .finance-form-section-title span {
+            display: block;
+            color: #64748b;
+            font-size: .64rem
+        }
+
+    .finance-page .form-label {
+        margin-bottom: 5px;
+        color: #334155;
+        font-size: .7rem;
+        font-weight: 750
+    }
+
+    .required-mark {
+        color: #dc2626
+    }
+
+    .finance-control, .finance-status-filter {
+        min-height: 38px;
+        border: 1px solid #dbe2ea;
+        border-radius: 8px;
+        font-size: .75rem;
+        box-shadow: none
+    }
+
+        .finance-control:focus, .finance-status-filter:focus {
+            border-color: #a78bfa;
+            box-shadow: 0 0 0 3px rgba(124,58,237,.1)
+        }
+
+    .finance-textarea {
+        min-height: 76px
+    }
+
+    .finance-field-hint {
+        display: block;
+        margin-top: 4px;
+        color: #94a3b8;
+        font-size: .61rem
+    }
+
+    .finance-input-prefix {
+        border-color: #dbe2ea;
+        background: #f8fafc;
+        color: #6d28d9;
+        font-size: .72rem;
+        font-weight: 800
+    }
+
+    .finance-option-grid {
+        display: grid;
+        gap: 8px
+    }
+
+    .finance-option-card, .finance-status-switch {
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        cursor: pointer
+    }
+
+        .finance-option-card:hover {
+            border-color: #c4b5fd;
+            background: #faf9ff
+        }
+
+    .finance-option-icon {
+        width: 31px;
+        height: 31px;
+        display: grid;
+        place-items: center;
+        border-radius: 9px;
+        background: #f5f3ff;
+        color: #7c3aed
+    }
+
+    .finance-option-card strong, .finance-status-switch strong {
+        display: block;
+        color: #1e293b;
+        font-size: .7rem
+    }
+
+    .finance-option-card small, .finance-status-switch small {
+        display: block;
+        color: #64748b;
+        font-size: .61rem
+    }
+
+    .finance-locked-notice {
+        margin-bottom: 12px;
+        padding: 9px 10px;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        background: #fffbeb;
+        color: #854d0e;
+        display: flex;
+        gap: 8px
+    }
+
+    .finance-form-actions {
+        padding: 14px 16px;
+        display: flex;
+        gap: 8px;
+        background: #fafbfc
+    }
+
+    .finance-primary-button, .finance-hero-button {
+        min-height: 36px;
+        padding: 7px 13px;
+        border: 1px solid #7c3aed;
+        border-radius: 8px;
+        background: #7c3aed;
+        color: #fff;
+        font-size: .7rem;
+        font-weight: 750
+    }
+
+    .finance-secondary-button {
+        min-height: 36px;
+        padding: 7px 13px;
+        border: 1px solid #d8dee7;
+        border-radius: 8px;
+        background: #fff;
+        color: #475569;
+        font-size: .7rem;
+        font-weight: 750
+    }
+
+    .finance-list-toolbar {
+        padding: 12px 14px;
+        border-bottom: 1px solid #e8edf3;
+        background: #fafbfc;
+        display: grid;
+        grid-template-columns: minmax(220px,1fr) 165px 38px;
+        gap: 8px
+    }
+
+    .finance-search-box {
+        position: relative
+    }
+
+        .finance-search-box > i {
+            position: absolute;
+            top: 50%;
+            left: 12px;
+            transform: translateY(-50%);
+            color: #94a3b8
+        }
+
+        .finance-search-box input {
+            min-height: 36px;
+            padding-left: 34px;
+            border: 1px solid #dbe2ea;
+            border-radius: 8px;
+            font-size: .7rem
+        }
+
+    .finance-refresh-button {
+        width: 38px;
+        height: 36px;
+        padding: 0;
+        border: 1px solid #ddd6fe;
+        border-radius: 8px;
+        background: #f5f3ff;
+        color: #7c3aed
+    }
+
+    .finance-table-wrapper {
+        overflow-x: auto
+    }
+
+    .finance-table {
+        min-width: 830px;
+        margin: 0
+    }
+
+        .finance-table thead th {
+            padding: 10px 12px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: .61rem;
+            font-weight: 800;
+            text-transform: uppercase
+        }
+
+        .finance-table tbody td {
+            padding: 11px 12px;
+            border-color: #edf1f5;
+            color: #334155;
+            font-size: .68rem;
+            vertical-align: middle
+        }
+
+        .finance-table tbody tr:hover {
+            background: #fcfbff
+        }
+
+    .finance-editing-row {
+        background: #f7f3ff !important
+    }
+
+    .finance-account-cell, .finance-category-cell {
+        display: flex;
+        align-items: center;
+        gap: 9px
+    }
+
+    .finance-account-avatar, .finance-category-avatar {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-weight: 850
+    }
+
+    .finance-code-badge, .finance-currency-badge, .finance-order-badge, .finance-type-count {
+        padding: 4px 7px;
+        border-radius: 7px;
+        background: #f5f3ff;
+        color: #6d28d9;
+        font-size: .61rem;
+        font-weight: 800
+    }
+
+    .finance-use-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px
+    }
+
+    .finance-use-badge {
+        padding: 3px 6px;
+        border-radius: 6px;
+        font-size: .56rem;
+        font-weight: 750
+    }
+
+    .use-income {
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .use-expense {
+        background: #fff7ed;
+        color: #c2410c
+    }
+
+    .use-remittance {
+        background: #f5f3ff;
+        color: #6d28d9
+    }
+
+    .use-none {
+        background: #f1f5f9;
+        color: #64748b
+    }
+
+    .finance-status-badge {
+        padding: 4px 7px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: .59rem;
+        font-weight: 750
+    }
+
+    .status-active {
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .status-inactive {
+        background: #f1f5f9;
+        color: #64748b
+    }
+
+    .finance-action-group {
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px
+    }
+
+    .finance-action-button {
+        width: 29px;
+        height: 29px;
+        padding: 0;
+        border-radius: 7px;
+        display: grid;
+        place-items: center
+    }
+
+    .action-edit {
+        border: 1px solid #ddd6fe;
+        background: #f5f3ff;
+        color: #7c3aed
+    }
+
+    .action-enable {
+        border: 1px solid #bbf7d0;
+        background: #ecfdf5;
+        color: #15803d
+    }
+
+    .action-disable {
+        border: 1px solid #fecaca;
+        background: #fef2f2;
+        color: #b91c1c
+    }
+
+    .action-lock {
+        border: 1px solid #fde68a;
+        background: #fffbeb;
+        color: #a16207
+    }
+
+    .finance-loading-state, .finance-empty-state {
+        min-height: 290px;
+        padding: 35px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center
+    }
+
+    .finance-empty-icon {
+        width: 58px;
+        height: 58px;
+        margin-bottom: 12px;
+        border-radius: 17px;
+        display: grid;
+        place-items: center;
+        background: #f5f3ff;
+        color: #7c3aed;
+        font-size: 1.35rem
+    }
+
+    .finance-loading-state .spinner-border {
+        color: #7c3aed
+    }
+
+    .finance-validation-summary, .validation-message {
+        color: #b91c1c;
+        font-size: .65rem
+    }
+
+    .finance-muted-value, .finance-balance-text, .finance-lock-label {
+        color: #94a3b8;
+        font-size: .61rem
+    }
+
+    .finance-hero {
+        display: none
+    }
+    @@media(max - width:1150px) {
+        .finance-workspace-grid
+
+    {
+        grid-template-columns: 1fr
+    }
+
+    } @@media(max - width:850px)
+
+    {
+        .finance-summary-grid
+
+    {
+        grid-template-columns: repeat(2,1fr)
+    }
+
+    .finance-page .bcc-page-header {
+        align-items: flex-start;
+        flex-direction: column
+    }
+
+    }@@media(max - width:650px)
+
+    {
+        .finance-summary-grid
+
+    {
+        grid-template-columns: 1fr
+    }
+
+    .finance-list-toolbar {
+        grid-template-columns: 1fr
+    }
+
+    .finance-refresh-button {
+        width: 100%
+    }
+
+    .finance-form-actions {
+        flex-direction: column
+    }
+
+        .finance-form-actions .btn {
+            width: 100%
+        }
+
+    }
+</style>
