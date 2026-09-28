@@ -183,6 +183,14 @@ namespace ChurchApp.Services
                 result.ServiceScores.Add(serviceResult);
             }
 
+            // Mark finally approved attendance exceptions for reporting.
+            // This does NOT change Score, EarnedWeight, MTD percentage or grade.
+            await ApplyApprovedAttendanceExceptionsAsync(
+                result,
+                workerId,
+                monthStart,
+                monthEnd);
+
             result.TotalConfiguredWeight =
                 result.ServiceScores.Sum(x => x.MonthlyWeight);
 
@@ -525,6 +533,163 @@ namespace ChurchApp.Services
 
             return result;
         }
+
+        // ============================================================
+        // APPROVED ATTENDANCE EXCEPTIONS
+        // ============================================================
+
+        /// <summary>
+        /// Marks attendance occurrences that are covered by finally approved
+        /// Leave, Off Service or Late Permission requests.
+        ///
+        /// IMPORTANT:
+        /// - This method never changes the attendance score.
+        /// - Leave and Off Service are marked only where the worker was absent.
+        /// - Late Permission is marked only where the worker attended and
+        ///   received a reduced attendance score.
+        /// - Late Permission does not excuse absence.
+        /// - Full/on-time attendance is not marked blue merely because a
+        ///   Late Permission request existed.
+        /// </summary>
+        private async Task ApplyApprovedAttendanceExceptionsAsync(
+            WorkerMonthlyAttendanceScore result,
+            int workerId,
+            DateTime monthStart,
+            DateTime monthEnd)
+        {
+            var monthEndExclusive = monthStart.AddMonths(1);
+
+            var approvedLeaves =
+                await _context.LeaveRequestDetails
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.ApprovalRequest != null &&
+                        x.ApprovalRequest.RequestedByWorkerId == workerId &&
+                        x.ApprovalRequest.Status == "Approved" &&
+                        x.StartDate < monthEndExclusive &&
+                        x.EndDate >= monthStart)
+                    .Select(x => new
+                    {
+                        x.StartDate,
+                        x.EndDate
+                    })
+                    .ToListAsync();
+
+            var approvedOffServices =
+                await _context.OffServiceRequestDetails
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.ApprovalRequest != null &&
+                        x.ApprovalRequest.RequestedByWorkerId == workerId &&
+                        x.ApprovalRequest.Status == "Approved" &&
+                        x.RequestedDate >= monthStart &&
+                        x.RequestedDate < monthEndExclusive)
+                    .Select(x => new
+                    {
+                        x.ServiceId,
+                        x.RequestedDate
+                    })
+                    .ToListAsync();
+
+            var approvedLatePermissions =
+                await _context.LatePermissionRequestDetails
+                    .AsNoTracking()
+                    .Where(x =>
+                        x.ApprovalRequest != null &&
+                        x.ApprovalRequest.RequestedByWorkerId == workerId &&
+                        x.ApprovalRequest.Status == "Approved" &&
+                        x.RequestedDate >= monthStart &&
+                        x.RequestedDate < monthEndExclusive)
+                    .Select(x => new
+                    {
+                        x.ServiceId,
+                        x.RequestedDate
+                    })
+                    .ToListAsync();
+
+            foreach (var service in result.ServiceScores)
+            {
+                foreach (var occurrence in service.Occurrences)
+                {
+                    if (!occurrence.IsDue)
+                        continue;
+
+                    // ----------------------------------------------------
+                    // APPROVED LEAVE
+                    // ----------------------------------------------------
+                    // Leave colours a missed occurrence blue when the
+                    // occurrence date falls within the approved leave period.
+                    if (!occurrence.WasPresent)
+                    {
+                        var hasApprovedLeave =
+                            approvedLeaves.Any(x =>
+                                occurrence.AttendanceDate.Date >= x.StartDate.Date &&
+                                occurrence.AttendanceDate.Date <= x.EndDate.Date);
+
+                        if (hasApprovedLeave)
+                        {
+                            occurrence.HasApprovedException = true;
+                            occurrence.ApprovedExceptionType = "Leave";
+                            continue;
+                        }
+                    }
+
+                    // ----------------------------------------------------
+                    // APPROVED OFF SERVICE
+                    // ----------------------------------------------------
+                    // Off Service is tied to a specific service/date.
+                    // It colours only a missed occurrence blue.
+                    if (!occurrence.WasPresent)
+                    {
+                        var hasApprovedOffService =
+                            approvedOffServices.Any(x =>
+                                x.ServiceId.HasValue &&
+                                x.ServiceId.Value == occurrence.ServiceId &&
+                                x.RequestedDate.Date ==
+                                    occurrence.AttendanceDate.Date);
+
+                        if (hasApprovedOffService)
+                        {
+                            occurrence.HasApprovedException = true;
+                            occurrence.ApprovedExceptionType = "Off Service";
+                            continue;
+                        }
+                    }
+
+                    // ----------------------------------------------------
+                    // APPROVED LATE PERMISSION
+                    // ----------------------------------------------------
+                    // Late Permission does NOT excuse absence.
+                    // It is blue only when the worker actually attended
+                    // and received a reduced score.
+                    if (occurrence.WasPresent &&
+                        (occurrence.Status ==
+                            AttendanceOccurrenceStatus.IntermediateScore ||
+                         occurrence.Status ==
+                            AttendanceOccurrenceStatus.Late))
+                    {
+                        var hasApprovedLatePermission =
+                            approvedLatePermissions.Any(x =>
+                                x.ServiceId == occurrence.ServiceId &&
+                                x.RequestedDate.Date ==
+                                    occurrence.AttendanceDate.Date);
+
+                        if (hasApprovedLatePermission)
+                        {
+                            occurrence.HasApprovedException = true;
+                            occurrence.ApprovedExceptionType =
+                                "Late Permission";
+                        }
+                    }
+                }
+
+                service.HasApprovedException =
+                    service.Occurrences.Any(x =>
+                        x.IsDue &&
+                        x.HasApprovedException);
+            }
+        }
+
 
         // ============================================================
         // RAW 20 / 10 / 2 SCORE
@@ -1158,7 +1323,6 @@ namespace ChurchApp.Services
     // ================================================================
     // MONTHLY RESULT FOR ONE SERVICE
     // ================================================================
-
     public class ServiceMonthlyAttendanceScore
     {
         public int ServiceId { get; set; }
@@ -1182,10 +1346,30 @@ namespace ChurchApp.Services
 
         public decimal ServicePercentage { get; set; }
 
+        /*
+         * True when at least one due occurrence in this
+         * service/month is covered by a finally approved
+         * Leave Request or Off Service Request.
+         *
+         * This does NOT change the attendance calculation.
+         * It allows reports to display the affected
+         * aggregate service score in blue.
+         */
+        public bool HasApprovedAbsence { get; set; }
+
+        /*
+         * True when at least one due occurrence in this service/month
+         * has a finally approved attendance exception:
+         * Leave, Off Service or Late Permission.
+         *
+         * Display only. It does not change scoring.
+         */
+        public bool HasApprovedException { get; set; }
+
         public List<AttendanceOccurrenceScore>
             Occurrences
         { get; set; } =
-                new();
+            new();
     }
 
     // ================================================================
@@ -1214,6 +1398,44 @@ namespace ChurchApp.Services
         public decimal OccurrenceWeight { get; set; }
 
         public decimal EarnedWeight { get; set; }
+
+        /*
+         * True when this service occurrence is covered by
+         * a finally approved Leave Request or Off Service Request.
+         *
+         * This does NOT change the attendance score.
+         * It is used by reports to display the affected score in blue.
+         */
+        public bool HasApprovedAbsence { get; set; }
+
+        /*
+         * Expected values:
+         * "Leave"
+         * "Off Service"
+         *
+         * Null when there is no approved absence.
+         */
+        public string? ApprovedAbsenceType { get; set; }
+
+        /*
+         * True when this occurrence should be shown as an approved
+         * attendance exception in the report.
+         *
+         * Leave / Off Service:
+         *   only when the worker was absent.
+         *
+         * Late Permission:
+         *   only when the worker attended and received a reduced score.
+         */
+        public bool HasApprovedException { get; set; }
+
+        /*
+         * Expected values:
+         * "Leave"
+         * "Off Service"
+         * "Late Permission"
+         */
+        public string? ApprovedExceptionType { get; set; }
 
         public AttendanceOccurrenceStatus Status
         {

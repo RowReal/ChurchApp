@@ -22,9 +22,9 @@
         <div>
             <strong>Important notice</strong>
             <span>
-                An off-service request must be submitted at least
-                five hours before the selected service starts.
-                Requests submitted within five hours of the service
+                An Off Service request must be submitted at least
+                10 minutes before the selected service starts.
+                Requests submitted within 10 minutes of the service
                 start time will not be accepted.
             </span>
         </div>
@@ -127,14 +127,14 @@
 
                         <div class="mb-3">
                             <label class="form-label fw-bold">
-                                Backup Worker (Relieve Officer)
-                                <span class="text-danger">*</span>
+                                Backup Worker (Relief Officer)
+                                <span class="text-muted fw-normal">(Optional)</span>
                             </label>
 
                             <InputSelect class="form-select"
                                          @bind-Value="Model.NominatedBackupId">
                                 <option value="0">
-                                    -- Select Backup Worker --
+                                    -- No Relief Officer / Select if applicable --
                                 </option>
 
                                 @foreach (var worker in AvailableBackups)
@@ -149,8 +149,8 @@
                                                class="text-danger small" />
 
                             <div class="form-text">
-                                Select the worker who will cover your
-                                responsibility for the service.
+                                You may select a worker to cover your responsibility
+                                for the service, where applicable. This is optional.
                             </div>
                         </div>
 
@@ -218,7 +218,7 @@
             return serviceStart.HasValue &&
                    serviceStart.Value > DateTime.Now &&
                    serviceStart.Value - DateTime.Now <
-                       TimeSpan.FromHours(5);
+                       TimeSpan.FromMinutes(10);
         }
     }
 
@@ -254,11 +254,11 @@
                     $"{serviceStart.Value:dd MMM yyyy 'at' h:mm tt}. " +
                     $"Only {FormatRemainingTime(remaining)} remains. " +
                     "The request cannot be submitted because the " +
-                    "five-hour notice requirement has not been met.";
+                    "Ten minute notice requirement has not been met.";
             }
 
             var deadline =
-                serviceStart.Value.AddHours(-5);
+    serviceStart.Value.AddMinutes(-10);
 
             return
                 $"Service starts on " +
@@ -293,11 +293,25 @@
                 "Please select the excuse date.");
         }
 
+        var selectedService =
+            Services.FirstOrDefault(x =>
+                x.Id == Model.ServiceId.Value);
+
+        if (selectedService == null)
+        {
+            throw new InvalidOperationException(
+                "The selected service could not be found.");
+        }
+
         if (Model.RequestedDate.Date < DateTime.Today)
         {
             throw new InvalidOperationException(
                 "The excuse date cannot be in the past.");
         }
+
+        ValidateRequestedDateMatchesService(
+            selectedService,
+            Model.RequestedDate.Date);
 
         var serviceStart =
             TryGetSelectedServiceStart();
@@ -324,11 +338,11 @@
                 "five hours before the selected service starts.");
         }
 
-        if (Model.NominatedBackupId <= 0)
-        {
-            throw new InvalidOperationException(
-                "Please select the backup worker.");
-        }
+        // if (Model.NominatedBackupId <= 0)
+        // {
+        //     throw new InvalidOperationException(
+        //         "Please select the backup worker.");
+        // }
 
         if (string.IsNullOrWhiteSpace(Model.Reason))
         {
@@ -343,6 +357,152 @@
         }
     }
 
+    private static void ValidateRequestedDateMatchesService(
+      Service service,
+      DateTime requestedDate)
+    {
+        /*
+         * ONE-TIME SERVICE
+         * The selected date must exactly match the
+         * configured service date.
+         */
+        if (string.Equals(
+                service.RecurrencePattern,
+                "OneTime",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            if (!service.SpecificDate.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "The selected service does not have a configured date.");
+            }
+
+            if (requestedDate.Date !=
+                service.SpecificDate.Value.Date)
+            {
+                throw new InvalidOperationException(
+                    $"Please select " +
+                    $"{service.SpecificDate.Value:dddd, dd MMMM yyyy}. " +
+                    $"That is the scheduled date for {service.Name}.");
+            }
+
+            return;
+        }
+
+        /*
+         * RECURRING SERVICE
+         * The selected date must match the configured
+         * day of the week.
+         *
+         * Examples:
+         * Sunday Service -> Sunday only
+         * Midweek Service -> Wednesday only
+         */
+        if (service.DayOfWeek.HasValue &&
+            requestedDate.DayOfWeek != service.DayOfWeek.Value)
+        {
+            throw new InvalidOperationException(
+                $"{service.Name} is scheduled for " +
+                $"{service.DayOfWeek.Value}s. " +
+                $"Please select an upcoming " +
+                $"{service.DayOfWeek.Value}.");
+        }
+
+        /*
+         * MONTHLY SERVICE
+         *
+         * WeekOfMonth:
+         * 1 = First
+         * 2 = Second
+         * 3 = Third
+         * 4 = Fourth
+         * 5 = Last
+         *
+         * Example:
+         * Holy Communion configured as:
+         * Monthly + Sunday + WeekOfMonth = 1
+         * means First Sunday of every month.
+         */
+        if (string.Equals(
+                service.RecurrencePattern,
+                "Monthly",
+                StringComparison.OrdinalIgnoreCase) &&
+            service.WeekOfMonth.HasValue)
+        {
+            var configuredWeek =
+                service.WeekOfMonth.Value;
+
+            if (configuredWeek >= 1 &&
+                configuredWeek <= 4)
+            {
+                var actualWeek =
+                    ((requestedDate.Day - 1) / 7) + 1;
+
+                if (actualWeek != configuredWeek)
+                {
+                    var ordinal =
+                        GetWeekDescription(configuredWeek);
+
+                    var dayName =
+                        service.DayOfWeek?.ToString()
+                        ?? "configured day";
+
+                    throw new InvalidOperationException(
+                        $"{service.Name} is scheduled for the " +
+                        $"{ordinal} {dayName} of the month. " +
+                        $"Please select the correct upcoming service date.");
+                }
+            }
+            else if (configuredWeek == 5)
+            {
+                /*
+                 * WeekOfMonth = 5 means LAST occurrence
+                 * of the configured day in the month.
+                 *
+                 * If adding seven days remains in the
+                 * same month, this is not the last one.
+                 */
+                var nextWeek =
+                    requestedDate.AddDays(7);
+
+                if (nextWeek.Month == requestedDate.Month)
+                {
+                    var dayName =
+                        service.DayOfWeek?.ToString()
+                        ?? "configured day";
+
+                    throw new InvalidOperationException(
+                        $"{service.Name} is scheduled for the " +
+                        $"last {dayName} of the month. " +
+                        $"Please select the correct upcoming service date.");
+                }
+            }
+        }
+    }
+    private static string GetWeekDescription(int week)
+    {
+        return week switch
+        {
+            1 => "first",
+            2 => "second",
+            3 => "third",
+            4 => "fourth",
+            5 => "last",
+            _ => $"{week}th"
+        };
+    }
+    private static string GetOrdinal(int number)
+    {
+        return number switch
+        {
+            1 => "first",
+            2 => "second",
+            3 => "third",
+            4 => "fourth",
+            5 => "fifth",
+            _ => $"{number}th"
+        };
+    }
     public string BuildCommonDetails()
     {
         Validate();
@@ -365,9 +525,9 @@
             TryGetSelectedServiceStart();
 
         var backupName =
-            backup == null
-                ? "Selected Backup Worker"
-                : $"{backup.FirstName} {backup.LastName}".Trim();
+    backup == null
+        ? "Not specified"
+        : $"{backup.FirstName} {backup.LastName}".Trim();
 
         return
             $"Service: {serviceName}\n" +

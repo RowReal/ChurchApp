@@ -13,6 +13,7 @@
 @inject HtmlCleanService HtmlCleanService
 @inject LeaveRequestService LeaveRequestService
 @inject ExcuseService ExcuseService
+@inject LatePermissionService LatePermissionService
 
 <PageTitle>New Approval Request - BCC ServiceHub</PageTitle>
 
@@ -40,7 +41,7 @@
                 </div>
 
                 <div class="bcc-page-subtitle">
-                    Submit leave, off-service, activity, financial, or general approval requests.
+                    Submit leave, off-service, late permission, activity, financial, or general approval requests.
                 </div>
             </div>
 
@@ -102,9 +103,35 @@
                                            @bind-Value="requestModel.Subject"
                                            placeholder="Brief title of the request" />
                             </div>
+                            @if (selectedRequestType != null)
+{
+    <div class="col-12">
+        <div class="@GetRequestTypeHeroCssClass()">
+
+            <div class="request-type-hero-icon">
+                <i class="@GetRequestTypeHeroIcon()"></i>
+            </div>
+
+            <div class="request-type-hero-content">
+                <div class="request-type-hero-label">
+                    @selectedRequestType.Name
+                </div>
+
+                <div class="request-type-hero-title">
+                    @GetRequestTypeHeroTitle()
+                </div>
+
+                <div class="request-type-hero-description">
+                    @GetRequestTypeHeroDescription()
+                </div>
+            </div>
+
+        </div>
+    </div>
+}
 
                             <!-- Rich-text details -->
-                            @if (!IsLeaveRequest && !IsExcuseRequest)
+                            @if (!IsLeaveRequest && !IsExcuseRequest && !IsLatePermissionRequest)
 {
     <div class="col-12">
         <label class="form-label fw-bold">
@@ -223,6 +250,56 @@
                                 </div>
                             }
 
+                            @if (IsLatePermissionRequest)
+                            {
+                                <div class="col-12">
+                                    <div class="profile-review-card late-permission-card">
+                                        <h6 class="mb-2"><i class="fas fa-clock me-2"></i>Late Permission Request Information</h6>
+                                        <p class="text-muted small mb-3">Use this form when you expect to arrive after the scheduled start of an upcoming church service. The request must be submitted before the service starts.</p>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Service <span class="text-danger">*</span></label>
+                                                <select class="form-select" value="@latePermissionModel.ServiceId" @onchange="OnLatePermissionServiceChanged">
+                                                    <option value="0">-- Select Service --</option>
+                                                    @foreach (var service in availableLatePermissionServices)
+                                                    {
+                                                        <option value="@service.Id">@service.Name</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Next Service Date</label>
+                                                <input type="text" class="form-control" value="@GetLatePermissionServiceDateDisplay()" readonly />
+                                                <div class="form-text">Automatically selected as the next immediate occurrence of this service.</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Scheduled Start Time</label>
+                                                <input type="text" class="form-control" value="@GetLatePermissionScheduledStartDisplay()" readonly />
+                                                <div class="form-text">Taken automatically from the selected service schedule.</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Expected Arrival Time <span class="text-danger">*</span></label>
+                                                <select class="form-select" @bind="latePermissionExpectedArrivalTime">
+                                                    <option value="">-- Select Expected Arrival Time --</option>
+                                                    @foreach (var option in latePermissionArrivalTimeOptions)
+                                                    {
+                                                        <option value="@option.Value">@option.Display</option>
+                                                    }
+                                                </select>
+                                                <div class="form-text">Times begin from the scheduled commencement of the selected service.</div>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label fw-bold">Reason for Late Arrival <span class="text-danger">*</span></label>
+                                                <InputTextArea class="form-control" rows="4" maxlength="2000" @bind-Value="latePermissionModel.Reason" placeholder="Briefly explain why you expect to arrive late." />
+                                            </div>
+                                            <div class="col-12">
+                                                <div class="alert alert-info mb-0"><i class="fas fa-circle-info me-2"></i><strong>Important:</strong> Late Permission does not excuse absence from the service. It records approval for an expected late arrival.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
                             <!-- Attachments -->
                             <div class="col-12">
                                 <label class="form-label fw-bold">
@@ -338,19 +415,99 @@ else
         </div>
     </div>
 }
+@if (showValidationPopup)
+{
+    <div class="approval-popup-backdrop">
+        <div class="approval-popup-card validation-popup-card">
 
+            <div class="approval-popup-icon validation-popup-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+
+            <h4>Request Cannot Be Submitted</h4>
+
+            <p>@validationPopupMessage</p>
+
+            <button type="button"
+                    class="bcc-btn bcc-btn-primary"
+                    @onclick="CloseValidationPopup">
+                OK
+            </button>
+
+        </div>
+    </div>
+}
+@if (showRequestTypeWarningPopup)
+{
+    <div class="approval-popup-backdrop">
+        <div class="approval-popup-card request-type-warning-card">
+
+            <div class="approval-popup-icon request-type-warning-icon">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+
+            <h4>Possible Incorrect Request Type</h4>
+
+            <p>
+                Your request appears to relate to being absent from church
+                or requesting permission not to attend a service.
+            </p>
+
+            <div class="request-type-warning-guidance">
+                <div>
+                    <strong>Leave Request</strong><br />
+                    Use this if you will be unavailable for a period of time.
+                </div>
+
+                <div>
+                    <strong>Off Service Request</strong><br />
+                    Use this if you only need permission to be absent from
+                    one particular service.
+                </div>
+            </div>
+
+            <p class="request-type-warning-note">
+                Using the correct request type is important because approved
+                Leave and Off Service requests may be considered when your
+                attendance record is reviewed.
+            </p>
+
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn"
+                        @onclick="ChangeRequestTypeFromWarning">
+                    <i class="fas fa-rotate-left me-2"></i>
+                    Change Request Type
+                </button>
+
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary"
+                        @onclick="ContinueCurrentRequest">
+                    Continue with Current Request
+                </button>
+
+            </div>
+        </div>
+    </div>
+}
 @code {
     private List<ApprovalRequestType> requestTypes = new();
     private List<IBrowserFile> selectedFiles = new();
+    private bool showRequestTypeWarningPopup;
+private bool requestTypeWarningAcknowledged;
 
     private ApprovalRequestFormModel requestModel = new();
     private ApprovalRequestType? selectedRequestType;
 
     private string? errorMessage;
-    private string popupMessage = string.Empty;
+private string popupMessage = string.Empty;
 
-    private bool showSuccessPopup;
-    private bool isSubmitting;
+private string validationPopupMessage = string.Empty;
+
+private bool showSuccessPopup;
+private bool showValidationPopup;
+private bool isSubmitting;
     private bool richTextEditorsInitialized;
 
     private const long MaximumFileSize = 10 * 1024 * 1024;
@@ -358,10 +515,15 @@ else
     private LeaveRequestFormModel leaveRequestModel = new();
     private ExcuseRequestModel excuseRequestModel = new();
     private ExcuseRequestForm? excuseRequestForm;
+    private LatePermissionFormModel latePermissionModel = new();
+    private string latePermissionExpectedArrivalTime = string.Empty;
+    private DateTime? latePermissionScheduledStart;
+    private List<LatePermissionTimeOption> latePermissionArrivalTimeOptions = new();
 
     private List<Worker> availableRelieveOfficers = new();
     private List<Service> availableExcuseServices = new();
     private List<Worker> availableExcuseBackups = new();
+    private List<Service> availableLatePermissionServices = new();
     private bool isExcuseDataLoading;
 
     private bool IsLeaveRequest =>
@@ -379,6 +541,9 @@ else
             selectedRequestType?.Code,
             "Excuse-Request",
             StringComparison.OrdinalIgnoreCase);
+
+    private bool IsLatePermissionRequest =>
+        string.Equals(selectedRequestType?.Code, "Late-Permission-Request", StringComparison.OrdinalIgnoreCase);
 
     private bool IsFinancialRequest =>
         string.Equals(
@@ -404,6 +569,9 @@ else
                 availableExcuseServices =
                     await ExcuseService.GetServicesAsync();
 
+                availableLatePermissionServices =
+                    await LatePermissionService.GetServicesAsync();
+
                 await LoadExcuseBackupsAsync();
             }
         }
@@ -413,12 +581,56 @@ else
                 $"Unable to load the request page: {ex.Message}";
         }
     }
+ private bool IsGeneralOrActivityRequest
+{
+    get
+    {
+        if (selectedRequestType == null)
+            return false;
 
+        var code =
+            selectedRequestType.Code?.Trim()
+            ?? string.Empty;
+
+        var name =
+            selectedRequestType.Name?.Trim()
+            ?? string.Empty;
+
+        return
+            // General Request
+            code.Equals(
+                "General-Request",
+                StringComparison.OrdinalIgnoreCase) ||
+            code.Equals(
+                "General",
+                StringComparison.OrdinalIgnoreCase) ||
+            name.Equals(
+                "General Request",
+                StringComparison.OrdinalIgnoreCase) ||
+            name.Equals(
+                "General Approval",
+                StringComparison.OrdinalIgnoreCase) ||
+
+            // Activity Request
+            code.Equals(
+                "Activity-Request",
+                StringComparison.OrdinalIgnoreCase) ||
+            code.Equals(
+                "Activity",
+                StringComparison.OrdinalIgnoreCase) ||
+            name.Equals(
+                "Activity Request",
+                StringComparison.OrdinalIgnoreCase) ||
+            name.Equals(
+                "Activity Approval",
+                StringComparison.OrdinalIgnoreCase);
+    }
+}
    protected override async Task OnAfterRenderAsync(bool firstRender)
 {
     if (!AuthService.IsAuthenticated ||
         richTextEditorsInitialized ||
-        (IsLeaveRequest || IsExcuseRequest))
+        (IsLeaveRequest || IsExcuseRequest || IsLatePermissionRequest))
     {
         return;
     }
@@ -445,10 +657,164 @@ else
         StateHasChanged();
     }
 }
+private static bool LooksLikeAbsenceRequest(
+    string? subject,
+    string? details,
+    string? approvalSought)
+{
+    var combined =
+        $"{subject} {details} {approvalSought}";
 
+    combined = System.Net.WebUtility.HtmlDecode(combined);
+
+    combined = System.Text.RegularExpressions.Regex.Replace(
+        combined,
+        "<.*?>",
+        " ");
+
+    combined = System.Text.RegularExpressions.Regex.Replace(
+        combined,
+        @"\s+",
+        " ")
+        .Trim()
+        .ToLowerInvariant();
+
+    if (string.IsNullOrWhiteSpace(combined))
+        return false;
+
+    /*
+     * Strong expressions that clearly suggest that the worker
+     * may actually be requesting Leave or Off Service.
+     */
+    string[] strongIndicators =
+    {
+        // Leave / holiday
+        "going on leave",
+        "go on leave",
+        "request for leave",
+        "leave request",
+        "annual leave",
+        "personal leave",
+        "going on holiday",
+        "go on holiday",
+        "on holiday",
+        "holiday request",
+        "vacation",
+        "going on vacation",
+
+        // Absence
+        "permission to be absent",
+        "permission to be away",
+        "permission to miss",
+        "permission from service",
+        "excuse me from service",
+        "excused from service",
+        "absent from service",
+        "absence from service",
+        "absent from church",
+        "absence from church",
+
+        // Availability
+        "will not be around",
+        "won't be around",
+        "would not be around",
+        "not going to be around",
+        "will not be available",
+        "won't be available",
+        "would not be available",
+        "not available for service",
+        "unavailable for service",
+        "away from church",
+        "away during this period",
+
+        // Attendance
+        "unable to attend",
+        "cannot attend",
+        "can't attend",
+        "will not attend",
+        "won't attend",
+        "would not attend",
+        "unable to make it",
+        "cannot make it",
+        "can't make it",
+        "miss service",
+        "miss the service",
+        "missing service",
+        "miss church",
+        "miss the church service",
+
+        // Location / being away
+        "out of town",
+        "out of abuja"
+    };
+
+    if (strongIndicators.Any(indicator =>
+        combined.Contains(
+            indicator,
+            StringComparison.OrdinalIgnoreCase)))
+    {
+        return true;
+    }
+
+    /*
+     * Travel alone should not trigger the warning because a genuine
+     * Activity Request may concern travel arrangements.
+     *
+     * However, travel combined with wording suggesting personal
+     * absence should trigger the warning.
+     */
+    var containsTravel =
+        combined.Contains("travel") ||
+        combined.Contains("travelling") ||
+        combined.Contains("traveling") ||
+        combined.Contains("trip") ||
+        combined.Contains("journey");
+
+    var containsPersonalAbsenceContext =
+        combined.Contains("holiday") ||
+        combined.Contains("leave") ||
+        combined.Contains("absent") ||
+        combined.Contains("absence") ||
+        combined.Contains("away") ||
+        combined.Contains("not around") ||
+        combined.Contains("not available") ||
+        combined.Contains("unavailable") ||
+        combined.Contains("unable to attend") ||
+        combined.Contains("cannot attend") ||
+        combined.Contains("can't attend") ||
+        combined.Contains("miss service") ||
+        combined.Contains("miss church");
+
+    if (containsTravel && containsPersonalAbsenceContext)
+    {
+        return true;
+    }
+
+    return false;
+}
+private void ChangeRequestTypeFromWarning()
+{
+    showRequestTypeWarningPopup = false;
+    requestTypeWarningAcknowledged = false;
+
+    /*
+     * Keep everything the worker has typed.
+     * They can simply change the Request Type dropdown.
+     */
+}
+
+private async Task ContinueCurrentRequest()
+{
+    showRequestTypeWarningPopup = false;
+    requestTypeWarningAcknowledged = true;
+
+    await SubmitRequest();
+}
  private void OnRequestTypeChanged(ChangeEventArgs e)
 {
     errorMessage = null;
+requestTypeWarningAcknowledged = false;
+showRequestTypeWarningPopup = false;
 
     if (int.TryParse(
             e.Value?.ToString(),
@@ -486,6 +852,14 @@ else
         _ = LoadExcuseBackupsAsync();
     }
 
+    if (!IsLatePermissionRequest)
+    {
+        latePermissionModel = new LatePermissionFormModel();
+        latePermissionExpectedArrivalTime = string.Empty;
+        latePermissionScheduledStart = null;
+        latePermissionArrivalTimeOptions.Clear();
+    }
+
     /*
      * The editor elements may be removed or recreated when
      * changing between Leave and other request types.
@@ -493,6 +867,97 @@ else
     richTextEditorsInitialized = false;
 }
   
+    private async Task OnLatePermissionServiceChanged(ChangeEventArgs e)
+    {
+        errorMessage = null;
+        latePermissionScheduledStart = null;
+        latePermissionExpectedArrivalTime = string.Empty;
+        latePermissionArrivalTimeOptions.Clear();
+
+        latePermissionModel.ServiceId =
+            int.TryParse(e.Value?.ToString(), out var serviceId)
+                ? serviceId
+                : 0;
+
+        if (latePermissionModel.ServiceId <= 0)
+        {
+            latePermissionModel.RequestedDate = default;
+            return;
+        }
+
+        try
+        {
+            latePermissionScheduledStart =
+                await LatePermissionService.GetNextServiceDateTimeAsync(
+                    latePermissionModel.ServiceId);
+
+            latePermissionModel.RequestedDate =
+                latePermissionScheduledStart.Value.Date;
+
+            BuildLatePermissionArrivalTimeOptions();
+        }
+        catch (Exception ex)
+        {
+            latePermissionModel.RequestedDate = default;
+            latePermissionScheduledStart = null;
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void BuildLatePermissionArrivalTimeOptions()
+    {
+        latePermissionArrivalTimeOptions.Clear();
+        latePermissionExpectedArrivalTime = string.Empty;
+
+        if (!latePermissionScheduledStart.HasValue)
+            return;
+
+        var service = availableLatePermissionServices
+            .FirstOrDefault(x => x.Id == latePermissionModel.ServiceId);
+
+        if (service == null)
+            return;
+
+        var start = latePermissionScheduledStart.Value;
+        var configuredEndTime =
+            string.Equals(service.RecurrencePattern, "OneTime", StringComparison.OrdinalIgnoreCase)
+                ? service.SpecificEndTime ?? service.EndTime
+                : service.EndTime;
+
+        var end = configuredEndTime.HasValue
+            ? start.Date + configuredEndTime.Value
+            : start.AddHours(4);
+
+        if (end <= start)
+            end = start.AddHours(4);
+
+        // Keep the configured commencement time exactly, then offer 5-minute choices.
+        var current = start;
+        while (current <= end)
+        {
+            latePermissionArrivalTimeOptions.Add(
+                new LatePermissionTimeOption
+                {
+                    Value = current.TimeOfDay.ToString(@"hh\:mm"),
+                    Display = current.ToString("h:mm tt")
+                });
+
+            current = current.AddMinutes(5);
+        }
+    }
+
+    private string GetLatePermissionServiceDateDisplay()
+    {
+        return latePermissionScheduledStart.HasValue
+            ? latePermissionScheduledStart.Value.ToString("dddd, dd MMMM yyyy")
+            : "Select a service";
+    }
+
+    private string GetLatePermissionScheduledStartDisplay() =>
+        latePermissionScheduledStart.HasValue
+            ? latePermissionScheduledStart.Value.ToString("h:mm tt")
+            : "Select a valid service and service date";
+
     private void ClearFinancialFields()
     {
         requestModel.AmountRequested = null;
@@ -591,6 +1056,113 @@ else
         selectedFiles.Remove(file);
     }
 
+    private string GetRequestTypeHeroTitle()
+{
+    return selectedRequestType?.Code?.ToLowerInvariant() switch
+    {
+        "general-request" =>
+            "General Approval",
+
+        "activity-request" =>
+            "Approval for a Church Activity or Programme",
+
+        "leave-request" =>
+            "Permission to Be Away for a Period",
+
+        "off-service-request" or "excuse-request" =>
+            "Permission to Miss One Specific Service",
+
+        "late-permission-request" =>
+            "Permission to Arrive Late for a Service",
+
+        "financial-request" =>
+            "Approval for Funds or Expenditure",
+
+        _ =>
+            "Approval Request"
+    };
+}
+
+private string GetRequestTypeHeroDescription()
+{
+    return selectedRequestType?.Code?.ToLowerInvariant() switch
+    {
+        "general-request" =>
+            "Use this for general approvals that do not fall under " +
+            "Activity, Leave, Off Service or Financial requests.",
+
+        "activity-request" =>
+            "Use this to seek approval for a church activity, programme, " +
+            "event, participation or related arrangement.",
+
+        "leave-request" =>
+            "Use this when you will be unavailable or absent for a period " +
+            "of time, especially where your absence may cover more than " +
+            "one church service or activity. Enter the start and end dates " +
+            "of your absence.",
+
+        "off-service-request" or "excuse-request" =>
+            "Use this when you need permission to be absent from one " +
+            "specific upcoming church service. Select the service, date " +
+            "and worker who will cover your responsibility.",
+
+        "late-permission-request" =>
+            "Use this when you expect to attend a specific upcoming church " +
+            "service but arrive after its scheduled start time. The request " +
+            "must be submitted before the service starts.",
+
+        "financial-request" =>
+            "Use this when seeking approval for funds, expenditure, " +
+            "payment or another financial commitment.",
+
+        _ =>
+            "Complete the information below to submit your approval request."
+    };
+}
+
+private string GetRequestTypeHeroIcon()
+{
+    return selectedRequestType?.Code?.ToLowerInvariant() switch
+    {
+        "general-request" =>
+            "fas fa-file-signature",
+
+        "activity-request" =>
+            "fas fa-calendar-check",
+
+        "leave-request" =>
+            "fas fa-calendar-minus",
+
+        "off-service-request" or "excuse-request" =>
+            "fas fa-user-clock",
+
+        "late-permission-request" =>
+            "fas fa-clock",
+
+        "financial-request" =>
+            "fas fa-coins",
+
+        _ =>
+            "fas fa-clipboard-check"
+    };
+}
+
+private string GetRequestTypeHeroCssClass()
+{
+    var typeClass =
+        selectedRequestType?.Code?.ToLowerInvariant() switch
+        {
+            "general-request" => "general",
+            "activity-request" => "activity",
+            "leave-request" => "leave",
+            "off-service-request" or "excuse-request" => "off-service",
+            "late-permission-request" => "late-permission",
+            "financial-request" => "financial",
+            _ => "general"
+        };
+
+    return $"request-type-hero request-type-hero-{typeClass}";
+}
   private async Task SubmitRequest()
 {
     if (isSubmitting)
@@ -663,22 +1235,56 @@ else
         }
     }
 
-    if (IsExcuseRequest)
+  if (IsExcuseRequest)
+{
+    if (excuseRequestForm == null)
     {
-        if (excuseRequestForm == null)
+        ShowValidationPopup(
+            "The Off Service Request form is not ready. Please try again.");
+
+        return;
+    }
+
+    try
+    {
+        excuseRequestForm.Validate();
+    }
+    catch (Exception ex)
+    {
+        ShowValidationPopup(ex.Message);
+        return;
+    }
+}
+    if (IsLatePermissionRequest)
+    {
+        if (latePermissionModel.ServiceId <= 0)
         {
-            errorMessage =
-                "The Excuse Request form is not ready. Please try again.";
+            ShowValidationPopup("Please select the service for which you expect to arrive late.");
             return;
         }
-
+        if (latePermissionModel.RequestedDate == default)
+        {
+            ShowValidationPopup("Please select the service date.");
+            return;
+        }
+        if (!TimeSpan.TryParse(latePermissionExpectedArrivalTime, out var expectedArrivalTime))
+        {
+            ShowValidationPopup("Please enter a valid expected arrival time.");
+            return;
+        }
+        latePermissionModel.ExpectedArrivalTime = expectedArrivalTime;
         try
         {
-            excuseRequestForm.Validate();
+            await LatePermissionService.ValidateAsync(
+                AuthService.CurrentWorker.Id,
+                latePermissionModel.ServiceId,
+                latePermissionModel.RequestedDate,
+                latePermissionModel.ExpectedArrivalTime,
+                latePermissionModel.Reason);
         }
         catch (Exception ex)
         {
-            errorMessage = ex.Message;
+            ShowValidationPopup(ex.Message);
             return;
         }
     }
@@ -713,6 +1319,20 @@ else
             requestModel.ApprovalSought =
     HtmlCleanService.Clean(
         excuseRequestForm!.BuildApprovalSought());
+        }
+        else if (IsLatePermissionRequest)
+        {
+            var selectedService = availableLatePermissionServices.FirstOrDefault(x => x.Id == latePermissionModel.ServiceId);
+            var serviceName = selectedService?.Name ?? "Selected Service";
+            var expectedArrivalDisplay =
+                latePermissionModel.ExpectedArrivalTime.ToString(@"h\:mm");
+
+            requestModel.Details = HtmlCleanService.Clean(
+                $"Late Permission Request for {serviceName} on {latePermissionModel.RequestedDate:dd MMMM yyyy}. " +
+                $"Expected arrival time: {expectedArrivalDisplay}. " +
+                $"Reason: {latePermissionModel.Reason.Trim()}");
+            requestModel.ApprovalSought = HtmlCleanService.Clean(
+                "Kindly approve my request to arrive late for this service.");
         }
         else
         {
@@ -756,6 +1376,22 @@ else
             return;
         }
 
+        /*
+ * General and Activity requests should not normally be used
+ * to request permission for absence or non-attendance.
+ *
+ * Warn the worker, but allow them to continue deliberately.
+ */
+if (IsGeneralOrActivityRequest &&
+    !requestTypeWarningAcknowledged &&
+    LooksLikeAbsenceRequest(
+        requestModel.Subject,
+        requestModel.Details,
+        requestModel.ApprovalSought))
+{
+    showRequestTypeWarningPopup = true;
+    return;
+}
         /*
          * 1. Create the common Approval Request.
          */
@@ -805,6 +1441,18 @@ else
                     excuseRequestModel);
         }
 
+        /* Save Late Permission-specific details. */
+        if (IsLatePermissionRequest)
+        {
+            await LatePermissionService.SaveLatePermissionRequestDetailsAsync(
+                newRequestId,
+                AuthService.CurrentWorker.Id,
+                latePermissionModel.ServiceId,
+                latePermissionModel.RequestedDate,
+                latePermissionModel.ExpectedArrivalTime,
+                latePermissionModel.Reason);
+        }
+
         /*
          * 5. Save supporting attachments.
          */
@@ -838,15 +1486,17 @@ else
 
         showSuccessPopup = true;
     }
-    catch (Exception ex)
-    {
-        errorMessage =
-            $"Error submitting request: {ex.Message}";
-    }
-    finally
-    {
-        isSubmitting = false;
-    }
+   catch (Exception ex)
+{
+    errorMessage = null;
+
+    ShowValidationPopup(
+        $"Error submitting request: {ex.Message}");
+}
+finally
+{
+    isSubmitting = false;
+}
 }
 
     private async Task LoadExcuseBackupsAsync()
@@ -908,6 +1558,9 @@ else
     leaveRequestModel.Clear();
     excuseRequestModel = new ExcuseRequestModel();
     availableExcuseBackups.Clear();
+    latePermissionModel = new LatePermissionFormModel();
+    latePermissionExpectedArrivalTime = string.Empty;
+    latePermissionScheduledStart = null;
 
     errorMessage = null;
     richTextEditorsInitialized = false;
@@ -933,7 +1586,17 @@ else
         showSuccessPopup = false;
         Navigation.NavigateTo("/approvals/my-requests");
     }
+    private void ShowValidationPopup(string message)
+{
+    validationPopupMessage = message;
+    showValidationPopup = true;
+}
 
+private void CloseValidationPopup()
+{
+    showValidationPopup = false;
+    validationPopupMessage = string.Empty;
+}
     private void GoBack()
     {
         Navigation.NavigateTo("/");
@@ -945,6 +1608,7 @@ else
         {
             "HeadOfDirectorate" => "the Head of Directorate",
             "HeadOfService" => "the Head of Service",
+            "ClusterHead" => "the Cluster Head",
             "Pastor" => "the Pastor",
             "ChurchAdmin" => "the Church Administrator",
             "SpecificWorker" => "the assigned reviewer",
@@ -980,6 +1644,19 @@ else
         };
     }
 
+    private class LatePermissionFormModel
+    {
+        public int ServiceId { get; set; }
+        public DateTime RequestedDate { get; set; } = DateTime.Today;
+        public TimeSpan ExpectedArrivalTime { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+    private class LatePermissionTimeOption
+{
+    public string Value { get; set; } = string.Empty;
+
+    public string Display { get; set; } = string.Empty;
+}
     private class ApprovalRequestFormModel
     {
         public int RequestTypeId { get; set; }
@@ -1008,6 +1685,11 @@ else
 }
 
 <style>
+    .late-permission-card {
+        border-left: 4px solid #f59e0b;
+        background: #fffdf7;
+    }
+
     .financial-request-card {
         border-left: 4px solid #16a34a;
         background: #f8fffa;
@@ -1116,7 +1798,13 @@ else
         color: #16a34a;
         font-size: 3rem;
     }
+    .validation-popup-icon {
+    color: #dc2626;
+}
 
+.validation-popup-card {
+    border-top: 5px solid #dc2626;
+}
     .approval-popup-card h4 {
         margin-bottom: 8px;
         color: #0f172a;
@@ -1134,7 +1822,121 @@ else
             flex-direction: column;
         }
     }
+    .request-type-hero {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 15px 17px;
+    border: 1px solid #dbeafe;
+    border-left: 5px solid #2563eb;
+    border-radius: 12px;
+    background: #f8fbff;
+}
+
+.request-type-hero-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 1rem;
+}
+
+.request-type-hero-content {
+    min-width: 0;
+}
+
+.request-type-hero-label {
+    margin-bottom: 2px;
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.request-type-hero-title {
+    margin-bottom: 3px;
+    color: #0f172a;
+    font-size: 0.9rem;
+    font-weight: 800;
+}
+
+.request-type-hero-description {
+    color: #475569;
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.request-type-hero-general {
+    border-left-color: #2563eb;
+}
+
+.request-type-hero-activity {
+    border-left-color: #7c3aed;
+}
+
+.request-type-hero-leave {
+    border-left-color: #ea580c;
+}
+
+.request-type-hero-off-service {
+    border-left-color: #dc2626;
+}
+
+.request-type-hero-late-permission {
+    border-left-color: #f59e0b;
+}
+
+.request-type-hero-financial {
+    border-left-color: #16a34a;
+}
+.request-type-warning-card {
+    max-width: 540px;
+    border-top: 5px solid #f59e0b;
+}
+
+.request-type-warning-icon {
+    color: #f59e0b;
+}
+
+.request-type-warning-guidance {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 18px 0;
+    text-align: left;
+}
+
+.request-type-warning-guidance > div {
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.request-type-warning-guidance strong {
+    color: #0f172a;
+}
+
+.request-type-warning-note {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fffbeb;
+    color: #92400e !important;
+    font-size: 0.78rem;
+}
+
+@@media (max-width: 576px) {
+    .request-type-warning-guidance {
+        grid-template-columns: 1fr;
+    }
+}
 </style>
-
-
-

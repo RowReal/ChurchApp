@@ -38,6 +38,13 @@ namespace ChurchApp.Services
                         "Request to be excused from a specific church service or assignment."
                 },
                 new()
+{
+    Code = "Late-Permission-Request",
+    Name = "Late Permission Request",
+    Description =
+        "Request for permission to arrive late for a specific upcoming church service."
+},
+                new()
                 {
                     Code = "Activity-Request",
                     Name = "Activity Request",
@@ -120,7 +127,37 @@ namespace ChurchApp.Services
                         IsFinalStep = true
                     }
                 });
+            await CreateWorkflowIfNotExistsAsync(
+    "Late-Permission-Request",
+    "Late Permission Request Workflow",
+    "Late permission request routed to one immediate supervisory approver for final decision.",
+    new List<ApprovalWorkflowStep>
+    {
+        new()
+        {
+            StepOrder = 1,
+            StepName = "Late Permission Final Approval",
 
+            /*
+             * This is a placeholder workflow approver type.
+             *
+             * ApprovalSubmissionService will resolve the actual
+             * final approver using the special Late Permission
+             * supervisory routing rule.
+             */
+            ApproverType = "HeadOfDirectorate",
+
+            CanApprove = true,
+            CanReject = true,
+            CanRequestMoreInfo = true,
+            CanForward = false,
+
+            /*
+             * Late Permission requires only ONE approval.
+             */
+            IsFinalStep = true
+        }
+    });
             await CreateWorkflowIfNotExistsAsync(
                 "Activity-Request",
                 "Activity Request Workflow",

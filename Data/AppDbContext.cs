@@ -63,6 +63,7 @@ namespace ChurchApp.Data
         public DbSet<FinancialRequestDetail> FinancialRequestDetails { get; set; }
         public DbSet<LeaveRequestDetail> LeaveRequestDetails { get; set; }
         public DbSet<OffServiceRequestDetail> OffServiceRequestDetails { get; set; }
+        public DbSet<LatePermissionRequestDetail> LatePermissionRequestDetails { get; set; }
         public DbSet<ChurchOfferingTypeN> ChurchOfferingTypes { get; set; }
 
         public DbSet<ChurchOfferingRecord> ChurchOfferingRecords { get; set; }
@@ -1112,7 +1113,34 @@ namespace ChurchApp.Data
                 entity.HasIndex(x => x.RecordedByWorkerId);
             });
 
-           
+            // =====================================================
+            // Late Permission Request configurations
+            // =====================================================
+            modelBuilder.Entity<LatePermissionRequestDetail>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                // One Late Permission detail record per Approval Request
+                entity.HasIndex(x => x.ApprovalRequestId)
+                    .IsUnique();
+
+                // Parent Approval Request
+                entity.HasOne(x => x.ApprovalRequest)
+                    .WithOne()
+                    .HasForeignKey<LatePermissionRequestDetail>(
+                        x => x.ApprovalRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Service being requested
+                entity.HasOne(x => x.Service)
+                    .WithMany()
+                    .HasForeignKey(x => x.ServiceId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Useful for attendance/report lookups
+                entity.HasIndex(x => x.ServiceId);
+                entity.HasIndex(x => x.RequestedDate);
+            });
             modelBuilder.Entity<ChurchOfferingAmendment>(entity =>
             {
                 entity.HasKey(x => x.Id);

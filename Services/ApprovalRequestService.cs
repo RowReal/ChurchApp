@@ -294,15 +294,10 @@ namespace ChurchApp.Services
                     ServiceId =
                         model.ServiceId,
 
-                    RequestedDate =
-    model.ServiceId.HasValue
-        ? model.RequestedDate
-        : model.CustomServiceDate
-            ?? throw new InvalidOperationException(
-                "Custom service date is required."),
-
                     NominatedBackupWorkerId =
-    model.NominatedBackupId,
+    model.NominatedBackupId > 0
+        ? model.NominatedBackupId
+        : null,
 
                     Reason =
                         model.Reason?.Trim() ??
@@ -319,6 +314,108 @@ namespace ChurchApp.Services
                 };
 
             _context.OffServiceRequestDetails.Add(details);
+            await _context.SaveChangesAsync();
+        }
+        public async Task CancelAndDeleteRequestAsync(
+            int requestId,
+            int requestedByWorkerId)
+        {
+            var request =
+                await _context.ApprovalRequests
+                    .FirstOrDefaultAsync(x => x.Id == requestId);
+
+            if (request == null)
+            {
+                throw new InvalidOperationException(
+                    "The request was not found.");
+            }
+
+            /*
+             * Only the worker who initiated the request
+             * is allowed to cancel it.
+             */
+            if (request.RequestedByWorkerId != requestedByWorkerId)
+            {
+                throw new InvalidOperationException(
+                    "You can only cancel a request that you submitted.");
+            }
+
+            /*
+             * Only an active request awaiting approval can be cancelled.
+             */
+            var status =
+                request.Status?.Trim()
+                ?? string.Empty;
+
+            var isPending =
+                status.Equals(
+                    "Pending",
+                    StringComparison.OrdinalIgnoreCase) ||
+                status.Equals(
+                    "Submitted",
+                    StringComparison.OrdinalIgnoreCase);
+
+            if (!isPending)
+            {
+                throw new InvalidOperationException(
+                    "This request can no longer be cancelled because it is not pending approval.");
+            }
+
+            /*
+             * Check actual approval decisions.
+             *
+             * Once an approver has approved, rejected, or otherwise
+             * made a workflow decision, the initiator must no longer
+             * be able to delete the request.
+             */
+            var hasDecision =
+                await _context.ApprovalDecisions
+                    .AnyAsync(x =>
+                        x.ApprovalRequestId == requestId);
+
+            if (hasDecision)
+            {
+                throw new InvalidOperationException(
+                    "This request can no longer be cancelled because an approver has already acted on it.");
+            }
+
+            /*
+             * Also inspect the request action history.
+             *
+             * Submission itself is expected and does not prevent
+             * cancellation. Any subsequent approval-related action does.
+             */
+            var actions =
+                await _context.ApprovalRequestActions
+                    .Where(x =>
+                        x.ApprovalRequestId == requestId)
+                    .ToListAsync();
+
+            var hasApproverAction =
+                actions.Any(x =>
+                    !string.Equals(
+                        x.ActionType,
+                        "Submitted",
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (hasApproverAction)
+            {
+                throw new InvalidOperationException(
+                    "This request can no longer be cancelled because action has already been taken on it.");
+            }
+
+            /*
+             * Child database records are configured with cascade delete:
+             * - actions
+             * - decisions
+             * - attachments
+             * - notification recipients
+             * - financial details
+             * - leave details
+             * - off-service details
+             */
+            _context.ApprovalRequests.Remove(request);
+
             await _context.SaveChangesAsync();
         }
 

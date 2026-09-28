@@ -253,13 +253,13 @@ namespace ChurchApp.Services
         }
 
         private async Task ProcessApprovalAsync(
-            ApprovalRequest request,
-            ApprovalWorkflowStep currentStep,
-            int actionByWorkerId,
-            string comment,
-            decimal? amountApproved,
-            string fromStatus,
-            int fromStepOrder)
+      ApprovalRequest request,
+      ApprovalWorkflowStep currentStep,
+      int actionByWorkerId,
+      string comment,
+      decimal? amountApproved,
+      string fromStatus,
+      int fromStepOrder)
         {
             if (!currentStep.CanApprove)
             {
@@ -267,6 +267,10 @@ namespace ChurchApp.Services
                     "Approval is not permitted at this workflow level.");
             }
 
+            /*
+             * If the step on which the person is currently acting
+             * is itself the final step, complete the request normally.
+             */
             if (currentStep.IsFinalStep)
             {
                 await CompleteFinalApprovalAsync(
@@ -280,64 +284,152 @@ namespace ChurchApp.Services
                 return;
             }
 
-            var nextStep =
-                await _workflowService.GetNextStepAsync(
-                    request.WorkflowDefinitionId,
-                    currentStep.StepOrder);
-
             /*
-             * Safety fallback:
-             * if the current step was not marked final but no later step
-             * exists, complete the request here.
+             * Get all workers who have already approved this request.
+             *
+             * Include the current approver immediately because the
+             * ApprovalDecision being added in ProcessDecisionAsync()
+             * has not necessarily been saved to the database yet.
              */
-            if (nextStep == null)
+            var previousApproverIds =
+                await _context.ApprovalDecisions
+                    .Where(x =>
+                        x.ApprovalRequestId == request.Id &&
+                        x.DecisionType == "Approved")
+                    .Select(x => x.DecisionByWorkerId)
+                    .Distinct()
+                    .ToListAsync();
+
+            if (!previousApproverIds.Contains(actionByWorkerId))
             {
-                await CompleteFinalApprovalAsync(
-                    request,
+                previousApproverIds.Add(actionByWorkerId);
+            }
+
+            var stepOrderToSearchFrom =
+                currentStep.StepOrder;
+
+            while (true)
+            {
+                var nextStep =
+                    await _workflowService.GetNextStepAsync(
+                        request.WorkflowDefinitionId,
+                        stepOrderToSearchFrom);
+
+                /*
+                 * Safety fallback:
+                 * if there is no later workflow step,
+                 * the current approval completes the request.
+                 */
+                if (nextStep == null)
+                {
+                    await CompleteFinalApprovalAsync(
+                        request,
+                        actionByWorkerId,
+                        comment,
+                        amountApproved,
+                        fromStatus,
+                        fromStepOrder);
+
+                    return;
+                }
+
+                var nextApproverWorkerId =
+                    await _routingService.ResolveApproverWorkerIdAsync(
+                        request,
+                        nextStep);
+
+                if (!nextApproverWorkerId.HasValue)
+                {
+                    throw new Exception(
+                        $"No active approver could be found for the workflow step " +
+                        $"'{nextStep.StepName}'. Please check the workflow and worker setup.");
+                }
+
+                /*
+                 * If this worker has already approved the request at an
+                 * earlier workflow level, do not ask the same person to
+                 * approve the same request again.
+                 */
+                var alreadyApprovedByThisWorker =
+                    previousApproverIds.Contains(
+                        nextApproverWorkerId.Value);
+
+                if (alreadyApprovedByThisWorker)
+                {
+                    /*
+                     * IMPORTANT:
+                     *
+                     * If the duplicate step is configured as the FINAL
+                     * approval step, the earlier approval by this same
+                     * worker satisfies that final level.
+                     *
+                     * Example:
+                     *
+                     * Head of Directorate -> Worker B
+                     * Cluster Head        -> Worker B (FINAL)
+                     *
+                     * Once Worker B approves as Head of Directorate,
+                     * the request is complete. Worker B is not asked
+                     * to approve it again as Cluster Head.
+                     */
+                    if (nextStep.IsFinalStep)
+                    {
+                        await CompleteFinalApprovalAsync(
+                            request,
+                            actionByWorkerId,
+                            comment,
+                            amountApproved,
+                            fromStatus,
+                            fromStepOrder);
+
+                        return;
+                    }
+
+                    /*
+                     * The duplicate step is not final.
+                     * Skip it and continue looking for the next
+                     * configured workflow level.
+                     */
+                    stepOrderToSearchFrom =
+                        nextStep.StepOrder;
+
+                    continue;
+                }
+
+                /*
+                 * We have reached a genuinely different approver.
+                 * Route the request to that person.
+                 */
+                request.Status = "Pending";
+                request.CurrentStepOrder =
+                    nextStep.StepOrder;
+                request.CurrentApproverType =
+                    nextStep.ApproverType;
+                request.CurrentApproverRole =
+                    nextStep.ApproverRole;
+                request.CurrentApproverWorkerId =
+                    nextApproverWorkerId.Value;
+                request.UpdatedAt = DateTime.Now;
+
+                AddAction(
+                    request.Id,
                     actionByWorkerId,
+                    "Approved",
                     comment,
-                    amountApproved,
                     fromStatus,
-                    fromStepOrder);
+                    request.Status,
+                    fromStepOrder,
+                    nextStep.StepOrder);
+
+                await _context.SaveChangesAsync();
+
+                await _notificationService
+                    .NotifyNextApproverAsync(
+                        request.Id,
+                        comment);
 
                 return;
             }
-
-            var nextApproverWorkerId =
-                await _routingService.ResolveApproverWorkerIdAsync(
-                    request,
-                    nextStep);
-
-            if (!nextApproverWorkerId.HasValue)
-            {
-                throw new Exception(
-                    $"No active approver could be found for the workflow step " +
-                    $"'{nextStep.StepName}'. Please check the workflow and worker setup.");
-            }
-
-            request.Status = "Pending";
-            request.CurrentStepOrder = nextStep.StepOrder;
-            request.CurrentApproverType = nextStep.ApproverType;
-            request.CurrentApproverRole = nextStep.ApproverRole;
-            request.CurrentApproverWorkerId =
-                nextApproverWorkerId.Value;
-            request.UpdatedAt = DateTime.Now;
-
-            AddAction(
-                request.Id,
-                actionByWorkerId,
-                "Approved",
-                comment,
-                fromStatus,
-                request.Status,
-                fromStepOrder,
-                nextStep.StepOrder);
-
-            await _context.SaveChangesAsync();
-
-            await _notificationService.NotifyNextApproverAsync(
-                request.Id,
-                comment);
         }
 
         private async Task CompleteFinalApprovalAsync(

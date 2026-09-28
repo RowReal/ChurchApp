@@ -14,16 +14,21 @@ namespace ChurchApp.Services
         }
 
         public async Task<int?> ResolveApproverWorkerIdAsync(
-            ApprovalRequest request,
-            ApprovalWorkflowStep step)
+      ApprovalRequest request,
+      ApprovalWorkflowStep step)
         {
             return step.ApproverType switch
             {
                 "HeadOfDirectorate" =>
-                    await GetHeadOfDirectorateAsync(request.DirectorateId),
+                    await GetHeadOfDirectorateAsync(
+                        request.DirectorateId),
 
                 "HeadOfService" =>
                     await GetHeadOfServiceAsync(),
+
+                "ClusterHead" =>
+                    await GetClusterHeadAsync(
+                        request.DirectorateId),
 
                 "Pastor" =>
                     await GetPastorAsync(),
@@ -31,7 +36,7 @@ namespace ChurchApp.Services
                 "ChurchAdmin" =>
                     await GetChurchAdminAsync(),
 
-                "Worker" =>
+                "SpecificWorker" =>
                     step.SpecificApproverWorkerId,
 
                 _ => null
@@ -162,7 +167,52 @@ namespace ChurchApp.Services
 
             return selectedWorker?.Id;
         }
+        public async Task<int?> GetClusterHeadAsync(
+    int? directorateId)
+        {
+            if (!directorateId.HasValue)
+                return null;
 
+            /*
+             * Find the active supervisory cluster to which
+             * the requester's Directorate is assigned.
+             */
+            var cluster =
+                await _context.SupervisoryClusters
+                    .Where(x =>
+                        x.IsActive &&
+                        x.HeadWorkerId.HasValue &&
+                        x.Directorates.Any(d =>
+                            d.DirectorateId ==
+                            directorateId.Value))
+                    .Select(x => new
+                    {
+                        x.HeadWorkerId
+                    })
+                    .FirstOrDefaultAsync();
+
+            if (cluster == null ||
+                !cluster.HeadWorkerId.HasValue)
+            {
+                return null;
+            }
+
+            /*
+             * A configured Cluster Head must also be
+             * an active worker before the request can
+             * be routed to that person.
+             */
+            var clusterHeadExists =
+                await _context.Workers
+                    .AnyAsync(x =>
+                        x.Id == cluster.HeadWorkerId.Value &&
+                        x.IsActive);
+
+            if (!clusterHeadExists)
+                return null;
+
+            return cluster.HeadWorkerId.Value;
+        }
         public async Task<int?> GetPastorAsync()
         {
             var worker = await _context.Workers
@@ -230,6 +280,132 @@ namespace ChurchApp.Services
 
             return normalizedRole.Contains("assistant") ||
                    normalizedRole.Contains("asst");
+        }
+
+        public async Task<int?> GetLatePermissionApproverAsync(
+           Worker requester)
+        {
+            if (requester == null)
+                return null;
+
+            /*
+             * ------------------------------------------------------------
+             * 1. Pastor in Charge
+             * ------------------------------------------------------------
+             *
+             * There is currently no higher Late Permission approver defined
+             * above Pastor in Charge. Never allow self-approval.
+             */
+            var pastorId = await GetPastorAsync();
+
+            if (pastorId.HasValue &&
+                pastorId.Value == requester.Id)
+            {
+                return null;
+            }
+
+            /*
+             * ------------------------------------------------------------
+             * 2. Church Admin -> Pastor in Charge
+             * ------------------------------------------------------------
+             */
+            var role =
+                requester.Role?.Trim() ?? string.Empty;
+
+            if (role.Equals(
+                    "Church Admin",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return pastorId;
+            }
+
+            /*
+             * ------------------------------------------------------------
+             * 3. Configured Cluster Head -> Pastor in Charge
+             * ------------------------------------------------------------
+             *
+             * Cluster Head is determined from SupervisoryCluster.HeadWorkerId,
+             * not from Worker.Role.
+             */
+            var isConfiguredClusterHead =
+                await _context.SupervisoryClusters
+                    .AnyAsync(x =>
+                        x.IsActive &&
+                        x.HeadWorkerId.HasValue &&
+                        x.HeadWorkerId.Value == requester.Id);
+
+            if (isConfiguredClusterHead)
+            {
+                return pastorId;
+            }
+
+            /*
+             * ------------------------------------------------------------
+             * 4. Determine the worker's Directorate Head
+             * ------------------------------------------------------------
+             */
+            var headOfDirectorateId =
+                await GetHeadOfDirectorateAsync(
+                    requester.DirectorateId);
+
+            /*
+             * If the resolved Head of Directorate is NOT the requester,
+             * this is the correct final approver for an ordinary worker,
+             * HOD, Assistant HOD, Head of Service, etc.
+             */
+            if (headOfDirectorateId.HasValue &&
+                headOfDirectorateId.Value != requester.Id)
+            {
+                return headOfDirectorateId;
+            }
+
+            /*
+             * ------------------------------------------------------------
+             * 5. Requester resolved as own Head of Directorate
+             * ------------------------------------------------------------
+             *
+             * This means the requester is effectively the Directorate Head,
+             * regardless of whether Directorate.HeadWorkerId or Worker.Role
+             * was perfectly configured.
+             *
+             * Advance to the Cluster Head instead of allowing self-approval.
+             */
+            if (headOfDirectorateId.HasValue &&
+                headOfDirectorateId.Value == requester.Id)
+            {
+                var clusterHeadId =
+                    await GetClusterHeadAsync(
+                        requester.DirectorateId);
+
+                /*
+                 * Normal HOD -> Cluster Head.
+                 */
+                if (clusterHeadId.HasValue &&
+                    clusterHeadId.Value != requester.Id)
+                {
+                    return clusterHeadId;
+                }
+
+                /*
+                 * HOD is also the Cluster Head.
+                 *
+                 * Skip the duplicate/self level and escalate directly
+                 * to Pastor in Charge.
+                 */
+                if (clusterHeadId.HasValue &&
+                    clusterHeadId.Value == requester.Id)
+                {
+                    return pastorId;
+                }
+
+                return null;
+            }
+
+            /*
+             * No valid Head of Directorate could be resolved.
+             * Do not silently route to an unrelated person.
+             */
+            return null;
         }
         public async Task<int?> ResolveSubmissionApproverWorkerIdAsync(
     ApprovalRequest request,
@@ -309,4 +485,5 @@ namespace ChurchApp.Services
             return meatHead?.Id;
         }
     }
+
 }

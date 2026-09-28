@@ -29,7 +29,7 @@ namespace ChurchApp.Models
 
         public TimeSpan? CustomServiceTime { get; set; }
 
-        public int NominatedBackupWorkerId { get; set; }
+        public int? NominatedBackupWorkerId { get; set; }
 
         public Worker? NominatedBackupWorker { get; set; }
 

@@ -3,6 +3,7 @@ using System;
 using ChurchApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChurchApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260927222657_AddLatePermissionRequest")]
+    partial class AddLatePermissionRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -2048,7 +2051,7 @@ namespace ChurchApp.Migrations
                     b.Property<TimeSpan?>("CustomServiceTime")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("NominatedBackupWorkerId")
+                    b.Property<int>("NominatedBackupWorkerId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Reason")
@@ -3982,7 +3985,8 @@ namespace ChurchApp.Migrations
                     b.HasOne("ChurchApp.Models.Worker", "NominatedBackupWorker")
                         .WithMany()
                         .HasForeignKey("NominatedBackupWorkerId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("ChurchApp.Models.Service", "Service")
                         .WithMany()

@@ -462,6 +462,11 @@ else
                                 Red
                             </span>
 
+                            <span>
+                                <i class="legend-dot legend-blue"></i>
+                                Approved Exception
+                            </span>
+
                         </div>
                     </div>
 
@@ -591,7 +596,7 @@ else
 
                                             @if (ShouldShowService("Sunday"))
                                             {
-                                                <td class="text-center">
+                                                <td class="text-center @(ServiceHasApprovedException(worker, "Sunday") ? "approved-exception-text" : string.Empty)">
                                                     @GetServicePercentageDisplay(
                                                         worker,
                                                         "Sunday")
@@ -600,7 +605,7 @@ else
 
                                             @if (ShouldShowService("Mid Week"))
                                             {
-                                                <td class="text-center">
+                                                <td class="text-center @(ServiceHasApprovedException(worker, "Mid Week") ? "approved-exception-text" : string.Empty)">
                                                     @GetServicePercentageDisplay(
                                                         worker,
                                                         "Mid Week")
@@ -609,7 +614,7 @@ else
 
                                             @if (ShouldShowService("Communion"))
                                             {
-                                                <td class="text-center">
+                                                <td class="text-center @(ServiceHasApprovedException(worker, "Communion") ? "approved-exception-text" : string.Empty)">
                                                     @GetServicePercentageDisplay(
                                                         worker,
                                                         "Communion")
@@ -618,7 +623,7 @@ else
 
                                             @if (ShouldShowService("Prayer"))
                                             {
-                                                <td class="text-center">
+                                                <td class="text-center @(ServiceHasApprovedException(worker, "Prayer") ? "approved-exception-text" : string.Empty)">
                                                     @GetServicePercentageDisplay(
                                                         worker,
                                                         "Prayer")
@@ -717,7 +722,7 @@ else
                                                                             </span>
                                                                         </div>
 
-                                                                        <div class="service-score">
+                                                                        <div class="service-score @(service.HasApprovedException ? "approved-exception-text" : string.Empty)">
                                                                             @GetServiceOverallDisplay(service)
                                                                         </div>
 
@@ -744,7 +749,7 @@ else
 
                                                                                 @foreach (var occurrence in service.Occurrences)
                                                                                 {
-                                                                                    <tr class="@(!occurrence.IsDue ? "future-occurrence" : string.Empty)">
+                                                                                    <tr class="@GetOccurrenceRowCss(occurrence)">
 
                                                                                         <td>
                                                                                             @occurrence.AttendanceDate.ToString("dd MMM yyyy")
@@ -777,7 +782,21 @@ else
                                                                                         </td>
 
                                                                                         <td>
-                                                                                            @GetOccurrenceStatusDisplay(occurrence)
+                                                                                            @if (occurrence.HasApprovedException)
+                                                                                            {
+                                                                                                <span class="approved-exception-status">
+                                                                                                    @GetOccurrenceStatusDisplay(occurrence)
+                                                                                                </span>
+
+                                                                                                <span class="approved-exception-badge">
+                                                                                                    <i class="fas fa-check-circle"></i>
+                                                                                                    Approved @occurrence.ApprovedExceptionType
+                                                                                                </span>
+                                                                                            }
+                                                                                            else
+                                                                                            {
+                                                                                                @GetOccurrenceStatusDisplay(occurrence)
+                                                                                            }
                                                                                         </td>
 
                                                                                     </tr>
@@ -1218,6 +1237,31 @@ else
             return "Not Due";
 
         return $"{service.ServicePercentage:0.##}%";
+    }
+
+    private bool ServiceHasApprovedException(
+        WorkerMonthlyAttendanceScore worker,
+        string serviceKeyword)
+    {
+        var service =
+            worker.ServiceScores
+                .FirstOrDefault(x =>
+                    x.ServiceName.Contains(
+                        serviceKeyword,
+                        StringComparison.OrdinalIgnoreCase));
+
+        return service?.HasApprovedException == true;
+    }
+
+    private string GetOccurrenceRowCss(
+        AttendanceOccurrenceScore occurrence)
+    {
+        if (!occurrence.IsDue)
+            return "future-occurrence";
+
+        return occurrence.HasApprovedException
+            ? "approved-exception-row"
+            : string.Empty;
     }
 
     private List<ServiceMonthlyAttendanceScore>
@@ -1833,6 +1877,10 @@ else
         background: #dc2626;
     }
 
+    .legend-blue {
+        background: #2563eb;
+    }
+
 
     /* ============================================================
        REPORT TABLE
@@ -2137,6 +2185,40 @@ else
 
     .future-occurrence {
         opacity: 0.55;
+    }
+
+    .approved-exception-text {
+        color: #1d4ed8 !important;
+        font-weight: 800;
+    }
+
+    .approved-exception-row td {
+        color: #1d4ed8 !important;
+        background: #eff6ff;
+    }
+
+    .approved-exception-status {
+        display: block;
+        color: #1d4ed8;
+        font-weight: 800;
+    }
+
+    .approved-exception-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 2px;
+        padding: 2px 6px;
+        color: #1d4ed8;
+        background: #dbeafe;
+        border-radius: 999px;
+        font-size: 0.58rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .approved-exception-badge i {
+        font-size: 0.56rem;
     }
 
 

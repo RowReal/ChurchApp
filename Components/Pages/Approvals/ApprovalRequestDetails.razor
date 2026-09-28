@@ -50,13 +50,26 @@
                     </div>
                 </div>
 
-                <div class="d-flex gap-2">
-                    <button type="button"
-                            class="bcc-btn profile-form-secondary-btn"
-                            @onclick="GoBack">
-                        <i class="fas fa-arrow-left me-2"></i>Back
-                    </button>
-                </div>
+               <div class="d-flex gap-2">
+
+    @if (canCancelRequest)
+    {
+        <button type="button"
+                class="compact-danger-btn"
+                disabled="@isProcessing"
+                @onclick="ShowCancelConfirmation">
+            <i class="fas fa-trash-alt me-2"></i>
+            Cancel Request
+        </button>
+    }
+
+    <button type="button"
+            class="bcc-btn profile-form-secondary-btn"
+            @onclick="GoBack">
+        <i class="fas fa-arrow-left me-2"></i>Back
+    </button>
+
+</div>
             </div>
 
             <div class="approval-tab-card">
@@ -520,6 +533,54 @@ else
     </div>
 }
 
+@if (showCancelPopup)
+{
+    <div class="approval-popup-backdrop">
+        <div class="approval-popup-card">
+
+            <div class="cancel-popup-icon">
+                <i class="fas fa-triangle-exclamation"></i>
+            </div>
+
+            <h4>Cancel Request?</h4>
+
+            <p>
+                This will permanently delete this request and its
+                associated information. This action cannot be undone.
+            </p>
+
+            <div class="cancel-popup-actions">
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        disabled="@isProcessing"
+                        @onclick="CloseCancelConfirmation">
+                    Keep Request
+                </button>
+
+                <button type="button"
+                        class="compact-danger-btn"
+                        disabled="@isProcessing"
+                        @onclick="ConfirmCancelRequest">
+
+                    @if (isProcessing)
+                    {
+                        <i class="fas fa-spinner fa-spin me-1"></i>
+                        <span>Deleting...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-trash-alt me-1"></i>
+                        <span>Yes, Cancel &amp; Delete</span>
+                    }
+
+                </button>
+
+            </div>
+
+        </div>
+    </div>
+}
 
 @code {
     [Parameter]
@@ -543,10 +604,12 @@ else
     private string resubmitApprovalSought = string.Empty;
     private string popupMessage = string.Empty;
 
-    private bool canActOnRequest;
-    private bool canResubmit;
-    private bool showSuccessPopup;
-    private bool isProcessing;
+private bool canActOnRequest;
+private bool canResubmit;
+private bool canCancelRequest;
+private bool showSuccessPopup;
+private bool showCancelPopup;
+private bool isProcessing;
 
     private decimal? amountApproved;
     private LeaveRequestDetail? leaveDetails;
@@ -598,9 +661,9 @@ private bool IsLeaveRequest =>
         leaveDetails = null;
 
         amountApproved = null;
-        canActOnRequest = false;
-        canResubmit = false;
-
+      canActOnRequest = false;
+canResubmit = false;
+canCancelRequest = false;
         if (request != null)
         {
             workflowSteps = await ApprovalRequestService
@@ -642,17 +705,36 @@ private bool IsLeaveRequest =>
                     request.Id,
                     AuthService.CurrentWorker.Id);
 
-            canResubmit =
-                request.RequestedByWorkerId ==
-                    AuthService.CurrentWorker.Id &&
-                request.Status == "MoreInfoRequested";
+           canResubmit =
+    request.RequestedByWorkerId ==
+        AuthService.CurrentWorker.Id &&
+    request.Status == "MoreInfoRequested";
 
-            if (canResubmit)
-            {
-                resubmitDetails = request.Details;
-                resubmitApprovalSought =
-                    request.ApprovalSought;
-            }
+canCancelRequest =
+    request.RequestedByWorkerId ==
+        AuthService.CurrentWorker.Id &&
+    (
+        string.Equals(
+            request.Status,
+            "Pending",
+            StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(
+            request.Status,
+            "Submitted",
+            StringComparison.OrdinalIgnoreCase)
+    ) &&
+    !actions.Any(x =>
+        !string.Equals(
+            x.ActionType,
+            "Submitted",
+            StringComparison.OrdinalIgnoreCase));
+
+if (canResubmit)
+{
+    resubmitDetails = request.Details;
+    resubmitApprovalSought =
+        request.ApprovalSought;
+}
         }
     }
     catch (Exception ex)
@@ -679,6 +761,70 @@ private bool IsLeaveRequest =>
         Navigation.NavigateTo("/approvals/my-requests");
     }
 
+    private void ShowCancelConfirmation()
+{
+    if (!canCancelRequest || isProcessing)
+        return;
+
+    errorMessage = null;
+    showCancelPopup = true;
+}
+
+private void CloseCancelConfirmation()
+{
+    if (isProcessing)
+        return;
+
+    showCancelPopup = false;
+}
+
+private async Task ConfirmCancelRequest()
+{
+    if (isProcessing)
+        return;
+
+    errorMessage = null;
+    successMessage = null;
+
+    if (AuthService.CurrentWorker == null)
+    {
+        showCancelPopup = false;
+        errorMessage = "Unable to identify current worker.";
+        return;
+    }
+
+    try
+    {
+        isProcessing = true;
+
+        await ApprovalRequestService
+            .CancelAndDeleteRequestAsync(
+                RequestId,
+                AuthService.CurrentWorker.Id);
+
+        showCancelPopup = false;
+
+        Navigation.NavigateTo(
+            "/approvals/my-requests");
+    }
+    catch (Exception ex)
+    {
+        showCancelPopup = false;
+
+        errorMessage =
+            $"Unable to cancel request: {ex.Message}";
+
+        /*
+         * Reload because an approver may have acted on the
+         * request while this page was open.
+         */
+        await LoadRequest();
+    }
+    finally
+    {
+        isProcessing = false;
+    }
+}
     private void CloseSuccessPopup()
     {
         showSuccessPopup = false;
@@ -2513,6 +2659,19 @@ private bool IsLeaveRequest =>
             flex-direction: column;
         }
     }
+    .cancel-popup-icon {
+    margin-bottom: 7px;
+    color: #dc2626;
+    font-size: 2.2rem;
+}
+
+.cancel-popup-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
 </style>
 
 

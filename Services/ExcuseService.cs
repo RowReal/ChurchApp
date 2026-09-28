@@ -22,10 +22,53 @@ namespace ChurchApp.Services
         // Service Management Methods
         public async Task<List<Service>> GetServicesAsync()
         {
-            return await _context.Services
+            var now = DateTime.Now;
+
+            var services = await _context.Services
                 .Where(s => s.IsActive)
                 .OrderBy(s => s.Name)
                 .ToListAsync();
+
+            /*
+             * Off Service Request should only offer services that
+             * still have an upcoming occurrence.
+             *
+             * Recurring services remain available because another
+             * occurrence will take place in the future.
+             *
+             * One-time services are removed once their scheduled
+             * start date/time has passed.
+             */
+            return services
+                .Where(service =>
+                {
+                    if (string.Equals(
+                            service.RecurrencePattern,
+                            "OneTime",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!service.SpecificDate.HasValue)
+                            return false;
+
+                        var serviceDateTime =
+                            service.SpecificDate.Value.Date +
+                            (service.SpecificStartTime ??
+                             service.StartTime ??
+                             TimeSpan.Zero);
+
+                        return serviceDateTime > now;
+                    }
+
+                    /*
+                     * Weekly and Monthly services have future
+                     * occurrences, so keep them available.
+                     *
+                     * The actual occurrence date will still be
+                     * selected/validated by the Off Service form.
+                     */
+                    return true;
+                })
+                .ToList();
         }
 
         public async Task<List<Service>> GetAllServicesAsync()

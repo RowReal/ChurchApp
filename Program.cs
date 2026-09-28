@@ -102,7 +102,8 @@ builder.Services.AddScoped<ApprovalDecisionService>();
 builder.Services.AddScoped<ApprovalSubmissionService>();
 builder.Services.AddScoped<LeaveRequestService>();
 builder.Services.AddScoped<WorkerAttendanceExportService>();
-
+builder.Services.AddScoped<LatePermissionService>();
+builder.Services.AddScoped<PermissionRequestReportService>();
 //Service Record/Offering Services
 builder.Services.AddScoped<ChurchOfferingAccessService>();
 
