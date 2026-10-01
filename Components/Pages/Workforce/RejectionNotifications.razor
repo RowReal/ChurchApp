@@ -1,4 +1,4 @@
-﻿@page "/workforce/rejection-notifications"
+@page "/workforce/rejection-notifications"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
@@ -9,6 +9,8 @@
 @if (AuthService.IsAuthenticated)
 {
     <PageTitle>Rejection Notifications - Workforce</PageTitle>
+<PageHero Title="Rejection  Notifications -  Workforce" Subtitle="Manage workers, teams and workforce activity." Kicker="Workforce" Icon="fas fa-users" />
+
 
     <div class="container-fluid py-4">
         <!-- Header -->

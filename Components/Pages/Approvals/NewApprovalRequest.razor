@@ -1,4 +1,4 @@
-﻿@page "/approvals/new"
+@page "/approvals/new"
 @layout Components.Layout.MainLayout
 
 @using Microsoft.AspNetCore.Components.Forms
@@ -133,7 +133,7 @@
                             <!-- Rich-text details -->
                             @if (!IsLeaveRequest && !IsExcuseRequest && !IsLatePermissionRequest)
 {
-    <div class="col-12">
+    <div class="col-12 col-lg-6">
         <label class="form-label fw-bold">
             Details / Background
             <span class="text-danger">*</span>
@@ -145,7 +145,7 @@
         </div>
     </div>
 
-    <div class="col-12">
+    <div class="col-12 col-lg-6">
         <label class="form-label fw-bold">
             Approval Sought
             <span class="text-danger">*</span>

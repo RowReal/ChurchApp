@@ -1,0 +1,2239 @@
+﻿@page "/broadcast/broadcast-centre"
+@rendermode InteractiveServer
+
+@using ChurchApp.Services
+@using ChurchApp.Models
+@using Microsoft.AspNetCore.Components
+
+@inject AuthService AuthService
+@inject BroadcastService BroadcastService
+@inject NavigationManager Navigation
+
+<PageTitle>Broadcast Centre</PageTitle>
+
+<div class="broadcast-page">
+
+    <!-- HERO -->
+    <div class="broadcast-hero">
+        <div>
+            <div class="broadcast-kicker">COMMUNICATION</div>
+            <h1>Broadcast Centre</h1>
+            <p>Create, review and manage messages you have sent.</p>
+        </div>
+
+        <a href="/broadcast/new-broadcast"
+           class="new-broadcast-btn">
+            <i class="fas fa-plus"></i>
+            New Broadcast
+        </a>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(pageMessage))
+    {
+        <div class="alert @(pageMessageIsError ? "alert-danger" : "alert-success") compact-alert">
+            <i class="fas @(pageMessageIsError ? "fa-exclamation-circle" : "fa-check-circle") me-2"></i>
+            @pageMessage
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="broadcast-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Loading Broadcast Centre...</span>
+        </div>
+    }
+    else if (!hasAccess)
+    {
+        <div class="broadcast-state">
+            <i class="fas fa-lock"></i>
+            <div>
+                <strong>Access restricted</strong>
+                <p>You are not authorised to send broadcasts.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- SUMMARY -->
+        <div class="summary-grid">
+
+            <div class="summary-card">
+                <div class="summary-icon">
+                    <i class="fas fa-paper-plane"></i>
+                </div>
+                <div>
+                    <span>Broadcasts</span>
+                    <strong>@sentBroadcasts.Count</strong>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div>
+                    <span>Recipients</span>
+                    <strong>@TotalRecipients</strong>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-icon">
+                    <i class="fas fa-envelope-open"></i>
+                </div>
+                <div>
+                    <span>Read</span>
+                    <strong>@TotalRead</strong>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-icon">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <div>
+                    <span>Unread</span>
+                    <strong>@TotalUnread</strong>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TWO COLUMN AREA -->
+        <div class="broadcast-workspace">
+
+            <!-- LEFT FILTER -->
+            <aside class="filter-panel">
+
+                <div class="filter-header">
+                    <div>
+                        <h2>
+                            <i class="fas fa-filter"></i>
+                            Filter
+                        </h2>
+                        <p>Find sent broadcasts</p>
+                    </div>
+
+                    @if (HasActiveFilter)
+                    {
+                        <button type="button"
+                                class="clear-filter-btn"
+                                @onclick="ClearFilters">
+                            Clear
+                        </button>
+                    }
+                </div>
+
+                <div class="filter-section">
+                    <label>Search Message</label>
+
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+
+                        <input type="text"
+                               class="form-control"
+                               value="@searchText"
+                               @oninput="OnSearchChanged"
+                               placeholder="Search subject..." />
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <label>Audience</label>
+
+                    <div class="audience-filter-list">
+
+                        @AudienceFilterButton(
+                            "All",
+                            "fas fa-inbox",
+                            "All Messages",
+                            sentBroadcasts.Count)
+
+                        @AudienceFilterButton(
+                            "AllWorkers",
+                            "fas fa-users",
+                            "All Workers",
+                            GetAudienceCount("AllWorkers"))
+
+                        @AudienceFilterButton(
+                            "AllLeaders",
+                            "fas fa-user-tie",
+                            "All Leaders",
+                            GetAudienceCount("AllLeaders"))
+
+                        @AudienceFilterButton(
+                            "SelectedDirectorates",
+                            "fas fa-layer-group",
+                            "Directorates",
+                            GetAudienceCount("SelectedDirectorates"))
+
+                        @AudienceFilterButton(
+                            "OwnDirectorate",
+                            "fas fa-building",
+                            "My Directorate",
+                            GetAudienceCount("OwnDirectorate"))
+
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <label>Month</label>
+
+                    <select class="form-select"
+                            value="@selectedMonth"
+                            @onchange="OnMonthChanged">
+
+                        <option value="">All Months</option>
+
+                        @foreach (var month in AvailableMonths)
+                        {
+                            <option value="@month.Value">
+                                @month.Label
+                            </option>
+                        }
+
+                    </select>
+                </div>
+
+                <div class="filter-section">
+                    <label>Date Range</label>
+
+                    <div class="date-grid">
+
+                        <div>
+                            <span>From</span>
+                            <input type="date"
+                                   class="form-control"
+                                   value="@fromDate"
+                                   @onchange="OnFromDateChanged" />
+                        </div>
+
+                        <div>
+                            <span>To</span>
+                            <input type="date"
+                                   class="form-control"
+                                   value="@toDate"
+                                   @onchange="OnToDateChanged" />
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="filter-result-box">
+                    <span>Showing</span>
+                    <strong>@FilteredBroadcasts.Count</strong>
+                    <small>of @sentBroadcasts.Count broadcasts</small>
+                </div>
+
+            </aside>
+
+
+            <!-- RIGHT RESULTS -->
+            <section class="results-panel">
+
+                <div class="results-header">
+                    <div>
+                        <h2>Sent Broadcasts</h2>
+                        <p>@GetResultDescription()</p>
+                    </div>
+
+                    <button type="button"
+                            class="refresh-btn"
+                            @onclick="LoadBroadcastsAsync"
+                            disabled="@isRefreshing">
+                        <i class="fas fa-sync-alt @(isRefreshing ? "fa-spin" : "")"></i>
+                        Refresh
+                    </button>
+                </div>
+
+                @if (sentBroadcasts.Count == 0)
+                {
+                    <div class="empty-state">
+                        <i class="fas fa-bullhorn"></i>
+                        <h3>No broadcasts yet</h3>
+                        <p>Your sent broadcasts will appear here.</p>
+
+                        <a href="/broadcast/new-broadcast"
+                           class="empty-action">
+                            Create your first broadcast
+                        </a>
+                    </div>
+                }
+                else if (FilteredBroadcasts.Count == 0)
+                {
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <h3>No matching broadcasts</h3>
+                        <p>Try changing or clearing your filters.</p>
+
+                        <button type="button"
+                                class="empty-action"
+                                @onclick="ClearFilters">
+                            Clear Filters
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="broadcast-list">
+
+                        @foreach (var item in FilteredBroadcasts)
+                        {
+                            <div class="broadcast-item">
+
+                                <div class="broadcast-main">
+
+                                    <div class="broadcast-subject">
+                                        @item.Subject
+                                    </div>
+
+                                    <div class="broadcast-meta">
+                                        <span>
+                                            <i class="fas fa-layer-group"></i>
+                                            @GetAudienceLabel(item.AudienceType)
+                                        </span>
+
+                                        <span>
+                                            <i class="far fa-clock"></i>
+                                            @FormatNigeriaDate(item.SentAt)
+                                        </span>
+                                    </div>
+
+                                    @if (item.DirectorateNames.Any())
+                                    {
+                                        <div class="directorate-list">
+                                            @foreach (var name in item.DirectorateNames)
+                                            {
+                                                <span class="directorate-tag">
+                                                    @name
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+
+                                </div>
+
+                                <div class="broadcast-right">
+
+                                    <div class="broadcast-stats">
+                                        <div class="stat-block">
+                                            <strong>@item.RecipientCount</strong>
+                                            <span>Recipients</span>
+                                        </div>
+
+                                        <div class="stat-block">
+                                            <strong>@item.ReadCount</strong>
+                                            <span>Read</span>
+                                        </div>
+
+                                        <div class="stat-block unread">
+                                            <strong>@item.UnreadCount</strong>
+                                            <span>Unread</span>
+                                        </div>
+                                    </div>
+
+                                    <button type="button"
+                                            class="view-btn"
+                                            @onclick="() => OpenBroadcastAsync(item.BroadcastMessageId)">
+                                        <i class="fas fa-eye"></i>
+                                        View
+                                    </button>
+
+                                </div>
+
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </section>
+
+        </div>
+    }
+
+</div>
+
+
+<!-- =========================================================
+     VIEW / EDIT POPUP
+     ========================================================= -->
+
+@if (showDetailsModal)
+{
+    <div class="modal-overlay">
+
+        <div class="message-modal">
+
+            @if (isLoadingDetails)
+            {
+                <div class="modal-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    Loading message...
+                </div>
+            }
+            else if (selectedBroadcast != null)
+            {
+                <div class="modal-header">
+
+                    <div>
+                        <div class="modal-kicker">
+                            @(isEditMode ? "EDIT BROADCAST" : "BROADCAST DETAILS")
+                        </div>
+
+                        <h3>
+                            @(isEditMode
+                                ? "Edit Broadcast"
+                                : selectedBroadcast.Subject)
+                        </h3>
+                    </div>
+
+                    <button type="button"
+                            class="modal-close"
+                            disabled="@isSaving"
+                            @onclick="CloseDetailsModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(modalError))
+                {
+                    <div class="modal-alert error">
+                        <i class="fas fa-exclamation-circle"></i>
+                        @modalError
+                    </div>
+                }
+
+                @if (!isEditMode)
+                {
+                    <!-- VIEW MODE -->
+
+                    <div class="message-summary">
+
+                        <div>
+                            <span>Audience</span>
+                            <strong>
+                                @GetAudienceLabel(selectedBroadcast.AudienceType)
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Sent</span>
+                            <strong>
+                                @FormatNigeriaDate(selectedBroadcast.SentAt)
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>Recipients</span>
+                            <strong>@selectedBroadcast.RecipientCount</strong>
+                        </div>
+
+                        <div>
+                            <span>Read / Unread</span>
+                            <strong>
+                                @selectedBroadcast.ReadCount /
+                                @selectedBroadcast.UnreadCount
+                            </strong>
+                        </div>
+
+                    </div>
+
+                    @if (selectedBroadcast.DirectorateNames.Any())
+                    {
+                        <div class="modal-directorates">
+                            <span class="detail-label">Directorates</span>
+
+                            <div class="directorate-list">
+                                @foreach (var name in selectedBroadcast.DirectorateNames)
+                                {
+                                    <span class="directorate-tag">
+                                        @name
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <div class="message-content-box">
+                        <div class="detail-label">Message</div>
+
+                        <div class="message-content">
+                            @selectedBroadcast.MessageBody
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+
+                        <button type="button"
+                                class="remove-btn"
+                                @onclick="ShowRemoveConfirmation">
+                            <i class="fas fa-trash-alt"></i>
+                            Remove
+                        </button>
+
+                        <div class="modal-actions-right">
+
+                            <button type="button"
+                                    class="secondary-btn"
+                                    @onclick="CloseDetailsModal">
+                                Close
+                            </button>
+
+                            <button type="button"
+                                    class="edit-btn"
+                                    @onclick="BeginEditAsync">
+                                <i class="fas fa-pen"></i>
+                                Edit
+                            </button>
+
+                        </div>
+
+                    </div>
+                }
+                else
+                {
+                    <!-- EDIT MODE -->
+
+                    <div class="edit-form">
+
+                        <div class="edit-field">
+                            <label>
+                                Subject
+                                <span>*</span>
+                            </label>
+
+                            <input type="text"
+                                   class="form-control"
+                                   maxlength="200"
+                                   @bind="editSubject" />
+                        </div>
+
+                        <div class="edit-field">
+                            <label>
+                                Message
+                                <span>*</span>
+                            </label>
+
+                            <textarea class="form-control edit-message"
+                                      @bind="editMessageBody"></textarea>
+                        </div>
+
+                        <div class="edit-field">
+                            <label>
+                                Audience
+                                <span>*</span>
+                            </label>
+
+                            <select class="form-select"
+                                    value="@editAudienceType"
+                                    @onchange="OnEditAudienceChanged">
+
+                                @if (CanEditAllWorkers)
+                                {
+                                    <option value="AllWorkers">
+                                        All Workers
+                                    </option>
+                                }
+
+                                @if (CanEditAllLeaders)
+                                {
+                                    <option value="AllLeaders">
+                                        All Leaders
+                                    </option>
+                                }
+
+                                @if (CanEditSelectedDirectorates)
+                                {
+                                    <option value="SelectedDirectorates">
+                                        @(IsEditingClusterHead
+                                            ? "Directorates in My Cluster"
+                                            : "Selected Directorates")
+                                    </option>
+                                }
+
+                                @if (CanEditOwnDirectorate)
+                                {
+                                    <option value="OwnDirectorate">
+                                        My Directorate
+                                    </option>
+                                }
+
+                            </select>
+                        </div>
+
+                        @if (editAudienceType == "SelectedDirectorates")
+                        {
+                            <div class="edit-field">
+
+                                <div class="directorate-edit-heading">
+                                    <label>Directorates</label>
+
+                                    @if (availableDirectorates.Count > 1)
+                                    {
+                                        <button type="button"
+                                                class="select-all-btn"
+                                                @onclick="ToggleAllEditDirectoratesAsync">
+                                            @(AllEditDirectoratesSelected
+                                                ? "Clear All"
+                                                : "Select All")
+                                        </button>
+                                    }
+                                </div>
+
+                                <div class="edit-directorates">
+
+                                    @foreach (var directorate in availableDirectorates)
+                                    {
+                                        <label class="directorate-check">
+
+                                            <input type="checkbox"
+                                                   checked="@editDirectorateIds.Contains(directorate.Id)"
+                                                   @onchange="@(async e =>
+                                                       await ToggleEditDirectorateAsync(
+                                                           directorate.Id,
+                                                           (bool)(e.Value ?? false)))" />
+
+                                            <span>@directorate.Name</span>
+
+                                        </label>
+                                    }
+
+                                </div>
+
+                            </div>
+                        }
+
+                        <div class="edit-preview">
+
+                            <div>
+                                <span>Eligible Recipients</span>
+
+                                @if (isPreviewingEdit)
+                                {
+                                    <strong>
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                        Checking...
+                                    </strong>
+                                }
+                                else
+                                {
+                                    <strong>@editRecipientCount</strong>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(editPreviewMessage))
+                            {
+                                <small>@editPreviewMessage</small>
+                            }
+
+                        </div>
+
+                        <div class="edit-warning">
+                            <i class="fas fa-info-circle"></i>
+
+                            <span>
+                                If you change the subject or message,
+                                existing recipients will be marked unread
+                                so they can review the revised message.
+                            </span>
+                        </div>
+
+                    </div>
+
+                    <div class="modal-actions">
+
+                        <button type="button"
+                                class="secondary-btn"
+                                disabled="@isSaving"
+                                @onclick="CancelEdit">
+                            Cancel
+                        </button>
+
+                        <button type="button"
+                                class="save-btn"
+                                disabled="@(!CanSaveEdit)"
+                                @onclick="SaveEditAsync">
+
+                            @if (isSaving)
+                            {
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-save"></i>
+                                <span>Save Changes</span>
+                            }
+
+                        </button>
+
+                    </div>
+                }
+            }
+
+        </div>
+
+    </div>
+}
+
+
+<!-- =========================================================
+     REMOVE CONFIRMATION
+     ========================================================= -->
+
+@if (showRemoveConfirmation && selectedBroadcast != null)
+{
+    <div class="modal-overlay confirm-layer">
+
+        <div class="confirm-modal">
+
+            <div class="danger-icon">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+
+            <h3>Remove this broadcast?</h3>
+
+            <p>
+                <strong>@selectedBroadcast.Subject</strong>
+                will be removed from recipients' inboxes.
+            </p>
+
+            <div class="remove-note">
+                The underlying record is retained for audit purposes.
+            </div>
+
+            <div class="confirm-actions">
+
+                <button type="button"
+                        class="secondary-btn"
+                        disabled="@isRemoving"
+                        @onclick="CancelRemove">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="danger-btn"
+                        disabled="@isRemoving"
+                        @onclick="RemoveBroadcastAsync">
+
+                    @if (isRemoving)
+                    {
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>Removing...</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-trash-alt"></i>
+                        <span>Remove Broadcast</span>
+                    }
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+}
+
+
+<style>
+
+    .broadcast-page {
+        width: 100%;
+    }
+
+    .broadcast-hero {
+        min-height: 135px;
+        padding: 22px 28px;
+        border-radius: 18px;
+        background: linear-gradient(135deg,#35115f 0%,#5b218d 55%,#7131a5 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 14px;
+        box-shadow: 0 8px 24px rgba(53,17,95,.14);
+    }
+
+    .broadcast-kicker,
+    .modal-kicker {
+        font-size: .67rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        opacity: .78;
+        margin-bottom: 4px;
+    }
+
+    .broadcast-hero h1 {
+        margin: 0 0 4px;
+        font-size: 1.55rem;
+        font-weight: 700;
+    }
+
+    .broadcast-hero p {
+        margin: 0;
+        opacity: .86;
+        font-size: .84rem;
+    }
+
+    .new-broadcast-btn {
+        text-decoration: none;
+        background: white;
+        color: #4c187b;
+        padding: 9px 15px;
+        border-radius: 9px;
+        font-size: .82rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .compact-alert {
+        padding: 9px 12px;
+        font-size: .76rem;
+        border-radius: 9px;
+        margin-bottom: 12px;
+    }
+
+    .broadcast-state {
+        min-height: 220px;
+        background: white;
+        border: 1px solid #eee9f3;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 30px;
+        color: #6f6877;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4,minmax(0,1fr));
+        gap: 9px;
+        margin-bottom: 12px;
+    }
+
+    .summary-card {
+        background: white;
+        border: 1px solid #eee9f3;
+        border-radius: 11px;
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 64px;
+    }
+
+    .summary-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        background: #f4edfa;
+        color: #5b218d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .summary-card span {
+        display: block;
+        color: #77707d;
+        font-size: .68rem;
+    }
+
+    .summary-card strong {
+        display: block;
+        color: #29232e;
+        font-size: 1.1rem;
+    }
+
+    .broadcast-workspace {
+        display: grid;
+        grid-template-columns: minmax(220px,.27fr) minmax(0,.73fr);
+        gap: 12px;
+        align-items: start;
+    }
+
+    .filter-panel,
+    .results-panel {
+        background: white;
+        border: 1px solid #eee9f3;
+        border-radius: 13px;
+    }
+
+    .filter-panel {
+        padding: 15px;
+        position: sticky;
+        top: 12px;
+    }
+
+    .filter-header,
+    .results-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .filter-header {
+        padding-bottom: 11px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid #eee9f3;
+    }
+
+    .filter-header h2,
+    .results-header h2 {
+        margin: 0;
+        color: #302938;
+        font-size: .91rem;
+        font-weight: 700;
+    }
+
+    .filter-header p,
+    .results-header p {
+        margin: 2px 0 0;
+        color: #8a828f;
+        font-size: .68rem;
+    }
+
+    .clear-filter-btn,
+    .select-all-btn {
+        border: 0;
+        background: #f5effa;
+        color: #5b218d;
+        border-radius: 6px;
+        padding: 4px 7px;
+        font-size: .64rem;
+        font-weight: 700;
+    }
+
+    .filter-section {
+        margin-bottom: 14px;
+    }
+
+    .filter-section > label,
+    .edit-field > label,
+    .directorate-edit-heading label {
+        display: block;
+        color: #4b424f;
+        font-size: .7rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .edit-field label span {
+        color: #b42318;
+    }
+
+    .search-box {
+        position: relative;
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #99919e;
+        font-size: .7rem;
+    }
+
+    .search-box input {
+        padding-left: 29px;
+    }
+
+    .form-control,
+    .form-select {
+        border-color: #ded8e3;
+        border-radius: 7px;
+        font-size: .72rem;
+    }
+
+    .audience-filter-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .audience-filter-btn {
+        border: 0;
+        background: transparent;
+        color: #5f5664;
+        border-radius: 7px;
+        padding: 7px 8px;
+        display: flex;
+        justify-content: space-between;
+        gap: 7px;
+        font-size: .7rem;
+    }
+
+    .audience-filter-btn.active {
+        background: #f4edfa;
+        color: #521c7d;
+        font-weight: 700;
+    }
+
+    .audience-filter-btn span {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .audience-filter-btn strong {
+        min-width: 22px;
+        text-align: center;
+        padding: 2px 5px;
+        border-radius: 12px;
+        background: #f0ebf3;
+        font-size: .61rem;
+    }
+
+    .date-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .date-grid span {
+        display: block;
+        font-size: .61rem;
+        color: #918996;
+        margin-bottom: 3px;
+    }
+
+    .filter-result-box {
+        padding: 10px;
+        background: #f8f4fb;
+        border-radius: 8px;
+        text-align: center;
+        font-size: .63rem;
+        color: #837a88;
+    }
+
+    .filter-result-box strong {
+        color: #501a7a;
+        font-size: 1rem;
+        margin: 0 3px;
+    }
+
+    .results-panel {
+        overflow: hidden;
+        min-width: 0;
+    }
+
+    .results-header {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee9f3;
+    }
+
+    .refresh-btn,
+    .view-btn {
+        border: 1px solid #ddd4e5;
+        background: white;
+        color: #5b218d;
+        border-radius: 7px;
+        padding: 6px 9px;
+        font-size: .68rem;
+        font-weight: 600;
+    }
+
+    .broadcast-item {
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border-bottom: 1px solid #f0edf2;
+    }
+
+    .broadcast-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .broadcast-subject {
+        color: #2f2933;
+        font-weight: 700;
+        font-size: .8rem;
+        margin-bottom: 4px;
+    }
+
+    .broadcast-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        color: #817987;
+        font-size: .66rem;
+    }
+
+    .broadcast-meta span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .directorate-list {
+        margin-top: 5px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .directorate-tag {
+        padding: 2px 6px;
+        border-radius: 14px;
+        background: #f5effa;
+        color: #5b218d;
+        font-size: .59rem;
+        font-weight: 600;
+    }
+
+    .broadcast-right {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .broadcast-stats {
+        display: flex;
+        gap: 12px;
+    }
+
+    .stat-block {
+        text-align: center;
+        min-width: 40px;
+    }
+
+    .stat-block strong {
+        display: block;
+        font-size: .82rem;
+        color: #322b37;
+    }
+
+    .stat-block span {
+        display: block;
+        font-size: .57rem;
+        color: #8a828f;
+    }
+
+    .stat-block.unread strong {
+        color: #b42318;
+    }
+
+    .empty-state {
+        padding: 45px 20px;
+        text-align: center;
+        color: #817987;
+    }
+
+    .empty-state > i {
+        font-size: 1.2rem;
+        color: #5b218d;
+        margin-bottom: 8px;
+    }
+
+    .empty-state h3 {
+        font-size: .86rem;
+        color: #37303c;
+    }
+
+    .empty-state p {
+        font-size: .72rem;
+    }
+
+    .empty-action {
+        border: 0;
+        text-decoration: none;
+        background: #5b218d;
+        color: white;
+        padding: 7px 11px;
+        border-radius: 7px;
+        font-size: .7rem;
+    }
+
+
+    /* MODAL */
+
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 3000;
+        background: rgba(24,17,29,.60);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+    }
+
+    .message-modal {
+        width: min(720px,96vw);
+        max-height: 90vh;
+        overflow-y: auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+
+    .modal-header {
+        padding: 17px 20px;
+        border-bottom: 1px solid #eee9f3;
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: #312837;
+        font-size: 1.02rem;
+    }
+
+    .modal-kicker {
+        color: #6a398d;
+        opacity: 1;
+    }
+
+    .modal-close {
+        border: 0;
+        background: #f6f3f7;
+        width: 31px;
+        height: 31px;
+        border-radius: 50%;
+        color: #6b626f;
+    }
+
+    .modal-loading {
+        padding: 60px;
+        text-align: center;
+        color: #756c7b;
+    }
+
+    .modal-alert {
+        margin: 12px 20px 0;
+        padding: 8px 10px;
+        border-radius: 7px;
+        font-size: .72rem;
+    }
+
+    .modal-alert.error {
+        background: #fef3f2;
+        color: #b42318;
+    }
+
+    .message-summary {
+        display: grid;
+        grid-template-columns: repeat(4,1fr);
+        gap: 8px;
+        padding: 15px 20px;
+    }
+
+    .message-summary > div {
+        padding: 9px;
+        background: #f8f5fa;
+        border-radius: 8px;
+    }
+
+    .message-summary span,
+    .detail-label {
+        display: block;
+        color: #8a818f;
+        font-size: .62rem;
+        margin-bottom: 2px;
+    }
+
+    .message-summary strong {
+        color: #45384c;
+        font-size: .72rem;
+    }
+
+    .modal-directorates,
+    .message-content-box {
+        margin: 0 20px 15px;
+    }
+
+    .message-content-box {
+        padding: 14px;
+        background: #fbfafc;
+        border: 1px solid #eee9f3;
+        border-radius: 9px;
+    }
+
+    .message-content {
+        color: #403743;
+        font-size: .79rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
+    .modal-actions {
+        padding: 13px 20px;
+        border-top: 1px solid #eee9f3;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .modal-actions-right {
+        display: flex;
+        gap: 7px;
+    }
+
+    .secondary-btn,
+    .edit-btn,
+    .save-btn,
+    .remove-btn,
+    .danger-btn {
+        border-radius: 7px;
+        padding: 7px 11px;
+        font-size: .7rem;
+        font-weight: 600;
+    }
+
+    .secondary-btn {
+        border: 1px solid #ddd5e1;
+        background: white;
+        color: #625969;
+    }
+
+    .edit-btn,
+    .save-btn {
+        border: 0;
+        background: #5b218d;
+        color: white;
+    }
+
+    .remove-btn {
+        border: 1px solid #f1c0bc;
+        background: #fff;
+        color: #b42318;
+    }
+
+    .danger-btn {
+        border: 0;
+        background: #b42318;
+        color: white;
+    }
+
+    .edit-form {
+        padding: 16px 20px;
+    }
+
+    .edit-field {
+        margin-bottom: 13px;
+    }
+
+    .edit-message {
+        min-height: 150px;
+        resize: vertical;
+    }
+
+    .directorate-edit-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .edit-directorates {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        max-height: 160px;
+        overflow-y: auto;
+        border: 1px solid #e8e1ec;
+        border-radius: 8px;
+        padding: 6px 10px;
+    }
+
+    .directorate-check {
+        display: flex;
+        gap: 7px;
+        align-items: center;
+        padding: 6px 3px;
+        font-size: .7rem;
+        color: #554a5b;
+    }
+
+    .edit-preview {
+        padding: 10px 12px;
+        background: #f7f1fb;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+
+    .edit-preview span {
+        display: block;
+        color: #817788;
+        font-size: .62rem;
+    }
+
+    .edit-preview strong {
+        color: #4f1c77;
+        font-size: 1rem;
+    }
+
+    .edit-preview small {
+        display: block;
+        color: #817788;
+        font-size: .63rem;
+    }
+
+    .edit-warning {
+        margin-top: 10px;
+        display: flex;
+        gap: 7px;
+        padding: 9px;
+        background: #fff9e8;
+        color: #786527;
+        border-radius: 7px;
+        font-size: .65rem;
+    }
+
+
+    /* REMOVE CONFIRM */
+
+    .confirm-layer {
+        z-index: 3100;
+    }
+
+    .confirm-modal {
+        width: min(410px,94vw);
+        background: white;
+        border-radius: 14px;
+        padding: 22px;
+    }
+
+    .danger-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: #fef3f2;
+        color: #b42318;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+
+    .confirm-modal h3 {
+        margin: 0 0 7px;
+        color: #352d39;
+        font-size: 1rem;
+    }
+
+    .confirm-modal p {
+        color: #6e6573;
+        font-size: .75rem;
+    }
+
+    .remove-note {
+        background: #f8f6f9;
+        border-radius: 7px;
+        padding: 8px;
+        color: #7b7280;
+        font-size: .65rem;
+    }
+
+    .confirm-actions {
+        margin-top: 16px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 7px;
+    }
+
+    @@media (max-width: 850px) {
+        .broadcast-workspace {
+            grid-template-columns: 1fr;
+        }
+
+        .filter-panel {
+            position: static;
+        }
+
+        .summary-grid {
+            grid-template-columns: repeat(2,1fr);
+        }
+    }
+
+    @@media (max-width: 650px) {
+        .broadcast-hero {
+            min-height: auto;
+            padding: 19px;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .new-broadcast-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .broadcast-item {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .broadcast-right {
+            justify-content: space-between;
+            border-top: 1px solid #f0edf2;
+            padding-top: 8px;
+        }
+
+        .message-summary {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .edit-directorates {
+            grid-template-columns: 1fr;
+        }
+    }
+
+</style>
+
+
+@code {
+
+    private bool isLoading = true;
+    private bool isRefreshing;
+    private bool hasAccess;
+
+    private string pageMessage = string.Empty;
+    private bool pageMessageIsError;
+
+    private List<SentBroadcastListItem> sentBroadcasts = new();
+
+    private string searchText = string.Empty;
+    private string selectedAudience = "All";
+    private string selectedMonth = string.Empty;
+    private string fromDate = string.Empty;
+    private string toDate = string.Empty;
+
+    private bool showDetailsModal;
+    private bool isLoadingDetails;
+    private bool isEditMode;
+    private bool isSaving;
+
+    private SentBroadcastDetails? selectedBroadcast;
+
+    private string modalError = string.Empty;
+
+    private string editSubject = string.Empty;
+    private string editMessageBody = string.Empty;
+    private string editAudienceType = string.Empty;
+
+    private HashSet<int> editDirectorateIds = new();
+    private List<BroadcastDirectorateOption> availableDirectorates = new();
+
+    private int editRecipientCount;
+    private bool isPreviewingEdit;
+    private string editPreviewMessage = string.Empty;
+
+    private string senderType = string.Empty;
+
+    private bool showRemoveConfirmation;
+    private bool isRemoving;
+
+
+    private int TotalRecipients =>
+        sentBroadcasts.Sum(x => x.RecipientCount);
+
+    private int TotalRead =>
+        sentBroadcasts.Sum(x => x.ReadCount);
+
+    private int TotalUnread =>
+        sentBroadcasts.Sum(x => x.UnreadCount);
+
+
+    private bool HasActiveFilter =>
+        !string.IsNullOrWhiteSpace(searchText) ||
+        selectedAudience != "All" ||
+        !string.IsNullOrWhiteSpace(selectedMonth) ||
+        !string.IsNullOrWhiteSpace(fromDate) ||
+        !string.IsNullOrWhiteSpace(toDate);
+
+
+    private bool IsEditingPSO =>
+        string.Equals(senderType, "PSO",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool IsEditingMeatHead =>
+        string.Equals(senderType, "MEAT",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool IsEditingClusterHead =>
+        string.Equals(senderType, "ClusterHead",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool IsEditingDirectorateHead =>
+        string.Equals(senderType, "DirectorateHead",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool CanEditAllWorkers =>
+        IsEditingPSO || IsEditingMeatHead;
+
+    private bool CanEditAllLeaders =>
+        IsEditingPSO || IsEditingMeatHead;
+
+    private bool CanEditSelectedDirectorates =>
+        IsEditingPSO ||
+        IsEditingMeatHead ||
+        IsEditingClusterHead;
+
+    private bool CanEditOwnDirectorate =>
+        IsEditingDirectorateHead;
+
+
+    private bool AllEditDirectoratesSelected =>
+        availableDirectorates.Count > 0 &&
+        availableDirectorates.All(
+            x => editDirectorateIds.Contains(x.Id));
+
+
+    private bool CanSaveEdit =>
+        !isSaving &&
+        !isPreviewingEdit &&
+        !string.IsNullOrWhiteSpace(editSubject) &&
+        !string.IsNullOrWhiteSpace(editMessageBody) &&
+        !string.IsNullOrWhiteSpace(editAudienceType) &&
+        editRecipientCount > 0;
+
+
+    private List<MonthFilterOption> AvailableMonths =>
+        sentBroadcasts
+            .Select(x => ConvertToNigeriaTime(x.SentAt))
+            .GroupBy(x => new { x.Year, x.Month })
+            .OrderByDescending(x => x.Key.Year)
+            .ThenByDescending(x => x.Key.Month)
+            .Select(x => new MonthFilterOption
+            {
+                Value = $"{x.Key.Year:D4}-{x.Key.Month:D2}",
+                Label = new DateTime(
+                    x.Key.Year,
+                    x.Key.Month,
+                    1).ToString("MMMM yyyy")
+            })
+            .ToList();
+
+
+    private List<SentBroadcastListItem> FilteredBroadcasts
+    {
+        get
+        {
+            IEnumerable<SentBroadcastListItem> query =
+                sentBroadcasts;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var value = searchText.Trim();
+
+                query = query.Where(x =>
+                    x.Subject.Contains(
+                        value,
+                        StringComparison.OrdinalIgnoreCase)
+                    ||
+                    x.DirectorateNames.Any(d =>
+                        d.Contains(
+                            value,
+                            StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (selectedAudience != "All")
+            {
+                query = query.Where(x =>
+                    x.AudienceType == selectedAudience);
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedMonth))
+            {
+                query = query.Where(x =>
+                {
+                    var date =
+                        ConvertToNigeriaTime(x.SentAt);
+
+                    return
+                        $"{date.Year:D4}-{date.Month:D2}"
+                        == selectedMonth;
+                });
+            }
+
+            if (DateTime.TryParse(fromDate, out var from))
+            {
+                query = query.Where(x =>
+                    ConvertToNigeriaTime(x.SentAt).Date
+                    >= from.Date);
+            }
+
+            if (DateTime.TryParse(toDate, out var to))
+            {
+                query = query.Where(x =>
+                    ConvertToNigeriaTime(x.SentAt).Date
+                    <= to.Date);
+            }
+
+            return query
+                .OrderByDescending(x => x.SentAt)
+                .ToList();
+        }
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated ||
+            AuthService.CurrentWorker == null)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        try
+        {
+            var access =
+                await BroadcastService.GetSenderAccessAsync(
+                    AuthService.CurrentWorker.Id);
+
+            hasAccess = access.CanSend;
+
+            if (!hasAccess)
+                return;
+
+            senderType =
+                access.SenderType ?? string.Empty;
+
+            availableDirectorates =
+                await BroadcastService
+                    .GetAvailableDirectoratesAsync(
+                        AuthService.CurrentWorker.Id);
+
+            await LoadBroadcastsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Unable to load Broadcast Centre: {ex.Message}");
+
+            hasAccess = false;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    private async Task LoadBroadcastsAsync()
+    {
+        if (AuthService.CurrentWorker == null)
+            return;
+
+        isRefreshing = true;
+
+        try
+        {
+            sentBroadcasts =
+                await BroadcastService
+                    .GetSentBroadcastsAsync(
+                        AuthService.CurrentWorker.Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+            sentBroadcasts = new();
+        }
+        finally
+        {
+            isRefreshing = false;
+        }
+    }
+
+
+    /* VIEW */
+
+    private async Task OpenBroadcastAsync(int broadcastId)
+    {
+        if (AuthService.CurrentWorker == null)
+            return;
+
+        showDetailsModal = true;
+        isLoadingDetails = true;
+        isEditMode = false;
+        modalError = string.Empty;
+        selectedBroadcast = null;
+
+        try
+        {
+            selectedBroadcast =
+                await BroadcastService
+                    .GetBroadcastDetailsAsync(
+                        AuthService.CurrentWorker.Id,
+                        broadcastId);
+
+            if (selectedBroadcast == null)
+            {
+                modalError =
+                    "The broadcast could not be found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            modalError =
+                $"Unable to load broadcast: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingDetails = false;
+        }
+    }
+
+
+    private void CloseDetailsModal()
+    {
+        if (isSaving || isRemoving)
+            return;
+
+        showDetailsModal = false;
+        isEditMode = false;
+        selectedBroadcast = null;
+        modalError = string.Empty;
+    }
+
+
+    /* EDIT */
+
+    private async Task BeginEditAsync()
+    {
+        if (selectedBroadcast == null)
+            return;
+
+        modalError = string.Empty;
+
+        editSubject =
+            selectedBroadcast.Subject;
+
+        editMessageBody =
+            selectedBroadcast.MessageBody;
+
+        editAudienceType =
+            selectedBroadcast.AudienceType;
+
+        editDirectorateIds =
+            selectedBroadcast
+                .SelectedDirectorateIds
+                .ToHashSet();
+
+        isEditMode = true;
+
+        await RefreshEditPreviewAsync();
+    }
+
+
+    private void CancelEdit()
+    {
+        if (isSaving)
+            return;
+
+        isEditMode = false;
+        modalError = string.Empty;
+    }
+
+
+    private async Task OnEditAudienceChanged(
+        ChangeEventArgs e)
+    {
+        editAudienceType =
+            e.Value?.ToString()
+            ?? string.Empty;
+
+        if (editAudienceType !=
+            "SelectedDirectorates")
+        {
+            editDirectorateIds.Clear();
+        }
+
+        await RefreshEditPreviewAsync();
+    }
+
+
+    private async Task ToggleEditDirectorateAsync(
+        int directorateId,
+        bool selected)
+    {
+        if (selected)
+            editDirectorateIds.Add(directorateId);
+        else
+            editDirectorateIds.Remove(directorateId);
+
+        await RefreshEditPreviewAsync();
+    }
+
+
+    private async Task ToggleAllEditDirectoratesAsync()
+    {
+        if (AllEditDirectoratesSelected)
+        {
+            editDirectorateIds.Clear();
+        }
+        else
+        {
+            editDirectorateIds =
+                availableDirectorates
+                    .Select(x => x.Id)
+                    .ToHashSet();
+        }
+
+        await RefreshEditPreviewAsync();
+    }
+
+
+    private async Task RefreshEditPreviewAsync()
+    {
+        editRecipientCount = 0;
+        editPreviewMessage = string.Empty;
+
+        if (AuthService.CurrentWorker == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(
+            editAudienceType))
+        {
+            editPreviewMessage =
+                "Select an audience.";
+            return;
+        }
+
+        if (editAudienceType ==
+                "SelectedDirectorates" &&
+            editDirectorateIds.Count == 0)
+        {
+            editPreviewMessage =
+                "Select at least one Directorate.";
+            return;
+        }
+
+        isPreviewingEdit = true;
+
+        try
+        {
+            var result =
+                await BroadcastService
+                    .PreviewRecipientsAsync(
+                        AuthService.CurrentWorker.Id,
+                        editAudienceType,
+                        editDirectorateIds);
+
+            editRecipientCount =
+                result.RecipientCount;
+
+            editPreviewMessage =
+                result.Message;
+        }
+        catch (Exception ex)
+        {
+            editPreviewMessage =
+                $"Unable to preview recipients: {ex.Message}";
+        }
+        finally
+        {
+            isPreviewingEdit = false;
+        }
+    }
+
+
+    private async Task SaveEditAsync()
+    {
+        if (AuthService.CurrentWorker == null ||
+            selectedBroadcast == null ||
+            !CanSaveEdit)
+        {
+            return;
+        }
+
+        isSaving = true;
+        modalError = string.Empty;
+
+        try
+        {
+            // Revalidate recipients immediately
+            // before updating.
+            await RefreshEditPreviewAsync();
+
+            if (editRecipientCount <= 0)
+            {
+                modalError =
+                    "There are no eligible recipients for this audience.";
+                return;
+            }
+
+            var result =
+                await BroadcastService
+                    .UpdateBroadcastAsync(
+                        new UpdateBroadcastRequest
+                        {
+                            BroadcastMessageId =
+                                selectedBroadcast.BroadcastMessageId,
+
+                            SenderWorkerId =
+                                AuthService.CurrentWorker.Id,
+
+                            Subject =
+                                editSubject.Trim(),
+
+                            MessageBody =
+                                editMessageBody.Trim(),
+
+                            AudienceType =
+                                editAudienceType,
+
+                            SelectedDirectorateIds =
+                                editDirectorateIds.ToList()
+                        });
+
+            if (!result.Success)
+            {
+                modalError = result.Message;
+                return;
+            }
+
+            var id =
+                selectedBroadcast.BroadcastMessageId;
+
+            await LoadBroadcastsAsync();
+
+            selectedBroadcast =
+                await BroadcastService
+                    .GetBroadcastDetailsAsync(
+                        AuthService.CurrentWorker.Id,
+                        id);
+
+            isEditMode = false;
+
+            pageMessage =
+                result.Message;
+
+            pageMessageIsError = false;
+        }
+        catch (Exception ex)
+        {
+            modalError =
+                $"Unable to update broadcast: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+
+    /* REMOVE */
+
+    private void ShowRemoveConfirmation()
+    {
+        showRemoveConfirmation = true;
+    }
+
+
+    private void CancelRemove()
+    {
+        if (!isRemoving)
+            showRemoveConfirmation = false;
+    }
+
+
+    private async Task RemoveBroadcastAsync()
+    {
+        if (AuthService.CurrentWorker == null ||
+            selectedBroadcast == null)
+        {
+            return;
+        }
+
+        isRemoving = true;
+
+        try
+        {
+            var removed =
+                await BroadcastService
+                    .RemoveBroadcastAsync(
+                        AuthService.CurrentWorker.Id,
+                        selectedBroadcast.BroadcastMessageId);
+
+            if (!removed)
+            {
+                showRemoveConfirmation = false;
+
+                modalError =
+                    "The broadcast could not be removed.";
+
+                return;
+            }
+
+            showRemoveConfirmation = false;
+            showDetailsModal = false;
+            selectedBroadcast = null;
+
+            await LoadBroadcastsAsync();
+
+            pageMessage =
+                "Broadcast removed successfully.";
+
+            pageMessageIsError = false;
+        }
+        catch (Exception ex)
+        {
+            showRemoveConfirmation = false;
+
+            modalError =
+                $"Unable to remove broadcast: {ex.Message}";
+        }
+        finally
+        {
+            isRemoving = false;
+        }
+    }
+
+
+    /* FILTER */
+
+    private void OnSearchChanged(ChangeEventArgs e)
+        => searchText =
+            e.Value?.ToString() ?? string.Empty;
+
+    private void SetAudienceFilter(string value)
+        => selectedAudience = value;
+
+    private void OnMonthChanged(ChangeEventArgs e)
+        => selectedMonth =
+            e.Value?.ToString() ?? string.Empty;
+
+    private void OnFromDateChanged(ChangeEventArgs e)
+        => fromDate =
+            e.Value?.ToString() ?? string.Empty;
+
+    private void OnToDateChanged(ChangeEventArgs e)
+        => toDate =
+            e.Value?.ToString() ?? string.Empty;
+
+
+    private void ClearFilters()
+    {
+        searchText = string.Empty;
+        selectedAudience = "All";
+        selectedMonth = string.Empty;
+        fromDate = string.Empty;
+        toDate = string.Empty;
+    }
+
+
+  private RenderFragment AudienceFilterButton(
+    string value,
+    string icon,
+    string label,
+    int count)
+{
+    return builder =>
+    {
+        var sequence = 0;
+
+        builder.OpenElement(sequence++, "button");
+        builder.AddAttribute(sequence++, "type", "button");
+
+        builder.AddAttribute(
+            sequence++,
+            "class",
+            selectedAudience == value
+                ? "audience-filter-btn active"
+                : "audience-filter-btn");
+
+        builder.AddAttribute(
+            sequence++,
+            "onclick",
+            EventCallback.Factory.Create(
+                this,
+                () => SetAudienceFilter(value)));
+
+        builder.OpenElement(sequence++, "span");
+
+        builder.OpenElement(sequence++, "i");
+        builder.AddAttribute(sequence++, "class", icon);
+        builder.CloseElement();
+
+        builder.AddContent(sequence++, label);
+
+        builder.CloseElement();
+
+        builder.OpenElement(sequence++, "strong");
+        builder.AddContent(sequence++, count);
+        builder.CloseElement();
+
+        builder.CloseElement();
+    };
+}
+
+    private int GetAudienceCount(string type)
+        => sentBroadcasts.Count(
+            x => x.AudienceType == type);
+
+
+    private string GetResultDescription()
+        => !HasActiveFilter
+            ? $"All {sentBroadcasts.Count} sent broadcasts"
+            : $"{FilteredBroadcasts.Count} matching broadcast" +
+              (FilteredBroadcasts.Count == 1 ? "" : "s");
+
+
+    private static string GetAudienceLabel(string type)
+        => type switch
+        {
+            "AllWorkers" => "All Workers",
+            "AllLeaders" => "All Leaders",
+            "SelectedDirectorates" => "Selected Directorates",
+            "OwnDirectorate" => "Own Directorate",
+            _ => type
+        };
+
+
+    private static DateTime ConvertToNigeriaTime(
+        DateTime utcDate)
+    {
+        try
+        {
+            var zone =
+                TimeZoneInfo.FindSystemTimeZoneById(
+                    "Africa/Lagos");
+
+            var utc =
+                DateTime.SpecifyKind(
+                    utcDate,
+                    DateTimeKind.Utc);
+
+            return TimeZoneInfo.ConvertTimeFromUtc(
+                utc,
+                zone);
+        }
+        catch
+        {
+            return utcDate.AddHours(1);
+        }
+    }
+
+
+    private static string FormatNigeriaDate(
+        DateTime utcDate)
+        => ConvertToNigeriaTime(utcDate)
+            .ToString("dd MMM yyyy, h:mm tt");
+
+
+    private class MonthFilterOption
+    {
+        public string Value { get; set; }
+            = string.Empty;
+
+        public string Label { get; set; }
+            = string.Empty;
+    }
+}

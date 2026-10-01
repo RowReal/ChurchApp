@@ -1,4 +1,4 @@
-﻿@page "/Workforce/case/{caseId:int}"
+@page "/Workforce/case/{caseId:int}"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
@@ -11,6 +11,8 @@
 @inject ILogger<CaseDetail> Logger
 
 <PageTitle>Growth Case Details</PageTitle>
+<PageHero Title="Growth  Case  Details" Subtitle="Manage workers, teams and workforce activity." Kicker="Workforce" Icon="fas fa-users" />
+
 
 @if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
 {

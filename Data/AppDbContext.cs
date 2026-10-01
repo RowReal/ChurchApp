@@ -74,6 +74,9 @@ namespace ChurchApp.Data
         public DbSet<IncomeCategory> IncomeCategories { get; set; }
         public DbSet<IncomeType> IncomeTypes { get; set; }
         public DbSet<RemittanceRule> RemittanceRules { get; set; }
+        public DbSet<BroadcastMessage> BroadcastMessages { get; set; }
+        public DbSet<BroadcastRecipient> BroadcastRecipients { get; set; }
+        public DbSet<BroadcastAudienceDirectorate> BroadcastAudienceDirectorates { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -195,6 +198,63 @@ namespace ChurchApp.Data
             // =====================================================
             // Supervisory Cluster configurations
             // =====================================================
+
+            // =====================================================
+            // BROADCAST & MESSAGES
+            // =====================================================
+
+            modelBuilder.Entity<BroadcastMessage>()
+                .HasOne(x => x.SentByWorker)
+                .WithMany()
+                .HasForeignKey(x => x.SentByWorkerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<BroadcastRecipient>()
+                .HasOne(x => x.BroadcastMessage)
+                .WithMany(x => x.Recipients)
+                .HasForeignKey(x => x.BroadcastMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<BroadcastRecipient>()
+                .HasOne(x => x.Worker)
+                .WithMany()
+                .HasForeignKey(x => x.WorkerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<BroadcastRecipient>()
+                .HasIndex(x => new
+                {
+                    x.BroadcastMessageId,
+                    x.WorkerId
+                })
+                .IsUnique();
+
+            modelBuilder.Entity<BroadcastAudienceDirectorate>()
+                .HasOne(x => x.BroadcastMessage)
+                .WithMany(x => x.AudienceDirectorates)
+                .HasForeignKey(x => x.BroadcastMessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<BroadcastAudienceDirectorate>()
+                .HasOne(x => x.Directorate)
+                .WithMany()
+                .HasForeignKey(x => x.DirectorateId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<BroadcastAudienceDirectorate>()
+                .HasIndex(x => new
+                {
+                    x.BroadcastMessageId,
+                    x.DirectorateId
+                })
+                .IsUnique();
+
+            modelBuilder.Entity<BroadcastRecipient>()
+                .HasIndex(x => new
+                {
+                    x.WorkerId,
+                    x.IsRead
+                });
 
             modelBuilder.Entity<SupervisoryCluster>(entity =>
             {

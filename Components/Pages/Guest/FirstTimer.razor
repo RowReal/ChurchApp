@@ -61,14 +61,6 @@ else
 {
     <div class="worker360-page first-timer-page">
 
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="alert alert-danger py-2">
-                <i class="fas fa-exclamation-circle me-2"></i>
-                @errorMessage
-            </div>
-        }
-
         <div class="bcc-page-header first-timer-header">
             <div>
                 <div class="bcc-page-subtitle">
@@ -609,6 +601,24 @@ else
     </div>
 }
 
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="guest-popup-backdrop">
+        <div class="guest-popup-card error-popup">
+            <div class="error-popup-icon">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+            <h4>Unable to Complete Request</h4>
+            <p>@errorMessage</p>
+            <button type="button"
+                    class="bcc-btn bcc-btn-primary compact-btn mt-2"
+                    @onclick="CloseErrorPopup">
+                OK
+            </button>
+        </div>
+    </div>
+}
+
 @code {
     private CreateGuestModel model = NewGuestModel();
 
@@ -1044,6 +1054,11 @@ else
             : initials;
     }
 
+    private void CloseErrorPopup()
+    {
+        errorMessage = string.Empty;
+    }
+
     private void GoBack()
     {
         Navigation.NavigateTo("/guest");
@@ -1213,7 +1228,8 @@ else
         }
 
     .delete-popup-icon,
-    .result-popup-icon {
+    .result-popup-icon,
+    .error-popup-icon {
         margin-bottom: 10px;
         font-size: 2.6rem;
     }
@@ -1224,6 +1240,10 @@ else
 
     .result-popup-icon {
         color: #16a34a;
+    }
+
+    .error-popup-icon {
+        color: #dc2626;
     }
 
     .guest-number-box {

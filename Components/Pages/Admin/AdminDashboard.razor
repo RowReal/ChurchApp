@@ -1,4 +1,4 @@
-﻿@page "/admin"
+@page "/admin"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @inject AuthService AuthService
@@ -6,6 +6,8 @@
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
 {
     <PageTitle>Admin Panel - BCC ServiceHub</PageTitle>
+<PageHero Title="Admin  Panel" Subtitle="Configure and manage ServiceHub settings." Kicker="Administration" Icon="fas fa-sliders-h" />
+
 
     <div class="container-fluid py-4">
         <div class="row mb-4">

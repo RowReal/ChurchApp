@@ -1,4 +1,4 @@
-﻿@page "/Offering/NoteList"
+@page "/Offering/NoteList"
 @using ChurchApp.Models
 @using ChurchApp.Services
 @inject ServiceNoteService ServiceNoteService
@@ -6,6 +6,8 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
+
+<PageHero Title="Service Note List" Subtitle="Manage service records and offering activity." Kicker="Service Records" Icon="fas fa-church" />
 <h3 class="mb-4">Service Notes</h3>
 
 <!-- Filter Section -->

@@ -1,4 +1,4 @@
-﻿@page "/admin/deactivate-worker/{WorkerId:int}"
+@page "/admin/deactivate-worker/{WorkerId:int}"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Models
 @using ChurchApp.Services
@@ -8,6 +8,8 @@
 @inject NavigationManager Navigation
 
 <PageTitle>Deactivate Worker</PageTitle>
+<PageHero Title="Deactivate  Worker" Subtitle="Configure and manage ServiceHub settings." Kicker="Administration" Icon="fas fa-sliders-h" />
+
 
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
 {

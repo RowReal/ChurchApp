@@ -1,4 +1,4 @@
-﻿@page "/admin/worker-cleanup"
+@page "/admin/worker-cleanup"
 @layout Components.Layout.MainLayout
 
 @using ChurchApp.Models
@@ -11,6 +11,8 @@
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
 {
     <PageTitle>Worker Cleanup</PageTitle>
+<PageHero Title="Worker  Cleanup" Subtitle="Configure and manage ServiceHub settings." Kicker="Administration" Icon="fas fa-sliders-h" />
+
 
     <div class="container py-4">
 

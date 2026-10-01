@@ -1,0 +1,1393 @@
+﻿@page "/broadcast/new-broadcast"
+@layout Components.Layout.MainLayout
+@rendermode InteractiveServer
+
+@using ChurchApp.Services
+@using ChurchApp.Models
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject AuthService AuthService
+@inject BroadcastService BroadcastService
+@inject NavigationManager Navigation
+
+<PageTitle>New Broadcast - BCC ServiceHub</PageTitle>
+
+<div class="new-broadcast-page">
+
+    <div class="broadcast-hero">
+        <div>
+            <div class="broadcast-kicker">
+                COMMUNICATION
+            </div>
+
+            <h1>New Broadcast</h1>
+
+            <p>
+                Send an official message to workers within your authorised scope.
+            </p>
+        </div>
+
+        <a href="/broadcast/broadcast-centre"
+           class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+            Broadcast Centre
+        </a>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="page-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            Loading broadcast permissions...
+        </div>
+    }
+    else if (!hasAccess)
+    {
+        <div class="page-state">
+            <i class="fas fa-lock"></i>
+
+            <div>
+                <strong>Access restricted</strong>
+                <p>
+                    You are not authorised to create broadcasts.
+                </p>
+            </div>
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                @successMessage
+            </div>
+        }
+
+        <div class="compose-grid">
+
+            <!-- LEFT: MESSAGE -->
+            <div class="compose-card">
+
+                <div class="card-heading">
+                    <div class="heading-icon">
+                        <i class="fas fa-pen"></i>
+                    </div>
+
+                    <div>
+                        <h2>Message</h2>
+                        <p>Enter the broadcast information.</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        Subject
+                        <span class="required">*</span>
+                    </label>
+
+                    <InputText class="form-control"
+                               @bind-Value="subject"
+                               maxlength="200"
+                               placeholder="Enter broadcast subject" />
+
+                    <div class="field-hint">
+                        @subject.Length / 200 characters
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        Message
+                        <span class="required">*</span>
+                    </label>
+
+                    <InputTextArea class="form-control message-box"
+                                   @bind-Value="messageBody"
+                                   placeholder="Type your message here..." />
+
+                    <div class="field-hint">
+                        The message will be stored in ServiceHub for recipients to read.
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT: AUDIENCE -->
+            <div class="compose-card">
+
+                <div class="card-heading">
+                    <div class="heading-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+
+                    <div>
+                        <h2>Audience</h2>
+                        <p>Select who should receive this broadcast.</p>
+                    </div>
+                </div>
+
+                <div class="sender-scope">
+                    <span>Sending as</span>
+                    <strong>@senderDisplayLabel</strong>
+                </div>
+
+                @if (CanChooseAllWorkers)
+                {
+                    <label class="@GetAudienceCardClass("AllWorkers")">
+                        <input type="radio"
+                               name="audience"
+                               value="AllWorkers"
+                               checked="@(audienceType == "AllWorkers")"
+                               @onchange="@(() => SelectAudienceAsync("AllWorkers"))" />
+
+                        <div>
+                            <strong>All Workers</strong>
+                            <span>
+                                Send to all eligible active workers.
+                            </span>
+                        </div>
+                    </label>
+                }
+
+                @if (CanChooseAllLeaders)
+                {
+                    <label class="@GetAudienceCardClass("AllLeaders")">
+                        <input type="radio"
+                               name="audience"
+                               value="AllLeaders"
+                               checked="@(audienceType == "AllLeaders")"
+                               @onchange="@(() => SelectAudienceAsync("AllLeaders"))" />
+
+                        <div>
+                            <strong>All Leaders</strong>
+                            <span>
+                                Cluster Heads, Directorate leadership
+                                and Service leadership.
+                            </span>
+                        </div>
+                    </label>
+                }
+
+                @if (CanChooseDirectorates)
+                {
+                    <label class="@GetAudienceCardClass("SelectedDirectorates")">
+                        <input type="radio"
+                               name="audience"
+                               value="SelectedDirectorates"
+                               checked="@(audienceType == "SelectedDirectorates")"
+                               @onchange="@(() => SelectAudienceAsync("SelectedDirectorates"))" />
+
+                        <div>
+                            <strong>
+                                @(IsClusterHead
+                                    ? "Directorates in My Cluster"
+                                    : "Selected Directorates")
+                            </strong>
+
+                            <span>
+                                Select one or more Directorates.
+                            </span>
+                        </div>
+                    </label>
+                }
+
+                @if (IsDirectorateHead)
+                {
+                    <label class="@GetAudienceCardClass("OwnDirectorate")">
+                        <input type="radio"
+                               name="audience"
+                               value="OwnDirectorate"
+                               checked="@(audienceType == "OwnDirectorate")"
+                               @onchange="@(() => SelectAudienceAsync("OwnDirectorate"))" />
+
+                        <div>
+                            <strong>My Directorate</strong>
+                            <span>
+                                Send to eligible workers in your Directorate.
+                            </span>
+                        </div>
+                    </label>
+                }
+
+                @if (audienceType == "SelectedDirectorates")
+                {
+                    <div class="directorate-section">
+
+                        <div class="directorate-heading">
+                            <strong>Select Directorates</strong>
+
+                            @if (availableDirectorates.Count > 1)
+                            {
+                                <button type="button"
+                                        class="select-all-btn"
+                                        @onclick="ToggleAllDirectoratesAsync">
+                                    @(AllDirectoratesSelected
+                                        ? "Clear All"
+                                        : "Select All")
+                                </button>
+                            }
+                        </div>
+
+                        @if (availableDirectorates.Count == 0)
+                        {
+                            <div class="no-directorates">
+                                No Directorates are available within your scope.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="directorate-options">
+
+                                @foreach (var directorate
+                                    in availableDirectorates)
+                                {
+                                    <label class="directorate-option">
+
+                                        <input type="checkbox"
+                                               checked="@selectedDirectorateIds.Contains(directorate.Id)"
+                                               @onchange="@(async e => await ToggleDirectorateAsync(
+                                                   directorate.Id,
+                                                   (bool)(e.Value ?? false)))" />
+
+                                        <span>
+                                            @directorate.Name
+                                        </span>
+
+                                    </label>
+                                }
+
+                            </div>
+                        }
+
+                    </div>
+                }
+
+                <div class="recipient-preview
+                            @(previewSuccess ? "ready" : "")">
+
+                    <div class="preview-icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+
+                    <div>
+                        <span>Eligible Recipients</span>
+
+                        @if (isPreviewing)
+                        {
+                            <strong>
+                                <i class="fas fa-spinner fa-spin"></i>
+                                Checking...
+                            </strong>
+                        }
+                        else if (previewSuccess)
+                        {
+                            <strong>@recipientCount</strong>
+                            <small>
+                                @GetRecipientText()
+                            </small>
+                        }
+                        else
+                        {
+                            <strong>—</strong>
+                            <small>
+                                @previewMessage
+                            </small>
+                        }
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="send-panel">
+
+            <div class="send-note">
+                <i class="fas fa-info-circle"></i>
+
+                <span>
+                    Review the subject, message and audience before sending.
+                    A sent broadcast cannot be recalled from recipients' inboxes.
+                </span>
+            </div>
+
+            <div class="send-actions">
+
+                <a href="/broadcast/broadcast-centre"
+                   class="cancel-btn">
+                    Cancel
+                </a>
+
+                <button type="button"
+                        class="send-btn"
+                        disabled="@(!CanSend)"
+                        @onclick="ShowConfirmation">
+                    <i class="fas fa-paper-plane"></i>
+                    Send Broadcast
+                </button>
+
+            </div>
+
+        </div>
+
+        @if (showConfirmation)
+        {
+            <div class="confirm-overlay">
+
+                <div class="confirm-card">
+
+                    <div class="confirm-icon">
+                        <i class="fas fa-paper-plane"></i>
+                    </div>
+
+                    <h3>Send this broadcast?</h3>
+
+                    <p>
+                        You are about to send
+                        <strong>@recipientCount</strong>
+                        @(recipientCount == 1 ? "message" : "messages")
+                        to the selected audience.
+                    </p>
+
+                    <div class="confirm-summary">
+
+                        <div>
+                            <span>Subject</span>
+                            <strong>@subject.Trim()</strong>
+                        </div>
+
+                        <div>
+                            <span>Audience</span>
+                            <strong>@GetAudienceDisplayName()</strong>
+                        </div>
+
+                        <div>
+                            <span>Recipients</span>
+                            <strong>@recipientCount</strong>
+                        </div>
+
+                    </div>
+
+                    <div class="confirm-actions">
+
+                        <button type="button"
+                                class="confirm-cancel"
+                                disabled="@isSending"
+                                @onclick="CloseConfirmation">
+                            Go Back
+                        </button>
+
+                        <button type="button"
+                                class="confirm-send"
+                                disabled="@isSending"
+                                @onclick="SendBroadcastAsync">
+
+                            @if (isSending)
+                            {
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <span>Sending...</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-paper-plane"></i>
+                                <span>Confirm &amp; Send</span>
+                            }
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+        }
+    }
+
+</div>
+
+<style>
+
+    .new-broadcast-page {
+        width: 100%;
+    }
+
+    .broadcast-hero {
+        min-height: 145px;
+        padding: 24px 28px;
+        border-radius: 18px;
+        background:
+            linear-gradient(
+                135deg,
+                #35115f 0%,
+                #5b218d 55%,
+                #7131a5 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 18px;
+        box-shadow:
+            0 8px 24px rgba(53, 17, 95, 0.14);
+    }
+
+    .broadcast-kicker {
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .12em;
+        opacity: .78;
+        margin-bottom: 5px;
+    }
+
+    .broadcast-hero h1 {
+        margin: 0 0 5px;
+        font-size: 1.65rem;
+        font-weight: 700;
+    }
+
+    .broadcast-hero p {
+        margin: 0;
+        opacity: .86;
+        font-size: .9rem;
+    }
+
+    .back-btn {
+        flex-shrink: 0;
+        text-decoration: none;
+        border: 1px solid rgba(255,255,255,.35);
+        background: rgba(255,255,255,.12);
+        color: white;
+        padding: 9px 14px;
+        border-radius: 9px;
+        font-size: .8rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .back-btn:hover {
+        background: white;
+        color: #4c187b;
+    }
+
+    .page-state {
+        min-height: 220px;
+        background: white;
+        border: 1px solid #eee9f3;
+        border-radius: 14px;
+        padding: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        color: #6f6877;
+        text-align: center;
+    }
+
+    .page-state i {
+        color: #5b218d;
+        font-size: 1.35rem;
+    }
+
+    .page-state p {
+        margin: 4px 0 0;
+        font-size: .82rem;
+    }
+
+    .compose-grid {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1.15fr)
+            minmax(320px, .85fr);
+        gap: 16px;
+        align-items: start;
+    }
+
+    .compose-card {
+        background: white;
+        border: 1px solid #eee9f3;
+        border-radius: 14px;
+        padding: 18px;
+    }
+
+    .card-heading {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding-bottom: 13px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #f0edf2;
+    }
+
+    .heading-icon {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        border-radius: 9px;
+        background: #f4edfa;
+        color: #5b218d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .card-heading h2 {
+        margin: 0;
+        font-size: .98rem;
+        color: #302938;
+    }
+
+    .card-heading p {
+        margin: 2px 0 0;
+        color: #857d8a;
+        font-size: .75rem;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        color: #3c3541;
+        font-size: .79rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .required {
+        color: #b42318;
+    }
+
+    .form-control {
+        font-size: .84rem;
+        border-color: #ded8e3;
+        border-radius: 9px;
+    }
+
+    .form-control:focus {
+        border-color: #7c49a3;
+        box-shadow:
+            0 0 0 .15rem rgba(91,33,141,.11);
+    }
+
+    .message-box {
+        min-height: 230px;
+        resize: vertical;
+    }
+
+    .field-hint {
+        margin-top: 5px;
+        color: #918a96;
+        font-size: .69rem;
+    }
+
+    .sender-scope {
+        padding: 10px 12px;
+        background: #f8f5fa;
+        border-radius: 9px;
+        margin-bottom: 12px;
+    }
+
+    .sender-scope span {
+        display: block;
+        color: #89818e;
+        font-size: .67rem;
+    }
+
+    .sender-scope strong {
+        display: block;
+        color: #4d3a59;
+        font-size: .82rem;
+        margin-top: 1px;
+    }
+
+    .audience-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        border: 1px solid #e7e1eb;
+        border-radius: 10px;
+        padding: 11px 12px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: .15s ease;
+    }
+
+    .audience-card:hover {
+        border-color: #bfa8d1;
+        background: #fcfafd;
+    }
+
+    .audience-card.selected {
+        border-color: #75439a;
+        background: #f7f0fb;
+        box-shadow:
+            0 0 0 1px rgba(91,33,141,.05);
+    }
+
+    .audience-card input {
+        margin-top: 3px;
+        accent-color: #5b218d;
+    }
+
+    .audience-card strong {
+        display: block;
+        color: #3d3542;
+        font-size: .8rem;
+    }
+
+    .audience-card span {
+        display: block;
+        margin-top: 2px;
+        color: #877f8c;
+        font-size: .69rem;
+        line-height: 1.4;
+    }
+
+    .directorate-section {
+        margin-top: 14px;
+        padding-top: 13px;
+        border-top: 1px solid #eee9f3;
+    }
+
+    .directorate-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+        font-size: .76rem;
+        color: #443a49;
+    }
+
+    .select-all-btn {
+        border: 0;
+        background: transparent;
+        color: #5b218d;
+        font-size: .7rem;
+        font-weight: 700;
+        padding: 2px 4px;
+    }
+
+    .directorate-options {
+        max-height: 190px;
+        overflow-y: auto;
+        border: 1px solid #eee9f3;
+        border-radius: 9px;
+        padding: 5px 10px;
+    }
+
+    .directorate-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 2px;
+        border-bottom: 1px solid #f2eff4;
+        cursor: pointer;
+        font-size: .76rem;
+        color: #514858;
+    }
+
+    .directorate-option:last-child {
+        border-bottom: 0;
+    }
+
+    .directorate-option input {
+        accent-color: #5b218d;
+    }
+
+    .no-directorates {
+        color: #8c838f;
+        font-size: .75rem;
+        padding: 10px;
+        background: #faf8fb;
+        border-radius: 8px;
+    }
+
+    .recipient-preview {
+        margin-top: 15px;
+        padding: 12px;
+        border: 1px dashed #d8d0dd;
+        background: #faf9fb;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .recipient-preview.ready {
+        border-style: solid;
+        border-color: #cbb5dc;
+        background: #f8f2fc;
+    }
+
+    .preview-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: white;
+        color: #5b218d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .recipient-preview span {
+        display: block;
+        color: #817987;
+        font-size: .66rem;
+    }
+
+    .recipient-preview strong {
+        display: inline-block;
+        color: #402a50;
+        font-size: 1.05rem;
+        margin-right: 5px;
+    }
+
+    .recipient-preview small {
+        color: #817987;
+        font-size: .68rem;
+    }
+
+    .send-panel {
+        margin-top: 16px;
+        padding: 14px 16px;
+        background: white;
+        border: 1px solid #eee9f3;
+        border-radius: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+    }
+
+    .send-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        color: #766e7b;
+        font-size: .73rem;
+        line-height: 1.45;
+    }
+
+    .send-note i {
+        color: #5b218d;
+        margin-top: 2px;
+    }
+
+    .send-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .cancel-btn,
+    .send-btn {
+        border-radius: 8px;
+        padding: 8px 13px;
+        font-size: .78rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .cancel-btn {
+        border: 1px solid #ddd6e2;
+        background: white;
+        color: #655d69;
+    }
+
+    .send-btn {
+        border: 0;
+        background: #5b218d;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .send-btn:disabled {
+        opacity: .5;
+        cursor: not-allowed;
+    }
+
+    .confirm-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: rgba(25,18,29,.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .confirm-card {
+        width: 100%;
+        max-width: 440px;
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 18px 55px rgba(0,0,0,.22);
+    }
+
+    .confirm-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background: #f4edfa;
+        color: #5b218d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 12px;
+    }
+
+    .confirm-card h3 {
+        margin: 0 0 6px;
+        color: #302837;
+        font-size: 1.05rem;
+    }
+
+    .confirm-card > p {
+        margin: 0 0 15px;
+        color: #766e7b;
+        font-size: .79rem;
+    }
+
+    .confirm-summary {
+        background: #f8f6f9;
+        border-radius: 10px;
+        padding: 10px 12px;
+    }
+
+    .confirm-summary > div {
+        padding: 6px 0;
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        border-bottom: 1px solid #ebe6ee;
+    }
+
+    .confirm-summary > div:last-child {
+        border-bottom: 0;
+    }
+
+    .confirm-summary span {
+        color: #827a87;
+        font-size: .7rem;
+    }
+
+    .confirm-summary strong {
+        color: #433a48;
+        font-size: .72rem;
+        text-align: right;
+    }
+
+    .confirm-actions {
+        margin-top: 17px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .confirm-cancel,
+    .confirm-send {
+        border-radius: 8px;
+        padding: 8px 13px;
+        font-size: .76rem;
+        font-weight: 600;
+    }
+
+    .confirm-cancel {
+        border: 1px solid #ddd6e2;
+        background: white;
+        color: #625969;
+    }
+
+    .confirm-send {
+        border: 0;
+        background: #5b218d;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    @@media (max-width: 850px) {
+
+        .compose-grid {
+            grid-template-columns: 1fr;
+        }
+
+    }
+
+    @@media (max-width: 650px) {
+
+        .broadcast-hero {
+            min-height: auto;
+            padding: 20px;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .back-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .send-panel {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .send-actions {
+            justify-content: flex-end;
+        }
+
+    }
+
+</style>
+
+@code {
+
+    private bool isLoading = true;
+    private bool hasAccess;
+    private bool isPreviewing;
+    private bool isSending;
+    private bool showConfirmation;
+
+    private string subject = string.Empty;
+    private string messageBody = string.Empty;
+    private string audienceType = string.Empty;
+
+    private string senderDisplayLabel = string.Empty;
+    private string senderType = string.Empty;
+
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string previewMessage =
+        "Select an audience to preview recipients.";
+
+    private int recipientCount;
+
+    private BroadcastSenderAccess? senderAccess;
+
+    private List<BroadcastDirectorateOption>
+        availableDirectorates = new();
+
+    private HashSet<int>
+        selectedDirectorateIds = new();
+
+
+    private bool IsPSO =>
+        string.Equals(
+            senderType,
+            "PSO",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool IsMeatHead =>
+        string.Equals(
+            senderType,
+            "MEAT",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool IsClusterHead =>
+        string.Equals(
+            senderType,
+            "ClusterHead",
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool IsDirectorateHead =>
+        string.Equals(
+            senderType,
+            "DirectorateHead",
+            StringComparison.OrdinalIgnoreCase);
+
+
+    private bool CanChooseAllWorkers =>
+        IsPSO || IsMeatHead;
+
+    private bool CanChooseAllLeaders =>
+        IsPSO || IsMeatHead;
+
+    private bool CanChooseDirectorates =>
+        IsPSO ||
+        IsMeatHead ||
+        IsClusterHead;
+
+
+    private bool previewSuccess =>
+        recipientCount > 0;
+
+
+    private bool AllDirectoratesSelected =>
+        availableDirectorates.Count > 0 &&
+        availableDirectorates.All(
+            x => selectedDirectorateIds.Contains(x.Id));
+
+
+    private bool CanSend =>
+        !isSending &&
+        !string.IsNullOrWhiteSpace(subject) &&
+        !string.IsNullOrWhiteSpace(messageBody) &&
+        !string.IsNullOrWhiteSpace(audienceType) &&
+        previewSuccess;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated ||
+            AuthService.CurrentWorker == null)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        try
+        {
+            senderAccess =
+                await BroadcastService.GetSenderAccessAsync(
+                    AuthService.CurrentWorker.Id);
+
+            hasAccess = senderAccess.CanSend;
+
+            if (!hasAccess)
+                return;
+
+            senderType =
+                senderAccess.SenderType ?? string.Empty;
+
+            senderDisplayLabel =
+                senderAccess.SenderDisplayLabel
+                ?? senderType;
+
+            availableDirectorates =
+                await BroadcastService
+                    .GetAvailableDirectoratesAsync(
+                        AuthService.CurrentWorker.Id);
+
+            await SetDefaultAudienceAsync();
+        }
+        catch (Exception ex)
+        {
+            hasAccess = false;
+
+            errorMessage =
+                $"Unable to load broadcast permissions: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    private async Task SetDefaultAudienceAsync()
+    {
+        if (IsPSO || IsMeatHead)
+        {
+            await SelectAudienceAsync("AllWorkers");
+        }
+        else if (IsClusterHead)
+        {
+            audienceType =
+                "SelectedDirectorates";
+
+            selectedDirectorateIds =
+                availableDirectorates
+                    .Select(x => x.Id)
+                    .ToHashSet();
+
+            await RefreshPreviewAsync();
+        }
+        else if (IsDirectorateHead)
+        {
+            await SelectAudienceAsync(
+                "OwnDirectorate");
+        }
+    }
+
+
+    private async Task SelectAudienceAsync(
+        string value)
+    {
+        audienceType = value;
+
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        if (audienceType !=
+            "SelectedDirectorates")
+        {
+            selectedDirectorateIds.Clear();
+        }
+
+        await RefreshPreviewAsync();
+    }
+
+
+    private async Task ToggleDirectorateAsync(
+        int directorateId,
+        bool isSelected)
+    {
+        if (isSelected)
+        {
+            selectedDirectorateIds.Add(
+                directorateId);
+        }
+        else
+        {
+            selectedDirectorateIds.Remove(
+                directorateId);
+        }
+
+        await RefreshPreviewAsync();
+    }
+
+
+    private async Task ToggleAllDirectoratesAsync()
+    {
+        if (AllDirectoratesSelected)
+        {
+            selectedDirectorateIds.Clear();
+        }
+        else
+        {
+            selectedDirectorateIds =
+                availableDirectorates
+                    .Select(x => x.Id)
+                    .ToHashSet();
+        }
+
+        await RefreshPreviewAsync();
+    }
+
+
+    private async Task RefreshPreviewAsync()
+    {
+        recipientCount = 0;
+        previewMessage = string.Empty;
+
+        if (AuthService.CurrentWorker == null ||
+            string.IsNullOrWhiteSpace(
+                audienceType))
+        {
+            previewMessage =
+                "Select an audience to preview recipients.";
+
+            return;
+        }
+
+        if (audienceType ==
+                "SelectedDirectorates" &&
+            selectedDirectorateIds.Count == 0)
+        {
+            previewMessage =
+                "Select at least one Directorate.";
+
+            return;
+        }
+
+        isPreviewing = true;
+
+        try
+        {
+            var result =
+                await BroadcastService
+                    .PreviewRecipientsAsync(
+                        AuthService.CurrentWorker.Id,
+                        audienceType,
+                        selectedDirectorateIds);
+
+            recipientCount =
+                result.RecipientCount;
+
+            previewMessage =
+                result.Message;
+        }
+        catch (Exception ex)
+        {
+            recipientCount = 0;
+
+            previewMessage =
+                $"Unable to preview recipients: {ex.Message}";
+        }
+        finally
+        {
+            isPreviewing = false;
+        }
+    }
+
+
+    private void ShowConfirmation()
+    {
+        errorMessage = string.Empty;
+
+        if (!CanSend)
+        {
+            errorMessage =
+                "Please complete the message and select a valid audience.";
+
+            return;
+        }
+
+        showConfirmation = true;
+    }
+
+
+    private void CloseConfirmation()
+    {
+        if (!isSending)
+        {
+            showConfirmation = false;
+        }
+    }
+
+
+    private async Task SendBroadcastAsync()
+    {
+        if (AuthService.CurrentWorker == null ||
+            !CanSend)
+        {
+            return;
+        }
+
+        isSending = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            // Recheck the recipients immediately
+            // before the actual send.
+            await RefreshPreviewAsync();
+
+            if (recipientCount <= 0)
+            {
+                showConfirmation = false;
+
+                errorMessage =
+                    "There are no eligible recipients for this broadcast.";
+
+                return;
+            }
+
+            var request =
+                new SendBroadcastRequest
+                {
+                    SenderWorkerId =
+                        AuthService.CurrentWorker.Id,
+
+                    Subject =
+                        subject.Trim(),
+
+                    MessageBody =
+                        messageBody.Trim(),
+
+                    AudienceType =
+                        audienceType,
+
+                    SelectedDirectorateIds =
+                        selectedDirectorateIds.ToList(),
+
+                    ExpiresAt = null
+                };
+
+            var result =
+                await BroadcastService
+                    .SendBroadcastAsync(request);
+
+            if (!result.Success)
+            {
+                showConfirmation = false;
+
+                errorMessage =
+                    result.Message;
+
+                return;
+            }
+
+            showConfirmation = false;
+
+            successMessage =
+                $"Broadcast sent successfully to {result.RecipientCount} " +
+                (result.RecipientCount == 1
+                    ? "recipient."
+                    : "recipients.");
+
+            // Return to Broadcast Centre so the
+            // sender can immediately see the sent
+            // message and its read/unread statistics.
+            Navigation.NavigateTo(
+                "/broadcast/broadcast-centre");
+        }
+        catch (Exception ex)
+        {
+            showConfirmation = false;
+
+            errorMessage =
+                $"Unable to send broadcast: {ex.Message}";
+        }
+        finally
+        {
+            isSending = false;
+        }
+    }
+
+
+    private string GetAudienceCardClass(
+        string value)
+    {
+        return audienceType == value
+            ? "audience-card selected"
+            : "audience-card";
+    }
+
+
+    private string GetRecipientText()
+    {
+        return recipientCount == 1
+            ? "eligible recipient"
+            : "eligible recipients";
+    }
+
+
+    private string GetAudienceDisplayName()
+    {
+        return audienceType switch
+        {
+            "AllWorkers" =>
+                "All Workers",
+
+            "AllLeaders" =>
+                "All Leaders",
+
+            "SelectedDirectorates" =>
+                selectedDirectorateIds.Count == 1
+                    ? "Selected Directorate"
+                    : $"{selectedDirectorateIds.Count} Selected Directorates",
+
+            "OwnDirectorate" =>
+                "My Directorate",
+
+            _ =>
+                audienceType
+        };
+    }
+}

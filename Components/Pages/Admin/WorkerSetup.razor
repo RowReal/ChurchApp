@@ -1,4 +1,4 @@
-﻿@page "/admin/worker-setup"
+@page "/admin/worker-setup"
 @layout Components.Layout.MainLayout
 
 @using ChurchApp.Services
@@ -16,6 +16,8 @@
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
 {
     <PageTitle>Worker Setup</PageTitle>
+<PageHero Title="Worker  Setup" Subtitle="Configure and manage ServiceHub settings." Kicker="Administration" Icon="fas fa-sliders-h" />
+
 
     <div class="container-fluid py-4">
 

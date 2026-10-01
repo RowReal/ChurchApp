@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @page "/dashboard"
 
 @layout Components.Layout.MainLayout
@@ -19,13 +19,14 @@
 @inject ApprovalRequestService ApprovalRequestService
 @inject ServiceRecordAccessService ServiceRecordAccessService
 @inject WorkerAttendanceScoringService WorkerAttendanceScoringService
+@inject BroadcastService BroadcastService
 
 
 <PageTitle>BCC ServiceHub - Dashboard</PageTitle>
 
 @if (AuthService.IsAuthenticated)
 {
-    <div class="container-fluid py-3">
+    <div class="container-fluid pt-0 pb-3">
         <!-- Welcome Section with User Avatar -->
        <!-- Modern Dashboard Header -->
 <div class="dashboard-hero mb-4">
@@ -484,8 +485,46 @@
             <span class="action-text">My Profile</span>
         </a>
     </div>
+    <!-- My Messages -->
+<div class="col-6 col-sm-4 col-lg-3">
+    <a href="/broadcast/my-messages"
+       class="action-card">
 
+        <div class="action-image">
+            <i class="fas fa-envelope"></i>
+        </div>
 
+        <span class="action-text">
+            My Messages
+        </span>
+
+        @if (unreadMessageCount > 0)
+        {
+            <span class="pending-badge"
+                  title="Unread messages">
+                @unreadMessageCount
+            </span>
+        }
+
+    </a>
+</div>
+@if (canAccessBroadcastCentre)
+{
+    <div class="col-6 col-sm-4 col-lg-3">
+        <a href="/broadcast/broadcast-centre"
+           class="action-card">
+
+            <div class="action-image">
+                <i class="fas fa-bullhorn"></i>
+            </div>
+
+            <span class="action-text">
+                Broadcast Centre
+            </span>
+
+        </a>
+    </div>
+}
     @if (CanAccessMyTeamWorkspace())
 {
     <div class="col-6 col-sm-4 col-lg-3">
@@ -1199,7 +1238,8 @@ else
     private int myPendingExcuses = 0;
     private int myApprovedExcuses = 0;
     private int userCompliance = 0;
-   
+   private int unreadMessageCount;
+   private bool canAccessBroadcastCentre;
     private int daysSinceJoin = 0;
     private int rejectionCount = 0;
     private int pendingBreakCount = 0;
@@ -1231,15 +1271,68 @@ private int myDeskCount;
 private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
 
     protected override async Task OnInitializedAsync()
+{
+    if (AuthService.IsAuthenticated &&
+        AuthService.CurrentWorker != null)
     {
-        if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
-        {
-             await LoadDashboardData();
-             await LoadMyDeskCountsAsync();
-             await LoadProfileApprovalCountAsync();
-             await LoadServiceRecordAccessAsync();
-        }
+        await LoadDashboardData();
+        await LoadMyDeskCountsAsync();
+        await LoadProfileApprovalCountAsync();
+        await LoadServiceRecordAccessAsync();
+        await LoadUnreadMessageCountAsync();
+        await LoadBroadcastAccessAsync();
     }
+}
+private async Task LoadBroadcastAccessAsync()
+{
+    canAccessBroadcastCentre = false;
+
+    if (!AuthService.IsAuthenticated ||
+        AuthService.CurrentWorker == null)
+    {
+        return;
+    }
+
+    try
+    {
+        var access =
+            await BroadcastService.GetSenderAccessAsync(
+                AuthService.CurrentWorker.Id);
+
+        canAccessBroadcastCentre =
+            access.CanSend;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"Unable to load broadcast access: {ex.Message}");
+
+        canAccessBroadcastCentre = false;
+    }
+}
+private async Task LoadUnreadMessageCountAsync()
+{
+    if (!AuthService.IsAuthenticated ||
+        AuthService.CurrentWorker == null)
+    {
+        unreadMessageCount = 0;
+        return;
+    }
+
+    try
+    {
+        unreadMessageCount =
+            await BroadcastService.GetUnreadCountAsync(
+                AuthService.CurrentWorker.Id);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"Unable to load unread message count: {ex.Message}");
+
+        unreadMessageCount = 0;
+    }
+}
     private async Task LoadProfileApprovalCountAsync()
 {
     if (!AuthService.IsAuthenticated ||

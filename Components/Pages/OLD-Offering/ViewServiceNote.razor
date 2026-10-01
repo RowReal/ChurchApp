@@ -1,10 +1,12 @@
-﻿@page "/Offering/viewnote/{id:int}"
+@page "/Offering/viewnote/{id:int}"
 @using ChurchApp.Models
 @using ChurchApp.Services
 @inject ServiceNoteService ServiceNoteService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
+
+<PageHero Title="View Service Note" Subtitle="Manage service records and offering activity." Kicker="Service Records" Icon="fas fa-church" />
 <h3 class="mb-4">Service Note Details</h3>
 
 @if (loading)

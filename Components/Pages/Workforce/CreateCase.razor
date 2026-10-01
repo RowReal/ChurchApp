@@ -1,4 +1,4 @@
-﻿@page "/Workforce/create-case"
+@page "/Workforce/create-case"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
@@ -9,6 +9,8 @@
 @inject ILogger<CreateCase> Logger
 
 <PageTitle>Create Accountability Case</PageTitle>
+<PageHero Title="Create  Accountability  Case" Subtitle="Manage workers, teams and workforce activity." Kicker="Workforce" Icon="fas fa-users" />
+
 
 @if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
 {

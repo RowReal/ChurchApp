@@ -1,4 +1,4 @@
-﻿@page "/admin/directorate-setup"
+@page "/admin/directorate-setup"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
@@ -10,6 +10,8 @@
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
 {
     <PageTitle>Directorate Setup - Admin Panel</PageTitle>
+<PageHero Title="Directorate  Setup" Subtitle="Configure and manage ServiceHub settings." Kicker="Administration" Icon="fas fa-sliders-h" />
+
 
     <div class="container-fluid py-4">
         <div class="row mb-4">

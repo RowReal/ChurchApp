@@ -1,4 +1,4 @@
-﻿@page "/workforce/correct-profile/{requestId:int}"
+@page "/workforce/correct-profile/{requestId:int}"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
@@ -11,6 +11,8 @@
 @if (AuthService.IsAuthenticated)
 {
     <PageTitle>Correct Profile - Workforce</PageTitle>
+<PageHero Title="Correct  Profile -  Workforce" Subtitle="Manage workers, teams and workforce activity." Kicker="Workforce" Icon="fas fa-users" />
+
 
     <div class="container-fluid py-4">
         <!-- Header -->

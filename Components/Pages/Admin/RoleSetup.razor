@@ -1,4 +1,4 @@
-﻿@page "/admin/role-setup"
+@page "/admin/role-setup"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
@@ -7,6 +7,8 @@
 @inject NavigationManager Navigation
 
 <PageTitle>BCC ServiceHub - Role Management</PageTitle>
+<PageHero Title="B C C  Service Hub -  Role  Management" Subtitle="Configure and manage ServiceHub settings." Kicker="Administration" Icon="fas fa-sliders-h" />
+
 
 @if (AuthService.IsAuthenticated && (AuthService.IsInRole("Pastor in Charge") || AuthService.IsInRole("Church Admin")))
 {

@@ -1,0 +1,840 @@
+﻿@page "/broadcast/my-messages"
+@rendermode InteractiveServer
+
+@using ChurchApp.Services
+@inject AuthService AuthService
+@inject BroadcastService BroadcastService
+
+<PageTitle>My Messages - BCC ServiceHub</PageTitle>
+
+<div class="messages-page">
+
+    <div class="messages-hero">
+        <div>
+            <div class="messages-hero-kicker">COMMUNICATION</div>
+            <h1>My Messages</h1>
+            <p>Broadcasts and general messages sent to you.</p>
+        </div>
+
+        <div class="messages-hero-count">
+            <span class="count-number">@unreadCount</span>
+            <span class="count-label">
+                @(unreadCount == 1 ? "Unread Message" : "Unread Messages")
+            </span>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="messages-state">
+            <div class="spinner-border spinner-border-sm me-2"
+                 role="status"></div>
+            Loading messages...
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+    else
+    {
+        <div class="messages-layout">
+
+            <!-- =========================
+                 INBOX
+                 ========================= -->
+            <section class="inbox-panel">
+
+                <div class="panel-heading">
+                    <div>
+                        <h2>Inbox</h2>
+                        <span>
+                            @messages.Count
+                            @(messages.Count == 1 ? "message" : "messages")
+                        </span>
+                    </div>
+
+                    @if (unreadCount > 0)
+                    {
+                        <span class="unread-pill">
+                            @unreadCount unread
+                        </span>
+                    }
+                </div>
+
+                @if (messages.Count == 0)
+                {
+                    <div class="empty-inbox">
+                        <div class="empty-icon">✉</div>
+                        <h3>No messages yet</h3>
+                        <p>
+                            Messages sent to you will appear here.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="message-list">
+                        @foreach (var item in messages)
+                        {
+                            <button type="button"
+                                    class="@GetMessageClass(item)"
+                                    @onclick="() => OpenMessage(item.BroadcastMessageId)">
+
+                                <div class="message-indicator">
+                                    @if (!item.IsRead)
+                                    {
+                                        <span class="unread-dot"></span>
+                                    }
+                                </div>
+
+                                <div class="message-summary">
+
+                                    <div class="message-topline">
+                                        <span class="message-source">
+                                            @item.SenderDisplayLabel
+                                        </span>
+
+                                        <span class="message-date">
+                                            @FormatDate(item.SentAt)
+                                        </span>
+                                    </div>
+
+                                    <div class="message-subject">
+                                        @item.Subject
+                                    </div>
+
+                                    <div class="message-status">
+                                        @if (item.IsRead)
+                                        {
+                                            <span class="read-text">
+                                                Read
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="unread-text">
+                                                New message
+                                            </span>
+                                        }
+                                    </div>
+
+                                </div>
+                            </button>
+                        }
+                    </div>
+                }
+
+            </section>
+
+
+            <!-- =========================
+                 MESSAGE READER
+                 ========================= -->
+            <section class="reader-panel">
+
+                @if (isOpeningMessage)
+                {
+                    <div class="reader-placeholder">
+                        <div class="spinner-border spinner-border-sm mb-2"
+                             role="status"></div>
+                        <div>Opening message...</div>
+                    </div>
+                }
+                else if (selectedMessage == null)
+                {
+                    <div class="reader-placeholder">
+                        <div class="reader-icon">✉</div>
+                        <h3>Select a message</h3>
+                        <p>
+                            Choose a message from your inbox to read it.
+                        </p>
+                    </div>
+                }
+                else
+                {
+                    <div class="reader-content">
+
+                        <div class="reader-header">
+
+                            <div class="reader-source-row">
+                                <span class="source-badge">
+                                    @selectedMessage.SenderDisplayLabel
+                                </span>
+
+                                <span class="reader-date">
+                                    @FormatFullDate(selectedMessage.SentAt)
+                                </span>
+                            </div>
+
+                            <h2>@selectedMessage.Subject</h2>
+
+                        </div>
+
+                        <div class="reader-divider"></div>
+
+                        <div class="reader-body">
+                            @selectedMessage.MessageBody
+                        </div>
+
+                        <div class="reader-footer">
+                            <span class="read-check">✓</span>
+                            Read
+                            @if (selectedMessage.FirstReadAt.HasValue)
+                            {
+                                <span>
+                                    @FormatFullDate(
+                                    selectedMessage.FirstReadAt.Value)
+                    </span>
+                                        }
+                        </div>
+
+                    </div>
+                }
+
+            </section>
+
+        </div>
+    }
+
+</div>
+
+
+<style>
+
+    .messages-page {
+        width: 100%;
+    }
+
+    /* =====================================
+           HERO
+           ===================================== */
+
+    .messages-hero {
+        min-height: 118px;
+        border-radius: 18px;
+        padding: 22px 26px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        color: #fff;
+        background: radial-gradient(circle at 85% 25%, rgba(255,255,255,.15), transparent 28%), linear-gradient( 135deg, #4c1d95 0%, #6d28d9 55%, #7c3aed 100% );
+        box-shadow: 0 8px 22px rgba(76,29,149,.13);
+    }
+
+    .messages-hero-kicker {
+        font-size: .69rem;
+        font-weight: 800;
+        letter-spacing: .12em;
+        opacity: .78;
+        margin-bottom: 4px;
+    }
+
+    .messages-hero h1 {
+        margin: 0;
+        font-size: 1.55rem;
+        font-weight: 750;
+    }
+
+    .messages-hero p {
+        margin: 4px 0 0;
+        font-size: .86rem;
+        opacity: .86;
+    }
+
+    .messages-hero-count {
+        min-width: 112px;
+        padding: 11px 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        border: 1px solid rgba(255,255,255,.20);
+        border-radius: 14px;
+        background: rgba(255,255,255,.10);
+        backdrop-filter: blur(4px);
+    }
+
+    .count-number {
+        font-size: 1.45rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .count-label {
+        margin-top: 5px;
+        font-size: .68rem;
+        opacity: .82;
+    }
+
+
+    /* =====================================
+           TWO-COLUMN MESSAGE AREA
+           ===================================== */
+
+    .messages-layout {
+        display: grid;
+        grid-template-columns: minmax(285px, 35%) minmax(0, 65%);
+        gap: 14px;
+        min-height: 480px;
+    }
+
+    .inbox-panel,
+    .reader-panel {
+        background: #fff;
+        border: 1px solid #e8e4ef;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 3px 12px rgba(31,41,55,.04);
+    }
+
+
+    /* =====================================
+           INBOX
+           ===================================== */
+
+    .panel-heading {
+        min-height: 60px;
+        padding: 12px 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #eeeaf3;
+    }
+
+        .panel-heading h2 {
+            margin: 0;
+            font-size: .98rem;
+            font-weight: 750;
+            color: #2f2938;
+        }
+
+        .panel-heading span {
+            font-size: .7rem;
+            color: #8a8492;
+        }
+
+        .panel-heading .unread-pill {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: .65rem;
+            font-weight: 700;
+            color: #b42318;
+            background: #fff1f0;
+        }
+
+    .message-list {
+        max-height: 570px;
+        overflow-y: auto;
+    }
+
+    .message-item {
+        width: 100%;
+        min-height: 82px;
+        padding: 11px 12px;
+        display: flex;
+        gap: 8px;
+        text-align: left;
+        background: #fff;
+        border: 0;
+        border-bottom: 1px solid #f0edf4;
+        transition: background .15s ease;
+    }
+
+        .message-item:hover {
+            background: #faf8fd;
+        }
+
+        .message-item.selected {
+            background: #f5f0ff;
+            box-shadow: inset 3px 0 0 #6d28d9;
+        }
+
+        .message-item.unread {
+            background: #fbf9ff;
+        }
+
+            .message-item.unread .message-subject {
+                font-weight: 750;
+                color: #27202f;
+            }
+
+    .message-indicator {
+        width: 10px;
+        padding-top: 5px;
+        flex-shrink: 0;
+    }
+
+    .unread-dot {
+        display: block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #dc2626;
+    }
+
+    .message-summary {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .message-topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .message-source {
+        color: #6d28d9;
+        font-size: .69rem;
+        font-weight: 800;
+        letter-spacing: .02em;
+    }
+
+    .message-date {
+        flex-shrink: 0;
+        color: #9a94a1;
+        font-size: .65rem;
+    }
+
+    .message-subject {
+        margin-top: 5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #4a4450;
+        font-size: .79rem;
+        font-weight: 600;
+    }
+
+    .message-status {
+        margin-top: 5px;
+        font-size: .64rem;
+    }
+
+    .unread-text {
+        color: #c81e1e;
+        font-weight: 700;
+    }
+
+    .read-text {
+        color: #8b8491;
+    }
+
+
+    /* =====================================
+           MESSAGE READER
+           ===================================== */
+
+    .reader-panel {
+        min-width: 0;
+    }
+
+    .reader-placeholder {
+        min-height: 430px;
+        padding: 30px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        color: #96909d;
+    }
+
+    .reader-icon {
+        margin-bottom: 10px;
+        font-size: 2rem;
+        color: #c9c1d6;
+    }
+
+    .reader-placeholder h3 {
+        margin: 0;
+        font-size: .95rem;
+        color: #5d5664;
+    }
+
+    .reader-placeholder p {
+        margin: 5px 0 0;
+        font-size: .76rem;
+    }
+
+    .reader-content {
+        padding: 20px 22px;
+    }
+
+    .reader-source-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .source-badge {
+        display: inline-flex;
+        padding: 4px 9px;
+        border-radius: 20px;
+        color: #5b21b6;
+        background: #f1eaff;
+        font-size: .67rem;
+        font-weight: 800;
+    }
+
+    .reader-date {
+        color: #918a98;
+        font-size: .68rem;
+    }
+
+    .reader-header h2 {
+        margin: 13px 0 0;
+        color: #2e2834;
+        font-size: 1.15rem;
+        font-weight: 750;
+        line-height: 1.35;
+    }
+
+    .reader-divider {
+        height: 1px;
+        margin: 16px 0;
+        background: #eeeaf2;
+    }
+
+    .reader-body {
+        min-height: 190px;
+        color: #514a57;
+        font-size: .82rem;
+        line-height: 1.72;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
+    .reader-footer {
+        margin-top: 24px;
+        padding-top: 11px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        border-top: 1px solid #f0edf3;
+        color: #928b98;
+        font-size: .66rem;
+    }
+
+    .read-check {
+        color: #15803d;
+        font-weight: 800;
+    }
+
+
+    /* =====================================
+           STATES
+           ===================================== */
+
+    .messages-state {
+        padding: 25px;
+        text-align: center;
+        color: #756e7c;
+        font-size: .8rem;
+    }
+
+    .empty-inbox {
+        padding: 60px 20px;
+        text-align: center;
+    }
+
+    .empty-icon {
+        font-size: 1.6rem;
+        color: #c9c2d3;
+    }
+
+    .empty-inbox h3 {
+        margin: 8px 0 3px;
+        color: #625b68;
+        font-size: .85rem;
+    }
+
+    .empty-inbox p {
+        margin: 0;
+        color: #99929f;
+        font-size: .7rem;
+    }
+
+
+    /* =====================================
+           RESPONSIVE
+           Razor requires @@media.
+           ===================================== */
+
+    @@media (max-width: 900px) {
+
+        .messages-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .message-list {
+            max-height: 380px;
+        }
+
+        .reader-placeholder {
+            min-height: 250px;
+        }
+    }
+
+
+    @@media (max-width: 600px) {
+
+        .messages-hero {
+            min-height: auto;
+            padding: 17px 18px;
+            border-radius: 15px;
+            align-items: flex-start;
+        }
+
+            .messages-hero h1 {
+                font-size: 1.25rem;
+            }
+
+            .messages-hero p {
+                font-size: .74rem;
+            }
+
+        .messages-hero-count {
+            min-width: 75px;
+            padding: 9px 10px;
+        }
+
+        .count-number {
+            font-size: 1.2rem;
+        }
+
+        .count-label {
+            font-size: .57rem;
+            text-align: center;
+        }
+
+        .messages-layout {
+            gap: 10px;
+        }
+
+        .inbox-panel,
+        .reader-panel {
+            border-radius: 12px;
+        }
+
+        .reader-content {
+            padding: 17px 16px;
+        }
+
+        .reader-source-row {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .reader-header h2 {
+            font-size: 1rem;
+        }
+    }
+
+</style>
+
+
+@code {
+
+    private List<MyMessageListItem> messages = new();
+
+    private MyMessageDetails? selectedMessage;
+
+    private int unreadCount;
+
+    private int? selectedMessageId;
+
+    private bool isLoading = true;
+
+    private bool isOpeningMessage;
+
+    private string errorMessage = string.Empty;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMessages();
+    }
+
+
+    private async Task LoadMessages()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            if (!AuthService.IsAuthenticated ||
+                AuthService.CurrentWorker == null)
+            {
+                errorMessage =
+                    "You must be signed in to view your messages.";
+
+                return;
+            }
+
+            var workerId =
+                AuthService.CurrentWorker.Id;
+
+            messages =
+                await BroadcastService
+                    .GetMyMessagesAsync(workerId);
+
+            unreadCount =
+                await BroadcastService
+                    .GetUnreadCountAsync(workerId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Unable to load your messages. " +
+                ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    private async Task OpenMessage(
+        int broadcastMessageId)
+    {
+        if (AuthService.CurrentWorker == null)
+            return;
+
+        try
+        {
+            isOpeningMessage = true;
+            errorMessage = string.Empty;
+
+            selectedMessageId =
+                broadcastMessageId;
+
+            selectedMessage =
+                await BroadcastService
+                    .OpenMyMessageAsync(
+                        AuthService.CurrentWorker.Id,
+                        broadcastMessageId);
+
+            if (selectedMessage == null)
+            {
+                errorMessage =
+                    "This message is not available.";
+
+                return;
+            }
+
+
+            // Update the inbox row immediately without
+            // reloading the entire page.
+            var listItem =
+                messages.FirstOrDefault(x =>
+                    x.BroadcastMessageId ==
+                    broadcastMessageId);
+
+            if (listItem != null &&
+                !listItem.IsRead)
+            {
+                listItem.IsRead = true;
+
+                listItem.FirstReadAt =
+                    selectedMessage.FirstReadAt;
+
+                if (unreadCount > 0)
+                    unreadCount--;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                "Unable to open this message. " +
+                ex.Message;
+        }
+        finally
+        {
+            isOpeningMessage = false;
+        }
+    }
+
+
+    private string GetMessageClass(
+        MyMessageListItem item)
+    {
+        var css = "message-item";
+
+        if (!item.IsRead)
+            css += " unread";
+
+        if (selectedMessageId ==
+            item.BroadcastMessageId)
+        {
+            css += " selected";
+        }
+
+        return css;
+    }
+
+
+    private static string FormatDate(
+        DateTime value)
+    {
+        var local = ToNigeriaTime(value);
+
+        if (local.Date == DateTime.Today)
+            return local.ToString("h:mm tt");
+
+        if (local.Date ==
+            DateTime.Today.AddDays(-1))
+        {
+            return "Yesterday";
+        }
+
+        return local.ToString("dd MMM");
+    }
+
+
+    private static string FormatFullDate(
+        DateTime value)
+    {
+        var local = ToNigeriaTime(value);
+
+        return local.ToString(
+            "dd MMM yyyy, h:mm tt");
+    }
+
+
+    private static DateTime ToNigeriaTime(
+        DateTime value)
+    {
+        try
+        {
+            var utc =
+                value.Kind == DateTimeKind.Utc
+                    ? value
+                    : DateTime.SpecifyKind(
+                        value,
+                        DateTimeKind.Utc);
+
+            var nigeriaTimeZone =
+                TimeZoneInfo.FindSystemTimeZoneById(
+                    "Africa/Lagos");
+
+            return TimeZoneInfo.ConvertTimeFromUtc(
+                utc,
+                nigeriaTimeZone);
+        }
+        catch
+        {
+            // Nigeria is UTC+1.
+            return value.AddHours(1);
+        }
+    }
+}

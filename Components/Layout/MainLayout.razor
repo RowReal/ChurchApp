@@ -22,15 +22,16 @@
             {
                 <div class="bccv2-user">
                     <div class="bccv2-avatar">
-                        @if (!string.IsNullOrEmpty(AuthService.CurrentWorker?.PassportPhotoPath))
+                        @if (!string.IsNullOrWhiteSpace(AuthService.CurrentWorker?.PassportPhotoPath))
                         {
-                            <img src="@AuthService.CurrentWorker.PassportPhotoPath"
-     alt="@AuthService.CurrentWorker?.FirstName"
-     onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=&quot;fas fa-user&quot;></i>';" />
+                            <img src="@GetPassportPhotoUrl(AuthService.CurrentWorker.PassportPhotoPath)"
+                                 alt="@($"{AuthService.CurrentWorker?.FirstName} {AuthService.CurrentWorker?.LastName}")"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                            <span class="bccv2-avatar-initials" style="display:none;">@GetWorkerInitials()</span>
                         }
                         else
                         {
-                            <i class="fas fa-user"></i>
+                            <span class="bccv2-avatar-initials">@GetWorkerInitials()</span>
                         }
                     </div>
 
@@ -83,6 +84,41 @@
     {
         isSidebarVisible = !isSidebarVisible;
         await InvokeAsync(StateHasChanged);
+    }
+
+    private string GetPassportPhotoUrl(string? photoPath)
+    {
+        if (string.IsNullOrWhiteSpace(photoPath))
+            return string.Empty;
+
+        var path = photoPath.Trim().Replace("\\", "/");
+
+        if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            return path;
+        }
+
+        if (path.StartsWith("/"))
+            return path;
+
+        if (path.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase))
+            return "/" + path;
+
+        return "/uploads/" + path;
+    }
+
+    private string GetWorkerInitials()
+    {
+        var first = AuthService.CurrentWorker?.FirstName?.Trim();
+        var last = AuthService.CurrentWorker?.LastName?.Trim();
+
+        var firstInitial = string.IsNullOrWhiteSpace(first) ? string.Empty : first[0].ToString();
+        var lastInitial = string.IsNullOrWhiteSpace(last) ? string.Empty : last[0].ToString();
+        var initials = (firstInitial + lastInitial).ToUpperInvariant();
+
+        return string.IsNullOrWhiteSpace(initials) ? "U" : initials;
     }
 
     private void SignOut()

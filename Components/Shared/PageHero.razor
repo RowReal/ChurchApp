@@ -1,0 +1,26 @@
+@using ChurchApp.Services
+@inject AuthService AuthService
+
+@if (AuthService.IsAuthenticated)
+{
+    <section class="bcc-v4-page-hero">
+        <div class="bcc-v4-page-hero-copy">
+            <div class="bcc-v4-page-kicker">
+                <i class="@Icon"></i>
+                <span>@Kicker</span>
+            </div>
+            <h1>@Title</h1>
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <p>@Subtitle</p>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Subtitle { get; set; } = string.Empty;
+    [Parameter] public string Kicker { get; set; } = "BCC ServiceHub";
+    [Parameter] public string Icon { get; set; } = "fas fa-layer-group";
+}

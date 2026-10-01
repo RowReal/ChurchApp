@@ -104,6 +104,7 @@ builder.Services.AddScoped<LeaveRequestService>();
 builder.Services.AddScoped<WorkerAttendanceExportService>();
 builder.Services.AddScoped<LatePermissionService>();
 builder.Services.AddScoped<PermissionRequestReportService>();
+builder.Services.AddScoped<BroadcastService>();
 //Service Record/Offering Services
 builder.Services.AddScoped<ChurchOfferingAccessService>();
 

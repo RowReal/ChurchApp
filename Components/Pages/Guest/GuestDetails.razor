@@ -642,3 +642,288 @@ else
         return string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
     }
 }
+
+<style>
+    /* Compact Guest 360 presentation overrides */
+    .guest360-v2-page {
+        max-width: 1500px;
+        margin: 0 auto;
+        font-size: 0.82rem;
+    }
+
+        .guest360-v2-page .bcc-page-header {
+            margin-bottom: 12px;
+            padding: 14px 18px;
+            min-height: auto;
+        }
+
+        .guest360-v2-page .guest-page-kicker {
+            font-size: 0.68rem;
+            margin-bottom: 2px;
+        }
+
+        .guest360-v2-page .bcc-page-title {
+            font-size: 1.2rem;
+            line-height: 1.2;
+        }
+
+        .guest360-v2-page .bcc-page-subtitle {
+            font-size: 0.72rem;
+            margin-top: 2px;
+        }
+
+        .guest360-v2-page .bcc-btn {
+            min-height: 30px;
+            padding: 5px 10px;
+            font-size: 0.72rem;
+        }
+
+        .guest360-v2-page .bcc-card {
+            margin-bottom: 12px;
+            border-radius: 12px;
+        }
+
+        .guest360-v2-page .bcc-card-header {
+            padding: 10px 12px;
+            gap: 7px;
+        }
+
+        .guest360-v2-page .bcc-card-title {
+            font-size: 0.82rem;
+        }
+
+        .guest360-v2-page .bcc-card-header small {
+            font-size: 0.65rem;
+        }
+
+        .guest360-v2-page .bcc-card-body {
+            padding: 12px;
+        }
+
+    .guest360-profile-hero {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 2px 0;
+    }
+
+    .guest360-avatar.large {
+        width: 52px;
+        height: 52px;
+        flex: 0 0 52px;
+        font-size: 1rem;
+        border-radius: 12px;
+    }
+
+    .guest360-profile-hero h2 {
+        margin: 0 0 2px;
+        font-size: 1.08rem;
+        line-height: 1.2;
+    }
+
+    .guest360-profile-hero p {
+        margin: 0 0 6px;
+        font-size: 0.7rem;
+    }
+
+    .guest360-meta-pills {
+        gap: 5px;
+    }
+
+        .guest360-meta-pills span {
+            padding: 3px 7px;
+            font-size: 0.62rem;
+            border-radius: 999px;
+        }
+
+    .guest360-status-box {
+        min-width: 105px;
+        padding: 7px 9px;
+        border-radius: 9px;
+    }
+
+        .guest360-status-box span {
+            font-size: 0.58rem;
+        }
+
+        .guest360-status-box strong {
+            font-size: 0.72rem;
+        }
+
+    .guest360-v2-page .row.g-3.mb-4 {
+        margin-bottom: 12px !important;
+    }
+
+    .guest360-v2-page .row.g-4 {
+        --bs-gutter-x: 0.8rem;
+        --bs-gutter-y: 0.8rem;
+    }
+
+    .team-summary-card {
+        min-height: 74px;
+        padding: 10px 11px;
+        border-radius: 10px;
+    }
+
+        .team-summary-card span {
+            font-size: 0.6rem;
+        }
+
+        .team-summary-card strong {
+            font-size: 0.82rem;
+            line-height: 1.2;
+        }
+
+        .team-summary-card > i {
+            font-size: 1.05rem;
+        }
+
+    .guest-form-section {
+        margin-bottom: 10px;
+    }
+
+    .guest-form-section-header {
+        min-height: 30px;
+        padding: 6px 9px;
+        gap: 6px;
+        font-size: 0.7rem;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .guest-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 7px;
+        padding: 8px;
+    }
+
+    .guest-detail-item {
+        min-height: 48px;
+        padding: 7px 9px;
+        border-radius: 7px;
+    }
+
+        .guest-detail-item span {
+            display: block;
+            margin-bottom: 2px;
+            font-size: 0.58rem;
+            line-height: 1.15;
+        }
+
+        .guest-detail-item strong {
+            font-size: 0.72rem;
+            line-height: 1.25;
+        }
+
+        .guest-detail-item.full {
+            grid-column: 1 / -1;
+        }
+
+    .guest360-actions-list {
+        gap: 6px;
+    }
+
+    .guest360-action {
+        min-height: 34px;
+        padding: 7px 9px;
+        gap: 8px;
+        font-size: 0.7rem;
+        border-radius: 8px;
+    }
+
+        .guest360-action i {
+            width: 18px;
+            font-size: 0.78rem;
+        }
+
+    .worker360-timeline {
+        padding-left: 2px;
+    }
+
+    .worker360-timeline-item {
+        padding: 0 0 10px 18px;
+    }
+
+        .worker360-timeline-item span {
+            font-size: 0.57rem;
+        }
+
+        .worker360-timeline-item strong {
+            font-size: 0.69rem;
+        }
+
+        .worker360-timeline-item p {
+            margin: 1px 0 0;
+            font-size: 0.62rem;
+            line-height: 1.3;
+        }
+
+    .worker360-timeline-dot {
+        width: 8px;
+        height: 8px;
+        left: 0;
+    }
+
+    .bcc-info-row {
+        padding: 7px 0;
+    }
+
+    .bcc-info-label {
+        font-size: 0.61rem;
+    }
+
+    .bcc-info-value {
+        font-size: 0.69rem;
+    }
+
+    .profile-v2-alert {
+        padding: 8px 10px;
+        margin-bottom: 10px;
+        font-size: 0.72rem;
+    }
+
+    .team-modal-card {
+        max-width: 390px;
+        padding: 16px;
+    }
+
+        .team-modal-card h4 {
+            font-size: 0.95rem;
+        }
+
+        .team-modal-card p, .guest-access-box {
+            font-size: 0.7rem;
+        }
+
+    @@media (max-width: 767px) {
+        .guest360-v2-page {
+            font-size: 0.8rem;
+        }
+
+            .guest360-v2-page .bcc-page-header {
+                padding: 12px 13px;
+            }
+
+        .guest360-profile-hero {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .guest360-status-box {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .guest-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .guest-detail-item.full {
+            grid-column: auto;
+        }
+
+        .team-summary-card {
+            min-height: 66px;
+        }
+    }
+</style>

@@ -1,0 +1,118 @@
+/* BCC ServiceHub V4 — consistent compact visual system */
+:root {
+  --bcc-purple:#4b2e83;
+  --bcc-purple-dark:#2f185e;
+  --bcc-purple-deep:#21113f;
+  --bcc-lilac:#f4f0fb;
+  --bcc-gold:#d4af37;
+  --bcc-ink:#1f2937;
+  --bcc-muted:#667085;
+  --bcc-line:#e7e2ef;
+  --bcc-surface:#ffffff;
+  --bcc-bg:#f7f6fa;
+}
+
+/* No blank strip above page content/heroes. Keep side breathing room. */
+.bccv2-content { padding-top:16px !important; background:var(--bcc-bg) !important; }
+.bccv2-content-full { padding:0 !important; }
+.public-landing, .hero-section, .login-page { margin-top:0 !important; }
+
+/* One shared visual language for existing page heroes. */
+.bcc-page-header,
+.notice-page-header,
+.dashboard-hero,
+.bcc-v4-page-hero {
+    background: linear-gradient(120deg,var(--bcc-purple-deep) 0%,var(--bcc-purple) 58%,#6d4ab2 100%) !important;
+    color: #fff !important;
+    border: 0 !important;
+    border-radius: 18px !important;
+    padding: 18px 22px !important;
+    margin-top: 0 !important;
+    margin-bottom: 16px !important;
+    min-height: 104px;
+    box-shadow: 0 10px 26px rgba(47,24,94,.16) !important;
+}
+.bcc-page-header { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.bcc-page-title,.bcc-v4-page-hero h1,.dashboard-hero h2,.notice-page-header h2 {
+  color:#fff !important; font-size:1.42rem !important; line-height:1.15 !important; font-weight:800 !important; margin:3px 0 4px !important;
+}
+.bcc-page-subtitle,.bcc-v4-page-hero p,.dashboard-hero p,.notice-page-header p {
+  color:rgba(255,255,255,.84) !important; font-size:.82rem !important; margin:0 !important;
+}
+.bcc-page-header .bcc-page-subtitle:first-child { color:#eadfff !important; font-size:.72rem !important; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+
+/* Hero used only on pages that did not already have one. */
+.bcc-v4-page-hero { display:flex; align-items:center; width:100%; }
+.bcc-v4-page-hero-copy { max-width:850px; }
+.bcc-v4-page-kicker { display:flex; align-items:center; gap:7px; color:#eadfff; font-size:.71rem; font-weight:800; text-transform:uppercase; letter-spacing:.07em; }
+.bcc-v4-page-hero h1 { margin-top:5px !important; }
+
+/* Compact cards, tables and controls throughout the authenticated app. */
+.bcc-card,.profile-review-card,.card { border-radius:14px !important; box-shadow:0 5px 16px rgba(31,41,55,.055) !important; }
+.bcc-card { margin-bottom:14px !important; }
+.bcc-card-header { padding:12px 15px !important; }
+.bcc-card-body,.card-body { padding:14px 16px !important; }
+.form-label { margin-bottom:4px !important; font-size:.78rem; }
+.form-control,.form-select,.input-group-text { min-height:34px; padding:.36rem .62rem; font-size:.82rem; border-radius:8px !important; }
+textarea.form-control { min-height:auto; }
+.form-text { font-size:.7rem !important; margin-top:3px !important; }
+.mb-3 { margin-bottom:.72rem !important; }
+.g-3 { --bs-gutter-x:.8rem; --bs-gutter-y:.72rem; }
+.table > :not(caption) > * > * { padding:.48rem .58rem; font-size:.79rem; }
+.btn,.bcc-btn { border-radius:9px !important; font-size:.78rem; padding:.43rem .72rem; }
+
+/* Keep old simple page heading rows subordinate when a V4 hero was added. */
+.bcc-v4-page-hero + .container-fluid > .row.mb-4:first-child h1,
+.bcc-v4-page-hero + .container-fluid > .row.mb-4:first-child h2 { font-size:1rem !important; }
+
+/* Purple identity for specialized hero/profile treatments without changing functionality. */
+[class*="profile-hero"], [class*="request-type-hero"] { border-color:#d9cdef !important; }
+.request-type-hero { background:linear-gradient(135deg,#f6f1ff,#fff) !important; }
+
+@media (max-width:991px) {
+  .bccv2-content { padding-left:12px !important; padding-right:12px !important; }
+  .bcc-page-header,.notice-page-header,.dashboard-hero,.bcc-v4-page-hero { border-radius:15px !important; padding:15px 16px !important; min-height:92px; }
+  .bcc-page-header { align-items:flex-start; flex-direction:column; }
+  .bcc-page-title,.bcc-v4-page-hero h1,.dashboard-hero h2,.notice-page-header h2 { font-size:1.2rem !important; }
+}
+
+@media (max-width:575px) {
+  .bccv2-content { padding-left:8px !important; padding-right:8px !important; }
+  .bcc-page-header,.notice-page-header,.dashboard-hero,.bcc-v4-page-hero { margin-bottom:12px !important; padding:13px 14px !important; min-height:84px; }
+  .bcc-card-body,.card-body { padding:12px !important; }
+  .form-control,.form-select,.input-group-text { min-height:36px; }
+}
+
+
+/* V5 refinement: profile photo and compact editor treatment. */
+.bccv2-avatar-initials {
+  width:100%;
+  height:100%;
+  align-items:center;
+  justify-content:center;
+  font-size:.78rem;
+  font-weight:900;
+  letter-spacing:.02em;
+  color:var(--bcc-purple);
+}
+.bccv2-avatar img { display:block; width:100%; height:100%; object-fit:cover; }
+
+/* Keep rich-text capture compact without changing editor functionality. */
+.rich-editor-wrapper .bcc-rich-editor .ql-container,
+.rich-editor-wrapper .bcc-rich-editor .ql-editor {
+  min-height:145px !important;
+  height:145px;
+}
+.rich-editor-wrapper .bcc-rich-editor .ql-editor { overflow-y:auto; }
+
+@media (max-width:991px) {
+  .bccv2-content { padding-top:14px !important; }
+}
+@media (max-width:575px) {
+  .bccv2-content { padding-top:10px !important; }
+  .rich-editor-wrapper .bcc-rich-editor .ql-container,
+  .rich-editor-wrapper .bcc-rich-editor .ql-editor {
+    min-height:125px !important;
+    height:125px;
+  }
+}

@@ -1,4 +1,4 @@
-﻿@page "/workforce/view-worker/{workerId:int}"
+@page "/workforce/view-worker/{workerId:int}"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
@@ -9,6 +9,8 @@
 @if (AuthService.IsAuthenticated)
 {
     <PageTitle>View Worker - Workforce</PageTitle>
+<PageHero Title="View  Worker -  Workforce" Subtitle="Manage workers, teams and workforce activity." Kicker="Workforce" Icon="fas fa-users" />
+
 
     <div class="container-fluid py-4">
         @if (worker != null)

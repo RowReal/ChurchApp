@@ -1,4 +1,4 @@
-﻿@page "/Workforce/feedback"
+@page "/Workforce/feedback"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
@@ -8,6 +8,8 @@
 @inject ILogger<Feedback> Logger
 
 <PageTitle>Growth Feedback</PageTitle>
+<PageHero Title="Growth  Feedback" Subtitle="Manage workers, teams and workforce activity." Kicker="Workforce" Icon="fas fa-users" />
+
 
 @if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
 {

@@ -1,4 +1,4 @@
-﻿@page "/Offering/editnote/{id:int}"
+@page "/Offering/editnote/{id:int}"
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Components.Forms
@@ -9,6 +9,8 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
+
+<PageHero Title="Edit Service Note" Subtitle="Manage service records and offering activity." Kicker="Service Records" Icon="fas fa-church" />
 <h3>Edit Service Note</h3>
 
 @if (loading)

@@ -1,4 +1,4 @@
-﻿@page "/Workforce/create-feedback"
+@page "/Workforce/create-feedback"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
@@ -8,6 +8,8 @@
 @inject NavigationManager Navigation
 
 <PageTitle>Create Growth Feedback</PageTitle>
+<PageHero Title="Create  Growth  Feedback" Subtitle="Manage workers, teams and workforce activity." Kicker="Workforce" Icon="fas fa-users" />
+
 
 <!-- Reuse your create-case component with updated routing -->
 @if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
