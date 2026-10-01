@@ -95,6 +95,23 @@ namespace ChurchApp.Services
                 .ToListAsync();
         }
 
+        public async Task<List<ProfileUpdateRequest>>
+    GetAllPendingProfileApprovalsAsync()
+        {
+            return await _context.ProfileUpdateRequests
+                .AsNoTracking()
+                .Include(p => p.Worker)
+                    .ThenInclude(w => w.Directorate)
+                .Include(p => p.Worker)
+                    .ThenInclude(w => w.Department)
+                .Include(p => p.EligibleApprovers)
+                    .ThenInclude(a => a.ApproverWorker)
+                .Include(p => p.ApproverWorker)
+                .Where(p => p.Status == "Pending")
+                .OrderBy(p => p.SubmittedDate)
+                .ToListAsync();
+        }
+
         public async Task<bool>
             HasPendingUpdateRequestAsync(int workerId)
         {

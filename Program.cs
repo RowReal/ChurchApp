@@ -83,6 +83,7 @@ builder.Services.AddScoped<PrivilegeService>();
 //builder.Services.AddScoped<WorkerAttendanceTestSeeder>();
 
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<WorkerProfileComplianceService>();
 
 builder.Services.Configure<EmailConfiguration>(
     builder.Configuration.GetSection("EmailConfiguration"));
@@ -113,6 +114,7 @@ builder.Services.AddScoped<ChurchOfferingService>();
 builder.Services.AddScoped<ApprovalRequestService>();
 builder.Services.AddScoped<ServiceRecordAccessService>();
 builder.Services.AddScoped<VehicleRecordService>();
+builder.Services.AddScoped<PendingAttentionService>();
 
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<IncomeCategoryService>();

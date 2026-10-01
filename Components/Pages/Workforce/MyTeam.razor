@@ -349,10 +349,10 @@ else
 
                                                 <td>
                                                     <span class="team-status-badge
-                                                                    @(teamWorker.IsActive ? "active" : "inactive")">
+                                                                                @(teamWorker.IsActive ? "active" : "inactive")">
                                                         <i class="fas @(teamWorker.IsActive
-                                                                                                                       ? "fa-circle-check"
-                                                                                                                       : "fa-circle-xmark")"></i>
+                                                                                                                                                                                  ? "fa-circle-check"
+                                                                                                                                                                                  : "fa-circle-xmark")"></i>
 
                                                         @(teamWorker.IsActive
                                                                                                     ? "Active"
@@ -1605,3 +1605,4 @@ else
         }
     }
 </style>
+

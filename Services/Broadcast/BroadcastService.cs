@@ -386,11 +386,10 @@ namespace ChurchApp.Services
         {
             var leaderIds = new HashSet<int>();
 
-
-            // -----------------------------------------------------
+            // =========================================================
             // A. CLUSTER HEADS
-            // Actual configured appointments.
-            // -----------------------------------------------------
+            // Based on actual Supervisory Cluster configuration.
+            // =========================================================
             var clusterHeadIds =
                 await _context.SupervisoryClusters
                     .AsNoTracking()
@@ -404,10 +403,10 @@ namespace ChurchApp.Services
             leaderIds.UnionWith(clusterHeadIds);
 
 
-            // -----------------------------------------------------
-            // B. DIRECTORATE HEADS + ASSISTANT HEADS
-            // Actual configured appointments.
-            // -----------------------------------------------------
+            // =========================================================
+            // B. CONFIGURED DIRECTORATE LEADERSHIP
+            // Keep the organisational configuration as a valid source.
+            // =========================================================
             var directorateLeadership =
                 await _context.Directorates
                     .AsNoTracking()
@@ -425,42 +424,61 @@ namespace ChurchApp.Services
                     leaderIds.Add(item.HeadWorkerId.Value);
 
                 if (item.AssistantHeadWorkerId.HasValue)
-                    leaderIds.Add(
-                        item.AssistantHeadWorkerId.Value);
+                    leaderIds.Add(item.AssistantHeadWorkerId.Value);
             }
 
 
-            // -----------------------------------------------------
-            // C. HEAD / ASSISTANT HEAD OF SERVICE
+            // =========================================================
+            // C. ROLE-BASED LEADERS
             //
-            // Service leadership is represented by Worker.Role
-            // in the existing application.
-            // -----------------------------------------------------
-            var serviceLeaderIds =
+            // This ensures leaders recorded in Workers.Role are also
+            // recognised even where the Directorate configuration has
+            // not yet been populated.
+            //
+            // Included:
+            // - Head of Directorate
+            // - Asst Head of Directorate
+            // - Assistant Head of Directorate
+            // - Head of Service
+            // - Asst Head of Service
+            // - Assistant Head of Service
+            //
+            // Head of Department is deliberately NOT included.
+            // =========================================================
+            var roleBasedLeaderIds =
                 await _context.Workers
                     .AsNoTracking()
                     .Where(x =>
                         x.IsActive &&
                         x.Role != null &&
                         (
-                            x.Role.ToLower() ==
+                            x.Role.ToLower().Trim() ==
+                                "head of directorate" ||
+
+                            x.Role.ToLower().Trim() ==
+                                "asst head of directorate" ||
+
+                            x.Role.ToLower().Trim() ==
+                                "assistant head of directorate" ||
+
+                            x.Role.ToLower().Trim() ==
                                 "head of service" ||
 
-                            x.Role.ToLower() ==
-                                "assistant head of service" ||
+                            x.Role.ToLower().Trim() ==
+                                "asst head of service" ||
 
-                            x.Role.ToLower() ==
-                                "asst head of service"
+                            x.Role.ToLower().Trim() ==
+                                "assistant head of service"
                         ))
                     .Select(x => x.Id)
                     .ToListAsync();
 
-            leaderIds.UnionWith(serviceLeaderIds);
+            leaderIds.UnionWith(roleBasedLeaderIds);
 
 
-            // -----------------------------------------------------
-            // Keep active workers only.
-            // -----------------------------------------------------
+            // =========================================================
+            // D. KEEP ACTIVE WORKERS ONLY
+            // =========================================================
             var activeLeaderIds =
                 await _context.Workers
                     .AsNoTracking()
@@ -471,16 +489,16 @@ namespace ChurchApp.Services
                     .ToListAsync();
 
 
-            // -----------------------------------------------------
-            // PSO can NEVER be a broadcast recipient.
-            // -----------------------------------------------------
+            // =========================================================
+            // E. PSO CAN NEVER BE A BROADCAST RECIPIENT
+            // =========================================================
             var psoIds =
                 await _context.Workers
                     .AsNoTracking()
                     .Where(x =>
                         x.IsActive &&
                         x.Role != null &&
-                        x.Role.ToLower() ==
+                        x.Role.ToLower().Trim() ==
                             "pastor in charge")
                     .Select(x => x.Id)
                     .ToListAsync();

@@ -7,6 +7,7 @@
 @inject WorkerService WorkerService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject WorkerProfileComplianceService ProfileComplianceService
 
 <PageTitle>Worker Profiles - BCC ServiceHub</PageTitle>
 
@@ -75,7 +76,7 @@ else
 
         <div class="row g-3 align-items-start">
 
-            <div class="col-12 col-xl-4">
+            <div class="col-12 col-xl-3">
                 <div class="bcc-card worker-filter-card">
                     <div class="worker-panel-header">
                         <div class="worker-panel-icon"><i class="fas fa-filter"></i></div>
@@ -152,7 +153,7 @@ else
                 </div>
             </div>
 
-            <div class="col-12 col-xl-8">
+            <div class="col-12 col-xl-9">
                 <div class="bcc-card worker-list-card">
                     <div class="worker-list-header">
                         <div>
@@ -180,8 +181,7 @@ else
                                     <tbody>
                                         @foreach (var workerItem in filteredWorkers)
                                         {
-                                            var completeness = CalculateCompleteness(workerItem);
-
+                                            var completeness = ProfileComplianceService.Calculate(workerItem);
                                             <tr>
                                                 <td>
                                                     <div class="worker-name-cell">
@@ -226,7 +226,9 @@ else
                                                     <div class="compliance-cell">
                                                         <div class="compliance-top"><span>@completeness%</span></div>
                                                         <div class="progress">
-                                                            <div class="progress-bar @GetProgressClass(completeness)" style="width: @completeness%"></div>
+                                                            <div class="progress-bar @ProfileComplianceService.GetProgressClass(completeness)"
+                                                                 style="width: @completeness%">
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -320,7 +322,7 @@ else
                 <div><span>Directorate</span><strong>@(previewWorker.Directorate?.Name ?? "Not assigned")</strong></div>
                 <div><span>Department</span><strong>@(previewWorker.Department?.Name ?? "Not assigned")</strong></div>
                 <div><span>Time in BCC</span><strong>@GetBccAge(previewWorker)</strong></div>
-                <div><span>Profile</span><strong>@CalculateCompleteness(previewWorker)%</strong></div>
+                <div><span>Profile</span><strong>@ProfileComplianceService.Calculate(previewWorker)%</strong></div>
             </div>
 
             <div class="worker-preview-actions">
@@ -471,8 +473,11 @@ else
         {
             "name" => query.OrderBy(workerItem => workerItem.LastName).ThenBy(workerItem => workerItem.FirstName),
             "directorate" => query.OrderBy(workerItem => workerItem.Directorate?.Name).ThenBy(workerItem => workerItem.LastName),
-            "compliance-high" => query.OrderByDescending(CalculateCompleteness).ThenBy(workerItem => workerItem.LastName),
-            "compliance-low" => query.OrderBy(CalculateCompleteness).ThenBy(workerItem => workerItem.LastName),
+            "compliance-high" => query.OrderByDescending(workerItem => ProfileComplianceService.Calculate(workerItem))
+                             .ThenBy(workerItem => workerItem.LastName),
+
+            "compliance-low" => query.OrderBy(workerItem => ProfileComplianceService.Calculate(workerItem))
+                                     .ThenBy(workerItem => workerItem.LastName),
             _ => query.OrderBy(workerItem => GetWorkerPriority(workerItem.WorkerId))
                       .ThenBy(workerItem => ExtractWorkerNumber(workerItem.WorkerId))
         };
@@ -546,45 +551,8 @@ else
         }
     }
 
-    private int CalculateCompleteness(Worker workerItem)
-    {
-        var filledFields = 0;
-        const int totalFields = 15;
 
-        if (!string.IsNullOrWhiteSpace(workerItem.FirstName)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(workerItem.LastName)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(workerItem.Email)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(workerItem.Phone)) filledFields++;
-        if (workerItem.DateOfBirth.HasValue) filledFields++;
-        if (!string.IsNullOrWhiteSpace(workerItem.Profession)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(workerItem.Organization)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(workerItem.Address)) filledFields++;
-        if (workerItem.DirectorateId.HasValue) filledFields++;
-        if (workerItem.DepartmentId.HasValue) filledFields++;
-        if (!string.IsNullOrWhiteSpace(workerItem.Role)) filledFields++;
-        if (workerItem.DateJoinedChurch.HasValue) filledFields++;
-        if (!string.IsNullOrWhiteSpace(workerItem.OrdinationLevel)) filledFields++;
 
-        if (workerItem.HasBelieverBaptism ||
-            workerItem.HasWorkerInTraining ||
-            workerItem.HasSOD ||
-            workerItem.HasBibleCollege)
-        {
-            filledFields++;
-        }
-
-        if (!string.IsNullOrWhiteSpace(workerItem.PassportPhotoPath))
-            filledFields++;
-
-        return (int)Math.Round((double)filledFields / totalFields * 100);
-    }
-
-    private static string GetProgressClass(int percentage)
-    {
-        if (percentage < 50) return "bg-danger";
-        if (percentage < 86) return "bg-warning";
-        return "bg-success";
-    }
 
     private static string DisplayValue(string? value)
     {
@@ -844,8 +812,40 @@ else
     }
 
     .worker-admin-table {
-        min-width: 850px;
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
     }
+
+        .worker-admin-table th:nth-child(1),
+        .worker-admin-table td:nth-child(1) {
+            width: 25%;
+        }
+
+        .worker-admin-table th:nth-child(2),
+        .worker-admin-table td:nth-child(2) {
+            width: 21%;
+        }
+
+        .worker-admin-table th:nth-child(3),
+        .worker-admin-table td:nth-child(3) {
+            width: 17%;
+        }
+
+        .worker-admin-table th:nth-child(4),
+        .worker-admin-table td:nth-child(4) {
+            width: 12%;
+        }
+
+        .worker-admin-table th:nth-child(5),
+        .worker-admin-table td:nth-child(5) {
+            width: 10%;
+        }
+
+        .worker-admin-table th:nth-child(6),
+        .worker-admin-table td:nth-child(6) {
+            width: 15%;
+        }
 
         .worker-admin-table thead {
             position: sticky;
@@ -879,8 +879,21 @@ else
         display: flex;
         align-items: center;
         gap: 8px;
-        min-width: 180px;
+        min-width: 0;
     }
+
+        .worker-name-cell > div {
+            min-width: 0;
+        }
+
+        .worker-name-cell strong,
+        .worker-name-cell span,
+        .assignment-cell strong,
+        .assignment-cell span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
 
     .worker-avatar,
     .worker-avatar-placeholder {
@@ -923,7 +936,7 @@ else
     }
 
     .assignment-cell {
-        min-width: 130px;
+        min-width: 0;
     }
 
         .assignment-cell strong,
@@ -968,7 +981,8 @@ else
     }
 
     .compliance-cell {
-        min-width: 75px;
+        min-width: 0;
+        width: 100%;
     }
 
     .compliance-top {
@@ -979,7 +993,8 @@ else
     }
 
     .compliance-cell .progress {
-        width: 70px;
+        width: 100%;
+        max-width: 72px;
         height: 5px;
         background: #e2e8f0;
     }
@@ -1151,6 +1166,23 @@ else
     @@media (max-width: 1199px) {
         .worker-table-wrapper {
             max-height: none;
+        }
+
+        .worker-admin-table {
+            min-width: 820px;
+            table-layout: auto;
+        }
+
+        .worker-name-cell {
+            min-width: 180px;
+        }
+
+        .assignment-cell {
+            min-width: 130px;
+        }
+
+        .compliance-cell {
+            min-width: 75px;
         }
     }
 

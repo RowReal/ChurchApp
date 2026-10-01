@@ -102,6 +102,12 @@ else
                 "Growth Reports",
                 CanViewGrowthReports())
 
+        @RenderTile(
+                "/reports/pending-profile-approvals",
+                "fas fa-user-check",
+                "Pending Profile Approvals",
+                CanViewPendingProfileApprovals())
+
     </div>
 
 </div>
@@ -170,6 +176,48 @@ else
             AuthService.IsInRole("Head of Service") ||
             AuthService.IsInRole("Asst Head of Service") ||
             AuthService.CurrentWorker.CanAccessAdminPanel;
+    }
+
+
+    // ============================================================
+    // PENDING PROFILE APPROVALS ACCESS
+    // ============================================================
+
+    private bool CanViewPendingProfileApprovals()
+    {
+        var worker = AuthService.CurrentWorker;
+
+        if (worker == null)
+            return false;
+
+        var role = worker.Role?.Trim() ?? string.Empty;
+
+        if (role.Equals(
+                "Senior Pastor",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var isMeat =
+            string.Equals(
+                worker.Directorate?.Code?.Trim(),
+                "MEAT",
+                StringComparison.OrdinalIgnoreCase);
+
+        if (!isMeat)
+            return false;
+
+        return
+            role.Equals(
+                "Head of Directorate",
+                StringComparison.OrdinalIgnoreCase) ||
+            role.Equals(
+                "Assistant Head of Directorate",
+                StringComparison.OrdinalIgnoreCase) ||
+            role.Equals(
+                "Asst Head of Directorate",
+                StringComparison.OrdinalIgnoreCase);
     }
 
 
@@ -295,8 +343,8 @@ else
 <style>
 
     /* ============================================================
-               PAGE
-               ============================================================ */
+                   PAGE
+                   ============================================================ */
 
     .compact-reports-page {
         max-width: 1400px;
@@ -316,8 +364,8 @@ else
 
 
     /* ============================================================
-               REPORT GRID
-               ============================================================ */
+                   REPORT GRID
+                   ============================================================ */
 
     .workspace-tile-grid {
         display: grid;
@@ -327,8 +375,8 @@ else
 
 
     /* ============================================================
-               REPORT TILE
-               ============================================================ */
+                   REPORT TILE
+                   ============================================================ */
 
     .compact-workspace-tile {
         display: grid;
@@ -356,8 +404,8 @@ else
 
 
         /* ============================================================
-               DISABLED TILE
-               ============================================================ */
+                   DISABLED TILE
+                   ============================================================ */
 
         .compact-workspace-tile.disabled {
             cursor: not-allowed;
@@ -374,8 +422,8 @@ else
 
 
     /* ============================================================
-               ICON
-               ============================================================ */
+                   ICON
+                   ============================================================ */
 
     .compact-tile-icon {
         display: flex;
@@ -397,8 +445,8 @@ else
 
 
     /* ============================================================
-               TITLE
-               ============================================================ */
+                   TITLE
+                   ============================================================ */
 
     .compact-tile-title {
         min-width: 0;
@@ -410,8 +458,8 @@ else
 
 
     /* ============================================================
-               ARROW
-               ============================================================ */
+                   ARROW
+                   ============================================================ */
 
     .compact-tile-arrow {
         color: #94a3b8;
@@ -420,8 +468,8 @@ else
 
 
     /* ============================================================
-               RESPONSIVE
-               ============================================================ */
+                   RESPONSIVE
+                   ============================================================ */
 
     @@media (max-width: 1100px) {
 

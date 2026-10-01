@@ -39,7 +39,7 @@
                 <p>Sign in to continue to BCC ServiceHub</p>
             </div>
 
-            <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
+            <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" FormName="WorkerLogin">
                 <DataAnnotationsValidator />
 
                 <div class="form-group">
@@ -347,6 +347,7 @@
         padding-top: 0.9rem;
         border-top: 1px solid #e5e7eb;
     }
+
     .forgot-password {
         color: #0d6efd;
         text-decoration: none;

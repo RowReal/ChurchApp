@@ -7,6 +7,7 @@
 @inject WorkforceService WorkforceService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject WorkerProfileComplianceService ProfileComplianceService
 
 <PageTitle>My Profile - BCC ServiceHub</PageTitle>
 
@@ -172,7 +173,7 @@ else
 
             <div class="profile-completion-panel">
                 @{
-                    var completeness = CalculateCompleteness(worker);
+                    var completeness = ProfileComplianceService.Calculate(worker);
                 }
 
                 <div class="profile-completion-top">
@@ -181,7 +182,7 @@ else
                 </div>
 
                 <div class="progress profile-progress">
-                    <div class="progress-bar @GetCompletenessClass(completeness)"
+                    <div class="progress-bar @ProfileComplianceService.GetProgressClass(completeness)" 
                          style="width: @completeness%">
                     </div>
                 </div>
@@ -857,65 +858,8 @@ else
             : value.Trim();
     }
 
-    private int CalculateCompleteness(
-        Worker worker)
-    {
-        var filledFields = 0;
-        const int totalFields = 27;
 
-        if (!string.IsNullOrWhiteSpace(worker.Sex)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Title)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.FirstName)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.MiddleName)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.LastName)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Email)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Phone)) filledFields++;
-        if (worker.DateOfBirth.HasValue) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Address)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Profession)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Organization)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.MaritalStatus)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.PassportPhotoPath)) filledFields++;
-        if (worker.DirectorateId.HasValue) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.Role)) filledFields++;
-        if (worker.DateJoinedChurch.HasValue) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.OrdinationStatus)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.OrdinationLevel)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.WorkerStatus)) filledFields++;
 
-        if (worker.LastOrdinationDate.HasValue &&
-            !string.Equals(
-                worker.OrdinationLevel,
-                "Not Ordained",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            filledFields++;
-        }
-
-        if (worker.HasBelieverBaptism) filledFields++;
-        if (worker.HasWorkerInTraining) filledFields++;
-        if (worker.HasSOD) filledFields++;
-        if (worker.HasBibleCollege) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.PreviousChurch)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.PreviousChurchRole)) filledFields++;
-        if (!string.IsNullOrWhiteSpace(worker.PreviousChurchUnit)) filledFields++;
-
-        return (int)Math.Round(
-            (double)filledFields /
-            totalFields * 100);
-    }
-
-    private static string GetCompletenessClass(
-        int percentage)
-    {
-        if (percentage < 50)
-            return "bg-danger";
-
-        if (percentage < 80)
-            return "bg-warning";
-
-        return "bg-success";
-    }
 
     private int CalculateYearsInBCC()
     {

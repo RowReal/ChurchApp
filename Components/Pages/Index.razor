@@ -20,6 +20,7 @@
 @inject ServiceRecordAccessService ServiceRecordAccessService
 @inject WorkerAttendanceScoringService WorkerAttendanceScoringService
 @inject BroadcastService BroadcastService
+@inject WorkerProfileComplianceService ProfileComplianceService
 
 
 <PageTitle>BCC ServiceHub - Dashboard</PageTitle>
@@ -1496,7 +1497,7 @@ todayVerse = await VerseService.GetTodayVerseAsync();
         if (AuthService.CurrentWorker != null)
         {
             // Calculate user compliance
-            userCompliance = CalculateCompleteness(AuthService.CurrentWorker);
+           userCompliance = ProfileComplianceService.Calculate(AuthService.CurrentWorker);
             
             // Check for pending approvals (if user is an approver)
             // var approvals = await WorkforceService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
@@ -1860,38 +1861,7 @@ todayVerse = await VerseService.GetTodayVerseAsync();
             .ToList();
     }
 
-    private int CalculateCompleteness(Worker worker)
-    {
-        var filledFields = 0;
-        var totalFields = 15;
-
-        // Personal Information
-        if (!string.IsNullOrEmpty(worker.FirstName)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.LastName)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Email)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Phone)) filledFields++;
-        if (worker.DateOfBirth.HasValue) filledFields++;
-
-        // Professional Information
-        if (!string.IsNullOrEmpty(worker.Profession)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Organization)) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Address)) filledFields++;
-
-        // Church Information
-        if (worker.DirectorateId.HasValue) filledFields++;
-        if (worker.DepartmentId.HasValue) filledFields++;
-        if (!string.IsNullOrEmpty(worker.Role)) filledFields++;
-        if (worker.DateJoinedChurch.HasValue) filledFields++;
-        if (!string.IsNullOrEmpty(worker.OrdinationLevel)) filledFields++;
-
-        // Qualifications
-        if (worker.HasBelieverBaptism || worker.HasWorkerInTraining ||
-            worker.HasSOD || worker.HasBibleCollege) filledFields++;
-        if (!string.IsNullOrEmpty(worker.PassportPhotoPath)) filledFields++;
-
-        return totalFields > 0 ? (int)Math.Round((double)filledFields / totalFields * 100) : 0;
-    }
-
+  
     private string GetAttendanceScoreClass(AttendanceGrade grade)
     {
         return grade switch

@@ -1,0 +1,910 @@
+﻿@page "/reports/pending-profile-approvals"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+@using System.Text.Json
+
+@inject WorkforceService WorkforceService
+@inject AuthService AuthService
+
+<PageTitle>Pending Profile Approvals - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="ppa-page">
+        <div class="ppa-empty">
+            <i class="fas fa-lock"></i>
+            <h4>Please Log In</h4>
+            <p>You need to be logged in to access this report.</p>
+            <a href="/login" class="btn btn-primary btn-sm">Go to Login</a>
+        </div>
+    </div>
+}
+else if (!CanAccessReport())
+{
+    <div class="ppa-page">
+        <div class="ppa-empty">
+            <i class="fas fa-shield-alt"></i>
+            <h4>Access Restricted</h4>
+            <p>This report is available only to authorised MEAT leadership and the Senior Pastor.</p>
+        </div>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="ppa-page">
+        <div class="ppa-card text-center p-4">
+            <div class="spinner-border text-primary"></div>
+            <div class="mt-2 text-muted">Loading pending profile approvals...</div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="ppa-page">
+        <div class="ppa-hero">
+            <div>
+                <div class="ppa-eyebrow">WORKFORCE OVERSIGHT</div>
+                <h2>Pending Profile Approvals</h2>
+                <p>Monitor profile update requests awaiting action and how long each request has remained on the current approver's desk.</p>
+            </div>
+            <button class="btn btn-light btn-sm" @onclick="LoadReportAsync">
+                <i class="fas fa-sync-alt me-1"></i> Refresh
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2 mt-3">@errorMessage</div>
+        }
+
+        <div class="ppa-summary-grid">
+            <div class="ppa-summary">
+                <span>Total Pending</span>
+                <strong>@pendingRequests.Count</strong>
+            </div>
+            <div class="ppa-summary">
+                <span>1–3 Days</span>
+                <strong>@CountByAge(1, 3)</strong>
+            </div>
+            <div class="ppa-summary">
+                <span>4–7 Days</span>
+                <strong>@CountByAge(4, 7)</strong>
+            </div>
+            <div class="ppa-summary">
+                <span>Over 7 Days</span>
+                <strong>@CountOverDays(7)</strong>
+            </div>
+        </div>
+
+        <div class="ppa-card">
+            <div class="ppa-toolbar">
+                <div class="ppa-search">
+                    <i class="fas fa-search"></i>
+                    <input class="form-control form-control-sm"
+                           placeholder="Search worker, directorate or approver..."
+                           @bind="searchText"
+                           @bind:event="oninput" />
+                </div>
+                <div class="ppa-count">@FilteredRequests.Count() request(s)</div>
+            </div>
+
+            @if (!FilteredRequests.Any())
+            {
+                <div class="ppa-empty compact">
+                    <i class="fas fa-check-circle"></i>
+                    <h5>No Pending Profile Approvals</h5>
+                    <p>There are no pending requests matching the current search.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 ppa-table">
+                        <thead>
+                            <tr>
+                                <th>Worker</th>
+                                <th>Directorate</th>
+                                <th>Request Date</th>
+                                <th>Pending With</th>
+                                <th>Pending Since</th>
+                                <th>Time on Desk</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in FilteredRequests)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="ppa-worker-name">@GetWorkerName(request.Worker)</div>
+                                        <div class="ppa-muted">@request.Worker?.WorkerId</div>
+                                    </td>
+                                    <td>@(request.Worker?.Directorate?.Name ?? "Not assigned")</td>
+                                    <td>
+                                        <div>@ToLocal(request.SubmittedDate).ToString("dd MMM yyyy")</div>
+                                        <div class="ppa-muted">@ToLocal(request.SubmittedDate).ToString("hh:mm tt")</div>
+                                    </td>
+                                    <td>
+                                        <div class="ppa-approver">@GetPendingWith(request)</div>
+                                    </td>
+                                    <td>
+                                        <div>@ToLocal(request.LastUpdated).ToString("dd MMM yyyy")</div>
+                                        <div class="ppa-muted">@ToLocal(request.LastUpdated).ToString("hh:mm tt")</div>
+                                    </td>
+                                    <td>
+                                        <span class="@GetAgeBadgeClass(request)">
+                                            @GetTimeOnDesk(request)
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                @onclick="() => OpenDetails(request)">
+                                            <i class="fas fa-eye me-1"></i> View
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@if (selectedRequest != null)
+{
+    <div class="ppa-modal-backdrop" @onclick="CloseDetails">
+        <div class="ppa-modal" @onclick:stopPropagation="true">
+            <div class="ppa-modal-header">
+                <div>
+                    <div class="ppa-eyebrow">PROFILE UPDATE REQUEST</div>
+                    <h4>@GetWorkerName(selectedRequest.Worker)</h4>
+                    <div class="ppa-muted">Request #@selectedRequest.Id</div>
+                </div>
+                <button type="button" class="ppa-close" @onclick="CloseDetails">&times;</button>
+            </div>
+
+            <div class="ppa-modal-body">
+                <div class="ppa-detail-grid">
+                    <div>
+                        <span>Directorate</span>
+                        <strong>@(selectedRequest.Worker?.Directorate?.Name ?? "Not assigned")</strong>
+                    </div>
+                    <div>
+                        <span>Role</span>
+                        <strong>@(selectedRequest.Worker?.Role ?? "Worker")</strong>
+                    </div>
+                    <div>
+                        <span>Requested</span>
+                        <strong>@ToLocal(selectedRequest.SubmittedDate).ToString("dd MMM yyyy, hh:mm tt")</strong>
+                    </div>
+                    <div>
+                        <span>Pending With</span>
+                        <strong>@GetPendingWith(selectedRequest)</strong>
+                    </div>
+                    <div>
+                        <span>Pending Since</span>
+                        <strong>@ToLocal(selectedRequest.LastUpdated).ToString("dd MMM yyyy, hh:mm tt")</strong>
+                    </div>
+                    <div>
+                        <span>Time on Desk</span>
+                        <strong>@GetTimeOnDesk(selectedRequest)</strong>
+                    </div>
+                </div>
+
+                <div class="ppa-section-title">Requested Changes</div>
+
+                @if (selectedChanges.Count == 0)
+                {
+                    <div class="ppa-empty compact">
+                        <p>No changed fields could be identified.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="ppa-change-list">
+                        @foreach (var change in selectedChanges)
+                        {
+                            <div class="ppa-change">
+                                <div class="ppa-change-label">@change.Label</div>
+                                <div class="ppa-change-values">
+                                    <div>
+                                        <span>Current</span>
+                                        <strong>@change.CurrentValue</strong>
+                                    </div>
+                                    <i class="fas fa-arrow-right"></i>
+                                    <div>
+                                        <span>Requested</span>
+                                        <strong>@change.ProposedValue</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="ppa-modal-footer">
+                <button class="btn btn-secondary btn-sm" @onclick="CloseDetails">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ProfileUpdateRequest> pendingRequests = new();
+    private ProfileUpdateRequest? selectedRequest;
+    private List<ChangeDisplay> selectedChanges = new();
+    private string searchText = string.Empty;
+    private string? errorMessage;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && CanAccessReport())
+            await LoadReportAsync();
+        else
+            isLoading = false;
+    }
+
+    private bool CanAccessReport()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null)
+            return false;
+
+        var role = worker.Role?.Trim() ?? string.Empty;
+        var directorateCode = worker.Directorate?.Code?.Trim() ?? string.Empty;
+
+        if (role.Equals("Senior Pastor", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var isMeat =
+            directorateCode.Equals("MEAT", StringComparison.OrdinalIgnoreCase);
+
+        if (!isMeat)
+            return false;
+
+        return role.Equals("Head of Directorate", StringComparison.OrdinalIgnoreCase)
+            || role.Equals("Assistant Head of Directorate", StringComparison.OrdinalIgnoreCase)
+            || role.Equals("Asst Head of Directorate", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task LoadReportAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            pendingRequests =
+                await WorkforceService.GetAllPendingProfileApprovalsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load pending profile approvals: {ex.Message}";
+            pendingRequests = new();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private IEnumerable<ProfileUpdateRequest> FilteredRequests
+    {
+        get
+        {
+            IEnumerable<ProfileUpdateRequest> query = pendingRequests;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                var term = searchText.Trim();
+
+                query = query.Where(r =>
+                    GetWorkerName(r.Worker).Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    (r.Worker?.WorkerId?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (r.Worker?.Directorate?.Name?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    GetPendingWith(r).Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query
+                .OrderByDescending(r => GetDeskAge(r));
+        }
+    }
+
+    private void OpenDetails(ProfileUpdateRequest request)
+    {
+        selectedRequest = request;
+        selectedChanges = BuildChangeList(request);
+    }
+
+    private void CloseDetails()
+    {
+        selectedRequest = null;
+        selectedChanges = new();
+    }
+
+    private static string GetWorkerName(Worker? worker)
+    {
+        if (worker == null)
+            return "Unknown Worker";
+
+        var values = new[]
+        {
+            worker.Title,
+            worker.FirstName,
+            worker.MiddleName,
+            worker.LastName
+        };
+
+        var name = string.Join(" ",
+            values.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        return string.IsNullOrWhiteSpace(name)
+            ? worker.WorkerId ?? "Unknown Worker"
+            : name;
+    }
+
+    private static string GetPendingWith(ProfileUpdateRequest request)
+    {
+        var names = request.EligibleApprovers
+            .Where(a => !a.HasActed && a.ApproverWorker != null)
+            .Select(a => GetWorkerName(a.ApproverWorker))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (names.Count > 0)
+            return string.Join(", ", names);
+
+        if (request.ApproverWorker != null)
+            return GetWorkerName(request.ApproverWorker);
+
+        return "Not assigned";
+    }
+
+    private static DateTime ToLocal(DateTime value)
+    {
+        return value.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(value, DateTimeKind.Utc).ToLocalTime()
+            : value.ToLocalTime();
+    }
+
+    private static TimeSpan GetDeskAge(ProfileUpdateRequest request)
+    {
+        var since = request.LastUpdated;
+
+        if (since.Kind == DateTimeKind.Unspecified)
+            since = DateTime.SpecifyKind(since, DateTimeKind.Utc);
+
+        var age = DateTime.UtcNow - since.ToUniversalTime();
+        return age < TimeSpan.Zero ? TimeSpan.Zero : age;
+    }
+
+    private static string GetTimeOnDesk(ProfileUpdateRequest request)
+    {
+        var age = GetDeskAge(request);
+
+        if (age.TotalDays >= 1)
+        {
+            var days = (int)Math.Floor(age.TotalDays);
+            var hours = age.Hours;
+            return hours > 0
+                ? $"{days}d {hours}h"
+                : $"{days} day{(days == 1 ? "" : "s")}";
+        }
+
+        if (age.TotalHours >= 1)
+            return $"{(int)Math.Floor(age.TotalHours)}h {age.Minutes}m";
+
+        return $"{Math.Max(0, age.Minutes)}m";
+    }
+
+    private static string GetAgeBadgeClass(ProfileUpdateRequest request)
+    {
+        var days = GetDeskAge(request).TotalDays;
+
+        if (days > 7)
+            return "ppa-age ppa-age-danger";
+
+        if (days >= 4)
+            return "ppa-age ppa-age-warning";
+
+        return "ppa-age ppa-age-normal";
+    }
+
+    private int CountByAge(int minimumDay, int maximumDay)
+    {
+        return pendingRequests.Count(r =>
+        {
+            var days = GetDeskAge(r).TotalDays;
+            return days >= minimumDay && days < maximumDay + 1;
+        });
+    }
+
+    private int CountOverDays(int days)
+    {
+        return pendingRequests.Count(r =>
+            GetDeskAge(r).TotalDays > days);
+    }
+
+    private static List<ChangeDisplay> BuildChangeList(
+        ProfileUpdateRequest request)
+    {
+        var result = new List<ChangeDisplay>();
+
+        if (request.Worker == null ||
+            string.IsNullOrWhiteSpace(request.ProposedChanges))
+            return result;
+
+        ProposedChanges? proposed;
+
+        try
+        {
+            proposed =
+                JsonSerializer.Deserialize<ProposedChanges>(
+                    request.ProposedChanges);
+        }
+        catch
+        {
+            return result;
+        }
+
+        if (proposed == null)
+            return result;
+
+        var worker = request.Worker;
+
+        AddIfChanged(result, "Title", worker.Title, proposed.Title);
+        AddIfChanged(result, "First Name", worker.FirstName, proposed.FirstName);
+        AddIfChanged(result, "Middle Name", worker.MiddleName, proposed.MiddleName);
+        AddIfChanged(result, "Last Name", worker.LastName, proposed.LastName);
+        AddIfChanged(result, "Sex", worker.Sex, proposed.Sex);
+        AddIfChanged(result, "Email", worker.Email, proposed.Email);
+        AddIfChanged(result, "Phone", worker.Phone, proposed.Phone);
+        AddIfChanged(result, "Date of Birth",
+            FormatDate(worker.DateOfBirth), FormatDate(proposed.DateOfBirth));
+        AddIfChanged(result, "Marital Status",
+            worker.MaritalStatus, proposed.MaritalStatus);
+        AddIfChanged(result, "Wedding Anniversary",
+            FormatDate(worker.WeddingAnniversary),
+            FormatDate(proposed.WeddingAnniversary));
+        AddIfChanged(result, "Address", worker.Address, proposed.Address);
+        AddIfChanged(result, "Profession",
+            worker.Profession, proposed.Profession);
+        AddIfChanged(result, "Organization",
+            worker.Organization, proposed.Organization);
+        AddIfChanged(result, "Date Joined Church",
+            FormatDate(worker.DateJoinedChurch),
+            FormatDate(proposed.DateJoinedChurch));
+        AddIfChanged(result, "Worker Status",
+            worker.WorkerStatus, proposed.WorkerStatus);
+        AddIfChanged(result, "Previous Church",
+            worker.PreviousChurch, proposed.PreviousChurch);
+        AddIfChanged(result, "Previous Church Role",
+            worker.PreviousChurchRole, proposed.PreviousChurchRole);
+        AddIfChanged(result, "Previous Church Unit",
+            worker.PreviousChurchUnit, proposed.PreviousChurchUnit);
+        AddIfChanged(result, "Ordination Status",
+            worker.OrdinationStatus, proposed.OrdinationStatus);
+        AddIfChanged(result, "Ordination Level",
+            worker.OrdinationLevel, proposed.OrdinationLevel);
+        AddIfChanged(result, "Last Ordination Date",
+            FormatDate(worker.LastOrdinationDate),
+            FormatDate(proposed.LastOrdinationDate));
+
+        AddIfChanged(result, "Believer Baptism",
+            YesNo(worker.HasBelieverBaptism),
+            YesNo(proposed.HasBelieverBaptism));
+        AddIfChanged(result, "Worker in Training",
+            YesNo(worker.HasWorkerInTraining),
+            YesNo(proposed.HasWorkerInTraining));
+        AddIfChanged(result, "School of Disciples",
+            YesNo(worker.HasSOD),
+            YesNo(proposed.HasSOD));
+        AddIfChanged(result, "Bible College",
+            YesNo(worker.HasBibleCollege),
+            YesNo(proposed.HasBibleCollege));
+
+        if (!string.IsNullOrWhiteSpace(proposed.PassportPhotoPath) &&
+            !string.Equals(worker.PassportPhotoPath,
+                proposed.PassportPhotoPath,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            result.Add(new ChangeDisplay(
+                "Passport Photograph",
+                string.IsNullOrWhiteSpace(worker.PassportPhotoPath)
+                    ? "Not uploaded"
+                    : "Existing photograph",
+                "New photograph uploaded"));
+        }
+
+        return result;
+    }
+
+    private static void AddIfChanged(
+        List<ChangeDisplay> list,
+        string label,
+        string? currentValue,
+        string? proposedValue)
+    {
+        var current = Normalize(currentValue);
+        var proposed = Normalize(proposedValue);
+
+        if (string.Equals(
+            current,
+            proposed,
+            StringComparison.OrdinalIgnoreCase))
+            return;
+
+        list.Add(new ChangeDisplay(
+            label,
+            DisplayValue(currentValue),
+            DisplayValue(proposedValue)));
+    }
+
+    private static string Normalize(string? value) =>
+        value?.Trim() ?? string.Empty;
+
+    private static string DisplayValue(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "—" : value.Trim();
+
+    private static string FormatDate(DateTime? value) =>
+        value.HasValue ? value.Value.ToString("dd MMM yyyy") : string.Empty;
+
+    private static string YesNo(bool value) =>
+        value ? "Yes" : "No";
+
+    private sealed record ChangeDisplay(
+        string Label,
+        string CurrentValue,
+        string ProposedValue);
+}
+
+<style>
+    .ppa-page {
+        font-size: .86rem;
+    }
+
+    .ppa-hero {
+        background: linear-gradient(135deg, #4b2e83, #6845a7);
+        color: #fff;
+        border-radius: 18px;
+        padding: 18px 20px;
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+        .ppa-hero h2 {
+            margin: 2px 0 4px;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .ppa-hero p {
+            margin: 0;
+            opacity: .9;
+            font-size: .8rem;
+            max-width: 760px;
+        }
+
+    .ppa-eyebrow {
+        font-size: .66rem;
+        font-weight: 700;
+        letter-spacing: .09em;
+        opacity: .8;
+    }
+
+    .ppa-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .ppa-summary,
+    .ppa-card {
+        background: #fff;
+        border: 1px solid #e9e5f0;
+        border-radius: 14px;
+        box-shadow: 0 3px 12px rgba(30, 20, 50, .04);
+    }
+
+    .ppa-summary {
+        padding: 12px 14px;
+    }
+
+        .ppa-summary span {
+            display: block;
+            color: #777080;
+            font-size: .72rem;
+            margin-bottom: 3px;
+        }
+
+        .ppa-summary strong {
+            font-size: 1.25rem;
+            color: #33244e;
+        }
+
+    .ppa-toolbar {
+        padding: 11px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid #eeeaf3;
+    }
+
+    .ppa-search {
+        position: relative;
+        max-width: 430px;
+        width: 100%;
+    }
+
+        .ppa-search i {
+            position: absolute;
+            left: 10px;
+            top: 9px;
+            color: #8a8490;
+            font-size: .75rem;
+        }
+
+        .ppa-search input {
+            padding-left: 30px;
+        }
+
+    .ppa-count,
+    .ppa-muted {
+        color: #817a87;
+        font-size: .72rem;
+    }
+
+    .ppa-table {
+        font-size: .78rem;
+    }
+
+        .ppa-table th {
+            white-space: nowrap;
+            font-size: .69rem;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            color: #746d7b;
+            background: #faf9fc;
+            padding: 9px 10px;
+        }
+
+        .ppa-table td {
+            padding: 10px;
+        }
+
+    .ppa-worker-name,
+    .ppa-approver {
+        font-weight: 600;
+        color: #332b3a;
+    }
+
+    .ppa-age {
+        display: inline-block;
+        border-radius: 20px;
+        padding: 4px 8px;
+        font-size: .7rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .ppa-age-normal {
+        background: #edf7f0;
+        color: #267442;
+    }
+
+    .ppa-age-warning {
+        background: #fff5d9;
+        color: #946b00;
+    }
+
+    .ppa-age-danger {
+        background: #fde8e8;
+        color: #b42318;
+    }
+
+    .ppa-empty {
+        text-align: center;
+        padding: 45px 20px;
+        background: #fff;
+        border: 1px solid #ece8f1;
+        border-radius: 14px;
+    }
+
+        .ppa-empty.compact {
+            padding: 28px 15px;
+            border: 0;
+        }
+
+        .ppa-empty i {
+            font-size: 1.5rem;
+            color: #6845a7;
+            margin-bottom: 8px;
+        }
+
+        .ppa-empty h4,
+        .ppa-empty h5 {
+            margin-bottom: 4px;
+        }
+
+        .ppa-empty p {
+            color: #7b7480;
+            margin-bottom: 12px;
+        }
+
+    .ppa-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1055;
+        background: rgba(20, 14, 28, .55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+    }
+
+    .ppa-modal {
+        background: #fff;
+        width: min(920px, 100%);
+        max-height: 90vh;
+        overflow: hidden;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,.22);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ppa-modal-header,
+    .ppa-modal-footer {
+        padding: 13px 16px;
+        border-bottom: 1px solid #eeeaf3;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ppa-modal-footer {
+        border-top: 1px solid #eeeaf3;
+        border-bottom: 0;
+        justify-content: flex-end;
+    }
+
+    .ppa-modal-header h4 {
+        font-size: 1.05rem;
+        margin: 2px 0;
+    }
+
+    .ppa-close {
+        border: 0;
+        background: transparent;
+        font-size: 1.6rem;
+        line-height: 1;
+        color: #777;
+    }
+
+    .ppa-modal-body {
+        padding: 15px 16px;
+        overflow-y: auto;
+    }
+
+    .ppa-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 9px;
+        margin-bottom: 18px;
+    }
+
+        .ppa-detail-grid > div {
+            border: 1px solid #eeeaf3;
+            border-radius: 10px;
+            padding: 9px 10px;
+            background: #fbfafc;
+        }
+
+        .ppa-detail-grid span,
+        .ppa-change-values span {
+            display: block;
+            color: #807987;
+            font-size: .67rem;
+            margin-bottom: 2px;
+        }
+
+        .ppa-detail-grid strong {
+            font-size: .76rem;
+        }
+
+    .ppa-section-title {
+        font-size: .82rem;
+        font-weight: 700;
+        color: #4b2e83;
+        margin-bottom: 8px;
+    }
+
+    .ppa-change-list {
+        display: grid;
+        gap: 8px;
+    }
+
+    .ppa-change {
+        border: 1px solid #ece8f1;
+        border-radius: 10px;
+        padding: 9px 10px;
+    }
+
+    .ppa-change-label {
+        font-size: .7rem;
+        font-weight: 700;
+        color: #4b2e83;
+        margin-bottom: 6px;
+    }
+
+    .ppa-change-values {
+        display: grid;
+        grid-template-columns: 1fr 24px 1fr;
+        gap: 8px;
+        align-items: center;
+    }
+
+        .ppa-change-values i {
+            text-align: center;
+            color: #9a91a3;
+            font-size: .7rem;
+        }
+
+        .ppa-change-values strong {
+            font-size: .76rem;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
+
+    @@media (max-width: 767.98px) {
+        .ppa-hero {
+            border-radius: 15px;
+            padding: 14px;
+            align-items: flex-start;
+        }
+
+            .ppa-hero h2 {
+                font-size: 1.1rem;
+            }
+
+        .ppa-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .ppa-toolbar {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .ppa-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .ppa-change-values {
+            grid-template-columns: 1fr;
+        }
+
+            .ppa-change-values i {
+                transform: rotate(90deg);
+            }
+
+        .ppa-modal-backdrop {
+            padding: 8px;
+        }
+
+        .ppa-modal {
+            max-height: 94vh;
+        }
+    }
+</style>

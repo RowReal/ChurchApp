@@ -1,6 +1,8 @@
 ﻿@inherits LayoutComponentBase
 @using ChurchApp.Services
+
 @inject AuthService AuthService
+@inject PendingAttentionService PendingAttentionService
 @inject NavigationManager Navigation
 
 <div class="bccv2-shell">
@@ -8,12 +10,14 @@
     <header class="bccv2-topbar">
         <div class="bccv2-brand">
             <div class="bccv2-logo-box">
-                <img src="/images/bcc-logo.png" alt="BCC Logo" class="bccv2-logo" />
+                <img src="/images/bcc-logo.png"
+                     alt="BCC Logo"
+                     class="bccv2-logo" />
             </div>
 
             <div class="bccv2-brand-text">
                 <strong>BCC ServiceHub</strong>
-               <span>Church Workforce Management</span>
+                <span>Church Workforce Management</span>
             </div>
         </div>
 
@@ -22,80 +26,442 @@
             {
                 <div class="bccv2-user">
                     <div class="bccv2-avatar">
-                        @if (!string.IsNullOrWhiteSpace(AuthService.CurrentWorker?.PassportPhotoPath))
+                        @if (!string.IsNullOrWhiteSpace(
+                            AuthService.CurrentWorker?.PassportPhotoPath))
                         {
-                            <img src="@GetPassportPhotoUrl(AuthService.CurrentWorker.PassportPhotoPath)"
+                            <img src="@GetPassportPhotoUrl(
+                                AuthService.CurrentWorker.PassportPhotoPath)"
                                  alt="@($"{AuthService.CurrentWorker?.FirstName} {AuthService.CurrentWorker?.LastName}")"
                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                            <span class="bccv2-avatar-initials" style="display:none;">@GetWorkerInitials()</span>
+
+                            <span class="bccv2-avatar-initials"
+                                  style="display:none;">
+                                @GetWorkerInitials()
+                            </span>
                         }
                         else
                         {
-                            <span class="bccv2-avatar-initials">@GetWorkerInitials()</span>
+                            <span class="bccv2-avatar-initials">
+                                @GetWorkerInitials()
+                            </span>
                         }
                     </div>
 
                     <div class="bccv2-user-text">
-                        <strong>@AuthService.CurrentWorker?.FirstName @AuthService.CurrentWorker?.LastName</strong>
+                        <strong>
+                            @AuthService.CurrentWorker?.FirstName
+                            @AuthService.CurrentWorker?.LastName
+                        </strong>
                         <span>@AuthService.CurrentWorker?.Role</span>
                     </div>
                 </div>
 
-                <button class="bccv2-btn" @onclick="SignOut">
+                <button class="bccv2-btn"
+                        @onclick="SignOut">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Sign Out</span>
                 </button>
 
-                <button type="button" class="bccv2-menu-btn" @onclick="ToggleSidebar">
+                <button type="button"
+                        class="bccv2-menu-btn"
+                        @onclick="ToggleSidebar">
                     <i class="fas fa-bars"></i>
                 </button>
             }
             else
             {
-                <a href="/login" class="bccv2-btn bccv2-login-btn">
-    <i class="fas fa-right-to-bracket"></i>
-    <span>Worker Login</span>
-</a>
+                <a href="/login"
+                   class="bccv2-btn bccv2-login-btn">
+                    <i class="fas fa-right-to-bracket"></i>
+                    <span>Worker Login</span>
+                </a>
             }
         </div>
     </header>
 
     <div class="bccv2-body">
+
         @if (AuthService.IsAuthenticated)
         {
             <Sidebar IsVisible="@isSidebarVisible" />
         }
 
-        <main class="bccv2-content @(!AuthService.IsAuthenticated ? "bccv2-content-full" : "")">
+        <main class="bccv2-content @(!AuthService.IsAuthenticated
+            ? "bccv2-content-full"
+            : "")">
+
             @Body
+
         </main>
     </div>
 
     @if (AuthService.IsAuthenticated && isSidebarVisible)
     {
-        <div class="bccv2-backdrop" @onclick="ToggleSidebar"></div>
+        <div class="bccv2-backdrop"
+             @onclick="ToggleSidebar">
+        </div>
     }
+
+
+    @* ============================================================
+       PENDING ATTENTION POPUP
+       ============================================================ *@
+
+    @if (showAttentionPopup &&
+         pendingAttention != null &&
+         pendingAttention.HasAnythingPending)
+    {
+        <div class="attention-overlay">
+
+            <div class="attention-modal">
+
+                <button type="button"
+                        class="attention-close"
+                        title="Close"
+                        @onclick="CloseAttentionPopup">
+                    <i class="fas fa-times"></i>
+                </button>
+
+
+                <div class="attention-icon-wrap">
+                    <div class="attention-icon">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                </div>
+
+
+                <div class="attention-heading">
+                    Welcome back,
+                    @GetFirstName()
+                </div>
+
+                <div class="attention-intro">
+                    You have items waiting for your attention.
+                </div>
+
+
+                <div class="attention-items">
+
+                    @* ==============================
+                       BROADCAST MESSAGE
+                       ============================== *@
+
+                    @if (pendingAttention.HasUnreadBroadcast)
+                    {
+                        <div class="attention-item">
+
+                            <div class="attention-item-icon message">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+
+                            <div class="attention-item-content">
+
+                                <div class="attention-item-title">
+                                    @(pendingAttention.UnreadBroadcastCount == 1
+                                        ? "Pending Message"
+                                        : "Pending Messages")
+                                </div>
+
+                                <div class="attention-item-text">
+
+                                    Dear @GetFirstName(),
+
+                                    @if (pendingAttention.UnreadBroadcastCount == 1)
+                                    {
+                                        <span>
+                                            you have a pending message from
+                                            <strong>
+                                                @pendingAttention.BroadcastSenderText
+                                            </strong>.
+                                            Please check your message inbox.
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>
+                                            you have pending messages from
+                                            <strong>
+                                                @pendingAttention.BroadcastSenderText
+                                            </strong>.
+                                            Please check your message inbox.
+                                        </span>
+                                    }
+
+                                </div>
+
+                            </div>
+
+                            <button type="button"
+                                    class="attention-action"
+                                    @onclick="GoToMessages">
+                                View
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+
+                        </div>
+                    }
+
+
+                    @* ==============================
+                       PROFILE APPROVAL
+                       ============================== *@
+
+                    @if (pendingAttention.HasPendingProfileApproval)
+                    {
+                        <div class="attention-item">
+
+                            <div class="attention-item-icon profile">
+                                <i class="fas fa-user-check"></i>
+                            </div>
+
+                            <div class="attention-item-content">
+
+                                <div class="attention-item-title">
+                                    Profile Approval
+                                </div>
+
+                                <div class="attention-item-text">
+                                    You have
+                                    <strong>
+                                        @(pendingAttention.PendingProfileApprovalCount == 1
+                                            ? "a Pending Profile Approval"
+                                            : $"{pendingAttention.PendingProfileApprovalCount} Pending Profile Approvals")
+                                    </strong>
+                                    waiting for your attention.
+                                </div>
+
+                            </div>
+
+                            <button type="button"
+                                    class="attention-action"
+                                    @onclick="GoToProfileApprovals">
+                                Review
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+
+                        </div>
+                    }
+
+
+                    @* ==============================
+                       REQUEST APPROVAL
+                       ============================== *@
+
+                    @if (pendingAttention.HasPendingRequestApproval)
+                    {
+                        <div class="attention-item">
+
+                            <div class="attention-item-icon request">
+                                <i class="fas fa-clipboard-check"></i>
+                            </div>
+
+                            <div class="attention-item-content">
+
+                                <div class="attention-item-title">
+                                    Request Approval
+                                </div>
+
+                                <div class="attention-item-text">
+                                    You have
+                                    <strong>
+                                        @(pendingAttention.PendingRequestApprovalCount == 1
+                                            ? "a Pending Request Approval"
+                                            : $"{pendingAttention.PendingRequestApprovalCount} Pending Request Approvals")
+                                    </strong>
+                                    waiting for your attention.
+                                </div>
+
+                            </div>
+
+                            <button type="button"
+                                    class="attention-action"
+                                    @onclick="GoToRequestApprovals">
+                                Review
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+
+                        </div>
+                    }
+
+                </div>
+
+
+                <div class="attention-footer">
+
+                    <div class="attention-footer-note">
+                        <i class="fas fa-circle-info"></i>
+                        These items will remain pending until you review them.
+                    </div>
+
+                    <button type="button"
+                            class="attention-later-btn"
+                            @onclick="CloseAttentionPopup">
+                        Not Now
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+    }
+
 </div>
 
+
 @code {
+
     private bool isSidebarVisible = false;
+
+    private bool showAttentionPopup = false;
+
+    private bool attentionChecked = false;
+
+    private int? attentionCheckedWorkerId;
+
+    private PendingAttentionSummary? pendingAttention;
+
+
+    // ============================================================
+    // LOAD PENDING ATTENTION
+    // ============================================================
+
+    protected override async Task OnAfterRenderAsync(
+        bool firstRender)
+    {
+        if (!AuthService.IsAuthenticated ||
+            AuthService.CurrentWorker == null)
+        {
+            return;
+        }
+
+        var workerId =
+            AuthService.CurrentWorker.Id;
+
+        /*
+         * Check once for the currently logged-in worker.
+         *
+         * If a different worker logs in during the lifetime of
+         * this layout instance, the check can run for that worker.
+         */
+        if (attentionChecked &&
+            attentionCheckedWorkerId == workerId)
+        {
+            return;
+        }
+
+        attentionChecked = true;
+        attentionCheckedWorkerId = workerId;
+
+        try
+        {
+            pendingAttention =
+                await PendingAttentionService
+                    .GetSummaryAsync(workerId);
+
+            showAttentionPopup =
+                pendingAttention.HasAnythingPending;
+        }
+        catch
+        {
+            /*
+             * The attention popup must never prevent the
+             * ServiceHub from loading.
+             *
+             * If notification loading fails, the worker can
+             * continue using the application normally.
+             */
+            pendingAttention = null;
+            showAttentionPopup = false;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+
+    // ============================================================
+    // POPUP
+    // ============================================================
+
+    private void CloseAttentionPopup()
+    {
+        showAttentionPopup = false;
+    }
+
+
+    private string GetFirstName()
+    {
+        var firstName =
+            AuthService.CurrentWorker?.FirstName?.Trim();
+
+        return string.IsNullOrWhiteSpace(firstName)
+            ? "Worker"
+            : firstName;
+    }
+
+
+    // ============================================================
+    // POPUP NAVIGATION
+    // ============================================================
+
+    private void GoToMessages()
+    {
+        showAttentionPopup = false;
+
+        Navigation.NavigateTo("/broadcast/my-messages");
+    }
+
+
+    private void GoToProfileApprovals()
+    {
+        showAttentionPopup = false;
+
+        Navigation.NavigateTo("/workforce/my-inbox");
+    }
+
+
+    private void GoToRequestApprovals()
+    {
+        showAttentionPopup = false;
+
+        Navigation.NavigateTo("/approvals/inbox");
+    }
+
+
+    // ============================================================
+    // EXISTING SIDEBAR
+    // ============================================================
 
     private async Task ToggleSidebar()
     {
         isSidebarVisible = !isSidebarVisible;
+
         await InvokeAsync(StateHasChanged);
     }
 
-    private string GetPassportPhotoUrl(string? photoPath)
+
+    // ============================================================
+    // EXISTING PROFILE PHOTO
+    // ============================================================
+
+    private string GetPassportPhotoUrl(
+        string? photoPath)
     {
         if (string.IsNullOrWhiteSpace(photoPath))
             return string.Empty;
 
-        var path = photoPath.Trim().Replace("\\", "/");
+        var path =
+            photoPath.Trim().Replace("\\", "/");
 
-        if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-            path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-            path.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        if (path.StartsWith(
+                "http://",
+                StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith(
+                "https://",
+                StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith(
+                "data:",
+                StringComparison.OrdinalIgnoreCase))
         {
             return path;
         }
@@ -103,28 +469,462 @@
         if (path.StartsWith("/"))
             return path;
 
-        if (path.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase))
+        if (path.StartsWith(
+                "uploads/",
+                StringComparison.OrdinalIgnoreCase))
+        {
             return "/" + path;
+        }
 
         return "/uploads/" + path;
     }
 
+
     private string GetWorkerInitials()
     {
-        var first = AuthService.CurrentWorker?.FirstName?.Trim();
-        var last = AuthService.CurrentWorker?.LastName?.Trim();
+        var first =
+            AuthService.CurrentWorker?
+                .FirstName?
+                .Trim();
 
-        var firstInitial = string.IsNullOrWhiteSpace(first) ? string.Empty : first[0].ToString();
-        var lastInitial = string.IsNullOrWhiteSpace(last) ? string.Empty : last[0].ToString();
-        var initials = (firstInitial + lastInitial).ToUpperInvariant();
+        var last =
+            AuthService.CurrentWorker?
+                .LastName?
+                .Trim();
 
-        return string.IsNullOrWhiteSpace(initials) ? "U" : initials;
+        var firstInitial =
+            string.IsNullOrWhiteSpace(first)
+                ? string.Empty
+                : first[0].ToString();
+
+        var lastInitial =
+            string.IsNullOrWhiteSpace(last)
+                ? string.Empty
+                : last[0].ToString();
+
+        var initials =
+            (firstInitial + lastInitial)
+                .ToUpperInvariant();
+
+        return string.IsNullOrWhiteSpace(initials)
+            ? "U"
+            : initials;
     }
+
+
+    // ============================================================
+    // SIGN OUT
+    // ============================================================
 
     private void SignOut()
     {
+        showAttentionPopup = false;
+        pendingAttention = null;
+        attentionChecked = false;
+        attentionCheckedWorkerId = null;
+
         AuthService.Logout();
-        Navigation.NavigateTo("/login", forceLoad: true);
+
+        Navigation.NavigateTo(
+            "/login",
+            forceLoad: true);
     }
 }
 
+
+<style>
+
+    /* ============================================================
+       PENDING ATTENTION OVERLAY
+       ============================================================ */
+
+    .attention-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 20px;
+
+        background: rgba(15, 23, 42, 0.58);
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+    }
+
+
+    /* ============================================================
+       MODAL
+       ============================================================ */
+
+    .attention-modal {
+        position: relative;
+
+        width: min(620px, 100%);
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+
+        padding: 25px;
+
+        background: #ffffff;
+
+        border: 1px solid rgba(99, 102, 241, 0.16);
+        border-radius: 20px;
+
+        box-shadow:
+            0 28px 70px rgba(15, 23, 42, 0.28);
+
+        animation: attentionPopupIn 0.22s ease-out;
+    }
+
+
+    @@keyframes attentionPopupIn {
+
+        from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+
+    /* ============================================================
+       CLOSE
+       ============================================================ */
+
+    .attention-close {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        width: 31px;
+        height: 31px;
+
+        border: 0;
+        border-radius: 50%;
+
+        color: #64748b;
+        background: #f1f5f9;
+
+        font-size: 0.78rem;
+
+        cursor: pointer;
+
+        transition:
+            background 0.15s ease,
+            color 0.15s ease;
+    }
+
+    .attention-close:hover {
+        color: #312e81;
+        background: #e0e7ff;
+    }
+
+
+    /* ============================================================
+       HEADER
+       ============================================================ */
+
+    .attention-icon-wrap {
+        display: flex;
+        justify-content: center;
+
+        margin-bottom: 11px;
+    }
+
+    .attention-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        width: 52px;
+        height: 52px;
+
+        color: #ffffff;
+
+        background:
+            linear-gradient(
+                135deg,
+                #4338ca,
+                #7c3aed);
+
+        border-radius: 16px;
+
+        box-shadow:
+            0 10px 24px rgba(79, 70, 229, 0.24);
+
+        font-size: 1.15rem;
+    }
+
+    .attention-heading {
+        text-align: center;
+
+        color: #111827;
+
+        font-size: 1.18rem;
+        font-weight: 800;
+
+        line-height: 1.3;
+    }
+
+    .attention-intro {
+        margin-top: 4px;
+        margin-bottom: 18px;
+
+        text-align: center;
+
+        color: #64748b;
+
+        font-size: 0.8rem;
+    }
+
+
+    /* ============================================================
+       ITEMS
+       ============================================================ */
+
+    .attention-items {
+        display: flex;
+        flex-direction: column;
+
+        gap: 9px;
+    }
+
+    .attention-item {
+        display: grid;
+
+        grid-template-columns:
+            40px minmax(0, 1fr) auto;
+
+        align-items: center;
+
+        gap: 11px;
+
+        padding: 11px;
+
+        background: #f8fafc;
+
+        border: 1px solid #e5e7eb;
+        border-radius: 13px;
+    }
+
+    .attention-item-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        width: 40px;
+        height: 40px;
+
+        border-radius: 11px;
+
+        font-size: 0.9rem;
+    }
+
+    .attention-item-icon.message {
+        color: #4338ca;
+        background: #eef2ff;
+    }
+
+    .attention-item-icon.profile {
+        color: #047857;
+        background: #ecfdf5;
+    }
+
+    .attention-item-icon.request {
+        color: #b45309;
+        background: #fffbeb;
+    }
+
+    .attention-item-content {
+        min-width: 0;
+    }
+
+    .attention-item-title {
+        margin-bottom: 2px;
+
+        color: #0f172a;
+
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .attention-item-text {
+        color: #64748b;
+
+        font-size: 0.75rem;
+        line-height: 1.45;
+    }
+
+    .attention-item-text strong {
+        color: #334155;
+        font-weight: 700;
+    }
+
+
+    /* ============================================================
+       ITEM ACTION
+       ============================================================ */
+
+    .attention-action {
+        display: inline-flex;
+        align-items: center;
+
+        gap: 6px;
+
+        min-height: 31px;
+
+        padding: 6px 10px;
+
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+
+        color: #4338ca;
+        background: #ffffff;
+
+        font-size: 0.72rem;
+        font-weight: 700;
+
+        white-space: nowrap;
+
+        cursor: pointer;
+
+        transition:
+            background 0.15s ease,
+            border-color 0.15s ease;
+    }
+
+    .attention-action:hover {
+        background: #eef2ff;
+        border-color: #a5b4fc;
+    }
+
+    .attention-action i {
+        font-size: 0.62rem;
+    }
+
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+
+    .attention-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: 12px;
+
+        margin-top: 16px;
+        padding-top: 13px;
+
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .attention-footer-note {
+        color: #94a3b8;
+
+        font-size: 0.7rem;
+        line-height: 1.35;
+    }
+
+    .attention-footer-note i {
+        margin-right: 4px;
+    }
+
+    .attention-later-btn {
+        flex-shrink: 0;
+
+        min-height: 32px;
+
+        padding: 6px 13px;
+
+        border: 0;
+        border-radius: 8px;
+
+        color: #ffffff;
+        background: #4338ca;
+
+        font-size: 0.73rem;
+        font-weight: 700;
+
+        cursor: pointer;
+    }
+
+    .attention-later-btn:hover {
+        background: #3730a3;
+    }
+
+
+    /* ============================================================
+       MOBILE
+       ============================================================ */
+
+    @@media (max-width: 600px) {
+
+        .attention-overlay {
+            align-items: flex-end;
+
+            padding: 10px;
+        }
+
+        .attention-modal {
+            width: 100%;
+            max-height: calc(100vh - 20px);
+
+            padding: 20px 14px 15px;
+
+            border-radius: 18px;
+        }
+
+        .attention-icon {
+            width: 46px;
+            height: 46px;
+
+            border-radius: 14px;
+        }
+
+        .attention-heading {
+            font-size: 1.02rem;
+        }
+
+        .attention-intro {
+            font-size: 0.74rem;
+        }
+
+        .attention-item {
+            grid-template-columns:
+                36px minmax(0, 1fr);
+
+            gap: 9px;
+        }
+
+        .attention-item-icon {
+            width: 36px;
+            height: 36px;
+        }
+
+        .attention-action {
+            grid-column: 2;
+
+            justify-self: start;
+
+            margin-top: 2px;
+        }
+
+        .attention-footer {
+            align-items: flex-start;
+        }
+    }
+
+</style>
