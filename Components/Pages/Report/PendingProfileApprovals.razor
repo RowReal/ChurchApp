@@ -259,7 +259,7 @@ else
         var role = worker.Role?.Trim() ?? string.Empty;
         var directorateCode = worker.Directorate?.Code?.Trim() ?? string.Empty;
 
-        if (role.Equals("Senior Pastor", StringComparison.OrdinalIgnoreCase))
+        if (role.Equals("Pastor in Charge", StringComparison.OrdinalIgnoreCase))
             return true;
 
         var isMeat =
