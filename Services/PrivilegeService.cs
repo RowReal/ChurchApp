@@ -94,6 +94,19 @@ namespace ChurchApp.Services
                 new() { Code = "Approve-Offerings", Name = "Approve Offering", Description = "Can Aprrove Offering record" },
                 new() { Code = "Record-Attendance", Name = "Record Attendance", Description = "Can create and record Attendance" },
                  new() { Code = "Record-Vechile", Name = "Record Vechile", Description = "Can create and record Vechile" },
+                 new()
+{
+    Code = "Access-Service-Notes",
+    Name = "Access Service Notes",
+    Description = "Can access Service Notes"
+},
+
+new()
+{
+    Code = "Approve-Offering-Amendments",
+    Name = "Approve Offering Amendment",
+    Description = "Can review and approve Offering Amendment requests"
+},
             };
 
             foreach (var privilege in defaultPrivileges)

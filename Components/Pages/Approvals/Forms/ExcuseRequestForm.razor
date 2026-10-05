@@ -247,14 +247,14 @@
             var remaining =
                 serviceStart.Value - DateTime.Now;
 
-            if (remaining < TimeSpan.FromHours(5))
+            if (remaining < TimeSpan.FromMinutes(10))
             {
                 return
                     $"This service starts on " +
                     $"{serviceStart.Value:dd MMM yyyy 'at' h:mm tt}. " +
                     $"Only {FormatRemainingTime(remaining)} remains. " +
                     "The request cannot be submitted because the " +
-                    "Ten minute notice requirement has not been met.";
+                    "10-minute notice requirement has not been met.";
             }
 
             var deadline =
@@ -329,13 +329,12 @@
                 "You cannot request to be excused from a service that " +
                 "has already started.");
         }
-
         if (serviceStart.Value - DateTime.Now <
-            TimeSpan.FromHours(5))
+            TimeSpan.FromMinutes(10))
         {
             throw new InvalidOperationException(
-                "An off-service request must be submitted at least " +
-                "five hours before the selected service starts.");
+                "An Off Service request must be submitted at least " +
+                "10 minutes before the selected service starts.");
         }
 
         // if (Model.NominatedBackupId <= 0)

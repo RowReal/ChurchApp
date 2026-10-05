@@ -1,0 +1,697 @@
+@page "/Offering/NoteList"
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ServiceNoteService ServiceNoteService
+@inject ServiceService ServiceService
+@inject AuthService AuthService
+@inject PrivilegeService PrivilegeService
+@inject NavigationManager Navigation
+
+@if (!isAccessChecked)
+{
+    <div class="d-flex justify-content-center align-items-center py-5">
+        <div class="spinner-border spinner-border-sm text-primary"
+             role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (!isAuthorized)
+{
+    <PageHero Title="Service Notes"
+              Subtitle="View and manage notes recorded for church services."
+              Kicker="Service Records"
+              Icon="fas fa-clipboard-list" />
+
+    <div class="alert alert-danger mt-3">
+        <i class="fas fa-lock me-2"></i>
+        You are not authorised to access Service Notes.
+    </div>
+}
+else
+{
+    <PageHero Title="Service Notes"
+              Subtitle="View and manage notes recorded for church services."
+              Kicker="Service Records"
+              Icon="fas fa-clipboard-list">
+
+        <ActionContent>
+            <button type="button"
+                    class="btn btn-light"
+                    @onclick="AddNewNote">
+                <i class="fas fa-plus me-1"></i>
+                Add Service Note
+            </button>
+        </ActionContent>
+
+    </PageHero>
+
+    <!-- Compact Filter Bar -->
+    <div class="sn-filter-card">
+        <div class="sn-filter-title">
+            <i class="fas fa-filter"></i>
+            <span>Filter Notes</span>
+        </div>
+
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label for="startDate" class="form-label">From Date</label>
+                <input type="date"
+                       id="startDate"
+                       class="form-control form-control-sm"
+                       value="@filterStartDateString"
+                       @onchange="@(async (e) =>
+                       {
+                           filterStartDateString = e.Value?.ToString() ?? "";
+                           await ApplyFilters();
+                       })" />
+              </div>
+
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label for="endDate" class="form-label">To Date</label>
+                <input type="date"
+                       id="endDate"
+                       class="form-control form-control-sm"
+                       value="@filterEndDateString"
+                       @onchange="@(async (e) =>
+                       {
+                           filterEndDateString = e.Value?.ToString() ?? "";
+                           await ApplyFilters();
+                       })" />
+              </div>
+
+            <div class="col-12 col-sm-8 col-lg-4">
+                <label for="serviceFilter" class="form-label">Service</label>
+                <select id="serviceFilter"
+                        class="form-select form-select-sm"
+                        value="@filterServiceId"
+                        @onchange="@(async (e) =>
+                        {
+                            if (int.TryParse(e.Value?.ToString(), out var id))
+                                filterServiceId = id;
+                            else
+                                filterServiceId = 0;
+
+                            await ApplyFilters();
+                        })">
+                      <option value="0">All Services</option>
+
+                    @foreach (var service in allServices)
+                    {
+                        <option value="@service.Id">
+                            @service.Name
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-12 col-sm-4 col-lg-2">
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm w-100"
+                        @onclick="ResetFilters">
+                    <i class="fas fa-rotate-left me-1"></i>
+                    Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="sn-state">
+            <div class="spinner-border spinner-border-sm text-primary"
+                 role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span>Loading service notes...</span>
+        </div>
+    }
+    else if (!filteredNotes.Any())
+    {
+        <div class="sn-empty">
+            <div class="sn-empty-icon">
+                <i class="fas fa-clipboard"></i>
+            </div>
+
+            <div>
+                <strong>No service notes found</strong>
+                <div>
+                    @(hasFilters
+                                ? "Try adjusting or resetting the filters."
+                                : "No service note has been recorded yet.")
+        </div>
+    </div>
+</div>
+    }
+    else
+    {
+        <div class="sn-list-card">
+            <div class="sn-list-header">
+                <div>
+                    <i class="fas fa-list-ul me-1"></i>
+                    Service Notes
+                </div>
+
+                <span class="sn-count">
+                    @filteredNotes.Count
+                    @(filteredNotes.Count == 1 ? "record" : "records")
+                </span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table sn-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Service</th>
+                            <th>Theme / Sermon</th>
+                            <th>Minister</th>
+                            <th>Flow</th>
+                            <th>Recorded By</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var note in filteredNotes)
+                        {
+                            <tr>
+                                <td class="sn-date-cell">
+                                    <strong>
+                                        @note.ServiceDate.ToString("dd MMM yyyy")
+                                    </strong>
+                                    <span>
+                                        @note.ServiceDate.ToString("ddd")
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="sn-service-name">
+                                        @(note.Service?.Name ?? "—")
+                                    </span>
+                                </td>
+
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(note.ThemeOrSermonTitle))
+                                    {
+                                        <span title="@note.ThemeOrSermonTitle">
+                                            @Shorten(note.ThemeOrSermonTitle, 32)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(note.MinisterOrGuestSpeaker))
+                                    {
+                                        <span>
+                                            @Shorten(note.MinisterOrGuestSpeaker, 26)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+
+                                <td>
+                                    <span class="@GetFlowBadgeClass(note.ServiceFlow)">
+                                        @note.ServiceFlow
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="sn-recorder">
+                                        <i class="fas fa-user-circle"></i>
+                                        <span>
+                                            @(note.RecordedBy?.FullName ?? "—")
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-1">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-primary sn-action-btn"
+                                                title="View Service Note"
+                                                @onclick="() => ViewNote(note.Id)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+
+                                        @if (CanEditNote(note))
+                                        {
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary sn-action-btn"
+                                                    title="Edit Service Note"
+                                                    @onclick="() => EditNote(note.Id)">
+                                                <i class="fas fa-pen"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sn-list-footer">
+                Showing <strong>@filteredNotes.Count</strong>
+                of <strong>@allServiceNotes.Count</strong> service notes
+
+                @if (hasFilters)
+                {
+                    <span class="ms-1">with applied filters</span>
+                }
+            </div>
+        </div>
+    }
+}
+
+<style>
+    .sn-filter-card {
+        background: #fff;
+        border: 1px solid #e8e6ee;
+        border-radius: 12px;
+        padding: 12px 14px 14px;
+        margin: 14px 0;
+        box-shadow: 0 2px 8px rgba(32, 18, 55, 0.04);
+    }
+
+    .sn-filter-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 9px;
+        color: #4b3b61;
+        font-size: .82rem;
+        font-weight: 700;
+    }
+
+    .sn-filter-card .form-label {
+        margin-bottom: 4px;
+        color: #68606f;
+        font-size: .72rem;
+        font-weight: 600;
+    }
+
+    .sn-filter-card .form-control,
+    .sn-filter-card .form-select {
+        min-height: 31px;
+        border-radius: 7px;
+        border-color: #ddd8e4;
+        font-size: .78rem;
+    }
+
+    .sn-list-card {
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid #e8e6ee;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(32, 18, 55, 0.04);
+    }
+
+    .sn-list-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 13px;
+        border-bottom: 1px solid #eeeaf2;
+        color: #40334f;
+        font-size: .82rem;
+        font-weight: 700;
+    }
+
+    .sn-count {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        background: #f1edf6;
+        border-radius: 20px;
+        color: #62467d;
+        font-size: .67rem;
+        font-weight: 700;
+    }
+
+    .sn-table {
+        font-size: .76rem;
+    }
+
+        .sn-table thead th {
+            padding: 8px 10px;
+            background: #faf9fb;
+            border-bottom: 1px solid #e8e4eb;
+            color: #68606f;
+            font-size: .68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .025em;
+            white-space: nowrap;
+        }
+
+        .sn-table tbody td {
+            padding: 8px 10px;
+            border-color: #f0edf2;
+            color: #423b48;
+            vertical-align: middle;
+        }
+
+        .sn-table tbody tr:hover {
+            background: #fcfbfd;
+        }
+
+    .sn-date-cell {
+        white-space: nowrap;
+    }
+
+        .sn-date-cell strong {
+            display: block;
+            color: #3e3348;
+            font-size: .76rem;
+            font-weight: 700;
+        }
+
+        .sn-date-cell span {
+            display: block;
+            margin-top: 1px;
+            color: #918999;
+            font-size: .65rem;
+        }
+
+    .sn-service-name {
+        font-weight: 600;
+    }
+
+    .sn-recorder {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+    }
+
+        .sn-recorder i {
+            color: #8d8197;
+        }
+
+    .sn-flow {
+        display: inline-flex;
+        padding: 3px 7px;
+        border-radius: 20px;
+        font-size: .64rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .sn-flow-smooth {
+        background: #e7f6ed;
+        color: #267346;
+    }
+
+    .sn-flow-delayed {
+        background: #fff4d8;
+        color: #886416;
+    }
+
+    .sn-flow-extended {
+        background: #e7f2fb;
+        color: #326989;
+    }
+
+    .sn-flow-rushed {
+        background: #fde8e8;
+        color: #a33b3b;
+    }
+
+    .sn-flow-other {
+        background: #efedf1;
+        color: #655e69;
+    }
+
+    .sn-action-btn {
+        width: 29px;
+        height: 28px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 7px;
+        font-size: .7rem;
+    }
+
+    .sn-list-footer {
+        padding: 8px 12px;
+        background: #faf9fb;
+        border-top: 1px solid #eeeaf2;
+        color: #79717e;
+        font-size: .7rem;
+    }
+
+    .sn-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 120px;
+        color: #716878;
+        font-size: .8rem;
+    }
+
+    .sn-empty {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 18px;
+        background: #fff;
+        border: 1px dashed #dcd6e1;
+        border-radius: 12px;
+        color: #716878;
+        font-size: .78rem;
+    }
+
+        .sn-empty strong {
+            display: block;
+            margin-bottom: 2px;
+            color: #43384c;
+        }
+
+    .sn-empty-icon {
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        background: #f1edf6;
+        border-radius: 9px;
+        color: #65487f;
+    }
+
+    @@media (max-width: 767.98px) {
+        .sn-filter-card {
+            padding: 11px;
+        }
+
+        .sn-list-header {
+            padding: 9px 10px;
+        }
+
+        .sn-table thead th,
+        .sn-table tbody td {
+            padding: 7px 8px;
+        }
+    }
+</style>
+
+@code {
+    private List<ServiceNote> allServiceNotes = new();
+    private List<ServiceNote> filteredNotes = new();
+    private List<Service> allServices = new();
+
+    private bool isLoading = true;
+    private bool isAuthorized = false;
+    private bool isAccessChecked = false;
+
+    private string filterStartDateString = "";
+    private string filterEndDateString = "";
+    private int filterServiceId = 0;
+
+    private bool hasFilters =>
+        !string.IsNullOrEmpty(filterStartDateString) ||
+        !string.IsNullOrEmpty(filterEndDateString) ||
+        filterServiceId > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var worker = AuthService.CurrentWorker;
+
+        if (worker == null)
+        {
+            isAuthorized = false;
+            isAccessChecked = true;
+            isLoading = false;
+            return;
+        }
+
+        isAuthorized =
+            await PrivilegeService.HasPrivilegeAsync(
+                worker.Id,
+                "Access-Service-Notes");
+
+        isAccessChecked = true;
+
+        if (!isAuthorized)
+        {
+            isLoading = false;
+            return;
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+
+        try
+        {
+            allServices =
+                await ServiceService.GetActiveServicesAsync();
+
+            allServiceNotes =
+                await ServiceNoteService.GetAllServiceNotesAsync();
+
+            allServiceNotes = allServiceNotes
+                .OrderByDescending(n => n.ServiceDate)
+                .ToList();
+
+            filteredNotes = allServiceNotes.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Error loading service notes: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        isLoading = true;
+
+        await Task.Delay(100);
+
+        try
+        {
+            var query = allServiceNotes.AsQueryable();
+
+            if (!string.IsNullOrEmpty(filterStartDateString) &&
+                DateTime.TryParse(
+                    filterStartDateString,
+                    out var startDate))
+            {
+                query = query.Where(
+                    n => n.ServiceDate >= startDate);
+            }
+
+            if (!string.IsNullOrEmpty(filterEndDateString) &&
+                DateTime.TryParse(
+                    filterEndDateString,
+                    out var endDate))
+            {
+                query = query.Where(
+                    n => n.ServiceDate <= endDate);
+            }
+
+            if (filterServiceId > 0)
+            {
+                query = query.Where(
+                    n => n.ServiceId == filterServiceId);
+            }
+
+            filteredNotes = query.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Error applying service note filters: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ResetFilters()
+    {
+        filterStartDateString = "";
+        filterEndDateString = "";
+        filterServiceId = 0;
+
+        filteredNotes = allServiceNotes.ToList();
+    }
+
+    private void AddNewNote()
+    {
+        Navigation.NavigateTo("/Offering/CreateNote");
+    }
+
+    private void ViewNote(int id)
+    {
+        Navigation.NavigateTo($"/Offering/ViewNote/{id}");
+    }
+
+    private void EditNote(int id)
+    {
+        Navigation.NavigateTo($"/Offering/EditNote/{id}");
+    }
+
+    private bool CanEditNote(ServiceNote note)
+    {
+        if (AuthService.CurrentWorker == null)
+            return false;
+
+        return note.RecordedByWorkerId ==
+               AuthService.CurrentWorker.Id;
+    }
+
+    private static string Shorten(
+        string? value,
+        int maximumLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "—";
+
+        return value.Length <= maximumLength
+            ? value
+            : value[..maximumLength] + "...";
+    }
+
+    private static string GetFlowBadgeClass(
+        string? serviceFlow)
+    {
+        return serviceFlow?.Trim().ToLowerInvariant() switch
+        {
+            "smooth" =>
+                "sn-flow sn-flow-smooth",
+
+            "delayed" =>
+                "sn-flow sn-flow-delayed",
+
+            "extended" =>
+                "sn-flow sn-flow-extended",
+
+            "rushed" =>
+                "sn-flow sn-flow-rushed",
+
+            _ =>
+                "sn-flow sn-flow-other"
+        };
+    }
+}

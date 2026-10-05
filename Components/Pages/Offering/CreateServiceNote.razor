@@ -1,0 +1,629 @@
+@page "/Offering/createnote"
+@using ChurchApp.Models
+@using ChurchApp.Services
+@inject ServiceNoteService ServiceNoteService
+@inject ServiceService ServiceService
+@inject AuthService AuthService
+@inject PrivilegeService PrivilegeService
+@inject NavigationManager Navigation
+
+<PageHero Title="Create Service Note"
+          Subtitle="Capture key service details, observations and pastoral notes."
+          Kicker="Service Records"
+          Icon="fas fa-clipboard-list" />
+
+@if (!isAuthorized)
+{
+    <div class="alert alert-danger text-center mt-3">
+        <i class="fas fa-lock me-2"></i>
+        You are not authorised to create a Service Note.
+    </div>
+}
+else
+{
+    <EditForm Model="@model"
+              OnValidSubmit="@HandleValidSubmit"
+              class="service-note-form">
+
+        <DataAnnotationsValidator />
+
+        <ValidationSummary class="alert alert-danger py-2 px-3 mb-2 small" />
+
+        <div class="row g-2">
+
+            <!-- COLUMN 1 -->
+            <div class="col-12 col-lg-4">
+                <div class="sn-form-card">
+
+                    <div class="sn-form-card-header">
+                        <span class="sn-card-icon">
+                            <i class="fas fa-church"></i>
+                        </span>
+
+                        <div>
+                            <h6>Service Details</h6>
+                            <small>Basic information about the service</small>
+                        </div>
+                    </div>
+
+                    <div class="sn-form-card-body">
+
+                        <div class="sn-field">
+                            <label for="serviceId" class="form-label">
+                                Service <span class="text-danger">*</span>
+                            </label>
+
+                            <InputSelect id="serviceId"
+                                         class="form-select form-select-sm"
+                                         @bind-Value="model.ServiceId">
+
+                                <option value="">Select Service</option>
+
+                                @foreach (var service in services)
+                                {
+                                    <option value="@service.Id">
+                                        @service.Name
+                                    </option>
+                                }
+
+                            </InputSelect>
+
+                            <ValidationMessage For="@(() => model.ServiceId)" />
+                        </div>
+
+                        <div class="sn-field">
+                            <label for="serviceDate" class="form-label">
+                                Service Date <span class="text-danger">*</span>
+                            </label>
+
+                            <InputDate id="serviceDate"
+                                       class="form-control form-control-sm"
+                                       @bind-Value="model.ServiceDate" />
+
+                            <ValidationMessage For="@(() => model.ServiceDate)" />
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="sn-field">
+                                    <label for="startTime" class="form-label">
+                                        Start Time <span class="text-danger">*</span>
+                                    </label>
+
+                                    <input type="time"
+                                           id="startTime"
+                                           class="form-control form-control-sm"
+                                           value="@GetStartTimeString()"
+                                           @onchange="HandleStartTimeChange" />
+                                </div>
+                            </div>
+
+                            <div class="col-6">
+                                <div class="sn-field">
+                                    <label for="endTime" class="form-label">
+                                        End Time <span class="text-danger">*</span>
+                                    </label>
+
+                                    <input type="time"
+                                           id="endTime"
+                                           class="form-control form-control-sm"
+                                           value="@GetEndTimeString()"
+                                           @onchange="HandleEndTimeChange" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="sn-field">
+                            <label for="serviceFlow" class="form-label">
+                                Service Flow <span class="text-danger">*</span>
+                            </label>
+
+                            <InputSelect id="serviceFlow"
+                                         class="form-select form-select-sm"
+                                         @bind-Value="model.ServiceFlow">
+
+                                <option value="Smooth">Smooth</option>
+                                <option value="Delayed">Delayed</option>
+                                <option value="Extended">Extended</option>
+                                <option value="Rushed">Rushed</option>
+
+                            </InputSelect>
+                        </div>
+
+                        <div class="sn-field mb-0">
+                            <label for="attendancePattern" class="form-label">
+                                Attendance Pattern
+                            </label>
+
+                            <InputTextArea id="attendancePattern"
+                                           class="form-control sn-textarea"
+                                           rows="2"
+                                           @bind-Value="model.AttendancePattern"
+                                           placeholder="Large turnout, unusual attendance pattern...">
+                            </InputTextArea>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- COLUMN 2 -->
+            <div class="col-12 col-lg-4">
+                <div class="sn-form-card">
+
+                    <div class="sn-form-card-header">
+                        <span class="sn-card-icon">
+                            <i class="fas fa-bible"></i>
+                        </span>
+
+                        <div>
+                            <h6>Sermon & Participants</h6>
+                            <small>Message and notable participation</small>
+                        </div>
+                    </div>
+
+                    <div class="sn-form-card-body">
+
+                        <div class="sn-field">
+                            <label for="theme" class="form-label">
+                                Theme / Sermon Title
+                            </label>
+
+                            <InputText id="theme"
+                                       class="form-control form-control-sm"
+                                       @bind-Value="model.ThemeOrSermonTitle" />
+                        </div>
+
+                        <div class="sn-field">
+                            <label for="minister" class="form-label">
+                                Minister / Guest Speaker
+                            </label>
+
+                            <InputText id="minister"
+                                       class="form-control form-control-sm"
+                                       @bind-Value="model.MinisterOrGuestSpeaker" />
+                        </div>
+
+                        <div class="sn-field">
+                            <label for="notableGuests" class="form-label">
+                                Notable Guest Presence
+                            </label>
+
+                            <InputTextArea id="notableGuests"
+                                           class="form-control sn-textarea"
+                                           rows="2"
+                                           @bind-Value="model.NotableGuests">
+                            </InputTextArea>
+                        </div>
+
+                        <div class="sn-field mb-0">
+                            <label for="specialParticipation" class="form-label">
+                                Special Participation
+                            </label>
+
+                            <InputTextArea id="specialParticipation"
+                                           class="form-control sn-textarea"
+                                           rows="2"
+                                           @bind-Value="model.SpecialParticipation">
+                            </InputTextArea>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- COLUMN 3 -->
+            <div class="col-12 col-lg-4">
+                <div class="sn-form-card">
+
+                    <div class="sn-form-card-header">
+                        <span class="sn-card-icon">
+                            <i class="fas fa-clipboard-check"></i>
+                        </span>
+
+                        <div>
+                            <h6>Observations & Safety</h6>
+                            <small>Operational observations from the service</small>
+                        </div>
+                    </div>
+
+                    <div class="sn-form-card-body">
+
+                        <div class="sn-field">
+                            <label for="technicalIssues" class="form-label">
+                                Technical Issues
+                            </label>
+
+                            <InputTextArea id="technicalIssues"
+                                           class="form-control sn-textarea"
+                                           rows="2"
+                                           @bind-Value="model.TechnicalIssues">
+                            </InputTextArea>
+                        </div>
+
+                        <div class="sn-field">
+                            <label for="orderChanges" class="form-label">
+                                Order Changes
+                            </label>
+
+                            <InputTextArea id="orderChanges"
+                                           class="form-control sn-textarea"
+                                           rows="2"
+                                           @bind-Value="model.OrderOfServiceChanges">
+                            </InputTextArea>
+                        </div>
+
+                        <div class="sn-field">
+                            <label for="disruptions" class="form-label">
+                                Disruptions
+                            </label>
+
+                            <InputTextArea id="disruptions"
+                                           class="form-control sn-textarea"
+                                           rows="2"
+                                           @bind-Value="model.Disruptions">
+                            </InputTextArea>
+                        </div>
+
+                        <div class="sn-field mb-0">
+                            <label for="safetyConcerns" class="form-label">
+                                Safety Concerns
+                            </label>
+
+                            <InputTextArea id="safetyConcerns"
+                                           class="form-control sn-textarea"
+                                           rows="2"
+                                           @bind-Value="model.SafetyConcerns">
+                            </InputTextArea>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- GENERAL REMARKS -->
+        <div class="sn-form-card sn-remarks-card mt-2">
+
+            <div class="sn-form-card-header">
+                <span class="sn-card-icon">
+                    <i class="fas fa-comments"></i>
+                </span>
+
+                <div>
+                    <h6>General Remarks</h6>
+                    <small>Leadership, follow-up and additional observations</small>
+                </div>
+            </div>
+
+            <div class="sn-form-card-body">
+                <div class="row g-2">
+
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">
+                            Leadership Awareness
+                        </label>
+
+                        <InputTextArea class="form-control sn-remarks-textarea"
+                                       rows="2"
+                                       @bind-Value="model.LeadershipAwareness">
+                        </InputTextArea>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">
+                            Follow-up Needed
+                        </label>
+
+                        <InputTextArea class="form-control sn-remarks-textarea"
+                                       rows="2"
+                                       @bind-Value="model.FollowUpNeeded">
+                        </InputTextArea>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">
+                            Additional Notes for Pastor
+                        </label>
+
+                        <InputTextArea class="form-control sn-remarks-textarea"
+                                       rows="2"
+                                       @bind-Value="model.AdditionalNotes">
+                        </InputTextArea>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ACTION BAR -->
+        <div class="sn-form-actions">
+
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    @onclick="Cancel">
+                <i class="fas fa-arrow-left me-1"></i>
+                Cancel
+            </button>
+
+            <button type="submit"
+                    class="btn btn-primary btn-sm"
+                    disabled="@isSubmitting">
+
+                @if (isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"
+                          role="status">
+                    </span>
+
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <i class="fas fa-save me-1"></i>
+                    <span>Save Service Note</span>
+                }
+
+            </button>
+
+        </div>
+
+    </EditForm>
+}
+
+
+<style>
+    .service-note-form {
+        margin-top: 0;
+    }
+
+    .sn-form-card {
+        height: 100%;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid #e8e2ef;
+        border-radius: 12px;
+        box-shadow: 0 3px 10px rgba(47, 24, 94, .045);
+    }
+
+    .sn-form-card-header {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 52px;
+        padding: 9px 12px;
+        background: linear-gradient(135deg, #f6f2fb, #fbf9fd);
+        border-bottom: 1px solid #e8e2ef;
+    }
+
+    .sn-card-icon {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        background: #ebe3f5;
+        border-radius: 8px;
+        color: #4b2e83;
+        font-size: .76rem;
+    }
+
+    .sn-form-card-header h6 {
+        margin: 0;
+        color: #382653;
+        font-size: .79rem;
+        font-weight: 800;
+    }
+
+    .sn-form-card-header small {
+        display: block;
+        margin-top: 1px;
+        color: #82778c;
+        font-size: .62rem;
+        line-height: 1.2;
+    }
+
+    .sn-form-card-body {
+        padding: 10px 12px;
+    }
+
+    .sn-field {
+        margin-bottom: 7px;
+    }
+
+    .sn-form-card .form-label {
+        margin-bottom: 2px !important;
+        color: #5b5261;
+        font-size: .69rem !important;
+        font-weight: 650;
+    }
+
+    .sn-form-card .form-control,
+    .sn-form-card .form-select {
+        min-height: 30px !important;
+        padding: .27rem .5rem !important;
+        border-color: #ded8e5;
+        border-radius: 7px !important;
+        font-size: .75rem !important;
+    }
+
+    .sn-form-card .form-control:focus,
+    .sn-form-card .form-select:focus {
+        border-color: #8d72b5;
+        box-shadow: 0 0 0 .12rem rgba(75, 46, 131, .10);
+    }
+
+    .sn-textarea {
+        min-height: 46px !important;
+        height: 46px;
+        resize: vertical;
+        line-height: 1.25;
+    }
+
+    .sn-remarks-card {
+        height: auto;
+    }
+
+    .sn-remarks-card .sn-form-card-header {
+        min-height: 45px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+    }
+
+    .sn-remarks-card .sn-form-card-body {
+        padding-top: 8px;
+        padding-bottom: 9px;
+    }
+
+    .sn-remarks-textarea {
+        min-height: 45px !important;
+        height: 45px;
+        resize: vertical;
+        line-height: 1.25;
+    }
+
+    .sn-form-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 7px;
+        padding-top: 9px;
+    }
+
+    .sn-form-actions .btn {
+        min-width: 96px;
+    }
+
+    .sn-form-actions .btn-primary {
+        min-width: 145px;
+    }
+
+    .validation-message {
+        display: block;
+        margin-top: 2px;
+        color: #b42318;
+        font-size: .62rem;
+    }
+
+    @@media (max-width: 991.98px) {
+        .sn-form-card {
+            height: auto;
+        }
+
+        .sn-textarea,
+        .sn-remarks-textarea {
+            height: 52px;
+        }
+    }
+
+    @@media (max-width: 575.98px) {
+        .sn-form-card-header {
+            min-height: 48px;
+            padding: 8px 10px;
+        }
+
+        .sn-form-card-body {
+            padding: 9px 10px;
+        }
+
+        .sn-form-actions {
+            justify-content: space-between;
+        }
+
+        .sn-form-actions .btn {
+            flex: 1;
+        }
+    }
+</style>
+
+
+@code {
+    private ServiceNoteModel model = new();
+    private List<Service> services = new();
+    private bool isSubmitting = false;
+    private bool isAuthorized = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var worker = AuthService.CurrentWorker;
+
+        if (worker == null)
+        {
+            isAuthorized = false;
+            return;
+        }
+
+        isAuthorized =
+            await PrivilegeService.HasPrivilegeAsync(
+                worker.Id,
+                "Access-Service-Notes");
+
+        if (!isAuthorized)
+            return;
+
+        services =
+            await ServiceService.GetActiveServicesAsync();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (AuthService.CurrentWorker == null)
+            return;
+
+        isSubmitting = true;
+
+        try
+        {
+            await ServiceNoteService.CreateServiceNoteAsync(
+                model,
+                AuthService.CurrentWorker.Id);
+
+            Navigation.NavigateTo("/Offering/NoteList");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/Offering/NoteList");
+    }
+
+    private string GetStartTimeString()
+        => model.ServiceStartTime == default
+            ? "09:00"
+            : model.ServiceStartTime.ToString(@"hh\:mm");
+
+    private string GetEndTimeString()
+        => model.ServiceEndTime == default
+            ? "12:00"
+            : model.ServiceEndTime.ToString(@"hh\:mm");
+
+    private void HandleStartTimeChange(ChangeEventArgs e)
+    {
+        if (TimeSpan.TryParse(
+            e.Value?.ToString(),
+            out var t))
+        {
+            model.ServiceStartTime = t;
+        }
+    }
+
+    private void HandleEndTimeChange(ChangeEventArgs e)
+    {
+        if (TimeSpan.TryParse(
+            e.Value?.ToString(),
+            out var t))
+        {
+            model.ServiceEndTime = t;
+        }
+    }
+}

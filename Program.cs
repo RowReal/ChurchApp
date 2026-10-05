@@ -79,6 +79,7 @@ builder.Services.AddScoped<ChurchNoticeService>();
 builder.Services.AddScoped<VerseOfTheDayService>();
 builder.Services.AddScoped<PrayerFocusService>();
 builder.Services.AddScoped<PrivilegeService>();
+builder.Services.AddScoped<ServiceReportService>();
 
 //builder.Services.AddScoped<WorkerAttendanceTestSeeder>();
 

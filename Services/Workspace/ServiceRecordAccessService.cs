@@ -79,9 +79,9 @@ namespace ChurchApp.Services
                             workerId),
 
                 CanApproveOfferingAmendment =
-                    await _offeringAccessService
-                        .CanDecideOfferingAmendmentAsync(
-                            workerId),
+    await HasPrivilegeAsync(
+        workerId,
+        "Approve-Offering-Amendments"),
 
                 CanRecordAttendance =
                     hasAttendancePrivilege &&

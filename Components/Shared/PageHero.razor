@@ -9,18 +9,37 @@
                 <i class="@Icon"></i>
                 <span>@Kicker</span>
             </div>
+
             <h1>@Title</h1>
+
             @if (!string.IsNullOrWhiteSpace(Subtitle))
             {
                 <p>@Subtitle</p>
             }
         </div>
+
+        @if (ActionContent != null)
+        {
+            <div class="bcc-v4-page-hero-action">
+                @ActionContent
+            </div>
+        }
     </section>
 }
 
 @code {
-    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
-    [Parameter] public string Subtitle { get; set; } = string.Empty;
-    [Parameter] public string Kicker { get; set; } = "BCC ServiceHub";
-    [Parameter] public string Icon { get; set; } = "fas fa-layer-group";
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Subtitle { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Kicker { get; set; } = "BCC ServiceHub";
+
+    [Parameter]
+    public string Icon { get; set; } = "fas fa-layer-group";
+
+    [Parameter]
+    public RenderFragment? ActionContent { get; set; }
 }

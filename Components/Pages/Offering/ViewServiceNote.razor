@@ -1,0 +1,1212 @@
+@page "/Offering/viewnote/{id:int}"
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+@using Microsoft.JSInterop
+
+@inject ServiceNoteService ServiceNoteService
+@inject ServiceReportService ServiceReportService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Service Report - BCC ServiceHub</PageTitle>
+
+@if (loading)
+{
+    <div class="service-report-loading">
+        <div class="spinner-border text-primary" role="status"></div>
+        <div>Preparing service report...</div>
+    </div>
+}
+else if (serviceNote == null)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h4>Service Note Not Found</h4>
+        <p>The requested service note could not be found.</p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Back to Service Notes
+        </button>
+    </div>
+}
+else
+{
+    <div class="service-report-page">
+
+        <!-- SCREEN ACTIONS -->
+        <div class="service-report-actions no-print">
+            <button type="button"
+                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                    @onclick="GoBack">
+                <i class="fas fa-arrow-left me-1"></i>
+                Back
+            </button>
+
+            @if (CanEditNote())
+            {
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="EditNote">
+                    <i class="fas fa-edit me-1"></i>
+                    Edit Note
+                </button>
+            }
+
+            <button type="button"
+                    class="bcc-btn bcc-btn-primary compact-btn"
+                    @onclick="PrintReport">
+                <i class="fas fa-print me-1"></i>
+                Print Report
+            </button>
+        </div>
+
+        <article class="service-report-document">
+
+            <!-- HEADER -->
+            <header class="report-header">
+                <div class="report-church-name">
+                    RCCG BEAUTIFUL GATE COURT
+                </div>
+
+                <div class="report-title">
+                    SERVICE REPORT
+                </div>
+
+                <div class="report-service-name">
+                    @ServiceDisplayName
+                </div>
+
+                <div class="report-date">
+                    @serviceNote.ServiceDate.ToString("dddd, dd MMMM yyyy")
+                </div>
+            </header>
+
+            <div class="report-introduction">
+                Please find below the details of the Service Report for the
+                <strong>@ServiceDisplayName</strong> held on
+                <strong>
+                    @serviceNote.ServiceDate.ToString("dddd, dd MMMM yyyy")
+                </strong>.
+            </div>
+
+            <!-- =====================================================
+                 01 - SERVICE NOTE
+                 ===================================================== -->
+            <section class="report-section">
+
+                <div class="report-section-title">
+                    <span class="section-number">01</span>
+                    <span>Service Note</span>
+                </div>
+
+                <div class="report-grid report-grid-4">
+
+                    <div class="report-field">
+                        <span>Service</span>
+                        <strong>@ServiceDisplayName</strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Service Date</span>
+                        <strong>
+                            @serviceNote.ServiceDate.ToString("dd MMMM yyyy")
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Start Time</span>
+                        <strong>
+                            @FormatTime(serviceNote.ServiceStartTime)
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>End Time</span>
+                        <strong>
+                            @FormatTime(serviceNote.ServiceEndTime)
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Service Flow</span>
+                        <strong>
+                            @DisplayValue(serviceNote.ServiceFlow)
+                        </strong>
+                    </div>
+
+                    <div class="report-field report-field-wide">
+                        <span>Theme / Sermon Title</span>
+                        <strong>
+                            @DisplayValue(serviceNote.ThemeOrSermonTitle)
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Minister / Guest Speaker</span>
+                        <strong>
+                            @DisplayValue(serviceNote.MinisterOrGuestSpeaker)
+                        </strong>
+                    </div>
+
+                </div>
+
+                <!-- SERVICE OBSERVATIONS -->
+                <div class="report-narrative-grid">
+
+                    <div class="report-field">
+                        <span>Attendance Pattern</span>
+                        <strong>
+                            @DisplayValue(serviceNote.AttendancePattern)
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Notable Guest Presence</span>
+                        <strong>
+                            @DisplayValue(serviceNote.NotableGuests)
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Special Participation</span>
+                        <strong>
+                            @DisplayValue(serviceNote.SpecialParticipation)
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Technical Issues</span>
+                        <strong>
+                            @DisplayValue(serviceNote.TechnicalIssues)
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Order Changes</span>
+                        <strong>
+                            @DisplayValue(serviceNote.OrderOfServiceChanges)
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Disruptions</span>
+                        <strong>
+                            @DisplayValue(serviceNote.Disruptions)
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Safety Concerns</span>
+                        <strong>
+                            @DisplayValue(serviceNote.SafetyConcerns)
+                        </strong>
+                    </div>
+
+                    <div class="report-field">
+                        <span>Follow-up Needed</span>
+                        <strong>
+                            @DisplayValue(serviceNote.FollowUpNeeded)
+                        </strong>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- =====================================================
+                 02 - OFFERING RECORD
+                 ===================================================== -->
+            <section class="report-section">
+
+                <div class="report-section-title">
+                    <span class="section-number">02</span>
+                    <span>Offering Record</span>
+                </div>
+
+                @if (approvedOfferings.Count == 0)
+                {
+                    <div class="report-empty">
+                        No approved offering record is available for this service.
+                    </div>
+                }
+                else
+                {
+                    <div class="report-table-wrap">
+
+                        <table class="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Offering Type</th>
+                                    <th>Payment Mode</th>
+                                    <th>Currency</th>
+                                    <th class="amount-column">Amount</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                @foreach (var offering in approvedOfferings)
+                                {
+                                    <tr>
+                                        <td>
+                                            @(offering.OfferingType?.Name
+                                                ?? "Offering")
+                                        </td>
+
+                                        <td>
+                                            @DisplayValue(offering.PaymentMode)
+                                        </td>
+
+                                        <td>
+                                            @offering.Currency
+                                        </td>
+
+                                        <td class="amount-column">
+                                            @FormatAmount(
+                                                offering.Amount,
+                                                offering.Currency)
+                                        </td>
+                                    </tr>
+
+                                    @if (!string.IsNullOrWhiteSpace(
+                                        offering.Remarks))
+                                    {
+                                        <tr class="offering-remark-row">
+                                            <td colspan="4">
+                                                <span>Remarks:</span>
+                                                @offering.Remarks
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+
+                    </div>
+
+                    <div class="offering-totals">
+
+                        @foreach (var total in OfferingTotals)
+                        {
+                            <div class="offering-total-item">
+                                <span>
+                                    @total.Currency Total
+                                </span>
+
+                                <strong>
+                                    @FormatAmount(
+                                        total.Amount,
+                                        total.Currency)
+                                </strong>
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </section>
+
+            <!-- =====================================================
+                 03 - CHURCH ATTENDANCE
+                 ===================================================== -->
+            <section class="report-section">
+
+                <div class="report-section-title">
+                    <span class="section-number">03</span>
+                    <span>Church Attendance</span>
+                </div>
+
+                @if (churchAttendance == null)
+                {
+                    <div class="report-empty">
+                        No church attendance record is available for this service.
+                    </div>
+                }
+                else
+                {
+                    <div class="attendance-summary">
+
+                        <div>
+                            <span>Men</span>
+                            <strong>@churchAttendance.Men</strong>
+                        </div>
+
+                        <div>
+                            <span>Women</span>
+                            <strong>@churchAttendance.Women</strong>
+                        </div>
+
+                        <div>
+                            <span>Teenagers</span>
+                            <strong>@churchAttendance.Teenagers</strong>
+                        </div>
+
+                        <div>
+                            <span>Children</span>
+                            <strong>@churchAttendance.Children</strong>
+                        </div>
+
+                        <div class="attendance-total">
+                            <span>Total Attendance</span>
+                            <strong>@churchAttendance.Total</strong>
+                        </div>
+
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(
+                        churchAttendance.Notes))
+                    {
+                        <div class="attendance-note">
+                            <span>Attendance Note</span>
+                            <p>@churchAttendance.Notes</p>
+                        </div>
+                    }
+                }
+
+            </section>
+
+            <!-- =====================================================
+                 04 - OTHER SERVICE STATISTICS
+                 ===================================================== -->
+            <section class="report-section">
+
+                <div class="report-section-title">
+                    <span class="section-number">04</span>
+                    <span>Other Service Statistics</span>
+                </div>
+
+                <div class="statistics-grid">
+
+                    <div class="stat-box">
+                        <div class="stat-icon">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+
+                        <span>Workers in Attendance</span>
+
+                        <strong>
+                            @workerAttendanceCount
+                        </strong>
+                    </div>
+
+                    <div class="stat-box">
+                        <div class="stat-icon">
+                            <i class="fas fa-car"></i>
+                        </div>
+
+                        <span>Vehicles</span>
+
+                        <strong>
+                            @(vehicleCount.HasValue
+                                ? vehicleCount.Value.ToString()
+                                : "N/A")
+                        </strong>
+                    </div>
+
+                    <div class="stat-box">
+                        <div class="stat-icon">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+
+                        <span>First Timers</span>
+
+                        <strong>
+                            @firstTimerCount
+                        </strong>
+                    </div>
+
+                    <div class="stat-box">
+                        <div class="stat-icon">
+                            <i class="fas fa-redo"></i>
+                        </div>
+
+                        <span>Second Timers</span>
+
+                        <strong>
+                            @secondTimerCount
+                        </strong>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- =====================================================
+                 05 - LEADERSHIP AWARENESS
+                 ===================================================== -->
+            @if (CanViewLeadershipInformation())
+            {
+                <section class="report-section restricted-section">
+
+                    <div class="report-section-title">
+                        <span class="section-number">05</span>
+                        <span>Leadership Awareness</span>
+                    </div>
+
+                    <div class="restricted-content">
+
+                        @if (string.IsNullOrWhiteSpace(
+                            serviceNote.LeadershipAwareness))
+                        {
+                            <span class="text-muted">
+                                No information was recorded for leadership.
+                            </span>
+                        }
+                        else
+                        {
+                            @serviceNote.LeadershipAwareness
+                        }
+
+                    </div>
+
+                </section>
+            }
+
+            <!-- =====================================================
+                 06 - PASTOR IN CHARGE ONLY
+                 ===================================================== -->
+            @if (IsPastorInCharge())
+            {
+                <section class="report-section pastor-section">
+
+                    <div class="report-section-title">
+                        <span class="section-number">06</span>
+                        <span>Note for Pastor in Charge</span>
+                    </div>
+
+                    <div class="pastor-content">
+
+                        @if (string.IsNullOrWhiteSpace(
+                            serviceNote.AdditionalNotes))
+                        {
+                            <span class="text-muted">
+                                No additional note was recorded for the
+                                Pastor in Charge.
+                            </span>
+                        }
+                        else
+                        {
+                            @serviceNote.AdditionalNotes
+                        }
+
+                    </div>
+
+                </section>
+            }
+
+            <!-- FOOTER -->
+            <footer class="report-footer">
+
+                <div>
+                    <span>Service Note Recorded By</span>
+
+                    <strong>
+                        @(serviceNote.RecordedBy?.FullName
+                            ?? "Not available")
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Recorded On</span>
+
+                    <strong>
+                        @serviceNote.RecordedDate
+                            .ToString("dd MMM yyyy, hh:mm tt")
+                    </strong>
+                </div>
+
+            </footer>
+
+        </article>
+
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private ServiceNote? serviceNote;
+    private AttendanceRecord? churchAttendance;
+
+    private List<ChurchOfferingRecord> approvedOfferings =
+        new();
+
+    private int workerAttendanceCount;
+    private int? vehicleCount;
+    private int firstTimerCount;
+    private int secondTimerCount;
+
+    private bool loading = true;
+
+    private string ServiceDisplayName =>
+        serviceNote == null
+            ? "Service"
+            : ServiceReportService.GetServiceDisplayName(
+                serviceNote.Service?.Name,
+                serviceNote.ServiceDate);
+
+    private IEnumerable<OfferingCurrencyTotal> OfferingTotals =>
+        approvedOfferings
+            .GroupBy(x =>
+                string.IsNullOrWhiteSpace(x.Currency)
+                    ? "N/A"
+                    : x.Currency)
+            .Select(x => new OfferingCurrencyTotal
+            {
+                Currency = x.Key,
+                Amount = x.Sum(y => y.Amount)
+            })
+            .OrderBy(x => x.Currency);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            serviceNote =
+                await ServiceNoteService
+                    .GetServiceNoteByIdAsync(Id);
+
+            if (serviceNote == null)
+                return;
+
+            var serviceId =
+                serviceNote.ServiceId;
+
+            var serviceDate =
+                serviceNote.ServiceDate;
+
+            churchAttendance =
+                await ServiceReportService
+                    .GetChurchAttendanceAsync(
+                        serviceId,
+                        serviceDate);
+
+            approvedOfferings =
+                await ServiceReportService
+                    .GetApprovedOfferingsAsync(
+                        serviceId,
+                        serviceDate);
+
+            workerAttendanceCount =
+                await ServiceReportService
+                    .GetWorkerAttendanceCountAsync(
+                        serviceId,
+                        serviceDate);
+
+            vehicleCount =
+                await ServiceReportService
+                    .GetVehicleCountAsync(
+                        serviceId,
+                        serviceDate);
+
+            firstTimerCount =
+                await ServiceReportService
+                    .GetFirstTimerCountAsync(
+                        serviceId,
+                        serviceDate);
+
+            secondTimerCount =
+                await ServiceReportService
+                    .GetSecondTimerCountAsync(
+                        serviceDate);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"Error loading consolidated service report: " +
+                $"{ex.Message}");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private bool CanEditNote()
+    {
+        if (AuthService.CurrentWorker == null ||
+            serviceNote == null)
+        {
+            return false;
+        }
+
+        return serviceNote.RecordedByWorkerId ==
+               AuthService.CurrentWorker.Id;
+    }
+
+    private bool IsPastorInCharge()
+    {
+        var role =
+            AuthService.CurrentWorker?
+                .Role?
+                .Trim() ?? string.Empty;
+
+        return role.Equals(
+            "Pastor in Charge",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool CanViewLeadershipInformation()
+    {
+        var worker =
+            AuthService.CurrentWorker;
+
+        if (worker == null)
+            return false;
+
+        if (IsPastorInCharge())
+            return true;
+
+        var role =
+            worker.Role?
+                .Trim()
+                .ToLowerInvariant()
+            ?? string.Empty;
+
+        return role == "head of cluster" ||
+               role == "head of directorate" ||
+               role == "asst head of directorate" ||
+               role == "assistant head of directorate" ||
+               role == "head of service" ||
+               role == "asst head of service" ||
+               role == "assistant head of service";
+    }
+
+    private static string DisplayValue(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Not recorded"
+            : value;
+    }
+
+    private static string FormatTime(
+        TimeSpan? value)
+    {
+        if (!value.HasValue)
+            return "Not recorded";
+
+        return DateTime.Today
+            .Add(value.Value)
+            .ToString("h:mm tt");
+    }
+
+  private static string FormatAmount(
+    decimal amount,
+    string? currency)
+{
+    var symbol =
+        currency?.ToUpperInvariant() switch
+        {
+            "NGN" => "\u20A6",
+            "USD" => "$",
+            "GBP" => "\u00A3",
+            "EUR" => "\u20AC",
+            _ => string.IsNullOrWhiteSpace(currency)
+                ? ""
+                : $"{currency} "
+        };
+
+    return $"{symbol}{amount:N2}";
+}
+
+    private async Task PrintReport()
+    {
+        await JS.InvokeVoidAsync(
+            "window.print");
+    }
+
+    private void EditNote()
+    {
+        Navigation.NavigateTo(
+            $"/Offering/editnote/{Id}");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo(
+            "/Offering/NoteList");
+    }
+
+    private sealed class OfferingCurrencyTotal
+    {
+        public string Currency { get; set; } =
+            string.Empty;
+
+        public decimal Amount { get; set; }
+    }
+}
+
+<style>
+
+    .service-report-page {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding-bottom: 30px;
+    }
+
+    .service-report-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 7px;
+        margin-bottom: 12px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.76rem;
+    }
+
+    .service-report-document {
+        overflow: hidden;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        box-shadow:
+            0 8px 28px rgba(15, 23, 42, 0.07);
+    }
+
+    .report-header {
+        padding: 28px 34px 25px;
+        color: #ffffff;
+        text-align: center;
+        background:
+            linear-gradient(
+                135deg,
+                #35135f 0%,
+                #5b2187 100%);
+    }
+
+    .report-church-name {
+        margin-bottom: 6px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.9;
+    }
+
+    .report-title {
+        font-size: 1.65rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+    }
+
+    .report-service-name {
+        margin-top: 5px;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .report-date {
+        margin-top: 3px;
+        font-size: 0.78rem;
+        opacity: 0.88;
+    }
+
+    .report-introduction {
+        margin: 22px 30px 5px;
+        padding: 12px 15px;
+        color: #475569;
+        background: #faf8fc;
+        border-left: 4px solid #6b2a91;
+        border-radius: 5px;
+        font-size: 0.82rem;
+        line-height: 1.55;
+    }
+
+    .report-section {
+        margin: 0 30px;
+        padding: 22px 0;
+        border-bottom: 1px solid #e2e8f0;
+        break-inside: avoid;
+    }
+
+    .report-section-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 13px;
+        color: #35135f;
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .section-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 27px;
+        height: 27px;
+        color: #ffffff;
+        background: #5b2187;
+        border-radius: 7px;
+        font-size: 0.62rem;
+        font-weight: 900;
+    }
+
+    .report-grid {
+        display: grid;
+        gap: 7px;
+    }
+
+    .report-grid-4 {
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+    }
+
+    .report-field {
+        min-height: 59px;
+        padding: 9px 10px;
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+    }
+
+    .report-field-wide {
+        grid-column: span 2;
+    }
+
+    .report-field span,
+    .attendance-note span {
+        display: block;
+        margin-bottom: 3px;
+        color: #64748b;
+        font-size: 0.62rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .report-field strong {
+        display: block;
+        color: #172033;
+        font-size: 0.78rem;
+        font-weight: 700;
+        line-height: 1.45;
+        white-space: pre-wrap;
+    }
+
+    .report-narrative-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 7px;
+        margin-top: 7px;
+    }
+
+    .report-table-wrap {
+        overflow-x: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .report-table th {
+        padding: 8px 10px;
+        color: #475569;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.63rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .report-table td {
+        padding: 8px 10px;
+        color: #1e293b;
+        border-bottom: 1px solid #eef2f7;
+        font-size: 0.76rem;
+    }
+
+    .amount-column {
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    .offering-remark-row td {
+        padding-top: 5px;
+        color: #64748b;
+        background: #fcfcfd;
+        font-size: 0.69rem;
+    }
+
+    .offering-remark-row span {
+        font-weight: 800;
+    }
+
+    .offering-totals {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 9px;
+    }
+
+    .offering-total-item {
+        min-width: 155px;
+        padding: 8px 11px;
+        text-align: right;
+        background: #f3eef7;
+        border-radius: 8px;
+    }
+
+    .offering-total-item span {
+        display: block;
+        color: #6b7280;
+        font-size: 0.6rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .offering-total-item strong {
+        color: #35135f;
+        font-size: 0.9rem;
+    }
+
+    .attendance-summary {
+        display: grid;
+        grid-template-columns:
+            repeat(5, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+    .attendance-summary > div {
+        padding: 11px;
+        text-align: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+    }
+
+    .attendance-summary span,
+    .stat-box span {
+        display: block;
+        margin-bottom: 4px;
+        color: #64748b;
+        font-size: 0.63rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .attendance-summary strong {
+        color: #172033;
+        font-size: 1.05rem;
+    }
+
+    .attendance-summary .attendance-total {
+        color: #ffffff;
+        background: #35135f;
+        border-color: #35135f;
+    }
+
+    .attendance-summary
+    .attendance-total span,
+    .attendance-summary
+    .attendance-total strong {
+        color: #ffffff;
+    }
+
+    .attendance-note {
+        margin-top: 8px;
+        padding: 9px 11px;
+        background: #fafafa;
+        border-radius: 7px;
+    }
+
+    .attendance-note p {
+        margin: 0;
+        color: #475569;
+        font-size: 0.75rem;
+        white-space: pre-wrap;
+    }
+
+    .statistics-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .stat-box {
+        padding: 12px;
+        text-align: center;
+        background: #faf8fc;
+        border: 1px solid #eadff1;
+        border-radius: 9px;
+    }
+
+    .stat-icon {
+        margin-bottom: 5px;
+        color: #6b2a91;
+        font-size: 1rem;
+    }
+
+    .stat-box strong {
+        color: #35135f;
+        font-size: 1.15rem;
+    }
+
+    .report-empty {
+        padding: 12px;
+        color: #64748b;
+        background: #f8fafc;
+        border: 1px dashed #cbd5e1;
+        border-radius: 8px;
+        font-size: 0.76rem;
+        text-align: center;
+    }
+
+    .restricted-content,
+    .pastor-content {
+        padding: 12px 14px;
+        color: #334155;
+        background: #f8fafc;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
+    .pastor-content {
+        background: #fff8f8;
+        border-left: 4px solid #b91c1c;
+    }
+
+    .report-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 18px 30px 22px;
+        color: #64748b;
+        background: #fafafa;
+        font-size: 0.68rem;
+    }
+
+    .report-footer span {
+        display: block;
+        margin-bottom: 2px;
+        text-transform: uppercase;
+        font-size: 0.58rem;
+        font-weight: 800;
+    }
+
+    .report-footer strong {
+        color: #334155;
+        font-size: 0.72rem;
+    }
+
+    .service-report-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
+        min-height: 300px;
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    @@media (max-width: 900px) {
+
+        .report-grid-4 {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+
+        .attendance-summary {
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+        }
+
+        .statistics-grid {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 600px) {
+
+        .service-report-actions {
+            justify-content: stretch;
+            flex-wrap: wrap;
+        }
+
+        .service-report-actions button {
+            flex: 1;
+        }
+
+        .report-header {
+            padding: 22px 16px;
+        }
+
+        .report-introduction,
+        .report-section {
+            margin-left: 14px;
+            margin-right: 14px;
+        }
+
+        .report-grid-4,
+        .report-narrative-grid,
+        .attendance-summary,
+        .statistics-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .report-field-wide {
+            grid-column: auto;
+        }
+
+        .report-footer {
+            flex-direction: column;
+            padding-left: 14px;
+            padding-right: 14px;
+        }
+    }
+
+    @@media print {
+
+        .no-print {
+            display: none !important;
+        }
+
+        .service-report-page {
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .service-report-document {
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+
+        .report-header,
+        .section-number,
+        .attendance-total,
+        .stat-box,
+        .offering-total-item {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .report-section {
+            break-inside: avoid;
+        }
+
+        .report-table-wrap {
+            overflow: visible;
+        }
+    }
+
+</style>
