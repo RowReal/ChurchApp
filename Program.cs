@@ -120,6 +120,7 @@ builder.Services.AddScoped<PendingAttentionService>();
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<IncomeCategoryService>();
 builder.Services.AddScoped<IncomeTypeService>();
+builder.Services.AddScoped<RemittanceRuleService>();
 var app = builder.Build();
 
 // APPLY EF CORE MIGRATIONS AUTOMATICALLY

@@ -193,6 +193,11 @@ else
                             </label>
 
                             <label class="finance-status-switch">
+                                <InputCheckbox class="form-check-input" @bind-Value="model.AvailableForServiceCollection" />
+                                <span><strong>Available for Service Collection</strong><small>Show this income type when recording offerings collected during a church service.</small></span>
+                            </label>
+
+                            <label class="finance-status-switch">
                                 <InputCheckbox class="form-check-input" @bind-Value="model.IsActive" />
                                 <span><strong>Active Income Type</strong><small>Only active income types appear during income entry.</small></span>
                             </label>
@@ -439,6 +444,7 @@ else
             DefaultBankAccountId = item.DefaultBankAccountId,
             AccountSelectionMode = item.AccountSelectionMode,
             RemittanceApplicable = item.RemittanceApplicable,
+            AvailableForServiceCollection = item.AvailableForServiceCollection,
             Description = item.Description,
             DisplayOrder = item.DisplayOrder,
             IsActive = item.IsActive,
@@ -1187,3 +1193,4 @@ else
         background: #dc2626 !important;
     }
 </style>
+

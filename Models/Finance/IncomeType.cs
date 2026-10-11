@@ -28,6 +28,8 @@ namespace ChurchApp.Models.Finance
 
         public bool RemittanceApplicable { get; set; }
 
+        public bool AvailableForServiceCollection { get; set; }
+
         [StringLength(500)]
         public string? Description { get; set; }
 
@@ -49,3 +51,4 @@ namespace ChurchApp.Models.Finance
             = new List<RemittanceRule>();
     }
 }
+

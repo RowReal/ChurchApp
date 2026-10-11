@@ -42,6 +42,7 @@ public sealed class IncomeTypeService
             DefaultBankAccountId = model.DefaultBankAccountId,
             AccountSelectionMode = model.AccountSelectionMode,
             RemittanceApplicable = model.RemittanceApplicable,
+            AvailableForServiceCollection = model.AvailableForServiceCollection,
             Description = NormaliseOptionalText(model.Description),
             DisplayOrder = model.DisplayOrder,
             IsActive = model.IsActive,
@@ -76,6 +77,7 @@ public sealed class IncomeTypeService
         entity.DefaultBankAccountId = model.DefaultBankAccountId;
         entity.AccountSelectionMode = model.AccountSelectionMode;
         entity.RemittanceApplicable = model.RemittanceApplicable;
+        entity.AvailableForServiceCollection = model.AvailableForServiceCollection;
         entity.Description = NormaliseOptionalText(model.Description);
         entity.DisplayOrder = model.DisplayOrder;
         entity.IsActive = model.IsActive;
