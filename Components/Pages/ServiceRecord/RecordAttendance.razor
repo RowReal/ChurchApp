@@ -155,6 +155,10 @@ else
                                            @bind-Value="formModel.AttendanceDate" />
                             </div>
 
+                            <div class="col-12 mt-3">
+                                <h6 class="mb-1">Physical Attendance</h6>
+                            </div>
+
                             <div class="col-6">
                                 <label class="form-label compact-label">
                                     Men
@@ -195,6 +199,26 @@ else
                                              min="0" />
                             </div>
 
+                            <div class="col-12 mt-3">
+                                <h6 class="mb-1">Online Attendance</h6>
+                            </div>
+
+                            <div class="col-4">
+                                <label class="form-label compact-label">Facebook</label>
+                                <InputNumber class="form-control form-control-sm text-center"
+                                             @bind-Value="formModel.FacebookAttendance" min="0" />
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label compact-label">Instagram</label>
+                                <InputNumber class="form-control form-control-sm text-center"
+                                             @bind-Value="formModel.InstagramAttendance" min="0" />
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label compact-label">YouTube</label>
+                                <InputNumber class="form-control form-control-sm text-center"
+                                             @bind-Value="formModel.YouTubeAttendance" min="0" />
+                            </div>
+
                             <div class="col-12">
                                 <label class="form-label compact-label">
                                     Notes
@@ -212,8 +236,12 @@ else
                         </div>
 
                         <div class="attendance-total-panel mt-3">
-                            <span>Total Attendance</span>
+                            <span>Total Physical Attendance</span>
                             <strong>@GetFormTotal()</strong>
+                        </div>
+                        <div class="attendance-total-panel mt-2">
+                            <span>Total Online Attendance</span>
+                            <strong>@GetOnlineTotal()</strong>
                         </div>
 
                         <div class="mt-3 d-flex justify-content-end gap-2">
@@ -322,7 +350,11 @@ else
                                             <th>Women</th>
                                             <th>Teens</th>
                                             <th>Children</th>
-                                            <th>Total</th>
+                                            <th>Physical Total</th>
+                                            <th>Facebook</th>
+                                            <th>Instagram</th>
+                                            <th>YouTube</th>
+                                            <th>Online Total</th>
                                             <th>Recorder</th>
                                             <th class="text-end">Actions</th>
                                         </tr>
@@ -352,6 +384,13 @@ else
                                                     <span class="attendance-total-badge">
                                                         @record.Total
                                                     </span>
+                                                </td>
+
+                                                <td>@record.FacebookAttendance</td>
+                                                <td>@record.InstagramAttendance</td>
+                                                <td>@record.YouTubeAttendance</td>
+                                                <td>
+                                                    <span class="attendance-total-badge">@record.TotalOnlineAttendance</span>
                                                 </td>
 
                                                 <td>
@@ -427,9 +466,9 @@ else
                                                        </div>
 
                 <div>
-                    <span>Total</span>
+                    <span>Total Physical Attendance</span>
                     <strong class="text-success">
-                        @selectedRecord.Total
+                        @selectedRecord.TotalPhysicalAttendance
                     </strong>
                 </div>
 
@@ -451,6 +490,23 @@ else
                 <div>
                     <span>Children</span>
                     <strong>@selectedRecord.Children</strong>
+                </div>
+
+                <div>
+                    <span>Facebook</span>
+                    <strong>@selectedRecord.FacebookAttendance</strong>
+                </div>
+                <div>
+                    <span>Instagram</span>
+                    <strong>@selectedRecord.InstagramAttendance</strong>
+                </div>
+                <div>
+                    <span>YouTube</span>
+                    <strong>@selectedRecord.YouTubeAttendance</strong>
+                </div>
+                <div>
+                    <span>Total Online Attendance</span>
+                    <strong class="text-success">@selectedRecord.TotalOnlineAttendance</strong>
                 </div>
 
                 <div>
@@ -739,7 +795,7 @@ else
                 ShowResultPopup(
                     true,
                     "Attendance Recorded",
-                    $"Attendance was recorded successfully. Total: {GetFormTotal()}.");
+                    $"Attendance was recorded successfully. Physical: {GetFormTotal()}, Online: {GetOnlineTotal()}.");
             }
 
             ResetForm();
@@ -774,6 +830,9 @@ else
             Women = record.Women,
             Teenagers = record.Teenagers,
             Children = record.Children,
+            FacebookAttendance = record.FacebookAttendance,
+            InstagramAttendance = record.InstagramAttendance,
+            YouTubeAttendance = record.YouTubeAttendance,
             Notes = record.Notes,
             RecordedByWorkerId =
                 record.RecordedByWorkerId,
@@ -947,14 +1006,17 @@ else
         if (formModel.Men < 0 ||
             formModel.Women < 0 ||
             formModel.Teenagers < 0 ||
-            formModel.Children < 0)
+            formModel.Children < 0 ||
+            formModel.FacebookAttendance < 0 ||
+            formModel.InstagramAttendance < 0 ||
+            formModel.YouTubeAttendance < 0)
         {
             errorMessage =
                 "Attendance figures cannot be negative.";
             return false;
         }
 
-        if (GetFormTotal() <= 0)
+        if (GetFormTotal() <= 0 && GetOnlineTotal() <= 0)
         {
             errorMessage =
                 "Please enter attendance for at least one category.";
@@ -970,6 +1032,13 @@ else
                formModel.Women +
                formModel.Teenagers +
                formModel.Children;
+    }
+
+    private int GetOnlineTotal()
+    {
+        return formModel.FacebookAttendance +
+               formModel.InstagramAttendance +
+               formModel.YouTubeAttendance;
     }
 
     private void ResetForm()

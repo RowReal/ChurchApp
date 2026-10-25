@@ -50,6 +50,12 @@ namespace ChurchApp.Services
                 existingAttendance.Women = attendance.Women;
                 existingAttendance.Teenagers = attendance.Teenagers;
                 existingAttendance.Children = attendance.Children;
+
+                // Online attendance
+                existingAttendance.FacebookAttendance = attendance.FacebookAttendance;
+                existingAttendance.InstagramAttendance = attendance.InstagramAttendance;
+                existingAttendance.YouTubeAttendance = attendance.YouTubeAttendance;
+
                 existingAttendance.Notes = attendance.Notes;
                 existingAttendance.ModifiedDate = DateTime.UtcNow;
 

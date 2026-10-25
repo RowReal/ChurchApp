@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿
+using System;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ChurchApp.Models
@@ -20,17 +22,30 @@ namespace ChurchApp.Models
         [Required, MaxLength(100)]
         public string ServiceName { get; set; } = string.Empty;
 
+        // Physical attendance
         public int Men { get; set; }
         public int Women { get; set; }
         public int Teenagers { get; set; }
         public int Children { get; set; }
 
+        // Online attendance
+        public int FacebookAttendance { get; set; }
+        public int InstagramAttendance { get; set; }
+        public int YouTubeAttendance { get; set; }
+
+        // Preserve existing Total property for compatibility
         [NotMapped]
         public int Total => Men + Women + Teenagers + Children;
 
+        [NotMapped]
+        public int TotalPhysicalAttendance => Total;
+
+        [NotMapped]
+        public int TotalOnlineAttendance =>
+            FacebookAttendance + InstagramAttendance + YouTubeAttendance;
+
         public string? Notes { get; set; }
 
-        // Using WorkerId instead of Id
         [Required, MaxLength(20)]
         public string RecordedByWorkerId { get; set; } = string.Empty;
 
