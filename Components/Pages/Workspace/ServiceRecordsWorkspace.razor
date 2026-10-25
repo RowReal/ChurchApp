@@ -1,4 +1,4 @@
-﻿@page "/workspace/service-records"
+@page "/workspace/service-records"
 @layout Components.Layout.MainLayout
 
 @using ChurchApp.Models
@@ -89,10 +89,10 @@ else
         <div class="workspace-tile-grid">
 
             @RenderTile(
-            "/Offering/record",
+            "/ServiceRecord/record-collection",
                 "fas fa-hand-holding-usd",
-                "Record Offering",
-                access.CanRecordOffering,
+                "Collection Management",
+                access.CanAccessCollectionManagement,
                 0)
 
         @RenderTile(
@@ -110,13 +110,13 @@ else
                 access.PendingOfferingApprovalCount)
 
         @RenderTile(
-                "/Offering/report",
+                "/ServiceRecord/collection-report",
                 "fas fa-chart-bar",
-                "Offering Report",
+                "Offering/Income Report",
                 access.CanViewOfferingReport,
                 0)
 
-        @RenderTile(
+        @* @RenderTile(
                 "/Offering/amendments",
                 "fas fa-edit",
                 "Offering Amendment",
@@ -129,11 +129,11 @@ else
                 "Amendment Approval",
                 access.CanApproveOfferingAmendment,
                 access.PendingOfferingAmendmentCount)
-
+ *@
         @RenderTile(
-                "/Offering/Attendance-record",
+                "/ServiceRecord/Attendance-record",
                 "fas fa-users",
-                "Attendance Record",
+                "Church Attendance Record",
                 access.CanRecordAttendance,
                 0)
 
@@ -145,7 +145,7 @@ else
                 0)
 
         @RenderTile(
-                "/Offering/NoteList",
+                "/ServiceRecord/NoteList",
                 "fas fa-sticky-note",
                 "Service Notes",
                 access.CanAccessServiceNotes,
@@ -421,5 +421,3 @@ else
         }
     }
 </style>
-
-

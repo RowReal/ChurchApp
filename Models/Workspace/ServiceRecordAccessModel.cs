@@ -1,8 +1,10 @@
-﻿namespace ChurchApp.Models
+namespace ChurchApp.Models
 {
     public class ServiceRecordAccessModel
     {
         public bool CanRecordOffering { get; set; }
+
+        public bool CanAccessCollectionManagement { get; set; }
 
         public bool CanApproveOffering { get; set; }
 
@@ -25,6 +27,7 @@
         public int PendingOfferingAmendmentCount { get; set; }
 
         public bool HasAnyAccess =>
+            CanAccessCollectionManagement ||
             CanRecordOffering ||
             CanApproveOffering ||
             CanViewOfferingReport ||

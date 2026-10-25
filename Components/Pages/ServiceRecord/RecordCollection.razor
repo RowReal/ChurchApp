@@ -1,0 +1,1878 @@
+@page "/ServiceRecord/record-collection"
+@layout Components.Layout.MainLayout
+
+@using ChurchApp.Models
+@using ChurchApp.Services
+@using ChurchApp.Models.Finance
+@inject AuthService AuthService
+@inject ChurchCollectionService CollectionService
+@inject ChurchOfferingAccessService OfferingAccessService
+@inject NavigationManager Navigation
+
+<PageTitle>Record Collection - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-lock"></i>
+        <h4>Please Log In</h4>
+        <p>You need to be logged in to record an collection.</p>
+
+        <a href="/login"
+           class="bcc-btn bcc-btn-primary">
+            Go to Login
+        </a>
+    </div>
+}
+else if (isLoading)
+{
+    <div class="worker360-page">
+        <div class="bcc-card">
+            <div class="bcc-card-body text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">
+                    Loading collection records...
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else if (!canRecordCollection)
+{
+    <div class="bcc-empty">
+        <i class="fas fa-ban"></i>
+        <h4>Access Denied</h4>
+        <p>
+            You must belong to the Ushering Department and have
+            the Access Offering privilege to record collections.
+        </p>
+
+        <button type="button"
+                class="bcc-btn bcc-btn-primary"
+                @onclick="GoBack">
+            Return to Service Records
+        </button>
+    </div>
+}
+else
+{
+    <div class="worker360-page offering-register-page">
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger py-2">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                @errorMessage
+            </div>
+        }
+
+        <div class="bcc-page-header offering-page-header">
+            <div>
+                <div class="bcc-page-subtitle">
+                    <i class="fas fa-hand-holding-usd me-2"></i>
+                    Service Records
+                </div>
+
+                <div class="bcc-page-title">
+                    Collection Record
+                </div>
+
+                <div class="bcc-page-subtitle">
+                    Record collections and view entries recorded by all authorised Workers.
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="ClearForm">
+                    <i class="fas fa-redo me-2"></i>
+                    Reset
+                </button>
+
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="GoBack">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back
+                </button>
+            </div>
+        </div>
+
+        @if (canReviewCollections && pendingApprovals.Count > 0)
+        {
+            <div class="bcc-card mb-3">
+                <div class="bcc-card-body p-3">
+                    <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2"
+                            @onclick="() => showPendingQueue = !showPendingQueue">
+                        <span><i class="fas fa-clipboard-check me-2"></i>Pending Approvals</span>
+                        <span class="badge bg-warning text-dark ms-1">@pendingApprovals.Count</span>
+                    </button>
+                    @if (showPendingQueue)
+                    {
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm align-middle">
+                                <thead><tr><th>Date</th><th>Service</th><th>Income Type</th><th>Amount</th><th>Recorded By</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    @foreach (var pending in pendingApprovals)
+                                    {
+                                        <tr>
+                                            <td>@pending.CollectionDate.ToString("dd MMM yyyy")</td>
+                                            <td>@pending.Service?.Name</td>
+                                            <td>@pending.IncomeType?.Name</td>
+                                            <td>@FormatAmount(pending.Amount, pending.Currency)</td>
+                                            <td>@FormatWorkerName(pending.RecordedByWorker)</td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                                        @onclick="() => OpenReview(pending)">
+                                                    Review
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (myReturnedCollections.Count > 0)
+        {
+            <div class="bcc-card mb-3">
+                <div class="bcc-card-body p-3">
+                    <button type="button" class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-2"
+                            @onclick="() => showReturnedQueue = !showReturnedQueue">
+                        <span><i class="fas fa-undo me-2"></i>My Returned Collections</span>
+                        <span class="badge bg-warning text-dark ms-1">@myReturnedCollections.Count</span>
+                    </button>
+                    @if (showReturnedQueue)
+                    {
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm align-middle">
+                                <thead><tr><th>Date</th><th>Service</th><th>Income Type</th><th>Amount</th><th>Return Comment</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    @foreach (var returned in myReturnedCollections)
+                                    {
+                                        <tr>
+                                            <td>@returned.CollectionDate.ToString("dd MMM yyyy")</td>
+                                            <td>@returned.Service?.Name</td>
+                                            <td>@returned.IncomeType?.Name</td>
+                                            <td>@FormatAmount(returned.Amount, returned.Currency)</td>
+                                            <td>@returned.ReturnComment</td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="() => OpenCorrection(returned)">Correct</button>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => OpenRemove(returned)">Remove</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (canDecideAmendments && pendingAmendments.Count > 0)
+        {
+            <div class="bcc-card mb-3">
+                <div class="bcc-card-body p-3">
+                    <button type="button" class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-2" @onclick="() => showAmendmentQueue = !showAmendmentQueue">
+                        <i class="fas fa-file-signature"></i>Pending Amendments <span class="badge bg-warning text-dark ms-1">@pendingAmendments.Count</span>
+                    </button>
+                    @if (showAmendmentQueue)
+                    {
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm align-middle">
+                                <thead><tr><th>Requested</th><th>Collection Date</th><th>Income Type</th><th>Proposed Amount</th><th>Requested By</th><th>Action</th></tr></thead>
+                                <tbody>
+                                    @foreach (var amendment in pendingAmendments)
+                                    {
+                                        <tr>
+                                            <td>@amendment.RequestedAt.ToString("dd MMM yyyy")</td>
+                                            <td>@amendment.CollectionRecord?.CollectionDate.ToString("dd MMM yyyy")</td>
+                                            <td>@amendment.ProposedIncomeType?.Name</td>
+                                            <td>@FormatAmount(amendment.ProposedAmount, amendment.ProposedCurrency)</td>
+                                            <td>@FormatWorkerName(amendment.RequestedByWorker)</td>
+                                            <td><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => OpenAmendmentReview(amendment)">Review</button></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="row g-3">
+
+            <div class="col-12 col-xl-4">
+                <div class="bcc-card h-100">
+                    <div class="bcc-card-body p-3">
+
+                        <div class="compact-section-heading">
+                            <div>
+                                <h6>
+                                    <i class="fas fa-money-bill-wave me-2"></i>
+                                    New Collection
+                                </h6>
+
+                                <p>
+                                    Enter collection details for a church service.
+                                </p>
+                            </div>
+                        </div>
+
+                        @if (shouldAutoApprove)
+                        {
+                            <div class="compact-status-note auto-approved">
+                                <i class="fas fa-check-circle"></i>
+                                Auto-approved for Church Admin
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="compact-status-note pending">
+                                <i class="fas fa-clock"></i>
+                                Will be sent for approval
+                            </div>
+                        }
+
+                        <EditForm Model="@collectionModel"
+                                  OnValidSubmit="SubmitCollection">
+
+                            <DataAnnotationsValidator />
+
+                            <div class="row g-2 mt-1">
+
+                                <div class="col-12">
+                                    <label class="form-label compact-label">
+                                        Service
+                                        <span class="text-danger">*</span>
+                                    </label>
+
+                                    <InputSelect class="form-select form-select-sm"
+                                                 @bind-Value="collectionModel.ServiceId">
+                                        <option value="">
+                                            Select Service
+                                        </option>
+
+                                        @foreach (var service in services)
+                                        {
+                                            <option value="@service.Id">
+                                                @service.Name
+                                            </option>
+                                        }
+                                    </InputSelect>
+
+                                    <ValidationMessage For="@(() => collectionModel.ServiceId)" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label compact-label">
+                                        Income Type
+                                        <span class="text-danger">*</span>
+                                    </label>
+
+                                    <InputSelect class="form-select form-select-sm"
+                                                 @bind-Value="collectionModel.IncomeTypeId">
+                                        <option value="">
+                                            Select Income Type
+                                        </option>
+
+                                        @foreach (var type in incomeTypes)
+                                        {
+                                            <option value="@type.Id">
+                                                @type.Name
+                                            </option>
+                                        }
+                                    </InputSelect>
+
+                                    <ValidationMessage For="@(() => collectionModel.IncomeTypeId)" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label compact-label">
+                                        Collection Date
+                                        <span class="text-danger">*</span>
+                                    </label>
+
+                                    <InputDate class="form-control form-control-sm"
+                                               @bind-Value="collectionModel.CollectionDate" />
+
+                                    <ValidationMessage For="@(() => collectionModel.CollectionDate)" />
+                                </div>
+
+                                <div class="col-7">
+                                    <label class="form-label compact-label">
+                                        Amount
+                                        <span class="text-danger">*</span>
+                                    </label>
+
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">
+                                            @GetCurrencySymbol()
+                                        </span>
+
+                                        <InputNumber class="form-control"
+                                                     @bind-Value="collectionModel.Amount"
+                                                     placeholder="0.00" />
+                                    </div>
+
+                                    <ValidationMessage For="@(() => collectionModel.Amount)" />
+                                </div>
+
+                                <div class="col-5">
+                                    <label class="form-label compact-label">
+                                        Currency
+                                    </label>
+
+                                    <InputSelect class="form-select form-select-sm"
+                                                 @bind-Value="collectionModel.Currency">
+                                        <option value="NGN">NGN</option>
+                                        <option value="USD">USD</option>
+                                        <option value="GBP">GBP</option>
+                                        <option value="EUR">EUR</option>
+                                    </InputSelect>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label compact-label">
+                                        Payment Mode
+                                        <span class="text-danger">*</span>
+                                    </label>
+
+                                    <InputSelect class="form-select form-select-sm"
+                                                 @bind-Value="collectionModel.PaymentMode">
+                                        <option value="">
+                                            Select Payment Mode
+                                        </option>
+                                        <option value="Cash">Cash</option>
+                                        @if (canRecordBankTransfer)
+                                        {
+                                            <option value="Transfer">Bank Transfer</option>
+                                        }
+                                        <option value="POS">POS</option>
+                                        <option value="Cheque">Cheque</option>
+                                        <option value="Mixed">Mixed Payment</option>
+                                    </InputSelect>
+
+                                    <ValidationMessage For="@(() => collectionModel.PaymentMode)" />
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label compact-label">
+                                        Remarks
+                                        <span class="text-muted fw-normal">
+                                            (Optional)
+                                        </span>
+                                    </label>
+
+                                    <InputTextArea class="form-control form-control-sm"
+                                                   rows="3"
+                                                   @bind-Value="collectionModel.Remarks"
+                                                   placeholder="Add a short note if required." />
+                                </div>
+
+                            </div>
+
+                            <div class="offering-total-panel mt-3">
+                                <span>Amount</span>
+                                <strong>
+                                    @FormatAmount(
+                                    collectionModel.Amount,
+                                                                collectionModel.Currency)
+                            </strong>
+                        </div>
+
+                        <div class="mt-3 d-flex justify-content-end gap-2">
+
+                            <button type="button"
+                                    class="bcc-btn profile-form-secondary-btn compact-btn"
+                                    disabled="@isSubmitting"
+                                    @onclick="ClearForm">
+                                Clear
+                            </button>
+
+                            <button type="submit"
+                                    class="bcc-btn bcc-btn-primary compact-btn"
+                                    disabled="@isSubmitting">
+
+                                @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <span>Recording...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-save me-2"></i>
+                                        <span>Record Collection</span>
+                                    }
+
+                                </button>
+
+                            </div>
+
+                        </EditForm>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-8">
+                <div class="bcc-card">
+                    <div class="bcc-card-body p-3">
+
+                        <div class="offering-register-heading">
+                            <div>
+                                <h6 id="my-collection-register">Today Collection</h6>
+                                <p>@filteredRecords.Count record(s)</p>
+                            </div>
+
+                            <div class="offering-search">
+                                <i class="fas fa-search"></i>
+
+                                <InputText class="form-control form-control-sm"
+                                           @bind-Value="searchText"
+                                           @bind-Value:event="oninput"
+                                           placeholder="Search service, type or payment mode" />
+                            </div>
+                        </div>
+
+                        <div class="offering-filter-row mb-3">
+
+                            <div>
+                                <label class="form-label compact-label">
+                                    Date From
+                                </label>
+
+                                <InputDate class="form-control form-control-sm"
+                                           @bind-Value="dateFrom" />
+                            </div>
+
+                            <div>
+                                <label class="form-label compact-label">
+                                    Date To
+                                </label>
+
+                                <InputDate class="form-control form-control-sm"
+                                           @bind-Value="dateTo" />
+                            </div>
+
+                            <div>
+                                <label class="form-label compact-label">
+                                    Status
+                                </label>
+
+                                <select class="form-select form-select-sm"
+                                        @bind="selectedStatus">
+                                    <option value="">All Statuses</option>
+                                    <option value="PendingApproval">Pending</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="ReturnedForCorrection">Returned</option>
+                                    <option value="Removed">Removed</option>
+                                </select>
+                            </div>
+
+                            <div class="offering-filter-actions">
+                                <button type="button"
+                                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                                        @onclick="ClearFilters">
+                                    Clear
+                                </button>
+
+                                <button type="button"
+                                        class="bcc-btn bcc-btn-primary compact-btn"
+                                        @onclick="SearchRegisterAsync">
+                                    Search
+                                </button>
+                            </div>
+
+                        </div>
+
+                        @if (!filteredRecords.Any())
+                        {
+                            <div class="bcc-empty py-4">
+                                <i class="fas fa-receipt"></i>
+                                <h4>No Collection Records</h4>
+                                <p>No records match the current search.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0 offering-register-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Service</th>
+                                            <th>Type</th>
+                                            <th>Amount</th>
+                                            <th>Payment</th>
+                                            <th>Recorded By</th>
+                                            <th>Approved By</th>
+                                            <th>Status</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        @foreach (var record in filteredRecords)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    @(record.CollectionDate
+                                                                                            .ToString("dd MMM yyyy"))
+                                                                                                                 </td>
+
+                                                <td>
+                                                    @(record.Service?.Name
+                                                                                            ?? "Not available")
+                                                                                                           </td>
+
+                                                <td>
+                                                    @(record.IncomeType?.Name
+                                                                                            ?? "Not available")
+                                    </td>
+
+                                                                                        <td class="fw-bold">
+                                                                                            @FormatAmount(
+                                                                                            record.Amount,
+                                                                                            record.Currency)
+                                    </td>
+
+                                                <td>
+                                                    @record.PaymentMode
+                                                </td>
+                                                <td>@FormatWorkerName(record.RecordedByWorker)</td>
+                                                <td>@FormatWorkerName(record.ApprovedByWorker)</td>
+
+                                                <td>
+                                                    <span class="@GetStatusClass(record.Status)">
+                                                        @FormatStatus(record.Status)
+                                                    </span>
+                                                </td>
+
+                                                <td class="text-end">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-primary"
+                                                            @onclick="() => OpenDetails(record)">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                        @if (canRequestAmendments && record.Status == ChurchCollectionService.StatusApproved && !record.IsRemoved)
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary ms-1" disabled="@(pendingAmendmentIds.Contains(record.Id))" @onclick="() => OpenAmendmentRequest(record)">@(pendingAmendmentIds.Contains(record.Id) ? "Amendment Pending" : "Amend")</button>
+                                                    }
+                                                    @if (CanReviewRecord(record))
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-outline-success ms-1"
+                                                                @onclick="() => OpenReview(record)">
+                                                            Approve
+                                                        </button>
+                                                    }
+                                                    @if (CanRemoveRecord(record) && record.Status == ChurchCollectionService.StatusReturnedForCorrection)
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-outline-primary ms-1"
+                                                                @onclick="() => OpenCorrection(record)">
+                                                            Correct
+                                                        </button>
+                                                    }
+                                                    @if (CanRemoveRecord(record))
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-outline-danger ms-1"
+                                                                @onclick="() => OpenRemove(record)">
+                                                            Remove
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+}
+
+@if (showAmendRequestPopup && amendmentSourceRecord != null)
+{
+    <div class="offering-popup-backdrop" role="dialog" aria-modal="true" aria-label="Amend approved collection">
+        <div class="offering-popup-card" style="max-width:700px;max-height:90vh;overflow-y:auto;">
+            <div class="offering-popup-header">
+                <div><h4>Request Collection Amendment</h4><p>Approved record #@amendmentSourceRecord.Id — Pastor approval required</p></div>
+                <button type="button" class="btn-close" disabled="@isProcessingAction" @onclick="CloseAmendmentPopups"></button>
+            </div>
+            <div class="p-3">
+                <p class="small text-muted">Original: @amendmentSourceRecord.IncomeType?.Name — @FormatAmount(amendmentSourceRecord.Amount, amendmentSourceRecord.Currency) — @amendmentSourceRecord.PaymentMode</p>
+                <div class="row g-2">
+                    <div class="col-md-6"><label class="form-label">Service</label><InputSelect class="form-select form-select-sm" @bind-Value="amendmentModel.ServiceId"><option value="">Select service</option>@foreach (var item in services) {
+                    <option value="@item.Id">@item.Name</option>
+                }
+</InputSelect></div>
+                <div class="col-md-6"><label class="form-label">Income Type</label><InputSelect class="form-select form-select-sm" @bind-Value="amendmentModel.IncomeTypeId"><option value="">Select income type</option>@foreach (var item in incomeTypes) {
+                <option value="@item.Id">@item.Name</option>
+                                }
+</InputSelect></div>
+                <div class="col-md-6"><label class="form-label">Collection Date</label><InputDate class="form-control form-control-sm" @bind-Value="amendmentModel.CollectionDate" /></div>
+                <div class="col-md-6"><label class="form-label">Amount</label><InputNumber class="form-control form-control-sm" @bind-Value="amendmentModel.Amount" /></div>
+                <div class="col-md-6"><label class="form-label">Currency</label><InputSelect class="form-select form-select-sm" @bind-Value="amendmentModel.Currency"><option value="NGN">NGN</option><option value="USD">USD</option><option value="GBP">GBP</option><option value="EUR">EUR</option></InputSelect></div>
+                <div class="col-md-6"><label class="form-label">Payment Mode</label><InputSelect class="form-select form-select-sm" @bind-Value="amendmentModel.PaymentMode"><option value="Cash">Cash</option>@if (canRecordBankTransfer) {
+                <option value="Transfer">Bank Transfer</option>
+                                }
+<option value="POS">POS</option><option value="Cheque">Cheque</option><option value="Mixed">Mixed Payment</option></InputSelect></div>
+                <div class="col-12"><label class="form-label">Remarks</label><InputTextArea class="form-control form-control-sm" @bind-Value="amendmentModel.Remarks" /></div>
+                <div class="col-12"><label class="form-label">Reason for amendment *</label><InputTextArea class="form-control form-control-sm" @bind-Value="amendmentModel.Reason" /></div>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(amendmentError))
+            {
+                <div class="alert alert-danger mt-2">@amendmentError</div>
+            }
+            <div class="d-flex justify-content-end gap-2 mt-3"><button type="button" class="btn btn-outline-secondary" @onclick="CloseAmendmentPopups">Cancel</button><button type="button" class="btn btn-primary" disabled="@isProcessingAction" @onclick="SubmitAmendmentAsync">Submit for Pastor Approval</button></div>
+        </div>
+    </div>
+</div>
+}
+
+@if (showAmendReviewPopup && selectedAmendment != null)
+{
+    <div class="offering-popup-backdrop" role="dialog" aria-modal="true" aria-label="Review collection amendment">
+        <div class="offering-popup-card" style="max-width:720px;max-height:90vh;overflow-y:auto;">
+            <div class="offering-popup-header"><div><h4>Review Collection Amendment</h4><p>Request #@selectedAmendment.Id</p></div><button type="button" class="btn-close" disabled="@isProcessingAction" @onclick="CloseAmendmentPopups"></button></div>
+            <div class="p-3">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Field</th><th>Approved value</th><th>Proposed value</th></tr></thead>
+                        <tbody>
+                            <tr><td>Service</td><td>@selectedAmendment.CollectionRecord?.Service?.Name</td><td>@selectedAmendment.ProposedService?.Name</td></tr>
+                            <tr><td>Income Type</td><td>@selectedAmendment.CollectionRecord?.IncomeType?.Name</td><td>@selectedAmendment.ProposedIncomeType?.Name</td></tr>
+                            <tr><td>Date</td><td>@selectedAmendment.CollectionRecord?.CollectionDate.ToString("dd MMM yyyy")</td><td>@selectedAmendment.ProposedCollectionDate.ToString("dd MMM yyyy")</td></tr>
+                            <tr><td>Amount</td><td>@FormatAmount(selectedAmendment.CollectionRecord?.Amount, selectedAmendment.CollectionRecord?.Currency)</td><td>@FormatAmount(selectedAmendment.ProposedAmount, selectedAmendment.ProposedCurrency)</td></tr>
+                            <tr><td>Payment Mode</td><td>@selectedAmendment.CollectionRecord?.PaymentMode</td><td>@selectedAmendment.ProposedPaymentMode</td></tr>
+                            <tr><td>Remarks</td><td>@selectedAmendment.CollectionRecord?.Remarks</td><td>@selectedAmendment.ProposedRemarks</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p><strong>Reason:</strong> @selectedAmendment.Reason</p>
+                <label class="form-label">Decision comment *</label><textarea class="form-control form-control-sm" rows="3" @bind="amendmentDecisionComment"></textarea>
+                @if (!string.IsNullOrWhiteSpace(amendmentError))
+                {
+                    <div class="alert alert-danger mt-2">@amendmentError</div>
+                }
+                <div class="d-flex justify-content-end gap-2 mt-3"><button type="button" class="btn btn-outline-secondary" @onclick="CloseAmendmentPopups">Cancel</button><button type="button" class="btn btn-outline-danger" disabled="@isProcessingAction" @onclick="() => DecideAmendmentAsync(false)">Reject</button><button type="button" class="btn btn-success" disabled="@isProcessingAction" @onclick="() => DecideAmendmentAsync(true)">Approve</button></div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showCorrectionPopup && correctionRecord != null)
+{
+    <div class="offering-popup-backdrop" role="dialog" aria-modal="true" aria-label="Correct returned collection">
+        <div class="offering-popup-card" style="max-width:650px;max-height:90vh;overflow-y:auto;">
+            <div class="offering-popup-header">
+                <div><h4>Correct Returned Collection</h4><p>Record #@correctionRecord.Id</p></div>
+                <button type="button" class="btn-close" disabled="@isProcessingAction" @onclick="CloseCorrection"></button>
+            </div>
+            <div class="alert alert-warning"><strong>Reason returned:</strong> @correctionRecord.ReturnComment</div>
+            <EditForm Model="@correctionModel" OnValidSubmit="ResubmitCorrectionAsync">
+                <DataAnnotationsValidator />
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Service</label>
+                        <InputSelect class="form-select" @bind-Value="correctionModel.ServiceId">
+                            <option value="">Select service</option>
+                            @foreach (var service in services)
+                            {
+                                <option value="@service.Id">@service.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Income Type</label>
+                        <InputSelect class="form-select" @bind-Value="correctionModel.IncomeTypeId">
+                            <option value="">Select income type</option>
+                            @foreach (var type in incomeTypes)
+                            {
+                                <option value="@type.Id">@type.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-6"><label class="form-label">Collection Date</label><InputDate class="form-control" @bind-Value="correctionModel.CollectionDate" /></div>
+                    <div class="col-md-6"><label class="form-label">Amount</label><InputNumber class="form-control" @bind-Value="correctionModel.Amount" /></div>
+                    <div class="col-md-6">
+                        <label class="form-label">Currency</label>
+                        <InputSelect class="form-select" @bind-Value="correctionModel.Currency">
+                            <option value="NGN">NGN</option>
+                            <option value="USD">USD</option>
+                            <option value="GBP">GBP</option>
+                            <option value="EUR">EUR</option>
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Payment Mode</label>
+                        <InputSelect class="form-select" @bind-Value="correctionModel.PaymentMode">
+                            <option value="">Select payment mode</option>
+                            <option value="Cash">Cash</option>
+                            @if (canRecordBankTransfer)
+                            {
+                                <option value="Transfer">Bank Transfer</option>
+                            }
+                            <option value="POS">POS</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="Mixed">Mixed Payment</option>
+                        </InputSelect>
+                    </div>
+                    <div class="col-12"><label class="form-label">Remarks</label><InputTextArea class="form-control" rows="2" @bind-Value="correctionModel.Remarks" /></div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(correctionError))
+                {
+                    <div class="alert alert-danger mt-2">@correctionError</div>
+                }
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-outline-secondary" disabled="@isProcessingAction" @onclick="CloseCorrection">Cancel</button>
+                    <button type="submit" class="btn btn-primary" disabled="@isProcessingAction">Resubmit for Approval</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (showReviewPopup && actionRecord != null)
+{
+    <div class="offering-popup-backdrop" role="dialog" aria-modal="true" aria-label="Review collection">
+        <div class="offering-popup-card">
+            <div class="offering-popup-header">
+                <div><h4>Review Collection</h4><p>@FormatAmount(actionRecord.Amount, actionRecord.Currency) — @FormatWorkerName(actionRecord.RecordedByWorker)</p></div>
+                <button type="button" class="btn-close" disabled="@isProcessingAction" @onclick="CloseActionPopup"></button>
+            </div>
+            <p class="small">Approve this collection, or return it to the original recorder for correction.</p>
+            <label class="form-label">Comment (required when returning)</label>
+            <textarea class="form-control" rows="3" @bind="actionComment"></textarea>
+            @if (!string.IsNullOrWhiteSpace(actionError))
+            {
+                <div class="alert alert-danger mt-2">@actionError</div>
+            }
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="btn btn-outline-secondary" disabled="@isProcessingAction" @onclick="CloseActionPopup">Cancel</button>
+                <button class="btn btn-outline-danger" disabled="@isProcessingAction" @onclick="() => ProcessReviewAsync(false)">Return for Correction</button>
+                <button class="btn btn-success" disabled="@isProcessingAction" @onclick="() => ProcessReviewAsync(true)">Approve</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showRemovePopup && actionRecord != null)
+{
+    <div class="offering-popup-backdrop" role="dialog" aria-modal="true" aria-label="Remove collection">
+        <div class="offering-popup-card">
+            <div class="offering-popup-header">
+                <div><h4>Remove Collection</h4><p>@FormatAmount(actionRecord.Amount, actionRecord.Currency)</p></div>
+                <button type="button" class="btn-close" disabled="@isProcessingAction" @onclick="CloseActionPopup"></button>
+            </div>
+            <p class="small">This will mark the collection as removed. It cannot be approved afterwards.</p>
+            <label class="form-label">Reason for removal (required)</label>
+            <textarea class="form-control" rows="3" @bind="actionComment"></textarea>
+            @if (!string.IsNullOrWhiteSpace(actionError))
+            {
+                <div class="alert alert-danger mt-2">@actionError</div>
+            }
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="btn btn-outline-secondary" disabled="@isProcessingAction" @onclick="CloseActionPopup">Cancel</button>
+                <button class="btn btn-danger" disabled="@isProcessingAction" @onclick="RemoveCollectionAsync">Confirm Remove</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDetailsPopup && selectedRecord != null)
+{
+    <div class="offering-popup-backdrop">
+        <div class="offering-popup-card">
+
+            <div class="offering-popup-header">
+                <div>
+                    <h4>Collection Details</h4>
+                    <p>
+                        @(selectedRecord.CollectionDate
+                                            .ToString("dd MMMM yyyy"))
+                                                                  </p>
+                                                              </div>
+
+                <button type="button"
+                        class="btn-close"
+                        @onclick="CloseDetails">
+                </button>
+            </div>
+
+            <div class="offering-detail-grid">
+
+                <div>
+                    <span>Service</span>
+                    <strong>
+                        @(selectedRecord.Service?.Name
+                                            ?? "Not available")
+                                                           </strong>
+                                                       </div>
+
+                <div>
+                    <span>Income Type</span>
+                    <strong>
+                        @(selectedRecord.IncomeType?.Name
+                                            ?? "Not available")
+                </strong>
+            </div>
+
+                                    <div>
+                                        <span>Amount</span>
+                                        <strong class="text-success">
+                                            @FormatAmount(
+                                            selectedRecord.Amount,
+                                            selectedRecord.Currency)
+                                                                 </strong>
+                                                             </div>
+
+                <div>
+                    <span>Payment Mode</span>
+                    <strong>
+                        @selectedRecord.PaymentMode
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Status</span>
+                    <strong>
+                        @FormatStatus(selectedRecord.Status)
+                    </strong>
+                </div>
+
+                <div>
+                    <span>Recorded By</span>
+                    <strong>@FormatWorkerName(selectedRecord.RecordedByWorker)</strong>
+                </div>
+                <div>
+                    <span>Approved By</span>
+                    <strong>@FormatWorkerName(selectedRecord.ApprovedByWorker)</strong>
+                </div>
+                <div>
+                    <span>Recorded At</span>
+                    <strong>
+                        @(selectedRecord.RecordedAt
+                                            .ToLocalTime()
+                                            .ToString("dd MMM yyyy, hh:mm tt"))
+                                                                           </strong>
+                                                                       </div>
+
+                <div class="detail-wide">
+                    <span>Remarks</span>
+                    <strong>
+                        @(string.IsNullOrWhiteSpace(selectedRecord.Remarks)
+                                            ? "None"
+                                            : selectedRecord.Remarks)
+                </strong>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(selectedRecord.ReturnComment))
+                {
+                    <div class="detail-wide returned-detail">
+                        <span>Return Comment</span>
+                        <strong>@selectedRecord.ReturnComment</strong>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+}
+
+@if (showSuccessPopup)
+{
+    <div class="offering-popup-backdrop">
+        <div class="result-popup-card">
+
+            <div class="result-popup-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+
+            <h4>Collection Recorded</h4>
+            <p>@popupMessage</p>
+
+            <div class="d-flex justify-content-center gap-2">
+                <button type="button"
+                        class="bcc-btn profile-form-secondary-btn compact-btn"
+                        @onclick="RecordAnother">
+                    Record Another
+                </button>
+
+                <button type="button"
+                        class="bcc-btn bcc-btn-primary compact-btn"
+                        @onclick="ViewMyRecords">
+                    Today Collection
+                </button>
+            </div>
+
+        </div>
+    </div>
+}
+
+@code {
+    private ChurchCollectionFormModel collectionModel =
+        new()
+        {
+            CollectionDate = DateTime.Today,
+            Currency = "NGN"
+        };
+
+    private List<Service> services = new();
+    private List<IncomeType> incomeTypes = new();
+
+    private List<ChurchCollectionRecord> allRecords = new();
+    private List<ChurchCollectionRecord> filteredRecords = new();
+    private List<ChurchCollectionRecord> myReturnedCollections = new();
+    private List<ChurchCollectionRecord> pendingApprovals = new();
+    private List<ChurchCollectionAmendment> pendingAmendments = new();
+    private HashSet<int> pendingAmendmentIds = new();
+    private bool canRequestAmendments;
+    private bool canDecideAmendments;
+    private bool showAmendmentQueue;
+    private bool showAmendRequestPopup;
+    private bool showAmendReviewPopup;
+    private ChurchCollectionRecord? amendmentSourceRecord;
+    private ChurchCollectionAmendment? selectedAmendment;
+    private ChurchCollectionAmendmentFormModel amendmentModel = new();
+    private string amendmentDecisionComment = string.Empty;
+    private string? amendmentError;
+
+    private bool showPendingQueue = false;
+    private bool showReturnedQueue = true;
+    private bool showCorrectionPopup;
+    private ChurchCollectionRecord? correctionRecord;
+    private ChurchCollectionFormModel correctionModel = new();
+    private string? correctionError;
+
+
+    private ChurchCollectionRecord? selectedRecord;
+
+    private DateTime? dateFrom = DateTime.Today;
+    private DateTime? dateTo = DateTime.Today;
+    private string selectedStatus = string.Empty;
+    private string searchText = string.Empty;
+
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool canRecordCollection;
+    private bool canRecordBankTransfer;
+    private bool shouldAutoApprove;
+    private bool showSuccessPopup;
+    private bool showDetailsPopup;
+    private bool canReviewCollections;
+    private bool showReviewPopup;
+    private bool showRemovePopup;
+    private bool isProcessingAction;
+    private ChurchCollectionRecord? actionRecord;
+    private string actionComment = string.Empty;
+    private string? actionError;
+
+    private string? errorMessage;
+    private string popupMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            if (AuthService.CurrentWorker == null)
+            {
+                canRecordCollection = false;
+                return;
+            }
+
+            var workerId =
+                AuthService.CurrentWorker.Id;
+
+            canRecordBankTransfer =
+                await CollectionService.CanRecordBankTransferAsync(workerId);
+
+            canRecordCollection =
+                await OfferingAccessService
+                    .CanRecordOfferingAsync(workerId) ||
+                (canRecordBankTransfer &&
+                 ChurchOfferingAccessService.IsPastorInCharge(AuthService.CurrentWorker));
+
+            if (!canRecordCollection)
+                return;
+
+            canReviewCollections =
+                await CollectionService.CanManageCollectionApprovalsAsync(workerId);
+
+            canRequestAmendments = await OfferingAccessService.CanRequestApprovedOfferingAmendmentAsync(workerId);
+            canDecideAmendments = await OfferingAccessService.CanDecideOfferingAmendmentAsync(workerId);
+
+            shouldAutoApprove =
+                await OfferingAccessService
+                    .ShouldAutoApproveAsync(workerId);
+
+            services =
+                await CollectionService.GetServicesAsync();
+
+            incomeTypes =
+                await CollectionService
+                    .GetActiveIncomeTypesAsync();
+
+            await ReloadTodayCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to load collection records: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SubmitCollection()
+    {
+        if (isSubmitting)
+            return;
+
+        errorMessage = null;
+
+        if (AuthService.CurrentWorker == null)
+        {
+            errorMessage =
+                "Unable to identify the current worker.";
+            return;
+        }
+
+        try
+        {
+            isSubmitting = true;
+
+            var recordId =
+                await CollectionService.RecordCollectionAsync(
+                    collectionModel,
+                    AuthService.CurrentWorker.Id);
+
+            var savedRecord =
+                await CollectionService.GetRecordByIdAsync(
+                    recordId,
+                    AuthService.CurrentWorker.Id);
+
+            if (savedRecord?.Status ==
+                ChurchCollectionService.StatusApproved)
+            {
+                popupMessage =
+                    $"The collection of {FormatAmount(savedRecord.Amount, savedRecord.Currency)} " +
+                    "was recorded and approved successfully.";
+            }
+            else
+            {
+                popupMessage =
+                    $"The collection of {FormatAmount(savedRecord?.Amount, savedRecord?.Currency)} " +
+                    "was recorded and sent for approval.";
+            }
+
+            await ReloadTodayCollectionsAsync();
+            showSuccessPopup = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage =
+                $"Unable to record collection: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task ReloadTodayCollectionsAsync()
+    {
+        if (AuthService.CurrentWorker == null)
+            return;
+
+        // Fetch the selected day (today by default), not just the logged-in worker's entries.
+        allRecords = await CollectionService.GetSharedCollectionRegisterAsync(
+            dateFrom, dateTo, AuthService.CurrentWorker.Id);
+        ApplyFilters();
+        await ReloadMyReturnedCollectionsAsync();
+        await ReloadPendingApprovalsAsync();
+        await ReloadAmendmentsAsync();
+    }
+
+    private async Task ReloadMyReturnedCollectionsAsync()
+    {
+        if (AuthService.CurrentWorker == null) return;
+        var records = await CollectionService.GetMyRecordsAsync(AuthService.CurrentWorker.Id);
+        myReturnedCollections = records
+            .Where(x => !x.IsRemoved && x.Status == ChurchCollectionService.StatusReturnedForCorrection)
+            .OrderByDescending(x => x.ReturnedAt)
+            .ToList();
+    }
+
+    private async Task ReloadPendingApprovalsAsync()
+    {
+        pendingApprovals.Clear();
+        if (!canReviewCollections || AuthService.CurrentWorker == null)
+            return;
+
+        var workerId = AuthService.CurrentWorker.Id;
+        var workerKey = AuthService.CurrentWorker.WorkerId;
+        var records = await CollectionService.GetPendingApprovalsAsync(workerId);
+        pendingApprovals = records
+            .Where(x => !x.IsRemoved &&
+                        x.Status == ChurchCollectionService.StatusPendingApproval &&
+                        x.RecordedByWorkerId != workerKey)
+            .OrderBy(x => x.CollectionDate)
+            .ThenBy(x => x.RecordedAt)
+            .ToList();
+    }
+
+    private async Task ReloadAmendmentsAsync()
+    {
+        pendingAmendments.Clear();
+        pendingAmendmentIds.Clear();
+        if (AuthService.CurrentWorker == null) return;
+        var workerId = AuthService.CurrentWorker.Id;
+        if (canRequestAmendments)
+            pendingAmendmentIds = await CollectionService.GetRecordsWithPendingAmendmentsAsync(workerId);
+        if (canDecideAmendments)
+            pendingAmendments = await CollectionService.GetPendingAmendmentsAsync(workerId);
+    }
+
+    private void OpenAmendmentRequest(ChurchCollectionRecord record)
+    {
+        if (!canRequestAmendments || record.IsRemoved ||
+            record.Status != ChurchCollectionService.StatusApproved || pendingAmendmentIds.Contains(record.Id)) return;
+        amendmentSourceRecord = record;
+        amendmentModel = new ChurchCollectionAmendmentFormModel
+        {
+            ServiceId = record.ServiceId,
+            IncomeTypeId = record.IncomeTypeId,
+            CollectionDate = record.CollectionDate,
+            Amount = record.Amount,
+            Currency = record.Currency,
+            PaymentMode = record.PaymentMode,
+            Remarks = record.Remarks
+        };
+        amendmentError = null;
+        showAmendRequestPopup = true;
+    }
+
+    private void OpenAmendmentReview(ChurchCollectionAmendment amendment)
+    {
+        if (!canDecideAmendments) return;
+        selectedAmendment = amendment;
+        amendmentDecisionComment = string.Empty;
+        amendmentError = null;
+        showAmendReviewPopup = true;
+    }
+
+    private void CloseAmendmentPopups()
+    {
+        if (isProcessingAction) return;
+        showAmendRequestPopup = false;
+        showAmendReviewPopup = false;
+        amendmentSourceRecord = null;
+        selectedAmendment = null;
+        amendmentError = null;
+    }
+
+    private async Task SubmitAmendmentAsync()
+    {
+        if (isProcessingAction || amendmentSourceRecord == null || AuthService.CurrentWorker == null) return;
+        if (string.IsNullOrWhiteSpace(amendmentModel.Reason))
+        {
+            amendmentError = "Please provide a reason for the amendment.";
+            return;
+        }
+        try
+        {
+            isProcessingAction = true;
+            amendmentError = null;
+            await CollectionService.RequestApprovedRecordAmendmentAsync(amendmentSourceRecord.Id, amendmentModel, AuthService.CurrentWorker.Id);
+            showAmendRequestPopup = false;
+            amendmentSourceRecord = null;
+            await ReloadTodayCollectionsAsync();
+        }
+        catch (Exception ex) { amendmentError = ex.Message; }
+        finally { isProcessingAction = false; }
+    }
+
+    private async Task DecideAmendmentAsync(bool approve)
+    {
+        if (isProcessingAction || selectedAmendment == null || AuthService.CurrentWorker == null) return;
+        if (string.IsNullOrWhiteSpace(amendmentDecisionComment))
+        {
+            amendmentError = "A decision comment is required.";
+            return;
+        }
+        try
+        {
+            isProcessingAction = true;
+            amendmentError = null;
+            await CollectionService.DecideAmendmentAsync(selectedAmendment.Id, AuthService.CurrentWorker.Id, approve, amendmentDecisionComment);
+            showAmendReviewPopup = false;
+            selectedAmendment = null;
+            await ReloadTodayCollectionsAsync();
+        }
+        catch (Exception ex) { amendmentError = ex.Message; }
+        finally { isProcessingAction = false; }
+    }
+
+    private void OpenCorrection(ChurchCollectionRecord record)
+    {
+        if (AuthService.CurrentWorker == null ||
+            record.RecordedByWorkerId != AuthService.CurrentWorker.WorkerId ||
+            record.Status != ChurchCollectionService.StatusReturnedForCorrection || record.IsRemoved)
+            return;
+        correctionRecord = record;
+        correctionModel = new ChurchCollectionFormModel
+        {
+            ServiceId = record.ServiceId,
+            IncomeTypeId = record.IncomeTypeId,
+            CollectionDate = record.CollectionDate,
+            Amount = record.Amount,
+            Currency = record.Currency,
+            PaymentMode = record.PaymentMode,
+            Remarks = record.Remarks
+        };
+        correctionError = null;
+        showCorrectionPopup = true;
+    }
+
+    private void CloseCorrection()
+    {
+        if (isProcessingAction) return;
+        showCorrectionPopup = false;
+        correctionRecord = null;
+        correctionError = null;
+    }
+
+    private async Task ResubmitCorrectionAsync()
+    {
+        if (isProcessingAction || correctionRecord == null || AuthService.CurrentWorker == null) return;
+        try
+        {
+            isProcessingAction = true;
+            correctionError = null;
+            await CollectionService.ResubmitReturnedCollectionAsync(
+                correctionRecord.Id, correctionModel, AuthService.CurrentWorker.Id);
+            showCorrectionPopup = false;
+            correctionRecord = null;
+            await ReloadTodayCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            correctionError = ex.Message;
+        }
+        finally { isProcessingAction = false; }
+    }
+
+    private static string FormatWorkerName(Worker? worker)
+    {
+        if (worker == null) return "—";
+        var name = $"{worker.FirstName} {worker.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(name) ? "—" : name;
+    }
+
+    private void ApplyFilters()
+    {
+        IEnumerable<ChurchCollectionRecord> query =
+            allRecords;
+
+        if (dateFrom.HasValue)
+        {
+            query = query.Where(x =>
+                x.CollectionDate.Date >=
+                dateFrom.Value.Date);
+        }
+
+        if (dateTo.HasValue)
+        {
+            query = query.Where(x =>
+                x.CollectionDate.Date <=
+                dateTo.Value.Date);
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedStatus))
+        {
+            query = query.Where(x =>
+                x.Status == selectedStatus);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var search = searchText.Trim();
+
+            query = query.Where(x =>
+                (x.Service?.Name?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false) ||
+
+                (x.IncomeType?.Name?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false) ||
+
+                (x.PaymentMode?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false) ||
+
+                (x.Remarks?.Contains(
+                    search,
+                    StringComparison.OrdinalIgnoreCase)
+                    ?? false));
+        }
+
+        filteredRecords = query
+            .OrderByDescending(x => x.CollectionDate)
+            .ThenByDescending(x => x.RecordedAt)
+            .ToList();
+    }
+
+    private async Task SearchRegisterAsync()
+    {
+        try { await ReloadTodayCollectionsAsync(); }
+        catch (Exception ex) { errorMessage = $"Unable to search collections: {ex.Message}"; }
+    }
+
+    private async Task ClearFilters()
+    {
+        dateFrom = DateTime.Today;
+        dateTo = DateTime.Today;
+        selectedStatus = string.Empty;
+        searchText = string.Empty;
+        await ReloadTodayCollectionsAsync();
+    }
+
+    private bool CanReviewRecord(ChurchCollectionRecord record) =>
+        canReviewCollections && AuthService.CurrentWorker != null &&
+        record.Status == ChurchCollectionService.StatusPendingApproval && !record.IsRemoved &&
+        record.RecordedByWorkerId != AuthService.CurrentWorker.WorkerId;
+
+    private bool CanRemoveRecord(ChurchCollectionRecord record) =>
+        AuthService.CurrentWorker != null && !record.IsRemoved &&
+        record.RecordedByWorkerId == AuthService.CurrentWorker.WorkerId &&
+        (record.Status == ChurchCollectionService.StatusPendingApproval ||
+         record.Status == ChurchCollectionService.StatusReturnedForCorrection);
+
+    private void OpenReview(ChurchCollectionRecord record)
+    {
+        actionRecord = record;
+        actionComment = string.Empty;
+        actionError = null;
+        showReviewPopup = true;
+    }
+
+    private void OpenRemove(ChurchCollectionRecord record)
+    {
+        actionRecord = record;
+        actionComment = string.Empty;
+        actionError = null;
+        showRemovePopup = true;
+    }
+
+    private void CloseActionPopup()
+    {
+        if (isProcessingAction) return;
+        showReviewPopup = false;
+        showRemovePopup = false;
+        actionRecord = null;
+        actionError = null;
+    }
+
+    private async Task ProcessReviewAsync(bool approve)
+    {
+        if (isProcessingAction || actionRecord == null || AuthService.CurrentWorker == null) return;
+        if (!approve && string.IsNullOrWhiteSpace(actionComment))
+        {
+            actionError = "A comment is required when returning a collection.";
+            return;
+        }
+        try
+        {
+            isProcessingAction = true;
+            actionError = null;
+            if (approve)
+                await CollectionService.ApproveCollectionAsync(actionRecord.Id, AuthService.CurrentWorker.Id, actionComment);
+            else
+                await CollectionService.ReturnForCorrectionAsync(actionRecord.Id, AuthService.CurrentWorker.Id, actionComment);
+            showReviewPopup = false;
+            actionRecord = null;
+            await ReloadTodayCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            actionError = ex.Message;
+            await ReloadTodayCollectionsAsync();
+        }
+        finally { isProcessingAction = false; }
+    }
+
+    private async Task RemoveCollectionAsync()
+    {
+        if (isProcessingAction || actionRecord == null || AuthService.CurrentWorker == null) return;
+        if (string.IsNullOrWhiteSpace(actionComment))
+        {
+            actionError = "Please enter a reason for removing this collection.";
+            return;
+        }
+        try
+        {
+            isProcessingAction = true;
+            actionError = null;
+            await CollectionService.RemoveReturnedCollectionAsync(actionRecord.Id, AuthService.CurrentWorker.Id, actionComment);
+            showRemovePopup = false;
+            actionRecord = null;
+            await ReloadTodayCollectionsAsync();
+        }
+        catch (Exception ex)
+        {
+            actionError = ex.Message;
+            await ReloadTodayCollectionsAsync();
+        }
+        finally { isProcessingAction = false; }
+    }
+
+    private void OpenDetails(
+        ChurchCollectionRecord record)
+    {
+        selectedRecord = record;
+        showDetailsPopup = true;
+    }
+
+    private void CloseDetails()
+    {
+        showDetailsPopup = false;
+        selectedRecord = null;
+    }
+
+    private void ClearForm()
+    {
+        collectionModel =
+            new ChurchCollectionFormModel
+            {
+                CollectionDate = DateTime.Today,
+                Currency = "NGN"
+            };
+
+        errorMessage = null;
+    }
+
+    private void RecordAnother()
+    {
+        showSuccessPopup = false;
+        ClearForm();
+    }
+
+    private void ViewMyRecords()
+    {
+        showSuccessPopup = false;
+        Navigation.NavigateTo("/ServiceRecord/record-collection#my-collection-register");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/workspace/service-records");
+    }
+
+    private string GetCurrencySymbol()
+    {
+        return collectionModel.Currency switch
+        {
+            "NGN" => "₦",
+            "USD" => "$",
+            "GBP" => "£",
+            "EUR" => "€",
+            _ => collectionModel.Currency
+        };
+    }
+
+    private static string FormatStatus(
+        string status)
+    {
+        return status switch
+        {
+            "PendingApproval" => "Pending",
+            "Approved" => "Approved",
+            "ReturnedForCorrection" => "Returned",
+            "Removed" => "Removed",
+            _ => status
+        };
+    }
+
+    private static string GetStatusClass(
+        string status)
+    {
+        return status switch
+        {
+            "Approved" =>
+                "collection-status collection-status-approved",
+
+            "PendingApproval" =>
+                "collection-status collection-status-pending",
+
+            "ReturnedForCorrection" =>
+                "collection-status collection-status-returned",
+
+            "Removed" =>
+                "collection-status collection-status-removed",
+
+            _ => "collection-status"
+        };
+    }
+
+    private static string FormatAmount(
+        decimal? amount,
+        string? currency)
+    {
+        if (!amount.HasValue)
+            return "Not entered";
+
+        var symbol = currency switch
+        {
+            "NGN" => "₦",
+            "USD" => "$",
+            "GBP" => "£",
+            "EUR" => "€",
+            _ => $"{currency} "
+        };
+
+        return $"{symbol}{amount.Value:N2}";
+    }
+}
+
+<style>
+    .offering-register-page {
+        max-width: 1450px;
+        margin: 0 auto;
+    }
+
+    .offering-page-header {
+        margin-bottom: 14px;
+    }
+
+    .compact-btn {
+        min-height: 32px;
+        padding: 6px 11px;
+        font-size: 0.78rem;
+    }
+
+    .compact-section-heading,
+    .offering-register-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+        .compact-section-heading h6,
+        .offering-register-heading h6 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .compact-section-heading p,
+        .offering-register-heading p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.72rem;
+        }
+
+    .compact-label {
+        margin-bottom: 3px;
+        color: #475569;
+        font-size: 0.69rem;
+        font-weight: 700;
+    }
+
+    .offering-register-page .form-control,
+    .offering-register-page .form-select {
+        min-height: 32px;
+        font-size: 0.78rem;
+    }
+
+    .compact-status-note {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 10px;
+        padding: 7px 9px;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+
+        .compact-status-note.auto-approved {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .compact-status-note.pending {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+    .offering-total-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        color: #ffffff;
+        background: #0f172a;
+        border-radius: 9px;
+    }
+
+        .offering-total-panel span {
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .offering-total-panel strong {
+            font-size: 1rem;
+        }
+
+    .offering-search {
+        position: relative;
+        width: 100%;
+        max-width: 300px;
+    }
+
+        .offering-search > i {
+            position: absolute;
+            top: 50%;
+            left: 11px;
+            z-index: 2;
+            color: #94a3b8;
+            transform: translateY(-50%);
+        }
+
+        .offering-search .form-control {
+            padding-left: 32px;
+        }
+
+    .offering-filter-row {
+        display: grid;
+        grid-template-columns: minmax(120px, 170px) minmax(120px, 170px) minmax(120px, 160px) auto;
+        align-items: end;
+        gap: 8px;
+    }
+
+    .offering-filter-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+    }
+
+    .offering-register-table thead th {
+        padding: 8px 9px;
+        color: #475569;
+        background: #f8fafc;
+        font-size: 0.63rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .offering-register-table tbody td {
+        padding: 8px 9px;
+        font-size: 0.76rem;
+        vertical-align: middle;
+    }
+
+    .collection-status {
+        display: inline-flex;
+        padding: 3px 7px;
+        border-radius: 999px;
+        font-size: 0.65rem;
+        font-weight: 800;
+    }
+
+    .collection-status-approved {
+        color: #166534;
+        background: #dcfce7;
+    }
+
+    .collection-status-pending {
+        color: #92400e;
+        background: #fef3c7;
+    }
+
+    .collection-status-returned {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+    .collection-status-removed {
+        color: #475569;
+        background: #e2e8f0;
+    }
+
+    .offering-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        background: rgba(15, 23, 42, 0.58);
+    }
+
+    .offering-popup-card,
+    .result-popup-card {
+        width: 100%;
+        max-width: 520px;
+        max-height: 84vh;
+        padding: 19px;
+        overflow-y: auto;
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.24);
+    }
+
+    .offering-popup-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+        .offering-popup-header h4,
+        .result-popup-card h4 {
+            margin: 0 0 2px;
+            color: #0f172a;
+            font-size: 1rem;
+            font-weight: 800;
+        }
+
+        .offering-popup-header p,
+        .result-popup-card p {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.76rem;
+        }
+
+    .offering-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+    }
+
+        .offering-detail-grid > div {
+            padding: 8px 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .offering-detail-grid span {
+            display: block;
+            margin-bottom: 2px;
+            color: #64748b;
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .offering-detail-grid strong {
+            color: #0f172a;
+            font-size: 0.79rem;
+            white-space: pre-wrap;
+        }
+
+    .detail-wide {
+        grid-column: 1 / -1;
+    }
+
+    .returned-detail {
+        border-left: 4px solid #dc2626 !important;
+    }
+
+    .result-popup-card {
+        max-width: 430px;
+        text-align: center;
+    }
+
+    .result-popup-icon {
+        margin-bottom: 10px;
+        color: #16a34a;
+        font-size: 2.6rem;
+    }
+
+    .result-popup-card p {
+        margin-bottom: 16px;
+    }
+
+    @@media (max-width: 1100px) {
+        .offering-filter-row {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .offering-filter-actions {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .offering-register-heading {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .offering-search {
+            max-width: none;
+        }
+
+        .offering-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .detail-wide {
+            grid-column: auto;
+        }
+
+        .offering-register-table thead th,
+        .offering-register-table tbody td {
+            white-space: normal;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .offering-filter-row {
+            grid-template-columns: 1fr;
+        }
+
+        .offering-filter-actions {
+            grid-column: auto;
+        }
+
+        .offering-popup-card,
+        .result-popup-card {
+            max-width: 96vw;
+            padding: 16px;
+        }
+    }
+</style>

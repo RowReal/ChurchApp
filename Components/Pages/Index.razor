@@ -405,8 +405,8 @@
                                 <div class="profile-avatar">
                                     @if (!string.IsNullOrEmpty(AuthService.CurrentWorker?.PassportPhotoPath))
                                     {
-                                        <img src="@AuthService.CurrentWorker.PassportPhotoPath" 
-                                             alt="Profile" 
+                                        <img src="@AuthService.CurrentWorker.PassportPhotoPath"
+                                             alt="Profile"
                                              class="profile-avatar-img" />
                                     }
                                     else
@@ -417,7 +417,7 @@
                                 <div class="progress-ring">
                                     <svg width="60" height="60">
                                         <circle class="progress-ring-bg" cx="30" cy="30" r="24"></circle>
-                                        <circle class="progress-ring-fill" cx="30" cy="30" r="24" 
+                                        <circle class="progress-ring-fill" cx="30" cy="30" r="24"
                                                 style="stroke-dasharray: @(2 * Math.PI * 24); stroke-dashoffset: @(2 * Math.PI * 24 * (1 - userCompliance / 100.0))"></circle>
                                     </svg>
                                 </div>
@@ -566,7 +566,7 @@
             }
         </a>
     </div>
-}  
+}
 
                 <div class="col-6 col-sm-4 col-lg-3">
     <a href="/workspace/my-desk" class="action-card">
@@ -648,8 +648,8 @@
             </div>
         </div>
 
-        
-   
+
+
 <!-- ADMINISTRATION & SETUP -->
 @if (CanAccessWorkerManagementWorkspace() ||
      CanAccessSetupWorkspace())
@@ -699,39 +699,21 @@
         </div>
     </div>
 }
-        <!-- FINANCE -->
-        @if (CanAccessBudget() || CanAccessRemittance())
+        <!-- ACCOUNT & REMITTANCE WORKSPACE -->
+        @if (AuthService.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge))
         {
             <div class="menu-section mb-0">
                 <div class="menu-section-title">
                     <i class="fas fa-wallet"></i>
-                    Finance & Remittance
+                    Account &amp; Remittance
                 </div>
-
                 <div class="row g-3">
-                    @if (CanAccessBudget())
-                    {
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/budget" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-wallet"></i>
-                                </div>
-                                <span class="action-text">Church Budget</span>
-                            </a>
-                        </div>
-                    }
-
-                    @if (CanAccessRemittance())
-                    {
-                        <div class="col-6 col-sm-4 col-lg-3">
-                            <a href="/remittance" class="action-card">
-                                <div class="action-image">
-                                    <i class="fas fa-exchange-alt"></i>
-                                </div>
-                                <span class="action-text">Church Remittance</span>
-                            </a>
-                        </div>
-                    }
+                    <div class="col-6 col-sm-4 col-lg-3">
+                        <a href="/workspace/account-remittance" class="action-card">
+                            <div class="action-image"><i class="fas fa-file-invoice-dollar"></i></div>
+                            <span class="action-text">Account &amp; Remittance</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         }
@@ -1006,8 +988,8 @@
                             <div class="profile-avatar-progress">
                                 @if (!string.IsNullOrEmpty(AuthService.CurrentWorker?.PassportPhotoPath))
                                 {
-                                    <img src="@AuthService.CurrentWorker.PassportPhotoPath" 
-                                         alt="Profile" 
+                                    <img src="@AuthService.CurrentWorker.PassportPhotoPath"
+                                         alt="Profile"
                                          class="profile-progress-avatar" />
                                 }
                                 else
@@ -1019,7 +1001,7 @@
                                 <div class="progress-circle">
                                     <svg width="80" height="80">
                                         <circle class="progress-bg" cx="40" cy="40" r="35"></circle>
-                                        <circle class="progress-fill" cx="40" cy="40" r="35" 
+                                        <circle class="progress-fill" cx="40" cy="40" r="35"
                                                 style="stroke-dasharray: @(2 * Math.PI * 35); stroke-dashoffset: @(2 * Math.PI * 35 * (1 - userCompliance / 100.0))"></circle>
                                     </svg>
                                     <span class="progress-percent">@userCompliance%</span>
@@ -1102,7 +1084,7 @@ else
                         </h1>
 
                         <p class="hero-subtitle">
-                            A unified digital platform for workforce management, 
+                            A unified digital platform for workforce management,
                             service records and ministry operations.
                         </p>
 
@@ -1246,14 +1228,14 @@ else
     private int pendingBreakCount = 0;
     private int pendingExcuseApprovals = 0;
     private int pendingBreakApprovals = 0;
-    
+
 private int pendingProfileApprovalCount;
 private int pendingMyDeskApprovalCount;
 
 private int returnedRequestCount;
 private int myDeskCount;
 
-   
+
     private List<Worker> birthdayWorkers = new();
     private List<ChurchNotice> dashboardNotices = new();
 
@@ -1498,18 +1480,18 @@ todayVerse = await VerseService.GetTodayVerseAsync();
         {
             // Calculate user compliance
            userCompliance = ProfileComplianceService.Calculate(AuthService.CurrentWorker);
-            
+
             // Check for pending approvals (if user is an approver)
             // var approvals = await WorkforceService.GetPendingApprovalsAsync(AuthService.CurrentWorker.Id);
             // userPendingApprovals = approvals.Count;
             // pendingApprovalCount = approvals.Count;
-            
+
             // Calculate days since joining church
             if (AuthService.CurrentWorker.DateJoinedChurch.HasValue)
             {
                 daysSinceJoin = (DateTime.UtcNow - AuthService.CurrentWorker.DateJoinedChurch.Value).Days;
             }
-            
+
             // Check for rejection notifications
             var rejections = await WorkforceService.GetRejectionNotificationsAsync(AuthService.CurrentWorker.Id);
             rejectionCount = rejections.Count;
@@ -1556,13 +1538,13 @@ todayVerse = await VerseService.GetTodayVerseAsync();
             if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
             {
                 var workerId = AuthService.CurrentWorker.WorkerId;
-                
+
                 if (string.IsNullOrEmpty(workerId))
                 {
                     Console.WriteLine("WorkerId is null or empty in LoadOfferingStatistics");
                     return;
                 }
-                
+
                 // Load pending offerings count for Church Admin
                 if (CanApproveOfferings())
                 {
@@ -1780,13 +1762,13 @@ todayVerse = await VerseService.GetTodayVerseAsync();
         {
             var workerId = AuthService.CurrentWorker.WorkerId;
             var workerDbId = AuthService.CurrentWorker.Id;
-            
+
             if (string.IsNullOrEmpty(workerId))
             {
                 Console.WriteLine("WorkerId is null or empty in LoadRecentActivities");
                 return;
             }
-            
+
             // Add recent offerings
             try
             {
@@ -1861,7 +1843,7 @@ todayVerse = await VerseService.GetTodayVerseAsync();
             .ToList();
     }
 
-  
+
     private string GetAttendanceScoreClass(AttendanceGrade grade)
     {
         return grade switch

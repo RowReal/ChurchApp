@@ -1,4 +1,4 @@
-﻿using ChurchApp.Data;
+using ChurchApp.Data;
 using ChurchApp.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -59,8 +59,15 @@ namespace ChurchApp.Services
                         StringComparison.OrdinalIgnoreCase)
                     == true;
 
+            var canAccessCollectionManagement =
+                await HasPrivilegeAsync(workerId, "Access-Offering") ||
+                await HasPrivilegeAsync(workerId, "Approve-Offerings") ||
+                await HasPrivilegeAsync(workerId, "Approve-Offering-Amendments");
+
             var result = new ServiceRecordAccessModel
             {
+                CanAccessCollectionManagement = canAccessCollectionManagement,
+
                 CanRecordOffering =
                     await _offeringAccessService
                         .CanRecordOfferingAsync(workerId),

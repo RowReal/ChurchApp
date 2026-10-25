@@ -1,4 +1,4 @@
-﻿using ChurchApp.Data;
+using ChurchApp.Data;
 using ChurchApp.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -43,22 +43,30 @@ namespace ChurchApp.Services
 
         public async Task AssignPrivilegeAsync(int workerId, int privilegeId, string? assignedBy = null)
         {
-            var exists = await _context.UserPrivileges
-                .AnyAsync(up => up.WorkerId == workerId && up.PrivilegeId == privilegeId);
+            var existing = await _context.UserPrivileges
+                .FirstOrDefaultAsync(up => up.WorkerId == workerId && up.PrivilegeId == privilegeId);
 
-            if (!exists)
+            if (existing == null)
             {
-                var userPrivilege = new UserPrivilege
+                _context.UserPrivileges.Add(new UserPrivilege
                 {
                     WorkerId = workerId,
                     PrivilegeId = privilegeId,
                     AssignedBy = assignedBy,
                     IsActive = true
-                };
-
-                _context.UserPrivileges.Add(userPrivilege);
-                await _context.SaveChangesAsync();
+                });
             }
+            else if (!existing.IsActive)
+            {
+                existing.IsActive = true;
+                existing.AssignedBy = assignedBy;
+            }
+            else
+            {
+                return;
+            }
+
+            await _context.SaveChangesAsync();
         }
 
         public async Task RemovePrivilegeAsync(int workerId, int privilegeId)
@@ -90,8 +98,8 @@ namespace ChurchApp.Services
                 new() { Code = "Access-Admin-Panel", Name = "Access Admin Panel", Description = "Can access admin panel" },
                 new() { Code = "Manage-Privileges", Name = "Manage Privileges", Description = "Can assign and remove user privileges" },
                 new() { Code = "Manage-Announcements", Name = "Manage Announcements", Description = "Can create and manage announcements" },
-                new() { Code = "Access-Offering", Name = "Access Offering", Description = "Can create and Record Offering" },
-                new() { Code = "Approve-Offerings", Name = "Approve Offering", Description = "Can Aprrove Offering record" },
+                new() { Code = "Access-Offering", Name = "Record Collections", Description = "Can access Collection Management and record collections" },
+                new() { Code = "Approve-Offerings", Name = "Approve Collections", Description = "Can review pending collection records" },
                 new() { Code = "Record-Attendance", Name = "Record Attendance", Description = "Can create and record Attendance" },
                  new() { Code = "Record-Vechile", Name = "Record Vechile", Description = "Can create and record Vechile" },
                  new()
@@ -104,19 +112,27 @@ namespace ChurchApp.Services
 new()
 {
     Code = "Approve-Offering-Amendments",
-    Name = "Approve Offering Amendment",
-    Description = "Can review and approve Offering Amendment requests"
+    Name = "Approve Collection Amendments",
+    Description = "Can review and decide collection amendment requests"
 },
             };
 
+            // Keep the original codes and IDs so existing Worker assignments remain valid.
             foreach (var privilege in defaultPrivileges)
             {
-                var exists = await _context.Privileges
-                    .AnyAsync(p => p.Code == privilege.Code);
+                var existing = await _context.Privileges
+                    .FirstOrDefaultAsync(p => p.Code == privilege.Code);
 
-                if (!exists)
+                if (existing == null)
                 {
                     _context.Privileges.Add(privilege);
+                }
+                else if (privilege.Code == "Access-Offering" ||
+                         privilege.Code == "Approve-Offerings" ||
+                         privilege.Code == "Approve-Offering-Amendments")
+                {
+                    existing.Name = privilege.Name;
+                    existing.Description = privilege.Description;
                 }
             }
 

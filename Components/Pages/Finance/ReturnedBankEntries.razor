@@ -1,0 +1,472 @@
+@page "/finance/returned-bank-entries"
+@rendermode InteractiveServer
+@layout Components.Layout.MainLayout
+@using ChurchApp.Data
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+@inject BankAccountJournalService JournalService
+@inject AuthService AuthService
+
+<PageTitle>Return/Reject Entries - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="alert alert-warning">Please sign in.</div>
+}
+else if (!AuthService.IsInRole(AuthService.Roles.ChurchAdmin))
+{
+    <div class="alert alert-danger">Only Church Admin may correct returned entries.</div>
+}
+else
+{
+    <div class="worker360-page returned-page">
+        <div class="bcc-page-header returned-hero">
+            <div>
+                <div class="bcc-page-subtitle">Account &amp; Remittance Workspace</div>
+                <div class="bcc-page-title">Return/Reject Entries</div>
+                <div class="bcc-page-subtitle">Correct, explain and resubmit, or withdraw an entry.</div>
+            </div>
+            <a href="/workspace/account-remittance" class="bcc-btn profile-form-secondary-btn">Workspace</a>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success")">@message</div>
+        }
+
+        <div class="returned-grid">
+            <section class="card">
+                <div class="card-header"><strong>Entries requiring action (@returnedEntries.Count)</strong></div>
+                <div class="card-body returned-list">
+                    @if (returnedEntries.Count == 0)
+                    {
+                        <p class="text-muted small mb-0">No entries awaiting correction.</p>
+                    }
+                    @foreach (var entry in returnedEntries)
+                    {
+                        <button type="button"
+                                class="returned-item @(selectedId == entry.Id ? "selected" : "")"
+                                @onclick="() => Select(entry.Id)">
+                            <strong>#@entry.Id — @entry.TransactionType</strong>
+                            <span>@entry.Currency @entry.Amount.ToString("N2")</span>
+                            <small>@entry.DecisionComments</small>
+                        </button>
+                    }
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="card-header"><strong>Correct and resubmit</strong></div>
+                <div class="card-body">
+                    @if (Selected is null)
+                    {
+                        <p class="text-muted small">Select a returned entry to review.</p>
+                    }
+                    else
+                    {
+                        <div class="returned-reason">
+                            <strong>Pastor's decision and reason</strong>
+                            <p class="mb-0">@Selected.DecisionComments</p>
+                        </div>
+                        <div class="returned-fields">
+                            <div>
+                                <label class="form-label">Transaction date</label>
+                                <input type="date" class="form-control form-control-sm"
+                                       @bind="transactionDate" @bind:format="yyyy-MM-dd" />
+                            </div>
+                            <div>
+                                <label class="form-label">Bank account</label>
+                                <select class="form-select form-select-sm" @bind="bankAccountId">
+                                    @foreach (var account in accounts)
+                                    {
+                                        <option value="@account.Id">
+                                            @account.ShortName — @account.BankName — @account.AccountNumber
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Bank reference</label>
+                                <input class="form-control form-control-sm" maxlength="100" @bind="reference" />
+                            </div>
+                            <div class="full">
+                                <label class="form-label">Narration</label>
+                                <textarea class="form-control form-control-sm" rows="3" maxlength="500" @bind="narration"></textarea>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <label class="form-label">Explanation to Pastor (required)</label>
+                            <textarea class="form-control form-control-sm"
+                                      rows="3"
+                                      maxlength="1000"
+                                      @bind="explanation"></textarea>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(Selected.ReviewHistory))
+                        {
+                            <div class="returned-reason mt-2">
+                                <strong>Previous decisions and explanations</strong>
+                                <pre class="returned-audit">@Selected.ReviewHistory</pre>
+                            </div>
+                        }
+                        <div class="text-muted small mt-2">
+                            The amount and transaction classification cannot be changed here.
+                            If either is incorrect, request a fresh transaction after the original is rejected.
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap mt-3">
+                            <button type="button"
+                                    class="btn btn-success btn-sm"
+                                    disabled="@busy"
+                                    @onclick="ResubmitAsync">
+                                Resubmit for Pastor Approval
+                            </button>
+                            <button type="button"
+                                    class="btn btn-outline-danger btn-sm"
+                                    disabled="@busy"
+                                    @onclick="ShowWithdrawPopup">
+                                Remove from Active Entries
+                            </button>
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <section class="card mt-3">
+            <div class="card-header"><strong>Withdrawn entries (audit history)</strong></div>
+            <div class="card-body">
+                @if (rejectedEntries.Count == 0)
+                {
+                    <p class="text-muted small mb-0">No withdrawn entries.</p>
+                }
+                @foreach (var entry in rejectedEntries)
+                {
+                    <div class="returned-history-item">
+                        <strong>#@entry.Id — @entry.TransactionType</strong>
+                        <span>@entry.Currency @entry.Amount.ToString("N2")</span>
+                        <span>@entry.WithdrawalReason</span>
+                    </div>
+                }
+                <p class="text-muted small mt-2 mb-0">
+                    Withdrawn entries remain in the audit history and do not affect the bank balance.
+                    A collection linked to a withdrawn journal request cannot be posted again without a separate controlled process.
+                </p>
+            </div>
+        </section>
+        @if (showWithdrawPopup)
+        {
+            <div class="returned-modal-backdrop">
+                <div class="returned-modal" role="dialog" aria-modal="true" aria-label="Withdraw bank entry">
+                    <h5>Remove entry from active processing?</h5>
+                    <p class="small text-muted">
+                        This will withdraw journal #@selectedId. The audit record will be retained.
+                    </p>
+                    <label class="form-label">Reason for withdrawal (required)</label>
+                    <textarea class="form-control form-control-sm"
+                              rows="3"
+                              maxlength="1000"
+                              @bind="withdrawalReason"></textarea>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button class="btn btn-outline-secondary btn-sm"
+                                disabled="@busy"
+                                @onclick="CloseWithdrawPopup">Cancel</button>
+                        <button class="btn btn-danger btn-sm"
+                                disabled="@busy"
+                                @onclick="WithdrawAsync">Confirm Withdrawal</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<ChurchApp.Models.Finance.BankAccountJournal> returnedEntries = new();
+    private List<BankAccount> accounts = new();
+    private List<ChurchApp.Models.Finance.BankAccountJournal> rejectedEntries = new();
+    private int? selectedId;
+    private int bankAccountId;
+    private DateTime transactionDate = DateTime.Today;
+    private string reference = string.Empty;
+    private string narration = string.Empty;
+    private string explanation = string.Empty;
+    private string withdrawalReason = string.Empty;
+    private bool showWithdrawPopup;
+    private string message = string.Empty;
+    private bool isError;
+    private bool busy;
+
+    private ChurchApp.Models.Finance.BankAccountJournal? Selected
+    {
+        get
+        {
+            return returnedEntries.FirstOrDefault(entry => entry.Id == selectedId);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var workerId = AuthService.CurrentWorker?.WorkerId;
+
+        if (!AuthService.IsInRole(AuthService.Roles.ChurchAdmin) ||
+            string.IsNullOrWhiteSpace(workerId))
+        {
+            return;
+        }
+
+        returnedEntries = await Db.BankAccountJournals
+            .AsNoTracking()
+            .Where(entry =>
+                (entry.Status == BankJournalStatus.Returned ||
+                 entry.Status == BankJournalStatus.Rejected) &&
+                entry.InitiatedByWorkerId == workerId)
+            .OrderByDescending(entry => entry.DecisionDate)
+            .ToListAsync();
+
+        rejectedEntries = await Db.BankAccountJournals
+            .AsNoTracking()
+            .Where(entry =>
+                entry.Status == BankJournalStatus.Withdrawn &&
+                entry.InitiatedByWorkerId == workerId)
+            .OrderByDescending(entry => entry.DecisionDate)
+            .Take(100)
+            .ToListAsync();
+
+        accounts = await Db.BankAccounts
+            .AsNoTracking()
+            .Where(account => account.IsActive)
+            .OrderBy(account => account.BankName)
+            .ToListAsync();
+
+        if (selectedId.HasValue && returnedEntries.All(entry => entry.Id != selectedId))
+        {
+            selectedId = null;
+        }
+    }
+
+    private void Select(int id)
+    {
+        selectedId = id;
+        var entry = Selected;
+
+        if (entry is null)
+        {
+            return;
+        }
+
+        bankAccountId = entry.BankAccountId;
+        transactionDate = entry.TransactionDate;
+        reference = entry.TransactionReference ?? string.Empty;
+        narration = entry.Narration;
+        explanation = string.Empty;
+        message = string.Empty;
+    }
+
+    private void ShowWithdrawPopup()
+    {
+        withdrawalReason = string.Empty;
+        showWithdrawPopup = true;
+    }
+
+    private void CloseWithdrawPopup()
+    {
+        showWithdrawPopup = false;
+        withdrawalReason = string.Empty;
+    }
+
+    private async Task WithdrawAsync()
+    {
+        var workerId = AuthService.CurrentWorker?.WorkerId;
+
+        if (Selected is null || busy || string.IsNullOrWhiteSpace(workerId))
+        {
+            return;
+        }
+
+        busy = true;
+
+        try
+        {
+            var id = Selected.Id;
+
+            await JournalService.WithdrawAsync(
+                id,
+                workerId,
+                withdrawalReason
+            );
+
+            showWithdrawPopup = false;
+            selectedId = null;
+            await ReloadAsync();
+            message = $"Journal #{id} was withdrawn and retained in the audit history.";
+            isError = false;
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+            isError = true;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task ResubmitAsync()
+    {
+        var workerId = AuthService.CurrentWorker?.WorkerId;
+
+        if (Selected is null || busy || string.IsNullOrWhiteSpace(workerId))
+        {
+            return;
+        }
+
+        busy = true;
+
+        try
+        {
+            var id = Selected.Id;
+
+            await JournalService.ResubmitAsync(
+                id,
+                workerId,
+                transactionDate,
+                bankAccountId,
+                narration,
+                reference,
+                explanation
+            );
+
+            await ReloadAsync();
+            message = $"Entry #{id} has been resubmitted for Pastor approval.";
+            isError = false;
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+            isError = true;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}
+
+<style>
+    .returned-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding-top: 6px;
+    }
+
+    .returned-hero {
+        margin-bottom: 14px;
+    }
+
+    .returned-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .returned-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 520px;
+        overflow-y: auto;
+    }
+
+    .returned-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #ffffff;
+        text-align: left;
+    }
+
+    .returned-item.selected {
+        border-color: #15803d;
+        background: #f0fdf4;
+    }
+
+    .returned-item small {
+        color: #9a3412;
+    }
+
+    .returned-history-item {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.85rem;
+    }
+
+    .returned-reason {
+        padding: 10px;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        margin-bottom: 12px;
+    }
+
+    .returned-fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .returned-fields .full {
+        grid-column: 1 / -1;
+    }
+
+    .returned-audit {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-family: inherit;
+        font-size: 0.8rem;
+        margin: 8px 0 0;
+    }
+
+    .returned-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 16px;
+        z-index: 1050;
+    }
+
+    .returned-modal {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        width: 100%;
+        max-width: 460px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    @@media (max-width: 800px) {
+        .returned-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .returned-fields {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

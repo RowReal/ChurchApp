@@ -1,0 +1,484 @@
+@page "/finance/church-account-balances"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Data
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Church Account Balances - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="cab-message">Please log in to view church account balances.</div>
+}
+else if (!CanView)
+{
+    <div class="cab-message">Access denied. This page is restricted to the Pastor in Charge and Church Admin.</div>
+}
+else
+{
+    <div class="cab-page">
+        <div class="bcc-page-header cab-hero">
+            <div>
+                <div class="bcc-page-subtitle">Account &amp; Remittance</div>
+                <div class="bcc-page-title">Church Account Balances</div>
+                <div class="bcc-page-subtitle">Approved ledger balances and projected balances including pending approvals.</div>
+            </div>
+            <button class="cab-button cab-outline" @onclick="BackToWorkspace">Back to Workspace</button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="cab-error">@error</div>
+        }
+        @if (loading)
+        {
+            <p>Loading account balances...</p>
+        }
+        else
+        {
+            <div class="cab-table-wrap">
+                <table class="cab-table">
+                    <thead>
+                        <tr>
+                            <th>Bank / Account</th>
+                            <th>Currency</th>
+                            <th class="cab-right">Ledger Balance</th>
+                            <th class="cab-right">Pending Net Movement</th>
+                            <th class="cab-right">Book Balance</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var account in accountRows)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@account.BankName</strong>
+                                    <div>@account.AccountTitle</div>
+                                    <small>@account.AccountNumber @(!account.IsActive ? "(Inactive)" : "")</small>
+                                </td>
+                                <td>@account.Currency</td>
+                                <td class="cab-right cab-number">@account.LedgerBalance.ToString("N2")</td>
+                                <td class="cab-right cab-number">@account.PendingMovement.ToString("N2")</td>
+                                <td class="cab-right cab-number"><strong>@account.BookBalance.ToString("N2")</strong></td>
+                                <td><button class="cab-button" @onclick="() => ViewStatementAsync(account.Id)">View Statement</button></td>
+                            </tr>
+                        }
+                        @if (accountRows.Count == 0)
+                        {
+                            <tr><td colspan="6">No church bank accounts have been configured.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="cab-note">Ledger balance includes posted entries only. Book balance also includes pending approvals. Pending entries are provisional and do not represent bank-confirmed funds. Balances are calculated through today; future-dated entries are excluded.</p>
+
+            @if (selectedAccount is not null)
+            {
+                <section class="cab-statement">
+                    <div class="cab-statement-title">
+                        <div>
+                            <h3>Statement of Account</h3>
+                            <div>@selectedAccount.BankName — @selectedAccount.AccountTitle (@selectedAccount.AccountNumber)</div>
+                        </div>
+                        <button class="cab-button cab-outline" @onclick="CloseStatement">Close</button>
+                    </div>
+                    <div class="cab-filters">
+                        <div>
+                            <label>From Date</label>
+                            <input type="date" class="cab-input" @bind="fromDate" @bind:format="yyyy-MM-dd" />
+                        </div>
+                        <div>
+                            <label>To Date</label>
+                            <input type="date" class="cab-input" @bind="toDate" @bind:format="yyyy-MM-dd" />
+                        </div>
+                        <div class="cab-filter-action">
+                            <button class="cab-button" @onclick="LoadStatementAsync">Show Statement</button>
+                        </div>
+                    </div>
+                    <p class="cab-note">Statement shows posted transactions only. Pending approval entries are excluded from the running ledger balance.</p>
+                    <div class="cab-table-wrap">
+                        <table class="cab-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Reference</th>
+                                    <th>Narration</th>
+                                    <th class="cab-right">Debit</th>
+                                    <th class="cab-right">Credit</th>
+                                    <th class="cab-right">Running Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="cab-opening">
+                                    <td>@fromDate.ToString("dd MMM yyyy")</td>
+                                    <td>—</td>
+                                    <td>Opening balance brought forward</td>
+                                    <td></td>
+                                    <td></td>
+                                    <td class="cab-right cab-number">@statementOpening.ToString("N2")</td>
+                                </tr>
+                                @foreach (var entry in statementRows)
+                                {
+                                    <tr>
+                                        <td>@entry.Date.ToString("dd MMM yyyy")</td>
+                                        <td>@entry.Reference</td>
+                                        <td>@entry.Narration</td>
+                                        <td class="cab-right cab-number">@(entry.Debit == 0 ? "" : entry.Debit.ToString("N2"))</td>
+                                        <td class="cab-right cab-number">@(entry.Credit == 0 ? "" : entry.Credit.ToString("N2"))</td>
+                                        <td class="cab-right cab-number">@entry.Balance.ToString("N2")</td>
+                                    </tr>
+                                }
+                                <tr class="cab-opening">
+                                    <td colspan="5"><strong>Closing Ledger Balance</strong></td>
+                                    <td class="cab-right cab-number"><strong>@statementClosing.ToString("N2")</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            }
+        }
+    </div>
+}
+
+@code {
+    #region Dependencies and Page State
+
+    private bool CanView => AuthService.IsInRole(AuthService.Roles.PastorInCharge, AuthService.Roles.ChurchAdmin);
+    private bool loading = true;
+    private string? error;
+    private List<AccountRow> accountRows = new();
+    private AccountRow? selectedAccount;
+    private DateTime fromDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime toDate = DateTime.Today;
+    private decimal statementOpening;
+    private decimal statementClosing;
+    private List<StatementRow> statementRows = new();
+
+    #endregion
+
+    #region Lifecycle and Account Balances
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated || !CanView)
+        {
+            loading = false;
+            return;
+        }
+
+        try
+        {
+            var todayExclusive = DateTime.Today.AddDays(1);
+            var accounts = await Db.BankAccounts.AsNoTracking().OrderBy(a => a.BankName).ThenBy(a => a.AccountTitle).ToListAsync();
+            var entries = await Db.BankAccountJournals.AsNoTracking()
+                .Where(j => j.TransactionDate < todayExclusive &&
+                    (j.Status == BankJournalStatus.Posted || j.Status == BankJournalStatus.PendingApproval))
+                .Select(j => new { j.BankAccountId, j.Status, j.Direction, j.Amount })
+                .ToListAsync();
+
+            accountRows = accounts.Select(a =>
+            {
+                var posted = entries.Where(j => j.BankAccountId == a.Id && j.Status == BankJournalStatus.Posted)
+                    .Sum(j => Signed(j.Direction, j.Amount));
+                var pending = entries.Where(j => j.BankAccountId == a.Id && j.Status == BankJournalStatus.PendingApproval)
+                    .Sum(j => Signed(j.Direction, j.Amount));
+                var opening = a.IsOpeningBalanceLocked && a.OpeningBalanceDate.HasValue && a.OpeningBalanceDate.Value.Date <= DateTime.Today
+                    ? a.OpeningBalance : 0m;
+
+                return new AccountRow
+                {
+                    Id = a.Id,
+                    BankName = a.BankName,
+                    AccountTitle = a.AccountTitle,
+                    AccountNumber = a.AccountNumber,
+                    Currency = a.Currency.ToString(),
+                    IsActive = a.IsActive,
+                    LedgerBalance = opening + posted,
+                    PendingMovement = pending
+                };
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            error = $"Unable to load account balances: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    #endregion
+
+    #region Statement Operations
+
+    private async Task ViewStatementAsync(int accountId)
+    {
+        selectedAccount = accountRows.FirstOrDefault(a => a.Id == accountId);
+        fromDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        toDate = DateTime.Today;
+        await LoadStatementAsync();
+    }
+
+    private async Task LoadStatementAsync()
+    {
+        if (!CanView || selectedAccount is null)
+        {
+            return;
+        }
+
+        error = null;
+        if (fromDate.Date > toDate.Date)
+        {
+            error = "From Date cannot be later than To Date.";
+            return;
+        }
+
+        try
+        {
+            var account = await Db.BankAccounts.AsNoTracking().SingleAsync(a => a.Id == selectedAccount.Id);
+            var start = fromDate.Date;
+            var endExclusive = toDate.Date.AddDays(1);
+            var posted = await Db.BankAccountJournals.AsNoTracking()
+                .Where(j => j.BankAccountId == account.Id && j.Status == BankJournalStatus.Posted && j.TransactionDate < endExclusive)
+                .OrderBy(j => j.TransactionDate)
+                .ThenBy(j => j.Id)
+                .Select(j => new { j.Id, j.TransactionDate, j.Direction, j.Amount, j.TransactionReference, j.Narration })
+                .ToListAsync();
+
+            var opening = account.IsOpeningBalanceLocked && account.OpeningBalanceDate.HasValue && account.OpeningBalanceDate.Value.Date < start
+                ? account.OpeningBalance : 0m;
+            statementOpening = opening + posted.Where(j => j.TransactionDate < start)
+                .Sum(j => Signed(j.Direction, j.Amount));
+
+            var balance = statementOpening;
+            statementRows = new List<StatementRow>();
+            foreach (var journal in posted.Where(j => j.TransactionDate >= start))
+            {
+                balance += Signed(journal.Direction, journal.Amount);
+                statementRows.Add(new StatementRow
+                {
+                    Date = journal.TransactionDate,
+                    Reference = journal.TransactionReference ?? $"JRN-{journal.Id}",
+                    Narration = journal.Narration,
+                    Debit = journal.Direction == BankJournalDirection.Debit ? journal.Amount : 0m,
+                    Credit = journal.Direction == BankJournalDirection.Credit ? journal.Amount : 0m,
+                    Balance = balance
+                });
+            }
+
+            // If the configured opening balance takes effect during the selected period,
+            // show it as a separate opening-balance event in the statement.
+            if (account.IsOpeningBalanceLocked && account.OpeningBalanceDate.HasValue &&
+                account.OpeningBalanceDate.Value.Date >= start && account.OpeningBalanceDate.Value.Date < endExclusive)
+            {
+                var openingEvent = new StatementRow
+                {
+                    Date = account.OpeningBalanceDate.Value.Date,
+                    Reference = "OPENING",
+                    Narration = "Configured opening bank balance",
+                    Credit = account.OpeningBalance >= 0 ? account.OpeningBalance : 0m,
+                    Debit = account.OpeningBalance < 0 ? -account.OpeningBalance : 0m
+                };
+                statementRows.Add(openingEvent);
+                statementRows = statementRows.OrderBy(j => j.Date).ThenBy(j => j.Reference == "OPENING" ? 0 : 1).ToList();
+                balance = statementOpening;
+                foreach (var row in statementRows)
+                {
+                    balance += row.Credit - row.Debit;
+                    row.Balance = balance;
+                }
+            }
+
+            statementClosing = balance;
+        }
+        catch (Exception ex)
+        {
+            error = $"Unable to load statement: {ex.Message}";
+        }
+    }
+
+    private void CloseStatement()
+    {
+        selectedAccount = null;
+        statementRows.Clear();
+    }
+
+    private void BackToWorkspace()
+    {
+        Navigation.NavigateTo("/workspace/account-remittance");
+    }
+
+    #endregion
+
+    #region Balance Helpers and Display Models
+
+    private static decimal Signed(BankJournalDirection direction, decimal amount)
+    {
+        return direction == BankJournalDirection.Credit ? amount : -amount;
+    }
+
+    private sealed class AccountRow
+    {
+        public int Id { get; set; }
+        public string BankName { get; set; } = string.Empty;
+        public string AccountTitle { get; set; } = string.Empty;
+        public string AccountNumber { get; set; } = string.Empty;
+        public string Currency { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+        public decimal LedgerBalance { get; set; }
+        public decimal PendingMovement { get; set; }
+        public decimal BookBalance => LedgerBalance + PendingMovement;
+    }
+
+    private sealed class StatementRow
+    {
+        public DateTime Date { get; set; }
+        public string Reference { get; set; } = string.Empty;
+        public string Narration { get; set; } = string.Empty;
+        public decimal Debit { get; set; }
+        public decimal Credit { get; set; }
+        public decimal Balance { get; set; }
+    }
+
+    #endregion
+}
+
+<style>
+    .cab-page {
+        max-width: 1420px;
+        margin: 0 auto;
+        padding: 8px 14px 28px;
+    }
+
+    .cab-hero, .cab-statement-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 15px;
+    }
+
+    .cab-table-wrap {
+        overflow-x: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: white;
+    }
+
+    .cab-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.86rem;
+    }
+
+    .cab-table th, .cab-table td {
+        padding: 11px 12px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+
+    .cab-table th {
+        background: #f0f7f3;
+        color: #14532d;
+        white-space: nowrap;
+    }
+
+    .cab-table .cab-right {
+        text-align: right;
+    }
+
+    .cab-number {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .cab-opening {
+        background: #f8fafc;
+    }
+
+    .cab-button {
+        background: #166534;
+        color: white;
+        border: 1px solid #166534;
+        border-radius: 7px;
+        padding: 7px 11px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .cab-outline {
+        background: white;
+        color: #166534;
+    }
+
+    .cab-statement {
+        margin-top: 25px;
+    }
+
+    .cab-statement h3 {
+        margin: 0 0 4px;
+        font-size: 1.12rem;
+    }
+
+    .cab-filters {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 230px)) auto;
+        gap: 12px;
+        align-items: end;
+        margin: 14px 0;
+    }
+
+    .cab-filters label {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .cab-input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+    }
+
+    .cab-note {
+        font-size: 0.78rem;
+        color: #64748b;
+        margin: 10px 0 15px;
+    }
+
+    .cab-message, .cab-error {
+        padding: 14px;
+        border-radius: 8px;
+        margin: 14px;
+    }
+
+    .cab-error {
+        color: #991b1b;
+        background: #fef2f2;
+    }
+
+    @@media (max-width: 760px) {
+        .cab-hero, .cab-statement-title {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .cab-filters {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .cab-filter-action {
+            grid-column: 1 / -1;
+        }
+    }
+</style>

@@ -1,4 +1,4 @@
-﻿using ChurchApp.Data;
+using ChurchApp.Data;
 using ChurchApp.Models.Finance;
 using Microsoft.EntityFrameworkCore;
 
@@ -220,6 +220,32 @@ namespace ChurchApp.Services
 
             return ServiceResult.Successful(
                 "Opening balance locked successfully.");
+        }
+
+        // One-time atomic implementation cut-off balance setup.
+        public async Task<ServiceResult> SetAndLockOpeningBalanceAsync(
+            int id, decimal amount, DateTime effectiveDate, string workerId)
+        {
+            if (string.IsNullOrWhiteSpace(workerId))
+                return ServiceResult.Failure("Authenticated worker is required.");
+            if (amount < 0 || effectiveDate.Date > DateTime.Today)
+                return ServiceResult.Failure("Enter a valid non-negative balance and cut-off date.");
+
+            // Execute as a single conditional update so concurrent requests cannot overwrite a locked balance.
+            var now = DateTime.Now;
+            var changed = await _context.BankAccounts
+                .Where(a => a.Id == id && !a.IsOpeningBalanceLocked)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(a => a.OpeningBalance, amount)
+                    .SetProperty(a => a.OpeningBalanceDate, effectiveDate.Date)
+                    .SetProperty(a => a.IsOpeningBalanceLocked, true)
+                    .SetProperty(a => a.OpeningBalanceLockedDate, now)
+                    .SetProperty(a => a.OpeningBalanceLockedBy, workerId)
+                    .SetProperty(a => a.LastModifiedDate, now)
+                    .SetProperty(a => a.LastModifiedBy, workerId));
+            return changed == 1
+                ? ServiceResult.Successful("Opening balance saved and permanently locked.")
+                : ServiceResult.Failure("Account not found or opening balance already locked.");
         }
 
         private async Task<ServiceResult> ValidateAsync(

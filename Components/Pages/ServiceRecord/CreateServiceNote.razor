@@ -1,4 +1,4 @@
-@page "/Offering/createnote"
+@page "/ServiceRecord/createnote"
 @using ChurchApp.Models
 @using ChurchApp.Services
 @inject ServiceNoteService ServiceNoteService
@@ -584,7 +584,7 @@ else
                 model,
                 AuthService.CurrentWorker.Id);
 
-            Navigation.NavigateTo("/Offering/NoteList");
+            Navigation.NavigateTo("/ServiceRecord/NoteList");
         }
         finally
         {
@@ -594,7 +594,7 @@ else
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/Offering/NoteList");
+        Navigation.NavigateTo("/ServiceRecord/NoteList");
     }
 
     private string GetStartTimeString()

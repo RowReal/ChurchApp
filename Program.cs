@@ -1,4 +1,4 @@
-﻿using ChurchApp.Components;
+using ChurchApp.Components;
 using ChurchApp.Data;
 using ChurchApp.Models;
 using ChurchApp.Services;
@@ -109,6 +109,8 @@ builder.Services.AddScoped<PermissionRequestReportService>();
 builder.Services.AddScoped<BroadcastService>();
 //Service Record/Offering Services
 builder.Services.AddScoped<ChurchOfferingAccessService>();
+builder.Services.AddScoped<ChurchCollectionService>();
+builder.Services.AddScoped<BankAccountJournalService>();
 
 builder.Services.AddScoped<ChurchOfferingService>();
 

@@ -1,0 +1,618 @@
+@page "/finance/bank-journal-corrections"
+@rendermode InteractiveServer
+@layout Components.Layout.MainLayout
+@using ChurchApp.Data
+@using ChurchApp.Services
+@using ChurchApp.Models.Finance
+@using JournalEntry = ChurchApp.Models.Finance.BankAccountJournal
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+@inject BankAccountJournalService JournalService
+@inject AuthService AuthService
+
+<PageTitle>Reverse / Adjust Bank Entries - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="alert alert-warning">Please sign in.</div>
+}
+else if (!IsAdmin)
+{
+    <div class="alert alert-danger">Only Church Admin can initiate bank corrections.</div>
+}
+else
+{
+    <div class="worker360-page correction-page">
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">Account &amp; Remittance Workspace</div>
+                <div class="bcc-page-title">Reverse / Adjust Bank Entries</div>
+                <div class="bcc-page-subtitle">
+                    Request a full reversal or correct an amount without deleting the original.
+                </div>
+            </div>
+            <a class="bcc-btn profile-form-secondary-btn" href="/workspace/account-remittance">
+                <i class="fas fa-arrow-left me-1"></i> Workspace
+            </a>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <div class="alert @(IsError ? "alert-danger" : "alert-success")">@Message</div>
+        }
+
+        <div class="correction-grid">
+            <section class="card correction-panel">
+                <div class="card-header"><strong>Posted bank entries</strong></div>
+                <div class="card-body">
+                    <div class="correction-filter-grid">
+                        <div>
+                            <label class="form-label" for="journal-filter">Journal number</label>
+                            <input id="journal-filter"
+                                   class="form-control form-control-sm"
+                                   placeholder="e.g. 125"
+                                   @bind="JournalSearch"
+                                   @bind:event="oninput" />
+                        </div>
+                        <div>
+                            <label class="form-label" for="reference-filter">Bank reference</label>
+                            <input id="reference-filter"
+                                   class="form-control form-control-sm"
+                                   placeholder="Search reference"
+                                   @bind="ReferenceSearch"
+                                   @bind:event="oninput" />
+                        </div>
+                        <div>
+                            <label class="form-label" for="date-from-filter">Date from</label>
+                            <InputDate id="date-from-filter"
+                                       class="form-control form-control-sm"
+                                       @bind-Value="DateFrom" />
+                        </div>
+                        <div>
+                            <label class="form-label" for="date-to-filter">Date to</label>
+                            <InputDate id="date-to-filter"
+                                       class="form-control form-control-sm"
+                                       @bind-Value="DateTo" />
+                        </div>
+                        <div>
+                            <label class="form-label" for="amount-min-filter">Minimum amount</label>
+                            <InputNumber id="amount-min-filter"
+                                         class="form-control form-control-sm"
+                                         min="0"
+                                         placeholder="Minimum"
+                                         @bind-Value="AmountMin" />
+                        </div>
+                        <div>
+                            <label class="form-label" for="amount-max-filter">Maximum amount</label>
+                            <InputNumber id="amount-max-filter"
+                                         class="form-control form-control-sm"
+                                         min="0"
+                                         placeholder="Maximum"
+                                         @bind-Value="AmountMax" />
+                        </div>
+                        <div class="correction-wide">
+                            <label class="form-label" for="narration-filter">Narration</label>
+                            <input id="narration-filter"
+                                   class="form-control form-control-sm"
+                                   placeholder="Search narration"
+                                   @bind="NarrationSearch"
+                                   @bind:event="oninput" />
+                        </div>
+                    </div>
+                    <div class="correction-filter-actions">
+                        <span class="text-muted small">
+                            @FilteredEntries.Count() matching entries
+                        </span>
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                @onclick="ClearFilters">
+                            Clear Filters
+                        </button>
+                    </div>
+                    <div class="correction-list">
+                        @foreach (var entry in FilteredEntries)
+                        {
+                            <button type="button"
+                                    class="correction-entry @(SelectedId == entry.Id ? "selected" : "")"
+                                    disabled="@Busy"
+                                    @onclick="() => SelectAsync(entry.Id)">
+                                <span>
+                                    <strong>#@entry.Id</strong>
+                                    <small>@entry.TransactionDate.ToString("dd MMM yyyy")</small>
+                                    <small>@(entry.BankAccount?.BankName ?? "Bank account")</small>
+                                </span>
+                                <span class="correction-money">
+                                    @entry.Direction @entry.Currency @entry.Amount.ToString("N2")
+                                </span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </section>
+
+            <section class="card correction-panel">
+                <div class="card-header"><strong>Correction request</strong></div>
+                <div class="card-body">
+                    @if (Selected is null)
+                    {
+                        <p class="text-muted small">Select a posted bank entry.</p>
+                    }
+                    else
+                    {
+                        <div class="correction-summary">
+                            <div><label>Original entry</label><strong>#@Selected.Id</strong></div>
+                            <div><label>Bank account</label><strong>@Selected.BankAccount?.BankName</strong></div>
+                            <div><label>Account number</label><strong>@Selected.BankAccount?.AccountNumber</strong></div>
+                            <div><label>Original amount</label><strong>@Selected.Currency @Selected.Amount.ToString("N2")</strong></div>
+                            <div><label>Current effective amount</label><strong>@Selected.Currency @EffectiveAmount.ToString("N2")</strong></div>
+                            <div><label>Original direction</label><strong>@Selected.Direction</strong></div>
+                        </div>
+
+                        <div class="correction-fields">
+                            <div>
+                                <label class="form-label">Correction action</label>
+                                <select class="form-select form-select-sm" @bind="Kind">
+                                    <option value="@BankJournalCorrectionKind.FullReversal">Full reversal</option>
+                                    <option value="@BankJournalCorrectionKind.AmountAdjustment">Amount adjustment</option>
+                                </select>
+                            </div>
+                            @if (Kind == BankJournalCorrectionKind.AmountAdjustment)
+                            {
+                                <div>
+                                    <label class="form-label">Correct total amount</label>
+                                    <InputNumber class="form-control form-control-sm" @bind-Value="CorrectedAmount" />
+                                </div>
+                            }
+                            <div class="correction-wide">
+                                <label class="form-label">Reason for correction *</label>
+                                <textarea class="form-control form-control-sm"
+                                          rows="3"
+                                          maxlength="500"
+                                          @bind="Reason"
+                                          @bind:event="oninput"></textarea>
+                            </div>
+                        </div>
+                        <div class="correction-preview">
+                            <strong>Proposed journal entry</strong>
+                            <p class="mb-0">
+                                @PreviewDirection — @Selected.Currency @PreviewAmount.ToString("N2")
+                            </p>
+                            <small>Requires Pastor approval; the bank balance does not change yet.</small>
+                        </div>
+                        <button type="button"
+                                class="btn btn-success btn-sm mt-3"
+                                disabled="@(Busy || string.IsNullOrWhiteSpace(Reason) || PreviewAmount <= 0m)"
+                                @onclick="SubmitAsync">
+                            Submit for Pastor Approval
+                        </button>
+                    }
+                </div>
+            </section>
+        </div>
+    </div>
+
+    @if (ShowPendingApprovalPopup)
+    {
+        <div class="correction-modal-backdrop" role="presentation">
+            <div class="correction-modal" role="alertdialog" aria-modal="true"
+                 aria-labelledby="pending-correction-title"
+                 aria-describedby="pending-correction-description">
+                <div class="correction-modal-icon" aria-hidden="true">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <h5 id="pending-correction-title">Correction Already Pending</h5>
+                <p id="pending-correction-description">
+                    A reversal/amendment entry is already awaiting Pastor approval for this transaction.
+                </p>
+                <button type="button" class="btn btn-success btn-sm"
+                        @onclick="ClosePendingApprovalPopup">OK, Understood</button>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    #region Page State and Computed Properties
+
+    private List<JournalEntry> Entries = new();
+    private JournalEntry? Selected;
+    private int? SelectedId;
+    private string JournalSearch = string.Empty;
+    private string ReferenceSearch = string.Empty;
+    private string NarrationSearch = string.Empty;
+    private DateTime? DateFrom;
+    private DateTime? DateTo;
+    private decimal? AmountMin;
+    private decimal? AmountMax;
+    private string Reason = string.Empty;
+    private string Message = string.Empty;
+    private bool IsError;
+    private bool Busy;
+    private bool ShowPendingApprovalPopup;
+    private decimal EffectiveAmount;
+    private decimal CorrectedAmount;
+    private BankJournalCorrectionKind Kind = BankJournalCorrectionKind.FullReversal;
+
+    private bool IsAdmin => AuthService.IsInRole(AuthService.Roles.ChurchAdmin);
+
+    private IEnumerable<JournalEntry> FilteredEntries
+    {
+        get
+        {
+            IEnumerable<JournalEntry> result = Entries;
+
+            if (!string.IsNullOrWhiteSpace(JournalSearch))
+            {
+                string search = JournalSearch.Trim();
+
+                result = result.Where(entry =>
+                    entry.Id.ToString().Contains(search, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(ReferenceSearch))
+            {
+                string search = ReferenceSearch.Trim();
+
+                result = result.Where(entry =>
+                    entry.TransactionReference?.Contains(search, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            if (!string.IsNullOrWhiteSpace(NarrationSearch))
+            {
+                string search = NarrationSearch.Trim();
+
+                result = result.Where(entry =>
+                    entry.Narration?.Contains(search, StringComparison.OrdinalIgnoreCase) == true);
+            }
+
+            if (DateFrom.HasValue)
+            {
+                result = result.Where(entry =>
+                    entry.TransactionDate.Date >= DateFrom.Value.Date);
+            }
+
+            if (DateTo.HasValue)
+            {
+                result = result.Where(entry =>
+                    entry.TransactionDate.Date <= DateTo.Value.Date);
+            }
+
+            if (AmountMin.HasValue)
+            {
+                result = result.Where(entry =>
+                    entry.Amount >= AmountMin.Value);
+            }
+
+            if (AmountMax.HasValue)
+            {
+                result = result.Where(entry =>
+                    entry.Amount <= AmountMax.Value);
+            }
+
+            return result;
+        }
+    }
+
+    private decimal TargetAmount => Kind == BankJournalCorrectionKind.FullReversal
+        ? 0m
+        : CorrectedAmount;
+
+    private decimal PreviewAmount => Math.Abs(TargetAmount - EffectiveAmount);
+
+    private BankJournalDirection PreviewDirection
+    {
+        get
+        {
+            if (Selected is null)
+            {
+                return BankJournalDirection.Debit;
+            }
+
+            bool sameDirection = TargetAmount > EffectiveAmount;
+
+            if (sameDirection)
+            {
+                return Selected.Direction;
+            }
+
+            return Selected.Direction == BankJournalDirection.Credit
+                ? BankJournalDirection.Debit
+                : BankJournalDirection.Credit;
+        }
+    }
+
+    #endregion
+
+    #region On Initialized
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && IsAdmin)
+        {
+            await LoadAsync();
+        }
+    }
+
+    #endregion
+
+    #region Load
+
+    private async Task LoadAsync()
+    {
+        Entries = await Db.BankAccountJournals
+            .AsNoTracking()
+            .Include(entry => entry.BankAccount)
+            .Where(entry => entry.Status == BankJournalStatus.Posted &&
+                            entry.ReversesJournalId == null)
+            .OrderByDescending(entry => entry.TransactionDate)
+            .ThenByDescending(entry => entry.Id)
+            .ToListAsync();
+    }
+
+    #endregion
+
+    #region Filter Actions
+
+    private void ClearFilters()
+    {
+        JournalSearch = string.Empty;
+        ReferenceSearch = string.Empty;
+        NarrationSearch = string.Empty;
+        DateFrom = null;
+        DateTo = null;
+        AmountMin = null;
+        AmountMax = null;
+    }
+
+    #endregion
+
+    #region Select
+
+    private async Task SelectAsync(int journalId)
+    {
+        // Prevent a second correction while the Pastor has an outstanding request.
+        bool hasPendingCorrection = await Db.BankAccountJournals
+            .AsNoTracking()
+            .AnyAsync(entry => entry.ReversesJournalId == journalId &&
+                               (entry.Status == BankJournalStatus.PendingApproval ||
+                                entry.Status == BankJournalStatus.Returned));
+
+        if (hasPendingCorrection)
+        {
+            Selected = null;
+            SelectedId = null;
+            Message = string.Empty;
+            IsError = false;
+            ShowPendingApprovalPopup = true;
+            return;
+        }
+
+        Selected = Entries.FirstOrDefault(entry => entry.Id == journalId);
+        SelectedId = journalId;
+        Message = string.Empty;
+        IsError = false;
+        Reason = string.Empty;
+        Kind = BankJournalCorrectionKind.FullReversal;
+        EffectiveAmount = await JournalService.GetEffectiveOriginalAmountAsync(journalId);
+        CorrectedAmount = EffectiveAmount;
+    }
+
+    #endregion
+
+    #region Pending Approval Popup
+
+    private void ClosePendingApprovalPopup()
+    {
+        ShowPendingApprovalPopup = false;
+    }
+
+    #endregion
+
+    #region Submit
+
+    private async Task SubmitAsync()
+    {
+        if (Selected is null)
+        {
+            return;
+        }
+
+        var workerId = AuthService.CurrentWorker?.WorkerId;
+
+        if (string.IsNullOrWhiteSpace(workerId))
+        {
+            Message = "Your session has expired.";
+            IsError = true;
+            return;
+        }
+
+        try
+        {
+            Busy = true;
+            Message = string.Empty;
+
+            await JournalService.RequestCorrectionAsync(
+                Selected.Id,
+                Kind,
+                CorrectedAmount,
+                Reason,
+                workerId);
+
+            Message = "Correction submitted for Pastor approval.";
+            IsError = false;
+            Selected = null;
+            SelectedId = null;
+        }
+        catch (Exception ex)
+        {
+            Message = ex.Message;
+            IsError = true;
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+    #endregion
+}
+<style>
+    /* Page styling: readable declarations and responsive rules. */
+    .correction-page {
+        max-width: 1320px;
+        margin: 0 auto;
+    }
+
+    .correction-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 14px;
+    }
+
+    .correction-panel {
+        min-width: 0;
+        border-radius: 12px;
+    }
+
+    .correction-filter-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .correction-filter-grid .form-label {
+        margin-bottom: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .correction-filter-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .correction-list {
+        max-height: 520px;
+        overflow-y: auto;
+        margin-top: 10px;
+    }
+
+    .correction-entry {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #ffffff;
+        text-align: left;
+        margin-bottom: 7px;
+    }
+
+    .correction-entry.selected {
+        border-color: #16803d;
+        background: #f0fdf4;
+    }
+
+    .correction-entry small {
+        display: block;
+        color: #64748b;
+    }
+
+    .correction-money {
+        font-size: 0.85rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .correction-summary,
+    .correction-fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .correction-summary {
+        margin-bottom: 16px;
+    }
+
+    .correction-summary label {
+        display: block;
+        color: #64748b;
+        font-size: 0.76rem;
+    }
+
+    .correction-summary strong {
+        overflow-wrap: anywhere;
+    }
+
+    .correction-wide {
+        grid-column: 1 / -1;
+    }
+
+    .correction-preview {
+        padding: 12px;
+        margin-top: 12px;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        background: #f0fdf4;
+    }
+
+    @@media (max-width: 560px) {
+        .correction-filter-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 820px) {
+        .correction-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .correction-summary,
+        .correction-fields {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .correction-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(15, 23, 42, 0.58);
+    }
+
+    .correction-modal {
+        width: 100%;
+        max-width: 430px;
+        padding: 26px;
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: 0 20px 55px rgba(0, 0, 0, 0.2);
+        text-align: center;
+    }
+
+    .correction-modal-icon {
+        margin-bottom: 12px;
+        color: #b45309;
+        font-size: 30px;
+    }
+
+    .correction-modal h5 {
+        margin-bottom: 12px;
+        font-weight: 700;
+    }
+
+    .correction-modal p {
+        margin-bottom: 20px;
+        line-height: 1.6;
+    }
+</style>

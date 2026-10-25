@@ -1,4 +1,4 @@
-@page "/Offering/NoteList"
+@page "/ServiceRecord/NoteList"
 @using ChurchApp.Models
 @using ChurchApp.Services
 @inject ServiceNoteService ServiceNoteService
@@ -639,17 +639,17 @@ else
 
     private void AddNewNote()
     {
-        Navigation.NavigateTo("/Offering/CreateNote");
+        Navigation.NavigateTo("/ServiceRecord/CreateNote");
     }
 
     private void ViewNote(int id)
     {
-        Navigation.NavigateTo($"/Offering/ViewNote/{id}");
+        Navigation.NavigateTo($"/ServiceRecord/ViewNote/{id}");
     }
 
     private void EditNote(int id)
     {
-        Navigation.NavigateTo($"/Offering/EditNote/{id}");
+        Navigation.NavigateTo($"/ServiceRecord/EditNote/{id}");
     }
 
     private bool CanEditNote(ServiceNote note)

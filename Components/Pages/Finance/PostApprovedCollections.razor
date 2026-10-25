@@ -1,0 +1,335 @@
+@page "/finance/post-approved-collections"
+@rendermode InteractiveServer
+@layout Components.Layout.MainLayout
+@using ChurchApp.Data
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+@inject BankAccountJournalService JournalService
+@inject AuthService AuthService
+
+<PageTitle>Post Approved Collections - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="alert alert-warning">Please sign in to continue.</div>
+}
+else if (!AuthService.IsInRole(AuthService.Roles.ChurchAdmin))
+{
+    <div class="alert alert-danger">Only Church Admin can submit collection bank postings.</div>
+}
+else
+{
+    <div class="worker360-page pc-page">
+        <div class="bcc-page-header pc-hero">
+            <div>
+                <div class="bcc-page-subtitle"><i class="fas fa-wallet me-2"></i>Account &amp; Remittance Workspace</div>
+                <div class="bcc-page-title">Post Approved Collections</div>
+                <div class="bcc-page-subtitle">Confirm bank receipt and submit approved collections for Pastor approval.</div>
+            </div>
+            <a href="/workspace/account-remittance" class="bcc-btn profile-form-secondary-btn"><i class="fas fa-arrow-left me-2"></i>Workspace</a>
+        </div>
+        @if (!string.IsNullOrEmpty(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success")">@message</div>
+        }
+        <div class="pc-summary"><span><strong>@eligible.Count</strong> Awaiting bank posting</span><span><strong>@pendingCount</strong> Pending Pastor approval</span></div>
+        <div class="pc-layout">
+            <section class="card pc-panel">
+                <div class="card-header"><strong>Approved collections awaiting posting</strong></div>
+                <div class="card-body p-2">
+                    <input class="form-control form-control-sm mb-2" placeholder="Search by collection ID or income type" @bind="search" @bind:event="oninput" />
+                    @if (eligible.Count == 0)
+                    {
+                        <div class="text-muted small p-2">No approved, unsubmitted collections.</div>
+                    }
+                    else
+                    {
+                        <div class="pc-list">
+                            @foreach (var c in eligible.Where(x => string.IsNullOrWhiteSpace(search) || x.Id.ToString().Contains(search.Trim(), StringComparison.OrdinalIgnoreCase) || x.IncomeTypeName.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase)))
+                            {
+                                <button type="button" class="pc-item @(selectedId == c.Id ? "pc-selected" : "")" @onclick="() => Select(c.Id)">
+                                    <span><strong>Collection #@c.Id</strong><small>@c.IncomeTypeName</small></span>
+                                    <span class="pc-amount">@c.Currency @c.Amount.ToString("N2")</span>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </section>
+            <section class="card pc-panel">
+                <div class="card-header"><strong>Bank receipt confirmation</strong></div>
+                <div class="card-body">
+                    @if (Selected is null)
+                    {
+                        <div class="text-muted small">Select an approved collection on the left to review its bank posting.</div>
+                    }
+                    else
+                    {
+                        <div class="pc-details">
+                            <div><label>Collection</label><strong>#@Selected.Id</strong></div>
+                            <div><label>Income / Collection Type</label><strong>@Selected.IncomeTypeName</strong></div>
+                            <div><label>Amount</label><strong>@Selected.Currency @Selected.Amount.ToString("N2")</strong></div>
+                            <div><label>Linked bank account</label><strong>@Selected.BankName</strong><span class="pc-account-number">Account No: @Selected.BankAccountNumber</span></div>
+                        </div>
+                        @if (Selected.BankAccountId == 0)
+                        {
+                            <div class="alert alert-warning mt-2">No valid linked receiving bank account is configured for this income type. Correct Finance Setup first.</div>
+                        }
+                        else
+                        {
+                            <div class="pc-fields mt-3">
+                                <div><label class="form-label">Date received in bank</label><input class="form-control form-control-sm" type="date" @bind="transactionDate" @bind:format="yyyy-MM-dd" /></div>
+                                <div><label class="form-label">Bank reference (if available)</label><input class="form-control form-control-sm" maxlength="100" @bind="bankReference" /></div>
+                            </div>
+                            <div class="mt-2"><label class="form-label">Narration</label><input class="form-control form-control-sm" maxlength="500" @bind="narration" /></div>
+                            <label class="pc-check mt-3"><input type="checkbox" @bind="bankReceiptConfirmed" /><span>I have verified that this collection was received in the linked bank account.</span></label>
+                            <div class="pc-note mt-2">Submitting creates a <strong>pending approval</strong> journal credit. The bank balance changes only after Pastor approval.</div>
+                            <button type="button" class="btn btn-success btn-sm mt-3" disabled="@(busy || !bankReceiptConfirmed)" @onclick="SubmitAsync"><i class="fas fa-paper-plane me-1"></i>Submit for Pastor Approval</button>
+                        }
+                    }
+                </div>
+            </section>
+        </div>
+    </div>
+}
+
+@code {
+    private sealed class CollectionItem
+    {
+        public int Id { get; set; }
+        public int IncomeTypeId { get; set; }
+        public string IncomeTypeName { get; set; } = "";
+        public decimal Amount { get; set; }
+        public string Currency { get; set; } = "";
+        public int BankAccountId { get; set; }
+        public string BankName { get; set; } = "";
+        public string BankAccountNumber { get; set; } = "";
+    }
+    private List<CollectionItem> eligible = new();
+    private int pendingCount;
+    private int? selectedId;
+    private CollectionItem? Selected => eligible.FirstOrDefault(x => x.Id == selectedId);
+    private string search = "", bankReference = "", narration = "", message = "";
+    private DateTime transactionDate = DateTime.Today;
+    private bool bankReceiptConfirmed, busy, isError;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        var records = await Db.ChurchCollectionRecords.AsNoTracking()
+            .Where(x => x.Status == ChurchCollectionService.StatusApproved && !x.IsRemoved &&
+                !Db.BankAccountJournals.Any(j => j.SourceCollectionId == x.Id))
+            .Select(x => new { x.Id, x.IncomeTypeId, x.Amount, x.Currency })
+            .OrderByDescending(x => x.Id).Take(250).ToListAsync();
+        var types = await Db.IncomeTypes.AsNoTracking().ToDictionaryAsync(x => x.Id);
+        var accounts = await Db.BankAccounts.AsNoTracking().ToDictionaryAsync(x => x.Id);
+        eligible = records.Select(x =>
+        {
+            types.TryGetValue(x.IncomeTypeId, out var type);
+            var accountId = type?.DefaultBankAccountId ?? 0;
+            accounts.TryGetValue(accountId, out var account);
+            return new CollectionItem
+            {
+                Id = x.Id, IncomeTypeId = x.IncomeTypeId, Amount = x.Amount, Currency = x.Currency,
+                IncomeTypeName = type?.Name ?? "Unknown income type",
+                BankAccountId = account != null && account.IsActive && account.CanReceiveIncome &&
+                    string.Equals(account.Currency.ToString(), x.Currency, StringComparison.OrdinalIgnoreCase) ? accountId : 0,
+                BankName = account == null ? "Not configured" : $"{account.ShortName} — {account.BankName} ({account.Currency})",
+                BankAccountNumber = account?.AccountNumber ?? "Not configured"
+            };
+        }).ToList();
+        pendingCount = await Db.BankAccountJournals.CountAsync(x => x.TransactionType == BankJournalTransactionType.CollectionPosting && x.Status == BankJournalStatus.PendingApproval);
+        if (selectedId.HasValue && eligible.All(x => x.Id != selectedId)) selectedId = null;
+    }
+
+    private void Select(int id)
+    {
+        selectedId = id;
+        transactionDate = DateTime.Today;
+        bankReference = "";
+        narration = $"Approved collection #{id} — bank receipt";
+        bankReceiptConfirmed = false;
+        message = "";
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (busy || !bankReceiptConfirmed || Selected is null || Selected.BankAccountId == 0) return;
+        var workerId = AuthService.CurrentWorker?.WorkerId;
+        if (string.IsNullOrWhiteSpace(workerId)) { message = "Your Worker session is unavailable."; isError = true; return; }
+        if (!AuthService.IsInRole(AuthService.Roles.ChurchAdmin)) { message = "Access denied."; isError = true; return; }
+        busy = true;
+        try
+        {
+            var id = Selected.Id;
+            await JournalService.RequestCollectionPostingAsync(id, Selected.BankAccountId, transactionDate, workerId, bankReference, narration);
+            await ReloadAsync();
+            selectedId = null;
+            bankReceiptConfirmed = false;
+            message = $"Collection #{id} submitted for Pastor approval. No bank balance has been changed yet.";
+            isError = false;
+        }
+        catch (Exception ex) { message = ex.Message; isError = true; }
+        finally { busy = false; }
+    }
+}
+
+<style>
+.pc-page {
+    max-width:1400px;
+    margin:0 auto;
+    padding-top:6px
+}
+
+.pc-hero {
+    margin-bottom:14px
+}
+
+.pc-summary {
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:12px
+}
+
+.pc-summary span {
+    background:#f4f8f5;
+    border:1px solid #dce8df;
+    border-radius:8px;
+    padding:7px 12px;
+    font-size:.8rem
+}
+
+.pc-layout {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:12px;
+    align-items:start
+}
+
+.pc-panel {
+    border-radius:11px;
+    overflow:hidden
+}
+
+.pc-panel .card-header {
+    background:#f6faf7;
+    padding:10px 13px;
+    font-size:.88rem
+}
+
+.pc-panel .card-body {
+    padding:13px
+}
+
+.pc-list {
+    max-height:490px;
+    overflow-y:auto
+}
+
+.pc-item {
+    width:100%;
+    background:white;
+    border:1px solid #e5ebe7;
+    border-radius:8px;
+    padding:9px 10px;
+    margin-bottom:6px;
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    text-align:left;
+    font-size:.82rem
+}
+
+.pc-item:hover,.pc-selected {
+    border-color:#21804b;
+    background:#f2faf5
+}
+
+.pc-item small {
+    display:block;
+    color:#64748b;
+    margin-top:3px
+}
+
+.pc-amount {
+    white-space:nowrap;
+    font-weight:600
+}
+
+.pc-details {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px
+}
+
+.pc-details>div {
+    border:1px solid #e5ebe7;
+    background:#fbfcfb;
+    border-radius:7px;
+    padding:8px
+}
+
+.pc-details label {
+    display:block;
+    font-size:.72rem;
+    color:#64748b
+}
+
+.pc-details strong {
+    font-size:.83rem;
+    overflow-wrap:anywhere
+}
+
+.pc-account-number {
+    display:block;
+    margin-top:5px;
+    color:#17663a;
+    font-size:1rem;
+    font-weight:800;
+    letter-spacing:.035em;
+    overflow-wrap:anywhere
+}
+
+.pc-fields {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px
+}
+
+.pc-page .form-label {
+    font-size:.78rem;
+    font-weight:600;
+    margin-bottom:4px
+}
+
+.pc-check {
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+    font-size:.8rem
+}
+
+.pc-check input {
+    margin-top:3px
+}
+
+.pc-note {
+    font-size:.76rem;
+    color:#52645a
+}
+
+@@media(max-width:800px) {
+    .pc-layout {
+        grid-template-columns:1fr
+    }
+
+    .pc-fields,.pc-details {
+        grid-template-columns:1fr
+    }
+
+}
+</style>

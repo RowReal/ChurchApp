@@ -1,4 +1,7 @@
-﻿using ChurchApp.Models;
+using ChurchApp.Models;
+using ChurchApp.Models.Finance;
+using ChurchApp.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace ChurchApp.Services
 {
@@ -7,15 +10,21 @@ namespace ChurchApp.Services
         private readonly BroadcastService _broadcastService;
         private readonly WorkforceService _workforceService;
         private readonly ApprovalRequestService _approvalRequestService;
+        private readonly AppDbContext _db;
+        private readonly AuthService _authService;
 
         public PendingAttentionService(
             BroadcastService broadcastService,
             WorkforceService workforceService,
-            ApprovalRequestService approvalRequestService)
+            ApprovalRequestService approvalRequestService,
+            AppDbContext db,
+            AuthService authService)
         {
             _broadcastService = broadcastService;
             _workforceService = workforceService;
             _approvalRequestService = approvalRequestService;
+            _db = db;
+            _authService = authService;
         }
 
         public async Task<PendingAttentionSummary> GetSummaryAsync(
@@ -69,6 +78,45 @@ namespace ChurchApp.Services
                 await _approvalRequestService
                     .GetPendingApprovalCountAsync(workerId);
 
+
+            #region Account and Remittance Attention
+
+            if (_authService.IsInRole(AuthService.Roles.PastorInCharge))
+            {
+                // Includes pending reversals and adjustments; each journal row counts once.
+                result.PendingBankJournalApprovalCount = await _db.BankAccountJournals
+                    .AsNoTracking()
+                    .CountAsync(entry => entry.Status == BankJournalStatus.PendingApproval);
+            }
+
+            if (_authService.IsInRole(AuthService.Roles.ChurchAdmin))
+            {
+                var currentWorkerId = _authService.CurrentWorker?.WorkerId;
+
+                if (!string.IsNullOrWhiteSpace(currentWorkerId))
+                {
+                    result.ReturnedBankEntryCount = await _db.BankAccountJournals
+                        .AsNoTracking()
+                        .CountAsync(entry =>
+                            (entry.Status == BankJournalStatus.Returned ||
+                             entry.Status == BankJournalStatus.Rejected) &&
+                            entry.InitiatedByWorkerId == currentWorkerId);
+                }
+
+                result.UnpostedCollectionCount = await _db.ChurchCollectionRecords
+                    .AsNoTracking()
+                    .CountAsync(collection =>
+                        collection.Status == ChurchCollectionService.StatusApproved &&
+                        !collection.IsRemoved &&
+                        !_db.BankAccountJournals.Any(entry =>
+                            entry.SourceCollectionId == collection.Id));
+
+                result.UnlockedBankAccountCount = await _db.BankAccounts
+                    .AsNoTracking()
+                    .CountAsync(account => account.IsActive && !account.IsOpeningBalanceLocked);
+            }
+
+            #endregion
 
             return result;
         }
@@ -160,9 +208,25 @@ namespace ChurchApp.Services
             PendingRequestApprovalCount > 0;
 
 
+        #region Account and Remittance Summary
+
+        public int PendingBankJournalApprovalCount { get; set; }
+        public int ReturnedBankEntryCount { get; set; }
+        public int UnpostedCollectionCount { get; set; }
+        public int UnlockedBankAccountCount { get; set; }
+
+        public bool HasAccountRemittanceAttention =>
+            PendingBankJournalApprovalCount > 0 ||
+            ReturnedBankEntryCount > 0 ||
+            UnpostedCollectionCount > 0 ||
+            UnlockedBankAccountCount > 0;
+
+        #endregion
+
         public bool HasAnythingPending =>
             HasUnreadBroadcast ||
             HasPendingProfileApproval ||
-            HasPendingRequestApproval;
+            HasPendingRequestApproval ||
+            HasAccountRemittanceAttention;
     }
 }

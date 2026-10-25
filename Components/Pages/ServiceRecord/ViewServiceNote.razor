@@ -1,4 +1,4 @@
-@page "/Offering/viewnote/{id:int}"
+@page "/ServiceRecord/viewnote/{id:int}"
 
 @using ChurchApp.Models
 @using ChurchApp.Services
@@ -730,7 +730,7 @@ else
     private void GoBack()
     {
         Navigation.NavigateTo(
-            "/Offering/NoteList");
+            "/ServiceRecord/NoteList");
     }
 
     private sealed class OfferingCurrencyTotal

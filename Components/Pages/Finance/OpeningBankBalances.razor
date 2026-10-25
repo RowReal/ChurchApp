@@ -1,0 +1,140 @@
+@page "/finance/opening-balances"
+@rendermode InteractiveServer
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+@inject BankAccountService BankAccountService
+@inject AuthService AuthService
+
+<PageTitle>Opening Bank Balances - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="alert alert-warning">Please sign in to access opening bank balances.</div>
+}
+else if (!AuthService.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge))
+{
+    <div class="alert alert-danger">You do not have permission to view opening balances.</div>
+}
+else
+{
+    <div class="worker360-page ob-page">
+        <div class="bcc-page-header ob-hero">
+            <div>
+                <div class="bcc-page-subtitle"><i class="fas fa-wallet me-2"></i>Account &amp; Remittance Workspace</div>
+                <div class="bcc-page-title">Opening Bank Balances</div>
+                <div class="bcc-page-subtitle">Record each bank account's implementation balance once and lock it.</div>
+            </div>
+            <a class="bcc-btn profile-form-secondary-btn" href="/workspace/account-remittance"><i class="fas fa-arrow-left me-2"></i>Workspace</a>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(feedback))
+        {
+            <div class="alert @(hasError ? "alert-danger" : "alert-success")">@feedback</div>
+        }
+        <div class="ob-summary">
+            <span><strong>@accounts.Count</strong> Accounts</span>
+            <span><strong>@accounts.Count(a => a.IsOpeningBalanceLocked)</strong> Locked</span>
+            <span><strong>@accounts.Count(a => !a.IsOpeningBalanceLocked)</strong> Awaiting setup</span>
+        </div>
+        <div class="ob-grid">
+            @foreach (var account in accounts)
+            {
+                <div class="card ob-card" @key="account.Id">
+                    <div class="card-header ob-head">
+                        <div><strong>@account.ShortName</strong><div class="ob-muted">@account.BankName · @account.Currency · ****@account.AccountNumber.Substring(Math.Max(0, account.AccountNumber.Length - 4))</div></div>
+                        <span class="badge @(account.IsOpeningBalanceLocked ? "bg-success" : "bg-secondary")">@(account.IsOpeningBalanceLocked ? "Locked" : "Not locked")</span>
+                    </div>
+                    <div class="card-body">
+                        @if (account.IsOpeningBalanceLocked)
+                        {
+                            <div class="ob-locked-value">@account.Currency @account.OpeningBalance.ToString("N2")</div>
+                            <div class="ob-muted">Effective: @account.OpeningBalanceDate?.ToString("dd MMM yyyy")</div>
+                            <div class="ob-muted">Locked by: @(account.OpeningBalanceLockedBy ?? "Not recorded")</div>
+                        }
+                        else if (AuthService.IsInRole(AuthService.Roles.ChurchAdmin))
+                        {
+                            <div class="ob-fields">
+                                <div><label class="form-label">Opening balance (@account.Currency)</label><input type="number" step="0.01" min="0" class="form-control form-control-sm" @bind="drafts[account.Id].Amount" /></div>
+                                <div><label class="form-label">Effective date</label><input type="date" class="form-control form-control-sm" @bind="drafts[account.Id].Date" @bind:format="yyyy-MM-dd" /></div>
+                            </div>
+                            <div class="ob-muted mt-2">Use the actual bank balance at the implementation cut-off date. Zero is permitted.</div>
+                            @if (confirmId == account.Id)
+                            {
+                                <div class="ob-confirm mt-2"><strong>Confirm permanent lock?</strong><div class="ob-muted">@account.Currency @drafts[account.Id].Amount.ToString("N2") as of @drafts[account.Id].Date.ToString("dd MMM yyyy"). This cannot be edited after locking.</div>
+                                    <div class="d-flex gap-2 mt-2"><button class="btn btn-success btn-sm" disabled="@busy" @onclick="() => SaveAndLockAsync(account.Id)">Confirm &amp; Lock</button><button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => confirmId = null">Cancel</button></div>
+                                </div>
+                            }
+                            else
+                            {
+                                <button class="btn btn-success btn-sm mt-3" disabled="@busy" @onclick="() => BeginConfirmation(account.Id)"><i class="fas fa-lock me-1"></i>Review &amp; Lock</button>
+                            }
+                        }
+                        else
+                        {
+                            <div class="ob-muted">Church Admin will enter and lock this account's opening balance.</div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private List<BankAccount> accounts = new();
+    private Dictionary<int, OpeningDraft> drafts = new();
+    private int? confirmId;
+    private bool busy;
+    private bool hasError;
+    private string feedback = "";
+    private sealed class OpeningDraft { public decimal Amount { get; set; } public DateTime Date { get; set; } }
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        accounts = await BankAccountService.GetAllAsync();
+        drafts = accounts.Where(x => !x.IsOpeningBalanceLocked).ToDictionary(x => x.Id,
+            x => new OpeningDraft { Amount = x.OpeningBalance, Date = x.OpeningBalanceDate ?? DateTime.Today });
+    }
+    private void BeginConfirmation(int id)
+    {
+        feedback = "";
+        if (!drafts.TryGetValue(id, out var draft) || draft.Amount < 0 || draft.Date.Date > DateTime.Today)
+        { hasError = true; feedback = "Enter a non-negative balance and an effective date not in the future."; return; }
+        confirmId = id;
+    }
+    private async Task SaveAndLockAsync(int id)
+    {
+        if (!AuthService.IsInRole(AuthService.Roles.ChurchAdmin) || confirmId != id || busy) return;
+        busy = true; feedback = ""; hasError = false;
+        try
+        {
+            var draft = drafts[id];
+            var worker = AuthService.CurrentWorker?.WorkerId;
+            if (string.IsNullOrWhiteSpace(worker)) throw new InvalidOperationException("Authenticated worker is required.");
+            var result = await BankAccountService.SetAndLockOpeningBalanceAsync(id, draft.Amount, draft.Date, worker);
+            feedback = result.Message;
+            hasError = !result.Success;
+            if (result.Success) { confirmId = null; await ReloadAsync(); }
+        }
+        catch (Exception ex) { hasError = true; feedback = ex.Message; }
+        finally { busy = false; }
+    }
+}
+<style>
+.ob-page{max-width:1320px;margin:0 auto;padding:6px 8px 24px}
+.ob-hero{margin-bottom:12px}
+.ob-summary{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.ob-summary span{border:1px solid #dce7df;border-radius:8px;padding:8px 14px;background:#f7fbf8;font-size:.87rem}
+.ob-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.ob-card{border:1px solid #e0e9e3;border-radius:10px;overflow:hidden}
+.ob-head{display:flex;justify-content:space-between;align-items:start;gap:10px;background:#f5faf6;padding:11px 14px}.ob-muted{color:#68776c;font-size:.79rem}
+.ob-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ob-fields .form-label{font-size:.82rem;font-weight:600;margin-bottom:4px}
+.ob-locked-value{font-size:1.35rem;font-weight:700;color:#12653b;margin-bottom:5px}
+.ob-confirm{background:#f3faf5;border:1px solid #cfe6d6;border-radius:8px;padding:10px}@@media(max-width:800px){
+    .ob-grid{grid-template-columns:1fr}}@@media(max-width:420px){
+        .ob-fields{grid-template-columns:1fr}}
+</style>

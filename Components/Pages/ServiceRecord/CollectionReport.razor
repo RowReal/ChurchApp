@@ -1,0 +1,342 @@
+@* @page "/Offering/report" *@
+@page "/ServiceRecord/collection-report"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+@using Microsoft.JSInterop
+@inject AuthService AuthService
+@inject ChurchCollectionService CollectionService
+@inject ChurchOfferingAccessService OfferingAccessService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<PageTitle>Collection Report - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="alert alert-warning">Please log in to view the Collection Report.</div>
+}
+else if (isLoading)
+{
+    <div class="p-4 text-center"><div class="spinner-border"></div> Loading collection report...</div>
+}
+else if (!canViewReport)
+{
+    <div class="alert alert-danger">Access denied. Collection Report viewing privilege is required.</div>
+}
+else
+{
+    <div class="container-fluid py-3 collection-report-page">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div><div class="text-muted small">Service Records</div><h3 class="mb-0">Collection Report</h3><div class="text-muted small">Collection register, approvals and amendments</div></div>
+            <div class="d-flex gap-2"><button class="btn btn-outline-success btn-sm" disabled="@isBusy" @onclick="ExportExcelAsync"><i class="fas fa-file-excel me-1"></i> Export for Excel (CSV)</button><button class="btn btn-outline-secondary btn-sm" @onclick="GoBack">Back</button></div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div class="row g-2 align-items-end">
+                    <div class="col-6 col-md-2"><label class="form-label small">From date</label><input type="date" class="form-control form-control-sm" @bind="filter.DateFrom" /></div>
+                    <div class="col-6 col-md-2"><label class="form-label small">To date</label><input type="date" class="form-control form-control-sm" @bind="filter.DateTo" /></div>
+                    <div class="col-6 col-md-2"><label class="form-label small">Status</label><select class="form-select form-select-sm" @bind="filter.Status"><option value="">All statuses</option><option value="Approved">Approved</option><option value="PendingApproval">Pending Approval</option><option value="ReturnedForCorrection">Returned for Correction</option></select></div>
+                    <div class="col-6 col-md-3"><label class="form-label small">Service</label><select class="form-select form-select-sm" @bind="filter.ServiceId"><option value="">All services</option>@foreach (var s in services) {
+                    <option value="@s.Id">@s.Name</option>
+                }
+</select></div>
+                <div class="col-6 col-md-3"><label class="form-label small">Income type</label><select class="form-select form-select-sm" @bind="filter.IncomeTypeId"><option value="">All income types</option>@foreach (var t in incomeTypes) {
+                <option value="@t.Id">@t.Name</option>
+                                }
+</select></div>
+                <div class="col-6 col-md-2"><label class="form-label small">Currency</label><select class="form-select form-select-sm" @bind="filter.Currency"><option value="">All</option><option>NGN</option><option>USD</option><option>GBP</option><option>EUR</option></select></div>
+                <div class="col-6 col-md-2"><label class="form-label small">Payment mode</label><select class="form-select form-select-sm" @bind="filter.PaymentMode"><option value="">All</option><option>Cash</option><option value="Transfer">Bank Transfer</option><option>POS</option><option>Cheque</option><option>Mixed</option></select></div>
+                <div class="col-12 col-md-4"><label class="form-label small">Search</label><input class="form-control form-control-sm" @bind="filter.SearchText" placeholder="Service, income type, recorder, remarks..." /></div>
+                <div class="col-auto"><button class="btn btn-success btn-sm" disabled="@isBusy" @onclick="SearchAsync">Search</button></div>
+                <div class="col-auto"><button class="btn btn-outline-secondary btn-sm" disabled="@isBusy" @onclick="ClearAsync">Clear</button></div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <span class="badge bg-light text-dark border p-2">Records: @records.Count</span>
+        <span class="badge bg-success p-2">Approved: @records.Count(x => x.Status == ChurchCollectionService.StatusApproved)</span>
+        <span class="badge bg-warning text-dark p-2">Pending: @records.Count(x => x.Status == ChurchCollectionService.StatusPendingApproval)</span>
+        <span class="badge bg-secondary p-2">Returned: @records.Count(x => x.Status == ChurchCollectionService.StatusReturnedForCorrection)</span>
+        @foreach (var total in records.Where(x => x.Status == ChurchCollectionService.StatusApproved).GroupBy(x => x.Currency).OrderBy(x => x.Key))
+        {
+            <span class="badge bg-light text-dark border p-2">Approved @total.Key: @total.Sum(x => x.Amount).ToString("N2")</span>
+        }
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Ref</th><th>Date</th><th>Service</th><th>Income Type</th><th class="text-end">Amount</th><th>Mode</th><th>Status</th><th>Recorded By</th><th>Approved By</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        @foreach (var record in records)
+                        {
+                            <tr>
+                                <td>@record.Id</td>
+                                <td>@record.CollectionDate.ToString("dd MMM yyyy")</td>
+                                <td>@record.Service?.Name</td>
+                                <td>@record.IncomeType?.Name</td>
+                                <td class="text-end text-nowrap">@record.Currency @record.Amount.ToString("N2")</td>
+                                <td>@record.PaymentMode</td>
+                                <td><span class="badge @(record.Status == ChurchCollectionService.StatusApproved ? "bg-success" : record.Status == ChurchCollectionService.StatusPendingApproval ? "bg-warning text-dark" : "bg-secondary")">@StatusLabel(record.Status)</span></td>
+                                <td>@WorkerName(record.RecordedByWorker)</td>
+                                <td>@WorkerName(record.ApprovedByWorker)</td>
+                                <td class="text-nowrap">
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenDetails(record)">Details</button>
+                                    @if (CanReview(record))
+                                    {
+                                        <button class="btn btn-sm btn-outline-success ms-1" @onclick="() => OpenReview(record)">Approve / Return</button>
+                                    }
+                                    @if (canRequestAmendments && record.Status == ChurchCollectionService.StatusApproved)
+                                    {
+                                        <button class="btn btn-sm btn-outline-primary ms-1" disabled="@pendingAmendmentIds.Contains(record.Id)" @onclick="() => OpenAmendment(record)">@(pendingAmendmentIds.Contains(record.Id) ? "Amendment Pending" : "Amend")</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (records.Count == 0)
+                        {
+                            <tr><td colspan="10" class="text-center text-muted p-4">No collections match the selected filters.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @if (canDecideAmendments && pendingAmendments.Count > 0)
+    {
+        <div class="card mt-3"><div class="card-header fw-semibold">Pending Amendment Requests <span class="badge bg-danger">@pendingAmendments.Count</span></div><div class="card-body"><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Request</th><th>Collection</th><th>Reason</th><th>Action</th></tr></thead><tbody>@foreach (var a in pendingAmendments) {
+        <tr><td>#@a.Id</td><td>#@a.CollectionRecordId</td><td>@a.Reason</td><td><button class="btn btn-sm btn-outline-primary" @onclick="() => OpenAmendmentReview(a)">Review</button></td></tr>
+    }
+</tbody></table></div></div></div>
+        }
+</div>
+}
+
+@if (selectedRecord != null)
+{
+    <div class="collection-report-overlay">
+        <div class="collection-report-dialog">
+            <div class="d-flex justify-content-between"><h5>Collection #@selectedRecord.Id</h5><button class="btn-close" @onclick="() => selectedRecord = null"></button></div><hr />
+            <p><b>Date:</b> @selectedRecord.CollectionDate.ToString("dd MMM yyyy")</p><p><b>Service:</b> @selectedRecord.Service?.Name</p><p><b>Income Type:</b> @selectedRecord.IncomeType?.Name</p><p><b>Amount:</b> @selectedRecord.Currency @selectedRecord.Amount.ToString("N2")</p><p><b>Payment:</b> @selectedRecord.PaymentMode</p><p><b>Status:</b> @StatusLabel(selectedRecord.Status)</p><p><b>Recorded by:</b> @WorkerName(selectedRecord.RecordedByWorker)</p><p><b>Approved by:</b> @WorkerName(selectedRecord.ApprovedByWorker)</p><p><b>Remarks:</b> @selectedRecord.Remarks</p><p><b>Return comment:</b> @selectedRecord.ReturnComment</p>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="() => selectedRecord = null">Close</button>
+        </div>
+    </div>
+}
+@if (reviewRecord != null)
+{
+    <div class="collection-report-overlay"><div class="collection-report-dialog"><h5>Review Collection #@reviewRecord.Id</h5><p>@reviewRecord.Currency @reviewRecord.Amount.ToString("N2") — @WorkerName(reviewRecord.RecordedByWorker)</p><label class="form-label">Comment (required when returning)</label><textarea class="form-control" @bind="reviewComment"></textarea>@if (!string.IsNullOrEmpty(actionError)) {
+    <div class="alert alert-danger mt-2">@actionError</div>
+}
+<div class="d-flex gap-2 justify-content-end mt-3"><button class="btn btn-outline-secondary" disabled="@isBusy" @onclick="() => reviewRecord = null">Cancel</button><button class="btn btn-outline-danger" disabled="@isBusy" @onclick="() => DecideCollectionAsync(false)">Return</button><button class="btn btn-success" disabled="@isBusy" @onclick="() => DecideCollectionAsync(true)">Approve</button></div></div></div>
+}
+@if (amendRecord != null)
+{
+    <div class="collection-report-overlay">
+        <div class="collection-report-dialog">
+            <h5>Request Amendment — Collection #@amendRecord.Id</h5>
+            <div class="row g-2"><div class="col-md-6"><label>Service</label><select class="form-select form-select-sm" @bind="amendModel.ServiceId">@foreach (var s in services) {
+            <option value="@s.Id">@s.Name</option>
+        }
+</select></div><div class="col-md-6"><label>Income Type</label><select class="form-select form-select-sm" @bind="amendModel.IncomeTypeId">@foreach (var t in incomeTypes) {
+        <option value="@t.Id">@t.Name</option>
+                }
+</select></div><div class="col-md-6"><label>Collection Date</label><input type="date" class="form-control form-control-sm" @bind="amendModel.CollectionDate" /></div><div class="col-md-6"><label>Amount</label><input type="number" step="0.01" min="0" class="form-control form-control-sm" @bind="amendModel.Amount" /></div><div class="col-md-6"><label>Currency</label><select class="form-select form-select-sm" @bind="amendModel.Currency"><option>NGN</option><option>USD</option><option>GBP</option><option>EUR</option></select></div><div class="col-md-6"><label>Payment Mode</label><select class="form-select form-select-sm" @bind="amendModel.PaymentMode"><option>Cash</option>@if (canRecordBankTransfer) {
+        <option value="Transfer">Bank Transfer</option>
+                }
+<option>POS</option><option>Cheque</option><option>Mixed</option></select></div><div class="col-12"><label>Remarks</label><textarea class="form-control form-control-sm" @bind="amendModel.Remarks" /></div><div class="col-12"><label>Reason for amendment *</label><textarea class="form-control form-control-sm" @bind="amendModel.Reason" /></div></div>
+        @if (!string.IsNullOrEmpty(actionError))
+        {
+            <div class="alert alert-danger mt-2">@actionError</div>
+        }
+        <div class="d-flex gap-2 justify-content-end mt-3"><button class="btn btn-outline-secondary" disabled="@isBusy" @onclick="() => amendRecord = null">Cancel</button><button class="btn btn-primary" disabled="@isBusy" @onclick="SubmitAmendmentAsync">Submit for Pastor Approval</button></div>
+    </div>
+</div>
+}
+@if (reviewAmendment != null)
+{
+    <div class="collection-report-overlay">
+        <div class="collection-report-dialog">
+            <h5>Review Amendment #@reviewAmendment.Id</h5><div class="table-responsive">
+                <table class="table table-sm">
+                    <thead><tr><th>Field</th><th>Approved</th><th>Proposed</th></tr></thead>
+                    <tbody>
+                        <tr><td>Service</td><td>@reviewAmendment.CollectionRecord?.Service?.Name</td><td>@reviewAmendment.ProposedService?.Name</td></tr>
+                        <tr><td>Income Type</td><td>@reviewAmendment.CollectionRecord?.IncomeType?.Name</td><td>@reviewAmendment.ProposedIncomeType?.Name</td></tr>
+                        <tr><td>Date</td><td>@reviewAmendment.CollectionRecord?.CollectionDate.ToString("dd MMM yyyy")</td><td>@reviewAmendment.ProposedCollectionDate.ToString("dd MMM yyyy")</td></tr>
+                        <tr><td>Amount</td><td>@reviewAmendment.CollectionRecord?.Amount</td><td>@reviewAmendment.ProposedAmount @reviewAmendment.ProposedCurrency</td></tr>
+                        <tr><td>Payment</td><td>@reviewAmendment.CollectionRecord?.PaymentMode</td><td>@reviewAmendment.ProposedPaymentMode</td></tr>
+                        <tr><td>Remarks</td><td>@reviewAmendment.CollectionRecord?.Remarks</td><td>@reviewAmendment.ProposedRemarks</td></tr>
+                    </tbody>
+                </table>
+            </div><p><b>Reason:</b> @reviewAmendment.Reason</p><label>Decision comment *</label><textarea class="form-control" @bind="decisionComment"></textarea>@if (!string.IsNullOrEmpty(actionError)) {
+            <div class="alert alert-danger mt-2">@actionError</div>
+        }
+<div class="d-flex gap-2 justify-content-end mt-3"><button class="btn btn-outline-secondary" disabled="@isBusy" @onclick="() => reviewAmendment = null">Cancel</button><button class="btn btn-outline-danger" disabled="@isBusy" @onclick="() => DecideAmendmentAsync(false)">Reject</button><button class="btn btn-success" disabled="@isBusy" @onclick="() => DecideAmendmentAsync(true)">Approve</button></div>
+    </div>
+</div>
+}
+
+@code {
+    private ChurchCollectionSearchFilter filter = new() { DateFrom = DateTime.Today.AddDays(-30), DateTo = DateTime.Today };
+    private List<Service> services = new();
+    private List<IncomeType> incomeTypes = new();
+    private List<ChurchCollectionRecord> records = new();
+    private List<ChurchCollectionAmendment> pendingAmendments = new();
+    private HashSet<int> pendingAmendmentIds = new();
+    private ChurchCollectionRecord? selectedRecord, reviewRecord, amendRecord;
+    private ChurchCollectionAmendment? reviewAmendment;
+    private ChurchCollectionAmendmentFormModel amendModel = new();
+    private bool isLoading = true, isBusy, canViewReport, canApprove, canRequestAmendments, canDecideAmendments, canRecordBankTransfer;
+    private string reviewComment = "", decisionComment = "";
+    private string? errorMessage, actionError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.CurrentWorker == null) { isLoading = false; return; }
+        try
+        {
+            var id = AuthService.CurrentWorker.Id;
+            canViewReport = await OfferingAccessService.CanViewOfferingReportAsync(id);
+            if (!canViewReport) return;
+            canApprove = await CollectionService.CanManageCollectionApprovalsAsync(id);
+            canRequestAmendments = await OfferingAccessService.CanRequestApprovedOfferingAmendmentAsync(id);
+            canDecideAmendments = await OfferingAccessService.CanDecideOfferingAmendmentAsync(id);
+            canRecordBankTransfer = await CollectionService.CanRecordBankTransferAsync(id);
+            services = await CollectionService.GetServicesAsync();
+            incomeTypes = await CollectionService.GetActiveIncomeTypesAsync();
+            await SearchAsync();
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+        finally { isLoading = false; }
+    }
+    private async Task SearchAsync()
+    {
+        if (AuthService.CurrentWorker == null) return;
+        if (filter.DateFrom.HasValue && filter.DateTo.HasValue && filter.DateFrom > filter.DateTo) { errorMessage = "The end date must not be earlier than the start date."; return; }
+        try
+        {
+            isBusy = true; errorMessage = null;
+            records = await CollectionService.SearchCollectionsAsync(filter, AuthService.CurrentWorker.Id);
+            await RefreshAmendmentsAsync();
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+        finally { isBusy = false; }
+    }
+    private async Task ClearAsync() { filter = new ChurchCollectionSearchFilter { DateFrom = DateTime.Today.AddDays(-30), DateTo = DateTime.Today }; await SearchAsync(); }
+    private async Task RefreshAmendmentsAsync()
+    {
+        if (AuthService.CurrentWorker == null) return;
+        var id = AuthService.CurrentWorker.Id;
+        if (canRequestAmendments) pendingAmendmentIds = await CollectionService.GetRecordsWithPendingAmendmentsAsync(id);
+        if (canDecideAmendments) pendingAmendments = await CollectionService.GetPendingAmendmentsAsync(id);
+    }
+    private bool CanReview(ChurchCollectionRecord r) => canApprove && !r.IsRemoved && r.Status == ChurchCollectionService.StatusPendingApproval && AuthService.CurrentWorker != null && r.RecordedByWorkerId != AuthService.CurrentWorker.WorkerId;
+    private void OpenDetails(ChurchCollectionRecord r) => selectedRecord = r;
+    private void OpenReview(ChurchCollectionRecord r) { if (!CanReview(r)) return; reviewRecord = r; reviewComment = ""; actionError = null; }
+    private void OpenAmendment(ChurchCollectionRecord r)
+    {
+        if (!canRequestAmendments || r.IsRemoved || r.Status != ChurchCollectionService.StatusApproved || pendingAmendmentIds.Contains(r.Id)) return;
+        amendRecord = r;
+        amendModel = new ChurchCollectionAmendmentFormModel { ServiceId = r.ServiceId, IncomeTypeId = r.IncomeTypeId, CollectionDate = r.CollectionDate, Amount = r.Amount, Currency = r.Currency, PaymentMode = r.PaymentMode, Remarks = r.Remarks };
+        actionError = null;
+    }
+    private void OpenAmendmentReview(ChurchCollectionAmendment a) { if (!canDecideAmendments) return; reviewAmendment = a; decisionComment = ""; actionError = null; }
+    private async Task DecideCollectionAsync(bool approve)
+    {
+        if (reviewRecord == null || AuthService.CurrentWorker == null || isBusy) return;
+        if (!approve && string.IsNullOrWhiteSpace(reviewComment)) { actionError = "A comment is required to return a collection."; return; }
+        try
+        {
+            isBusy = true; actionError = null;
+            if (approve) await CollectionService.ApproveCollectionAsync(reviewRecord.Id, AuthService.CurrentWorker.Id, reviewComment);
+            else await CollectionService.ReturnForCorrectionAsync(reviewRecord.Id, AuthService.CurrentWorker.Id, reviewComment);
+            reviewRecord = null; await SearchAsync();
+        }
+        catch (Exception ex) { actionError = ex.Message; }
+        finally { isBusy = false; }
+    }
+    private async Task SubmitAmendmentAsync()
+    {
+        if (amendRecord == null || AuthService.CurrentWorker == null || isBusy) return;
+        if (string.IsNullOrWhiteSpace(amendModel.Reason)) { actionError = "An amendment reason is required."; return; }
+        try
+        {
+            isBusy = true; actionError = null;
+            await CollectionService.RequestApprovedRecordAmendmentAsync(amendRecord.Id, amendModel, AuthService.CurrentWorker.Id);
+            amendRecord = null; await SearchAsync();
+        }
+        catch (Exception ex) { actionError = ex.Message; }
+        finally { isBusy = false; }
+    }
+    private async Task DecideAmendmentAsync(bool approve)
+    {
+        if (reviewAmendment == null || AuthService.CurrentWorker == null || isBusy) return;
+        if (string.IsNullOrWhiteSpace(decisionComment)) { actionError = "A decision comment is required."; return; }
+        try
+        {
+            isBusy = true; actionError = null;
+            await CollectionService.DecideAmendmentAsync(reviewAmendment.Id, AuthService.CurrentWorker.Id, approve, decisionComment);
+            reviewAmendment = null; await SearchAsync();
+        }
+        catch (Exception ex) { actionError = ex.Message; }
+        finally { isBusy = false; }
+    }
+    private void GoBack() => Navigation.NavigateTo("/workspace/service-records");
+    private async Task ExportExcelAsync()
+    {
+        if (!canViewReport || records.Count == 0) { errorMessage = "There are no records to export."; return; }
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("Reference,Collection Date,Service,Income Type,Currency,Amount,Payment Mode,Status,Recorded By,Approved By,Remarks,Return Comment");
+        foreach (var r in records)
+        {
+            var fields = new[] { r.Id.ToString(), r.CollectionDate.ToString("yyyy-MM-dd"), r.Service?.Name, r.IncomeType?.Name, r.Currency, r.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture), r.PaymentMode, StatusLabel(r.Status), WorkerName(r.RecordedByWorker), WorkerName(r.ApprovedByWorker), r.Remarks, r.ReturnComment };
+            csv.AppendLine(string.Join(",", fields.Select(CsvCell)));
+        }
+        await JS.InvokeVoidAsync("collectionReportDownloadCsv", "CollectionReport_" + DateTime.Now.ToString("yyyyMMdd_HHmm") + ".csv", csv.ToString());
+    }
+    private static string CsvCell(string? value) { var s = value ?? ""; if (s.Length > 0 && "=+-@".Contains(s[0])) s = "'" + s; return "\"" + s.Replace("\"", "\"\"") + "\""; }
+    private static string WorkerName(Worker? w) => w == null ? "—" : (w.FirstName + " " + w.LastName).Trim();
+    private static string StatusLabel(string? s) => s switch { "PendingApproval" => "Pending Approval", "ReturnedForCorrection" => "Returned for Correction", "Approved" => "Approved", _ => s ?? "" };
+}
+<style>
+    .collection-report-page {
+        max-width: 1500px;
+        margin: auto;
+    }
+
+        .collection-report-page th {
+            white-space: nowrap;
+            font-size: .8rem;
+        }
+
+        .collection-report-page td {
+            font-size: .82rem;
+        }
+
+    .collection-report-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(10,20,30,.58);
+        z-index: 1050;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 1rem;
+    }
+
+    .collection-report-dialog {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        width: min(720px,100%);
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 15px 50px rgba(0,0,0,.18);
+    }
+</style>

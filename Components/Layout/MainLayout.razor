@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+         @inherits LayoutComponentBase
 @using ChurchApp.Services
 
 @inject AuthService AuthService
@@ -283,6 +283,57 @@
                         </div>
                     }
 
+                    @* ACCOUNT AND REMITTANCE ACTIONS *@
+                    @if (pendingAttention.PendingBankJournalApprovalCount > 0)
+                    {
+                        <div class="attention-item">
+                            <div class="attention-item-icon request"><i class="fas fa-file-signature"></i></div>
+                            <div class="attention-item-content">
+                                <div class="attention-item-title">Bank Journal Approvals</div>
+                                <div class="attention-item-text">
+                                    <strong>@pendingAttention.PendingBankJournalApprovalCount</strong>
+                                    bank journal entries, including any reversal or amendment requests, await your approval.
+                                </div>
+                            </div>
+                            <button type="button" class="attention-action" @onclick="GoToBankJournalApprovals">Review <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                    }
+
+                    @if (pendingAttention.UnpostedCollectionCount > 0)
+                    {
+                        <div class="attention-item">
+                            <div class="attention-item-icon request"><i class="fas fa-money-bill-transfer"></i></div>
+                            <div class="attention-item-content">
+                                <div class="attention-item-title">Collections Awaiting Bank Posting</div>
+                                <div class="attention-item-text"><strong>@pendingAttention.UnpostedCollectionCount</strong> approved collections require bank posting.</div>
+                            </div>
+                            <button type="button" class="attention-action" @onclick="GoToPostCollections">View <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                    }
+
+                    @if (pendingAttention.ReturnedBankEntryCount > 0)
+                    {
+                        <div class="attention-item">
+                            <div class="attention-item-icon request"><i class="fas fa-rotate-left"></i></div>
+                            <div class="attention-item-content">
+                                <div class="attention-item-title">Returned / Rejected Bank Entries</div>
+                                <div class="attention-item-text"><strong>@pendingAttention.ReturnedBankEntryCount</strong> entries require your attention.</div>
+                            </div>
+                            <button type="button" class="attention-action" @onclick="GoToReturnedBankEntries">Review <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                    }
+
+                    @if (pendingAttention.UnlockedBankAccountCount > 0)
+                    {
+                        <div class="attention-item">
+                            <div class="attention-item-icon request"><i class="fas fa-landmark"></i></div>
+                            <div class="attention-item-content">
+                                <div class="attention-item-title">Opening Balances to Complete</div>
+                                <div class="attention-item-text"><strong>@pendingAttention.UnlockedBankAccountCount</strong> active accounts have unlocked opening balances.</div>
+                            </div>
+                            <button type="button" class="attention-action" @onclick="GoToOpeningBalances">View <i class="fas fa-arrow-right"></i></button>
+                        </div>
+                    }
                 </div>
 
 
@@ -426,6 +477,34 @@
 
         Navigation.NavigateTo("/approvals/inbox");
     }
+
+    #region Account and Remittance Navigation
+
+    private void GoToBankJournalApprovals()
+    {
+        showAttentionPopup = false;
+        Navigation.NavigateTo("/finance/bank-journal-approvals");
+    }
+
+    private void GoToPostCollections()
+    {
+        showAttentionPopup = false;
+        Navigation.NavigateTo("/finance/post-approved-collections");
+    }
+
+    private void GoToReturnedBankEntries()
+    {
+        showAttentionPopup = false;
+        Navigation.NavigateTo("/finance/returned-bank-entries");
+    }
+
+    private void GoToOpeningBalances()
+    {
+        showAttentionPopup = false;
+        Navigation.NavigateTo("/finance/opening-balances");
+    }
+
+    #endregion
 
 
     // ============================================================

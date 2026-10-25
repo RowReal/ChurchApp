@@ -1,0 +1,274 @@
+@page "/finance/bank-journal"
+@rendermode InteractiveServer
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+@using System.Globalization
+@inject BankAccountJournalService JournalService
+@inject BankAccountService BankAccountService
+@inject IncomeTypeService IncomeTypeService
+@inject AuthService AuthService
+
+<PageTitle>Bank Account Journal</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="alert alert-warning">Please sign in to access the Bank Account Journal.</div>
+}
+else if (!CanView)
+{
+    <div class="alert alert-danger">You do not have permission to access the Bank Account Journal.</div>
+}
+else
+{
+    <div class="worker360-page finance-journal-page">
+        <div class="bcc-page-header journal-hero">
+            <div>
+                <div class="bcc-page-subtitle"><i class="fas fa-book-open me-2"></i>Account &amp; Remittance Workspace</div>
+                <div class="bcc-page-title">Bank Account Journal</div>
+                <div class="bcc-page-subtitle">Record, review and track bank transactions and approvals.</div>
+            </div>
+            <div class="journal-hero-actions">
+                <a class="bcc-btn profile-form-secondary-btn journal-btn" href="/workspace/account-remittance"><i class="fas fa-arrow-left me-2"></i>Workspace</a>
+                <a class="bcc-btn profile-form-secondary-btn journal-btn" href="/finance/bank-accounts"><i class="fas fa-university me-2"></i>Bank Setup</a>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success")" role="alert">@message</div>
+        }
+
+        <div class="journal-top-grid mb-3">
+            <div class="card journal-panel journal-account-panel">
+                <div class="card-header journal-panel-header fw-semibold"><i class="fas fa-list-alt me-2"></i>Income type &amp; linked account</div>
+                <div class="card-body">
+                    @if (transactionType == "DirectBankReceipt")
+                    {
+                        <label class="form-label" for="journal-income-type">Income / Collection type</label>
+                        <select id="journal-income-type" class="form-select form-select-sm" @bind="selectedIncomeTypeId" @bind:after="OnIncomeTypeChangedAsync">
+                            <option value="0">Select income type</option>
+                            @foreach (var type in incomeTypes)
+                            {
+                                <option value="@type.Id">@type.Name</option>
+                            }
+                        </select>
+                        <div class="journal-linked-bank mt-2"><span>Linked bank account</span><strong>@(SelectedAccount?.ShortName ?? "Select an income type") @(SelectedAccount is null ? "" : $"— {SelectedAccount.BankName} ({SelectedAccount.Currency})")</strong></div>
+                    }
+                    else
+                    {
+                        <label class="form-label" for="journal-account">Bank account for charges</label>
+                        <select id="journal-account" class="form-select form-select-sm" @bind="selectedAccountId" @bind:after="RefreshEntriesAsync">
+                            <option value="0">Select an account</option>
+                            @foreach (var account in accounts)
+                            {
+                                <option value="@account.Id">@account.ShortName — @account.BankName (@account.Currency)</option>
+                            }
+                        </select>
+                        <small class="text-muted">Bank charges are expenses, not collection income.</small>
+                    }
+                    @if (selectedAccountId > 0)
+                    {
+                        <div class="journal-balance-grid mt-3">
+                            <div class="journal-stat"><span>Calculated posted balance</span><strong>@FormatAmount(balance)</strong></div>
+                            <div class="journal-stat"><span>Pending approval</span><strong>@entries.Count(x => x.Status == BankJournalStatus.PendingApproval)</strong></div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (CanInitiate && selectedAccountId > 0)
+            {
+                <div class="card journal-panel journal-entry-panel">
+                    <div class="card-header journal-panel-header fw-semibold"><i class="fas fa-plus-circle me-2"></i>New bank transaction</div>
+                    <div class="card-body">
+                        <div class="journal-form-grid">
+                            <div class="journal-field"><label class="form-label">Transaction type</label>
+                                <select class="form-select form-select-sm" @bind="transactionType" @bind:after="OnTransactionTypeChangedAsync">
+                                    <option value="DirectBankReceipt">Direct Bank Receipt</option>
+                                    <option value="BankCharges">Bank Charges</option>
+                                </select>
+                            </div>
+                            <div class="journal-field"><label class="form-label">Transaction date</label>
+                                <input class="form-control form-control-sm" type="date" @bind="transactionDate" @bind:format="yyyy-MM-dd" />
+                            </div>
+                            <div class="journal-field"><label class="form-label">Amount</label>
+                                <input class="form-control form-control-sm" type="number" min="0.01" step="0.01" @bind="amount" />
+                            </div>
+                            @if (transactionType == "BankCharges")
+                            {
+                                <div class="journal-field"><label class="form-label">Charge category</label>
+                                    <select class="form-select form-select-sm" @bind="chargeCategory">
+                                        <option value="Transfer charges">Transfer charges</option>
+                                        <option value="POS processing charges">POS processing charges</option>
+                                        <option value="SMS alert charges">SMS alert charges</option>
+                                        <option value="Account maintenance">Account maintenance</option>
+                                        <option value="Stamp duty">Stamp duty</option>
+                                        <option value="Other bank charges">Other bank charges</option>
+                                    </select>
+                                </div>
+                            }
+                            <div class="journal-field"><label class="form-label">Bank transaction reference @(transactionType == "DirectBankReceipt" ? "(required)" : "")</label>
+                                <input class="form-control form-control-sm" @bind="reference" maxlength="100" />
+                            </div>
+                            <div class="journal-field journal-field-wide"><label class="form-label">Narration</label>
+                                <textarea class="form-control form-control-sm" @bind="narration" rows="2" maxlength="500"></textarea>
+                            </div>
+                        </div>
+                        <div class="journal-submit-row mt-2">
+                            <small class="text-muted">@(transactionType == "BankCharges" ? (amount > 2000 ? "Charges above ₦2,000 require Pastor in Charge approval." : "Bank charges up to ₦2,000 are posted directly.") : "Direct receipts are posted by Church Admin after bank verification.")</small>
+                            <button class="btn btn-success btn-sm" disabled="@busy" @onclick="SubmitAsync">@(busy ? "Processing…" : "Submit transaction")</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="card journal-panel"><div class="card-header journal-panel-header fw-semibold">Transaction history</div>
+            <div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0 journal-table">
+                <thead class="table-light"><tr><th>Date</th><th>Type</th><th>Reference / narration</th><th class="text-end">Credit</th><th class="text-end">Debit</th><th>Status</th><th>Initiated by</th><th>Approved by</th></tr></thead>
+                <tbody>
+                    @if (entries.Count == 0) { <tr><td colspan="8" class="text-center text-muted py-4">No transactions for this account.</td></tr> }
+                    @foreach (var entry in entries.OrderByDescending(x => x.TransactionDate).ThenByDescending(x => x.Id))
+                    {
+                        <tr><td>@entry.TransactionDate.ToString("dd MMM yyyy")</td><td>@entry.TransactionType</td>
+                            <td><div>@entry.Narration</div><small class="text-muted">@entry.TransactionReference</small></td>
+                            <td class="text-end">@(entry.Direction == BankJournalDirection.Credit ? FormatAmount(entry.Amount) : "—")</td>
+                            <td class="text-end">@(entry.Direction == BankJournalDirection.Debit ? FormatAmount(entry.Amount) : "—")</td>
+                            <td><span class="badge @(entry.Status == BankJournalStatus.Posted ? "bg-success" : entry.Status == BankJournalStatus.PendingApproval ? "bg-warning text-dark" : "bg-secondary")">@entry.Status</span></td>
+                            <td>@entry.InitiatedByWorkerId</td><td>@(entry.ApprovedByWorkerId ?? "—")</td></tr>
+                    }
+                </tbody>
+            </table></div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<BankAccount> accounts = new();
+    private List<IncomeType> incomeTypes = new();
+    private int selectedIncomeTypeId;
+    private BankAccount? SelectedAccount => accounts.FirstOrDefault(x => x.Id == selectedAccountId);
+    private List<ChurchApp.Models.Finance.BankAccountJournal> entries = new();
+    private int selectedAccountId;
+    private decimal balance;
+    private string transactionType = "DirectBankReceipt";
+    private DateTime transactionDate = DateTime.Today;
+    private decimal amount;
+    private string chargeCategory = "Transfer charges";
+    private string narration = string.Empty;
+    private string reference = string.Empty;
+    private string message = string.Empty;
+    private bool isError;
+    private bool busy;
+
+    private bool CanInitiate => AuthService.IsInRole(AuthService.Roles.ChurchAdmin);
+    private bool CanView => AuthService.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge);
+    private string FormatAmount(decimal value) => $"{(accounts.FirstOrDefault(x => x.Id == selectedAccountId)?.Currency.ToString() ?? "NGN")} {value:N2}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!CanView) return;
+        try
+        {
+            accounts = await BankAccountService.GetAllAsync();
+            incomeTypes = (await IncomeTypeService.GetAllAsync()).Where(x => x.IsActive).ToList();
+            selectedAccountId = 0;
+        }
+        catch (Exception ex) { ShowError(ex.Message); }
+    }
+
+    private async Task OnIncomeTypeChangedAsync()
+    {
+        var type = incomeTypes.FirstOrDefault(x => x.Id == selectedIncomeTypeId);
+        selectedAccountId = type?.DefaultBankAccountId ?? 0;
+        await RefreshEntriesAsync();
+    }
+
+    private async Task OnTransactionTypeChangedAsync()
+    {
+        selectedAccountId = 0;
+        selectedIncomeTypeId = 0;
+        entries.Clear(); balance = 0;
+    }
+
+    private async Task RefreshEntriesAsync()
+    {
+        entries.Clear(); balance = 0;
+        if (selectedAccountId == 0) return;
+        try { entries = await JournalService.GetAccountEntriesAsync(selectedAccountId); balance = await JournalService.GetBalanceAsync(selectedAccountId); }
+        catch (Exception ex) { ShowError(ex.Message); }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (!CanInitiate || busy) return;
+        var workerId = AuthService.CurrentWorker?.WorkerId;
+        if (string.IsNullOrWhiteSpace(workerId)) { ShowError("Authenticated Worker not found."); return; }
+        if ((transactionType == "DirectBankReceipt" && selectedIncomeTypeId <= 0) || selectedAccountId <= 0 || amount <= 0 || string.IsNullOrWhiteSpace(narration)) { ShowError("Select an income type (or a bank account for charges), and enter a positive amount and narration."); return; }
+        if (transactionType == "DirectBankReceipt" && string.IsNullOrWhiteSpace(reference)) { ShowError("A bank reference is required for direct receipts."); return; }
+        busy = true;
+        try
+        {
+            ChurchApp.Models.Finance.BankAccountJournal entry;
+            if (transactionType == "BankCharges")
+                entry = await JournalService.RecordBankChargeAsync(selectedAccountId, transactionDate, amount, chargeCategory, narration, workerId, reference);
+            else
+                entry = await JournalService.RecordDirectReceiptAsync(selectedAccountId, transactionDate, amount, narration, workerId, reference, selectedIncomeTypeId);
+            message = entry.Status == BankJournalStatus.Posted ? "Transaction posted successfully." : "Transaction submitted for Pastor in Charge approval.";
+            isError = false;
+            amount = 0; narration = string.Empty; reference = string.Empty;
+            await RefreshEntriesAsync();
+            // Return to income entry after any successful posting, including charges
+            // submitted for approval. Keep the confirmation message visible.
+            transactionType = "DirectBankReceipt";
+            selectedIncomeTypeId = 0;
+            selectedAccountId = 0;
+            chargeCategory = "Transfer charges";
+            transactionDate = DateTime.Today;
+            entries.Clear();
+            balance = 0;
+        }
+        catch (Exception ex) { ShowError(ex.Message); }
+        finally { busy = false; }
+    }
+
+    private void ShowError(string error) { message = error; isError = true; }
+}
+
+<style>
+    .finance-journal-page { max-width: 1400px; margin: 0 auto; padding: 6px 12px 20px; }
+    .finance-journal-page .journal-hero { margin-bottom: 12px; }
+    .finance-journal-page .journal-hero-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .finance-journal-page .journal-btn { min-height: 31px; padding: 5px 10px; font-size: .78rem; text-decoration: none; }
+    .finance-journal-page .journal-panel { border: 1px solid #e3eae6; border-radius: 11px; box-shadow: 0 2px 9px rgba(15, 45, 29, .045); overflow: hidden; }
+    .finance-journal-page .journal-panel .card-body { padding: 12px 14px; }
+    .finance-journal-page .journal-panel-header { padding: 9px 14px; background: #f7faf8; border-bottom: 1px solid #e3eae6; color: #17563b; font-size: .88rem; }
+    .finance-journal-page .form-label { font-size: .78rem; font-weight: 600; margin-bottom: 3px; color: #34483c; }
+    .finance-journal-page .form-control-sm, .finance-journal-page .form-select-sm { min-height: 33px; border-radius: 7px; font-size: .82rem; }
+    .finance-journal-page .journal-metrics { border-top: 1px solid #edf1ee; padding-top: 9px; font-size: .79rem; }
+    .finance-journal-page .journal-table { font-size: .79rem; }
+    .finance-journal-page .journal-table th { white-space: nowrap; font-weight: 650; color: #365242; background: #f7faf8; }
+    .finance-journal-page .journal-table td, .finance-journal-page .journal-table th { padding: 9px 10px; }
+    .finance-journal-page .journal-table td:nth-child(3) { min-width: 170px; }
+    .finance-journal-page .alert { padding: 8px 12px; font-size: .83rem; }
+    .finance-journal-page .journal-top-grid { display: grid; grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr); gap: 14px; align-items: start; }
+    .finance-journal-page .journal-top-grid > * { min-width: 0; }
+    .finance-journal-page .journal-account-panel .form-select { width: 100%; max-width: 420px; }
+    .finance-journal-page .journal-linked-bank { border: 1px solid #e4ece7; background: #f7faf8; border-radius: 7px; padding: 8px 10px; font-size: .79rem; }
+    .finance-journal-page .journal-linked-bank span { display: block; color: #64766b; font-size: .73rem; }
+    .finance-journal-page .journal-linked-bank strong { color: #17563b; }
+    .finance-journal-page .journal-balance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .finance-journal-page .journal-stat { background: #f7faf8; border: 1px solid #e4ece7; border-radius: 8px; padding: 10px; min-width: 0; }
+    .finance-journal-page .journal-stat span { display: block; color: #64766b; font-size: .74rem; margin-bottom: 4px; }
+    .finance-journal-page .journal-stat strong { display: block; color: #17563b; font-size: 1.05rem; overflow-wrap: anywhere; }
+    .finance-journal-page .journal-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+    .finance-journal-page .journal-field { min-width: 0; }
+    .finance-journal-page .journal-field .form-control, .finance-journal-page .journal-field .form-select { width: 100%; max-width: 100%; }
+    .finance-journal-page .journal-field-wide { grid-column: 1 / -1; }
+    .finance-journal-page .journal-submit-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    .finance-journal-page .journal-submit-row small { flex: 1 1 200px; }
+    @@media (max-width: 1000px) { .finance-journal-page .journal-top-grid { grid-template-columns: 1fr; } }
+    @@media (max-width: 520px) { .finance-journal-page .journal-form-grid, .finance-journal-page .journal-balance-grid { grid-template-columns: 1fr; } }
+    @@media (max-width: 768px) { .finance-journal-page { padding: 4px 6px 16px; } .finance-journal-page .journal-hero-actions { margin-top: 8px; } }
+</style>

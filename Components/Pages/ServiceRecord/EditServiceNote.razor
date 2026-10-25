@@ -1,4 +1,4 @@
-@page "/Offering/editnote/{id:int}"
+@page "/ServiceRecord/editnote/{id:int}"
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Components.Forms
@@ -134,7 +134,7 @@ else
         try
         {
             await ServiceNoteService.UpdateServiceNoteAsync(Id, model);
-            Navigation.NavigateTo("/Offering/NoteList");
+            Navigation.NavigateTo("/ServiceRecord/NoteList");
         }
         catch (Exception ex)
         {
@@ -148,12 +148,12 @@ else
 
     private void Cancel()
     {
-        Navigation.NavigateTo("/Offering/NoteList");
+        Navigation.NavigateTo("/ServiceRecord/NoteList");
     }
 
     private void GoBack()
     {
-        Navigation.NavigateTo("/Offering/NoteList");
+        Navigation.NavigateTo("/ServiceRecord/NoteList");
     }
 
     private void HandleStartTimeChange(ChangeEventArgs e)

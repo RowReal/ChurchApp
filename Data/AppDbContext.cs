@@ -1,4 +1,4 @@
-﻿using ChurchApp.Models;
+using ChurchApp.Models;
 using ChurchApp.Models.Finance;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +9,8 @@ namespace ChurchApp.Data
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
+
+        #region Entity Sets
 
         public DbSet<Worker> Workers { get; set; }
         public DbSet<Directorate> Directorates { get; set; }
@@ -69,14 +71,21 @@ namespace ChurchApp.Data
         public DbSet<ChurchOfferingRecord> ChurchOfferingRecords { get; set; }
 
         public DbSet<ChurchOfferingAmendment> ChurchOfferingAmendments { get; set; }
+        public DbSet<ChurchCollectionRecord> ChurchCollectionRecords { get; set; }
+        public DbSet<ChurchCollectionAmendment> ChurchCollectionAmendments { get; set; }
         public DbSet<VehicleRecord> VehicleRecords { get; set; }
         public DbSet<BankAccount> BankAccounts { get; set; }
+        public DbSet<BankAccountJournal> BankAccountJournals { get; set; }
         public DbSet<IncomeCategory> IncomeCategories { get; set; }
         public DbSet<IncomeType> IncomeTypes { get; set; }
         public DbSet<RemittanceRule> RemittanceRules { get; set; }
         public DbSet<BroadcastMessage> BroadcastMessages { get; set; }
         public DbSet<BroadcastRecipient> BroadcastRecipients { get; set; }
         public DbSet<BroadcastAudienceDirectorate> BroadcastAudienceDirectorates { get; set; }
+        #endregion
+
+        #region Entity Configuration
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -95,6 +104,47 @@ namespace ChurchApp.Data
                     .HasMaxLength(3);
 
                 entity.Property(x => x.OpeningBalance)
+                    .HasPrecision(18, 2);
+            });
+
+            // FINANCE: BANK ACCOUNT JOURNAL
+            modelBuilder.Entity<BankAccountJournal>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Amount).HasPrecision(18, 2);
+                entity.Property(x => x.Direction).HasConversion<string>().HasMaxLength(10);
+                entity.Property(x => x.TransactionType).HasConversion<string>().HasMaxLength(40);
+                entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(25);
+                entity.Property(x => x.Currency).HasConversion<string>().HasMaxLength(3);
+
+                entity.HasOne(x => x.IncomeType)
+                    .WithMany()
+                    .HasForeignKey(x => x.IncomeTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.BankAccount)
+                    .WithMany()
+                    .HasForeignKey(x => x.BankAccountId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne<ChurchCollectionRecord>()
+                    .WithMany()
+                    .HasForeignKey(x => x.SourceCollectionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // A collection can have at most one original posting request.
+                // Adjustments/reversals are separately linked by reference.
+                entity.HasIndex(x => x.SourceCollectionId).IsUnique();
+                entity.HasIndex(x => new { x.BankAccountId, x.TransactionDate });
+                entity.HasIndex(x => x.Status);
+                entity.HasIndex(x => x.IncomeTypeId);
+                entity.HasIndex(x => x.TransactionReference);
+                // Multiple approved incremental adjustments may refer to one original.
+                entity.HasIndex(x => x.ReversesJournalId);
+                entity.Property(x => x.CorrectionKind)
+                    .HasConversion<string>()
+                    .HasMaxLength(30);
+                entity.Property(x => x.RequestedCorrectAmount)
                     .HasPrecision(18, 2);
             });
 
@@ -1125,6 +1175,94 @@ namespace ChurchApp.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // =====================================================
+            // SERVICE COLLECTION RECORDING
+            // =====================================================
+            modelBuilder.Entity<ChurchCollectionRecord>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Amount).HasPrecision(18, 2);
+
+                entity.HasOne(x => x.Service)
+                    .WithMany()
+                    .HasForeignKey(x => x.ServiceId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.IncomeType)
+                    .WithMany()
+                    .HasForeignKey(x => x.IncomeTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.RecordedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.RecordedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ApprovedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.ApprovedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ReturnedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.ReturnedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.RemovedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.RemovedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => x.CollectionDate);
+                entity.HasIndex(x => x.IncomeTypeId);
+                entity.HasIndex(x => x.ServiceId);
+                entity.HasIndex(x => x.Status);
+                entity.HasIndex(x => x.RecordedByWorkerId);
+            });
+
+            // =====================================================
+            // SERVICE COLLECTION AMENDMENTS
+            // =====================================================
+            modelBuilder.Entity<ChurchCollectionAmendment>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.ProposedAmount).HasPrecision(18, 2);
+
+                entity.HasOne(x => x.CollectionRecord)
+                    .WithMany(x => x.Amendments)
+                    .HasForeignKey(x => x.CollectionRecordId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.ProposedService)
+                    .WithMany()
+                    .HasForeignKey(x => x.ProposedServiceId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ProposedIncomeType)
+                    .WithMany()
+                    .HasForeignKey(x => x.ProposedIncomeTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.RequestedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.RequestedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.DecidedByWorker)
+                    .WithMany()
+                    .HasForeignKey(x => x.DecidedByWorkerId)
+                    .HasPrincipalKey(x => x.WorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => x.Status);
+                entity.HasIndex(x => x.CollectionRecordId);
+            });
+
             modelBuilder.Entity<ChurchOfferingRecord>(entity =>
             {
                 entity.HasKey(x => x.Id);
@@ -1276,6 +1414,8 @@ namespace ChurchApp.Data
 
             });
         }
+
+        #endregion
 
     }
 }
