@@ -9,6 +9,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="Components\Pages\Approvalsold.razor" />
+    <Content Remove="Components\Pages\Attendance.razor" />
+    <Content Remove="Components\Pages\RecordCollection.razor" />
+    <Content Remove="Components\Pages\Remittance.razor" />
+    <Content Remove="Components\Pages\Weather.razor" />
+    <Content Remove="Components\Pages\Workers.razor" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.0" />

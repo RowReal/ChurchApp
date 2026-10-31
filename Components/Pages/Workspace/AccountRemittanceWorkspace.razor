@@ -103,6 +103,14 @@ else
                 <div class="compact-tile-title">Church Account Balances</div>
                 <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
             </a>
+            @if (IsAdmin)
+            {
+                <a href="/finance/monthly-remittance" class="compact-workspace-tile">
+                    <div class="compact-tile-icon"><i class="fas fa-calendar-check"></i></div>
+                    <div class="compact-tile-title">Monthly Remittance Processing</div>
+                    <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+            }
             @* Add additional Account & Remittance menu cards here as modules are completed. *@
         </div>
     </div>

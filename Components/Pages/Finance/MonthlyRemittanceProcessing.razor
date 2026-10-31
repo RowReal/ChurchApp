@@ -1,0 +1,1099 @@
+﻿@page "/finance/monthly-remittance"
+@rendermode InteractiveServer
+@using ChurchApp.Services
+@using ChurchApp.Data
+@using ChurchApp.Models
+@using ChurchApp.Models.Finance
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+@using System.Globalization
+@inject MonthlyRemittanceValidationService ValidationService
+@inject AuthService AuthService
+
+<PageTitle>Monthly Remittance | BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty"><i class="fas fa-lock"></i><h4>Please Log In</h4><p>Sign in to access monthly remittance.</p><a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a></div>
+}
+else if (!AuthService.IsInRole(AuthService.Roles.ChurchAdmin))
+{
+    <div class="bcc-empty"><i class="fas fa-ban"></i><h4>Access Denied</h4><p>Monthly remittance preparation is restricted to Church Admin.</p><a href="/workspace/account-remittance" class="bcc-btn bcc-btn-primary">Back to Workspace</a></div>
+}
+else
+{
+    <div class="worker360-page remittance-page">
+        <div class="bcc-page-header service-records-page-header">
+            <div>
+                <div class="bcc-page-subtitle"><i class="fas fa-wallet me-2"></i>Account &amp; Remittance Workspace</div>
+                <div class="bcc-page-title">Monthly Remittance Processing</div>
+                <div class="bcc-page-subtitle">Verify approvals, bank postings and reconciliation before preparing remittance.</div>
+            </div>
+            <a href="/workspace/account-remittance" class="bcc-btn profile-form-secondary-btn remittance-back"><i class="fas fa-arrow-left me-2"></i>Workspace</a>
+        </div>
+
+        <section class="remit-panel remit-filters">
+            <div class="remit-section-heading">
+                <div><div class="remit-kicker">REPORTING PERIOD</div><h4>Financial Readiness Check</h4></div>
+                <span class="remit-stage"><i class="fas fa-shield-alt me-1"></i> Pre-processing</span>
+            </div>
+            <div class="remit-filter-row">
+                <div class="remit-field">
+                    <label for="remit-month">Month</label>
+                    <select id="remit-month" class="form-select form-select-sm" @bind="selectedMonth" @bind:after="ClearResult">
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            <option value="@m">@CultureInfo.InvariantCulture.DateTimeFormat.GetMonthName(m)</option>
+                        }
+                    </select>
+                </div>
+                <div class="remit-field remit-year">
+                    <label for="remit-year">Year</label>
+                    <input id="remit-year" type="number" min="2000" max="9998" class="form-control form-control-sm" @bind="selectedYear" @bind:after="ClearResult" />
+                </div>
+                <button type="button" class="bcc-btn bcc-btn-primary remit-action" disabled="@isChecking" @onclick="CheckReadiness">
+                    <i class="fas @(isChecking ? "fa-spinner fa-spin" : "fa-clipboard-check") me-2"></i>@(isChecking ? "Checking..." : "Check Readiness")
+                </button>
+                <button type="button" class="bcc-btn remit-action @(validationResult?.CanProceed == true ? "bcc-btn-primary" : "remit-action-disabled")" disabled="@(isChecking || isPreparing || validationResult?.CanProceed != true)" @onclick="PrepareRemittance">
+                    <i class="fas @(isPreparing ? "fa-spinner fa-spin" : "fa-file-invoice-dollar") me-2"></i>@(isPreparing ? "Rechecking..." : "Prepare Remittance")
+                </button>
+            </div>
+            <div class="remit-hint"><i class="fas fa-info-circle me-1"></i>Check Readiness does not generate, approve or post remittance transactions. Preparation is available only after checks pass.</div>
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="remit-notice remit-error" role="alert"><i class="fas fa-exclamation-circle"></i><div><strong>Unable to complete check</strong><p>@errorMessage</p></div></div>
+        }
+
+        @if (preparationRequested)
+        {
+            <div class="remit-notice remit-success" role="status"><i class="fas fa-check-circle"></i><div><strong>Preparation gate verified</strong><p>Financial readiness was rechecked successfully for @ReportPeriod. The read-only remittance preview is shown below. No transactions have been generated, saved or posted.</p></div></div>
+        }
+
+        @if (preparationRequested)
+        {
+            <section class="remit-panel remit-preview">
+                <div class="remit-statement-heading">
+                    <h3>THE REDEEMED CHRISTIAN CHURCH OF GOD</h3>
+                    <h4>BETHEL CHRISTIAN CENTRE</h4>
+                    <h2>@ReportPeriod Monthly Remittance</h2>
+                    <span class="remit-stage">Draft preview — not posted</span>
+                </div>
+                <div class="remit-section-heading remit-table-heading"><div><div class="remit-kicker">SECTION 1</div><h4>Bank Accounts Marked for Remittance</h4></div></div>
+                <div class="table-responsive">
+                    <table class="table table-sm remit-table">
+                        <thead><tr><th>Bank / Account</th><th>Currency</th><th class="text-end">Balance as at month end</th></tr></thead>
+                        <tbody>
+                            @foreach (var account in previewAccounts)
+                            {
+                                <tr><td><strong>@account.Name</strong></td><td>@account.Currency</td><td class="remit-number">@account.Balance.ToString("N2")</td></tr>
+                            }
+                            @if (previewAccounts.Count == 0)
+                            {
+                                <tr><td colspan="3">No active remittance-enabled bank accounts.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="remit-section-heading remit-table-heading"><div><div class="remit-kicker">SECTION 2</div><h4>October Income Qualifying for Remittance</h4></div></div>
+                <div class="table-responsive">
+                    <table class="table table-sm remit-table">
+                        <thead><tr><th>Income Type</th><th>Currency</th><th class="text-end">Qualifying Amount</th></tr></thead>
+                        <tbody>
+                            @foreach (var income in previewIncomeRows)
+                            {
+                                <tr><td>@income.IncomeName</td><td>@income.Currency</td><td class="remit-number">@income.Income.ToString("N2")</td></tr>
+                            }
+                            @foreach (var total in previewIncomeRows.GroupBy(x => x.Currency))
+                            {
+                                <tr class="remit-total-row"><td><strong>Total qualifying income</strong></td><td>@total.Key</td><td class="remit-number"><strong>@total.Sum(x => x.Income).ToString("N2")</strong></td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="remit-section-heading remit-table-heading"><div><div class="remit-kicker">SECTION 3</div><h4>Remittance Calculation by Element</h4></div></div>
+                <div class="table-responsive">
+                    <table class="table table-sm remit-table">
+                        <thead><tr><th>Remittance Element</th><th>Currency</th><th class="text-end">Qualifying Amount</th><th>Rule</th><th class="text-end">Remittance Amount</th></tr></thead>
+                        <tbody>
+                            @foreach (var row in previewRows)
+                            {
+                                <tr><td><strong>@row.IncomeName</strong></td><td>@row.Currency</td><td class="remit-number">@(row.QualifyingAmount?.ToString("N2") ?? "")</td><td>@row.RuleDescription</td><td class="remit-number">@(row.Remittance?.ToString("N2") ?? "")</td></tr>
+                            }
+                            @foreach (var total in previewRows.Where(x => x.Remittance.HasValue).GroupBy(x => x.Currency))
+                            {
+                                <tr class="remit-total-row"><td><strong>Total Remittance</strong></td><td>@total.Key</td><td></td><td></td><td class="remit-number"><strong>@total.Sum(x => x.Remittance ?? 0m).ToString("N2")</strong></td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (previewWarnings.Count > 0)
+                {
+                    <div class="remit-preview-warning">
+                        <strong>Items to review before finalising</strong>
+                        @foreach (var warning in previewWarnings)
+                        {
+                            <p>@warning</p>
+                        }
+                    </div>
+                }
+                <div class="remit-hint">Draft only. Blank cells represent elements without a calculated amount. No remittance has been generated, saved or posted.</div>
+            </section>
+        }
+
+        @if (validationResult is not null)
+        {
+            <div class="remit-stats">
+                <div class="remit-stat"><span class="remit-stat-icon"><i class="far fa-calendar-alt"></i></span><div><small>Reporting month</small><strong>@ReportPeriod</strong></div></div>
+                <div class="remit-stat"><span class="remit-stat-icon"><i class="fas fa-list-ul"></i></span><div><small>Outstanding issues</small><strong>@validationResult.Issues.Count</strong></div></div>
+                <div class="remit-stat"><span class="remit-stat-icon"><i class="fas @(validationResult.CanProceed ? "fa-check-circle" : "fa-exclamation-triangle")"></i></span><div><small>Readiness status</small><strong>@(validationResult.CanProceed ? "Checks passed" : "Action required")</strong></div></div>
+            </div>
+
+            @if (validationResult.CanProceed)
+            {
+                <div class="remit-notice remit-success" role="status"><i class="fas fa-check-circle"></i><div><strong>Current readiness checks passed</strong><p>No issues were identified by the implemented checks for @ReportPeriod. You may now select Prepare Remittance.</p></div></div>
+            }
+            else
+            {
+                <div class="remit-notice remit-error" role="alert"><i class="fas fa-lock"></i><div><strong>Remittance preparation blocked</strong><p>Resolve the @validationResult.Issues.Count outstanding item(s) below. Contact the Pastor for pending approvals, correct or remove rejected entries as permitted, and reconcile collection postings.</p></div></div>
+                <section class="remit-panel">
+                    <div class="remit-section-heading remit-table-heading"><div><div class="remit-kicker">ACTION REGISTER</div><h4>Outstanding Financial Items</h4></div><span class="remit-count">@validationResult.Issues.Count item(s)</span></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle remit-table">
+                            <thead><tr><th>Issue</th><th>Collection</th><th>Journal</th><th>Amount / Difference</th><th>Details</th><th>Action</th></tr></thead>
+                            <tbody>
+                                @foreach (var issue in validationResult.Issues)
+                                {
+                                    <tr>
+                                        <td><span class="remit-issue">@issue.Code.Replace("_", " ")</span></td>
+                                        <td>@(issue.CollectionId.HasValue ? $"#{issue.CollectionId}" : "—")</td>
+                                        <td>@(issue.JournalId.HasValue ? $"#{issue.JournalId}" : "—")</td>
+                                        <td class="remit-number">@(issue.Amount.HasValue? issue.Amount.Value.ToString("N2") : "—")</td>
+                                        <td>@issue.Description</td>
+                                        <td><button type="button" class="remit-view" @onclick="() => ViewIssue(issue)"><i class="fas fa-eye me-1"></i>View Details</button></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                @if (selectedIssue is not null)
+                {
+                    <section class="remit-panel remit-detail" id="remit-detail" aria-label="Transaction details">
+                        <div class="remit-section-heading remit-table-heading">
+                            <div><div class="remit-kicker">TRANSACTION INVESTIGATION</div><h4>@selectedIssue.Code.Replace("_", " ")</h4></div>
+                            <button type="button" class="remit-view" @onclick="CloseDetails"><i class="fas fa-times me-1"></i>Close</button>
+                        </div>
+                        <div class="remit-detail-body">
+                            <p class="remit-detail-description">@selectedIssue.Description</p>
+                            @if (detailLoading)
+                            {
+                                <p>Loading transaction information...</p>
+                            }
+                            else if (!string.IsNullOrEmpty(detailError))
+                            {
+                                <div class="remit-notice remit-error">@detailError</div>
+                            }
+                            else
+                            {
+                                <div class="remit-detail-grid">
+                                    @if (detailCollection is not null)
+                                    {
+                                        <div class="remit-detail-card">
+                                            <h5><i class="fas fa-receipt me-2"></i>Collection #@detailCollection.Id</h5>
+                                            <dl>
+                                                <dt>Date</dt>
+                                                <dd>@detailCollection.CollectionDate.ToString("dd MMM yyyy")</dd>
+                                                <dt>Status</dt>
+                                                <dd>@detailCollection.Status</dd>
+                                                <dt>Amount</dt>
+                                                <dd>@detailCollection.Currency @detailCollection.Amount.ToString("N2")</dd>
+                                                <dt>Income Type ID</dt>
+                                                <dd>@detailCollection.IncomeTypeId</dd>
+                                                <dt>Payment Mode</dt>
+                                                <dd>@detailCollection.PaymentMode</dd>
+                                                <dt>Recorded By</dt>
+                                                <dd>@WorkerDisplayName(detailCollection.RecordedByWorkerId)</dd>
+                                                <dt>Return Reason</dt>
+                                                <dd>@(string.IsNullOrWhiteSpace(detailCollection.ReturnComment) ? "—" : detailCollection.ReturnComment)</dd>
+                                                <dt>Remarks</dt>
+                                                <dd>@(string.IsNullOrWhiteSpace(detailCollection.Remarks) ? "—" : detailCollection.Remarks)</dd>
+                                            </dl>
+                                        </div>
+                                    }
+                                    @if (detailJournal is not null)
+                                    {
+                                        <div class="remit-detail-card">
+                                            <h5><i class="fas fa-university me-2"></i>Bank Journal #@detailJournal.Id</h5>
+                                            <dl>
+                                                <dt>Posted By</dt>
+                                                <dd>@WorkerDisplayName(detailJournal.PostedByWorkerId)</dd>
+                                                <dt>Transaction Date</dt>
+                                                <dd>@detailJournal.TransactionDate.ToString("dd MMM yyyy")</dd>
+                                                <dt>Status</dt>
+                                                <dd>@detailJournal.Status</dd>
+                                                <dt>Original Amount</dt>
+                                                <dd>@detailJournal.Currency @detailJournal.Amount.ToString("N2")</dd>
+                                                <dt>Income Type ID</dt>
+                                                <dd>@(detailJournal.IncomeTypeId?.ToString() ?? "—")</dd>
+                                                <dt>Direction</dt>
+                                                <dd>@detailJournal.Direction</dd>
+                                                <dt>Bank Account ID</dt>
+                                                <dd>@detailJournal.BankAccountId</dd>
+                                                <dt>Reference</dt>
+                                                <dd>@(detailJournal.TransactionReference ?? "—")</dd>
+                                                <dt>Narration</dt>
+                                                <dd>@detailJournal.Narration</dd>
+                                            </dl>
+                                        </div>
+                                    }
+                                </div>
+                                @if (detailCollection is not null && detailJournal is not null)
+                                {
+                                    <div class="remit-comparison">
+                                        <h5>Reconciliation comparison</h5>
+                                        <div><span>Amount (collection / effective journal)</span><strong>@detailCollection.Amount.ToString("N2") / @effectiveJournalAmount.ToString("N2") @(detailCollection.Amount == effectiveJournalAmount ? "✓" : "⚠ Mismatch")</strong></div>
+                                        <div><span>Income Type ID (collection / journal)</span><strong>@detailCollection.IncomeTypeId / @detailJournal.IncomeTypeId @(detailCollection.IncomeTypeId == detailJournal.IncomeTypeId ? "✓" : "⚠ Mismatch")</strong></div>
+                                        <div><span>Currency (collection / journal)</span><strong>@detailCollection.Currency / @detailJournal.Currency @(string.Equals(detailCollection.Currency, detailJournal.Currency.ToString(), StringComparison.OrdinalIgnoreCase) ? "✓" : "⚠ Mismatch")</strong></div>
+                                        <div><span>Journal direction</span><strong>@detailJournal.Direction @(detailJournal.Direction == BankJournalDirection.Credit ? "✓" : "⚠ Expected Credit")</strong></div>
+                                    </div>
+                                }
+                                @if (detailCorrections.Count > 0)
+                                {
+                                    <div class="remit-comparison">
+                                        <h5>Journal corrections / adjustments</h5>
+                                        @foreach (var correction in detailCorrections)
+                                        {
+                                            <div><span>#@correction.Id — @correction.Status (@correction.Direction)</span><strong>@correction.Currency @correction.Amount.ToString("N2")</strong></div>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </section>
+                }
+            }
+        }
+        else if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="remit-empty"><i class="fas fa-clipboard-check"></i><strong>Ready to check this month's finances</strong><span>Select a reporting month above and click Check Readiness.</span></div>
+        }
+    </div>
+}
+
+<style>
+    .remittance-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding-bottom: 24px
+    }
+
+        .remittance-page .bcc-page-header {
+            margin-bottom: 14px
+        }
+
+    .remit-back {
+        white-space: nowrap
+    }
+
+    .remit-panel {
+        background: #fff;
+        border: 1px solid #dfeae2;
+        border-radius: 12px;
+        margin-bottom: 13px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(15,68,37,.04)
+    }
+
+    .remit-filters {
+        padding: 16px 18px
+    }
+
+    .remit-section-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px
+    }
+
+        .remit-section-heading h4 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #174b2e;
+            margin: 3px 0 0
+        }
+
+    .remit-kicker {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        color: #61836b
+    }
+
+    .remit-stage, .remit-count {
+        font-size: 11px;
+        font-weight: 700;
+        color: #24643e;
+        background: #e9f4ec;
+        padding: 6px 10px;
+        border-radius: 20px;
+        white-space: nowrap
+    }
+
+    .remit-filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 10px;
+        margin-top: 14px
+    }
+
+    .remit-field {
+        width: 220px;
+        max-width: 100%
+    }
+
+    .remit-year {
+        width: 120px
+    }
+
+    .remit-field label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        color: #355f43;
+        margin-bottom: 5px
+    }
+
+    .remit-field .form-select, .remit-field .form-control {
+        border: 1px solid #d4e3d8;
+        border-radius: 8px;
+        min-height: 36px
+    }
+
+    .remit-action {
+        min-height: 36px;
+        font-size: 12px;
+        font-weight: 700;
+        border-radius: 8px;
+        white-space: nowrap
+    }
+
+    .remit-action-disabled, .remit-action-disabled:disabled {
+        background: #e2e5e3 !important;
+        color: #89928c !important;
+        border: 1px solid #d0d6d2 !important;
+        opacity: 1 !important;
+        cursor: not-allowed !important;
+    }
+
+    .remit-preview {
+        margin-bottom: 14px;
+        overflow: hidden;
+    }
+
+    .remit-preview-summary {
+        display: grid;
+        grid-template-columns: repeat(4,minmax(0,1fr));
+        gap: 10px;
+        padding: 14px;
+    }
+
+        .remit-preview-summary > div {
+            background: #f4f8f5;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .remit-preview-summary small {
+            display: block;
+            font-size: 11px;
+            color: #68816e;
+        }
+
+        .remit-preview-summary strong {
+            display: block;
+            color: #21593a;
+            font-size: 16px;
+        }
+
+    .remit-preview-warning {
+        margin: 12px;
+        padding: 12px;
+        background: #fff7ec;
+        border: 1px solid #f2dfbe;
+        border-radius: 8px;
+        font-size: 12px;
+    }
+
+        .remit-preview-warning p {
+            margin: 6px 0 0;
+        }
+    @@media(max - width:700px) {
+        .remit-preview-summary
+
+    {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+
+    }
+
+    .remit-statement-heading {
+        text-align: center;
+        padding: 24px 12px;
+        border-bottom: 1px solid #dce9df;
+    }
+
+        .remit-statement-heading h3 {
+            font-size: 15px;
+            font-weight: 800;
+            color: #164d2e;
+            margin: 0 0 5px;
+        }
+
+        .remit-statement-heading h4 {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 0 0 14px;
+        }
+
+        .remit-statement-heading h2 {
+            font-size: 23px;
+            font-weight: 800;
+            margin: 0 0 10px;
+        }
+
+    .remit-total-row {
+        background: #edf7f0;
+    }
+
+    .remit-hint {
+        font-size: 11px;
+        color: #718475;
+        margin-top: 12px
+    }
+
+    .remit-stats {
+        display: grid;
+        grid-template-columns: repeat(3,minmax(0,1fr));
+        gap: 11px;
+        margin-bottom: 12px
+    }
+
+    .remit-stat {
+        display: flex;
+        gap: 11px;
+        align-items: center;
+        background: #fff;
+        border: 1px solid #dfeae2;
+        border-radius: 11px;
+        padding: 12px
+    }
+
+    .remit-stat-icon {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        background: #e9f4ec;
+        color: #247245;
+        border-radius: 9px
+    }
+
+    .remit-stat small {
+        display: block;
+        color: #738575;
+        font-size: 11px
+    }
+
+    .remit-stat strong {
+        display: block;
+        font-size: 15px;
+        color: #19452d;
+        line-height: 1.25
+    }
+
+    .remit-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 11px;
+        padding: 13px 15px;
+        border-radius: 10px;
+        margin-bottom: 13px;
+        font-size: 12px
+    }
+
+        .remit-notice > i {
+            font-size: 17px;
+            margin-top: 1px
+        }
+
+        .remit-notice strong {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 3px
+        }
+
+        .remit-notice p {
+            margin: 0;
+            line-height: 1.5
+        }
+
+    .remit-error {
+        color: #874a31;
+        background: #fff7f2;
+        border: 1px solid #f1dbcf
+    }
+
+    .remit-success {
+        color: #25643e;
+        background: #eff8f0;
+        border: 1px solid #cfe8d6
+    }
+
+    .remit-table-heading {
+        padding: 14px 16px;
+        border-bottom: 1px solid #e8eee9
+    }
+
+    .remit-table {
+        margin: 0;
+        font-size: 12px
+    }
+
+        .remit-table th {
+            background: #f4f8f5;
+            color: #466b52;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 10px 12px;
+            white-space: nowrap
+        }
+
+        .remit-table td {
+            color: #3d5646;
+            padding: 10px 12px;
+            border-color: #edf2ee
+        }
+
+    .remit-issue {
+        display: inline-block;
+        color: #85502d;
+        background: #fff1e6;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 5px 7px;
+        border-radius: 6px;
+        white-space: nowrap
+    }
+
+    .remit-number {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums
+    }
+
+    .remit-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+        text-align: center;
+        padding: 30px 12px;
+        border: 1px dashed #cddfd1;
+        border-radius: 12px;
+        background: #f8fbf9;
+        color: #6c8574;
+        font-size: 12px
+    }
+
+        .remit-empty i {
+            font-size: 25px;
+            color: #619973
+        }
+
+        .remit-empty strong {
+            font-size: 14px;
+            color: #315e41
+        }
+
+    .remit-view {
+        border: 1px solid #cfe0d3;
+        background: #f1f8f3;
+        color: #1f6b3e;
+        padding: 6px 10px;
+        border-radius: 7px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap
+    }
+
+        .remit-view:hover {
+            background: #dff0e3
+        }
+
+    .remit-detail-body {
+        padding: 16px
+    }
+
+    .remit-detail-description {
+        font-size: 12px;
+        color: #5d7564;
+        margin-bottom: 14px
+    }
+
+    .remit-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 13px
+    }
+
+    .remit-detail-card {
+        border: 1px solid #e0eae3;
+        border-radius: 10px;
+        padding: 13px
+    }
+
+        .remit-detail-card h5, .remit-comparison h5 {
+            font-size: 13px;
+            color: #1e6139;
+            font-weight: 800;
+            margin: 0 0 12px
+        }
+
+        .remit-detail-card dl {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 8px 10px;
+            font-size: 12px;
+            margin: 0
+        }
+
+        .remit-detail-card dt {
+            color: #748577;
+            font-weight: 600
+        }
+
+        .remit-detail-card dd {
+            color: #2c4f38;
+            margin: 0;
+            overflow-wrap: anywhere
+        }
+
+    .remit-comparison {
+        border: 1px solid #e0eae3;
+        border-radius: 10px;
+        padding: 13px;
+        margin-top: 13px;
+        font-size: 12px
+    }
+
+        .remit-comparison > div {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 7px 0;
+            border-top: 1px solid #edf2ee
+        }
+
+        .remit-comparison strong {
+            color: #245a39;
+            text-align: right
+        }
+
+    @@media(max - width:700px) {
+        .remit-detail-grid {
+            grid-template-columns: 1fr
+        }
+
+        .remit-detail-card dl {
+            grid-template-columns: 105px 1fr
+        }
+    }
+
+    @@media(max - width:700px) {
+        .remit-stats {
+            grid-template-columns: 1fr
+        }
+
+        .remit-field {
+            flex: 1 1 140px;
+            width: auto
+        }
+
+        .remit-action {
+            width: 100%;
+            justify-content: center
+        }
+
+        .remit-filters {
+            padding: 13px
+        }
+    }</style>
+
+@code {
+    private int selectedYear = DateTime.Today.Year;
+    private int selectedMonth = DateTime.Today.Month;
+    private bool isChecking;
+    private bool isPreparing;
+    private bool preparationRequested;
+    private sealed class RemittancePreviewRow
+    {
+        public string IncomeName { get; set; } = "";
+        public string Currency { get; set; } = "";
+        public decimal? QualifyingAmount { get; set; }
+        public string RuleDescription { get; set; } = "";
+        public decimal? Remittance { get; set; }
+    }
+    private sealed class PreviewAccountRow
+    {
+        public string Name { get; set; } = "";
+        public string Currency { get; set; } = "";
+        public decimal Balance { get; set; }
+    }
+    private sealed class PreviewIncomeRow
+    {
+        public int IncomeTypeId { get; set; }
+        public string IncomeName { get; set; } = "";
+        public string Currency { get; set; } = "";
+        public decimal Income { get; set; }
+    }
+    private List<RemittancePreviewRow> previewRows = new();
+    private List<PreviewAccountRow> previewAccounts = new();
+    private List<PreviewIncomeRow> previewIncomeRows = new();
+    private List<string> previewWarnings = new();
+    private MonthlyRemittanceValidationIssue? selectedIssue;
+    private ChurchCollectionRecord? detailCollection;
+    private ChurchApp.Models.Finance.BankAccountJournal? detailJournal;
+    private List<ChurchApp.Models.Finance.BankAccountJournal> detailCorrections = new();
+    private decimal effectiveJournalAmount;
+    private Dictionary<string, string> detailWorkerNames = new(StringComparer.OrdinalIgnoreCase);
+
+    private string WorkerDisplayName(string? workerId)
+        => string.IsNullOrWhiteSpace(workerId) ? "—"
+           : detailWorkerNames.TryGetValue(workerId, out var name) ? name : "Unknown worker";
+    private bool detailLoading;
+    private string? detailError;
+
+    private void CloseDetails() => selectedIssue = null;
+
+    private async Task ViewIssue(MonthlyRemittanceValidationIssue issue)
+    {
+        selectedIssue = issue;
+        detailCollection = null;
+        detailJournal = null;
+        detailCorrections = new();
+        detailWorkerNames.Clear();
+        detailError = null;
+        detailLoading = true;
+        try
+        {
+            if (issue.CollectionId.HasValue)
+                detailCollection = await Db.ChurchCollectionRecords.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == issue.CollectionId.Value);
+            if (issue.JournalId.HasValue)
+                detailJournal = await Db.BankAccountJournals.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == issue.JournalId.Value);
+            if (detailJournal is null && issue.CollectionId.HasValue)
+                detailJournal = await Db.BankAccountJournals.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.SourceCollectionId == issue.CollectionId.Value &&
+                        x.TransactionType == BankJournalTransactionType.CollectionPosting);
+            var workerIds = new[] { detailCollection?.RecordedByWorkerId, detailJournal?.PostedByWorkerId }
+                .Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id!).Distinct().ToList();
+            if (workerIds.Count > 0)
+            {
+                var workers = await Db.Workers.AsNoTracking()
+                    .Where(w => workerIds.Contains(w.WorkerId))
+                    .Select(w => new { w.WorkerId, w.FirstName, w.LastName }).ToListAsync();
+                detailWorkerNames = workers.ToDictionary(w => w.WorkerId,
+                    w => $"{w.FirstName} {w.LastName}".Trim(), StringComparer.OrdinalIgnoreCase);
+            }
+            if (detailJournal is not null)
+            {
+                detailCorrections = await Db.BankAccountJournals.AsNoTracking()
+                    .Where(x => x.ReversesJournalId == detailJournal.Id).ToListAsync();
+                effectiveJournalAmount = detailJournal.Amount;
+                foreach (var correction in detailCorrections.Where(x => x.Status == BankJournalStatus.Posted))
+                    effectiveJournalAmount += correction.Direction == detailJournal.Direction
+                        ? correction.Amount : -correction.Amount;
+            }
+        }
+        catch (Exception ex) { detailError = ex.Message; }
+        finally { detailLoading = false; }
+    }
+
+    private string? errorMessage;
+    private MonthlyRemittanceValidationResult? validationResult;
+
+    private string ReportPeriod => new DateTime(validationResult?.Year ?? selectedYear, validationResult?.Month ?? selectedMonth, 1)
+        .ToString("MMMM yyyy", CultureInfo.InvariantCulture);
+
+    private void ClearResult()
+    {
+        validationResult = null;
+        errorMessage = null;
+        preparationRequested = false;
+        ResetPreview();
+        CloseDetails();
+    }
+
+    private async Task PrepareRemittance()
+    {
+        if (isChecking || isPreparing || validationResult?.CanProceed != true)
+            return;
+
+        isPreparing = true;
+        preparationRequested = false;
+        ResetPreview();
+        errorMessage = null;
+        try
+        {
+            // Never trust the previous UI result: financial records may have changed.
+            validationResult = await ValidationService.ValidateAsync(selectedYear, selectedMonth);
+            if (validationResult.CanProceed)
+            {
+                await BuildPreviewAsync();
+                preparationRequested = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            validationResult = null;
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isPreparing = false;
+        }
+    }
+
+    private void ResetPreview()
+    {
+        previewRows.Clear();
+        previewAccounts.Clear();
+        previewIncomeRows.Clear();
+        previewWarnings.Clear();
+    }
+
+    private async Task BuildPreviewAsync()
+    {
+        ResetPreview();
+        var start = new DateTime(selectedYear, selectedMonth, 1);
+        var end = start.AddMonths(1);
+        var monthEnd = end.AddDays(-1);
+
+        var accounts = await Db.BankAccounts.AsNoTracking()
+            .Where(x => x.IsActive && x.CanPayRemittance)
+            .OrderBy(x => x.BankName).ThenBy(x => x.ShortName).ToListAsync();
+        var postedLedger = await Db.BankAccountJournals.AsNoTracking()
+            .Where(x => x.Status == BankJournalStatus.Posted && x.TransactionDate < end)
+            .Select(x => new { x.BankAccountId, x.Direction, x.Amount }).ToListAsync();
+        foreach (var account in accounts)
+        {
+            var balance = account.OpeningBalance;
+            foreach (var entry in postedLedger.Where(x => x.BankAccountId == account.Id))
+                balance += entry.Direction == BankJournalDirection.Credit ? entry.Amount : -entry.Amount;
+            previewAccounts.Add(new PreviewAccountRow
+            {
+                Name = $"{account.BankName} — {account.AccountTitle} ({account.ShortName})",
+                Currency = account.Currency.ToString(),
+                Balance = balance
+            });
+        }
+
+        var collections = await Db.ChurchCollectionRecords.AsNoTracking()
+            .Where(x => x.CollectionDate >= start && x.CollectionDate < end &&
+                        !x.IsRemoved && x.Status == ChurchCollectionService.StatusApproved)
+            .Select(x => new { x.IncomeTypeId, x.Currency, x.Amount }).ToListAsync();
+        var direct = await Db.BankAccountJournals.AsNoTracking()
+            .Where(x => x.TransactionType == BankJournalTransactionType.DirectBankReceipt &&
+                        x.Status == BankJournalStatus.Posted &&
+                        x.TransactionDate >= start && x.TransactionDate < end)
+            .ToListAsync();
+        var directIds = direct.Select(x => x.Id).ToList();
+        var corrections = await Db.BankAccountJournals.AsNoTracking()
+            .Where(x => x.ReversesJournalId.HasValue && directIds.Contains(x.ReversesJournalId.Value) &&
+                        x.Status == BankJournalStatus.Posted).ToListAsync();
+
+        var income = new Dictionary<(int Id, string Currency), decimal>();
+        foreach (var c in collections)
+        {
+            var key = (c.IncomeTypeId, c.Currency ?? "NGN");
+            income[key] = income.GetValueOrDefault(key) + c.Amount;
+        }
+        foreach (var d in direct)
+        {
+            if (!d.IncomeTypeId.HasValue)
+            {
+                previewWarnings.Add($"Direct receipt #{d.Id} has no Income Type.");
+                continue;
+            }
+            var net = d.Direction == BankJournalDirection.Credit ? d.Amount : -d.Amount;
+            foreach (var correction in corrections.Where(x => x.ReversesJournalId == d.Id))
+                net += correction.Direction == BankJournalDirection.Credit ? correction.Amount : -correction.Amount;
+            var key = (d.IncomeTypeId.Value, d.Currency.ToString());
+            income[key] = income.GetValueOrDefault(key) + net;
+        }
+
+        var types = await Db.IncomeTypes.AsNoTracking().ToDictionaryAsync(x => x.Id);
+        foreach (var item in income.OrderBy(x => types.TryGetValue(x.Key.Id, out var t) ? t.Name : ""))
+        {
+            if (!types.TryGetValue(item.Key.Id, out var type) || !type.RemittanceApplicable)
+                continue;
+            previewIncomeRows.Add(new PreviewIncomeRow
+            {
+                IncomeTypeId = item.Key.Id,
+                IncomeName = type.Name,
+                Currency = item.Key.Currency,
+                Income = item.Value
+            });
+        }
+
+        var elements = await Db.RemittanceElements.AsNoTracking()
+            .Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync();
+        var rules = await Db.RemittanceRules.AsNoTracking()
+            .Where(x => x.IsActive && x.EffectiveFrom < end &&
+                        (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= start))
+            .ToListAsync();
+        foreach (var element in elements)
+        {
+            var relevant = rules.Where(x => x.RemittanceElementId == element.Id).ToList();
+            var currencies = previewIncomeRows.Where(x => relevant.Any(r => r.IncomeTypeId == x.IncomeTypeId))
+                .Select(x => x.Currency).Distinct().ToList();
+            if (currencies.Count == 0) currencies.Add("");
+            foreach (var currency in currencies)
+            {
+                var row = new RemittancePreviewRow { IncomeName = element.Name, Currency = currency };
+                var relevantIncome = previewIncomeRows.Where(x => x.Currency == currency &&
+                    relevant.Any(r => r.IncomeTypeId == x.IncomeTypeId)).ToList();
+                decimal qualifying = 0m, amount = 0m;
+                var ruleLabels = new List<string>();
+                var valid = relevantIncome.Count > 0;
+                foreach (var source in relevantIncome)
+                {
+                    var candidates = relevant.Where(x => x.IncomeTypeId == source.IncomeTypeId &&
+                        x.EffectiveFrom.Date <= start &&
+                        (!x.EffectiveTo.HasValue || x.EffectiveTo.Value.Date >= monthEnd)).ToList();
+                    if (candidates.Count != 1)
+                    {
+                        valid = false;
+                        previewWarnings.Add($"{element.Name} / {source.IncomeName}: expected one full-month rule; found {candidates.Count}.");
+                        continue;
+                    }
+                    var rule = candidates[0];
+                    qualifying += source.Income;
+                    if (rule.CalculationBasis == RemittanceCalculationBasis.PercentageOfIncome)
+                    {
+                        amount += decimal.Round(source.Income * rule.Percentage / 100m, 2, MidpointRounding.AwayFromZero);
+                        ruleLabels.Add($"{source.IncomeName}: {rule.Percentage:0.####}%");
+                    }
+                    else if (rule.CalculationBasis == RemittanceCalculationBasis.PercentageOfDerivedAmount)
+                    {
+                        if (!rule.DerivedBasePercentage.HasValue)
+                        {
+                            valid = false;
+                            previewWarnings.Add($"{element.Name} / {source.IncomeName}: derived base percentage is missing.");
+                            continue;
+                        }
+                        // The configured derived base is applied first, then the rule percentage.
+                        // Example: 20% of 70% of the qualifying income.
+                        var derivedBase = decimal.Round(source.Income * rule.DerivedBasePercentage.Value / 100m,
+                            2, MidpointRounding.AwayFromZero);
+                        amount += decimal.Round(derivedBase * rule.Percentage / 100m,
+                            2, MidpointRounding.AwayFromZero);
+                        ruleLabels.Add($"{source.IncomeName}: {rule.Percentage:0.####}% of {rule.DerivedBasePercentage.Value:0.####}%");
+                    }
+                    else if (rule.CalculationBasis == RemittanceCalculationBasis.FixedAmount && rule.FixedAmount.HasValue)
+                    {
+                        amount += rule.FixedAmount.Value;
+                        ruleLabels.Add($"{source.IncomeName}: fixed {rule.FixedAmount.Value:N2}");
+                    }
+                    else if (rule.CalculationBasis == RemittanceCalculationBasis.Independent ||
+                             rule.CalculationBasis == RemittanceCalculationBasis.NotApplicable)
+                    {
+                        // Intentionally blank: no automatic calculation is defined.
+                        valid = false;
+                    }
+                    else
+                    {
+                        valid = false;
+                        previewWarnings.Add($"{element.Name} / {source.IncomeName} has an unrecognised calculation basis.");
+                    }
+                }
+                if (valid)
+                {
+                    row.QualifyingAmount = qualifying;
+                    row.Remittance = amount;
+                    row.RuleDescription = string.Join("; ", ruleLabels);
+                }
+                previewRows.Add(row);
+            }
+        }
+        if (previewRows.Any(x => !x.Remittance.HasValue))
+            previewWarnings.Add("Blank remittance elements require review or manual processing in a later step.");
+    }
+
+    private async Task CheckReadiness()
+    {
+        isChecking = true;
+        preparationRequested = false;
+        ResetPreview();
+        errorMessage = null;
+        validationResult = null;
+        CloseDetails();
+        try
+        {
+            validationResult = await ValidationService.ValidateAsync(selectedYear, selectedMonth);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isChecking = false;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

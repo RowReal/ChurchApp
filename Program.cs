@@ -2,6 +2,7 @@ using ChurchApp.Components;
 using ChurchApp.Data;
 using ChurchApp.Models;
 using ChurchApp.Services;
+using ChurchApp.Services.Event;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 
@@ -123,6 +124,13 @@ builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<IncomeCategoryService>();
 builder.Services.AddScoped<IncomeTypeService>();
 builder.Services.AddScoped<RemittanceRuleService>();
+builder.Services.AddScoped<RemittanceElementService>();
+builder.Services.AddScoped<MonthlyRemittanceValidationService>();
+builder.Services.AddScoped<ChurchEventService>();
+builder.Services.AddScoped<EventRegistrationService>();
+builder.Services.AddScoped<EventRegistrationReportService>();
+builder.Services.AddScoped<EventSeatingConfigurationService>();
+builder.Services.AddScoped<EventMenuService>();
 var app = builder.Build();
 
 // APPLY EF CORE MIGRATIONS AUTOMATICALLY

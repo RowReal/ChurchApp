@@ -1,0 +1,382 @@
+﻿@page "/event/register"
+@layout Components.Layout.MainLayout
+@rendermode InteractiveServer
+@using ChurchApp.Models.Event
+@using ChurchApp.Services
+@using ChurchApp.Services.Event
+@inject AuthService AuthService
+@inject EventRegistrationService RegistrationService
+
+<PageTitle>Event Registration - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty"><i class="fas fa-lock"></i><h4>Please Log In</h4><a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a></div>
+}
+else
+{
+    <div class="worker360-page bcc-event-registration-page">
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle"><i class="fas fa-calendar-check me-2"></i>Personal Workspace</div>
+                <div class="bcc-page-title">Event Registration</div>
+                <div class="bcc-page-subtitle">Register yourself or help another BCC worker register.</div>
+            </div>
+            <a href="/" class="bcc-btn profile-form-secondary-btn event-compact-btn"><i class="fas fa-arrow-left me-2"></i>Dashboard</a>
+        </div>
+        <div class="bcc-card">
+            <div class="bcc-card-body p-3">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <h6 class="m-0 fw-bold"><i class="fas fa-calendar-alt me-2"></i>Open Registrations</h6>
+                    <button class="bcc-btn profile-form-secondary-btn event-compact-btn" disabled="@busy" @onclick="LoadAsync"><i class="fas fa-sync-alt me-1"></i>Refresh</button>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(message))
+                {
+                    <div class="alert @(hasError ? "alert-danger" : "alert-success") py-2 small" role="status">@message</div>
+                }
+                @if (loading)
+                {
+                    <div class="bcc-empty"><i class="fas fa-spinner fa-spin"></i><h4>Loading events</h4></div>
+                }
+                else if (events.Count == 0)
+                {
+                    <div class="bcc-empty"><i class="fas fa-calendar-times"></i><h4>No open registrations</h4><p>Published events will appear during their registration period.</p></div>
+                }
+                else
+                {
+                    <div class="row g-3">
+                        @foreach (var ev in events)
+                        {
+                            <div class="col-12 col-lg-6" @key="ev.Id">
+                                <div class="event-entry h-100">
+                                    <div class="event-status mb-2"><i class="fas fa-circle me-1"></i>Registration open</div>
+                                    <h6 class="event-name">@ev.Name</h6>
+                                    @if (!string.IsNullOrWhiteSpace(ev.Description))
+                                    {
+                                        <p class="event-hint">@ev.Description</p>
+                                    }
+                                    <div class="event-details">
+                                        <div><i class="fas fa-calendar-day"></i><span><small>Event date</small>@NigeriaTime(ev.StartsAtUtc) WAT</span></div>
+                                        <div><i class="fas fa-map-marker-alt"></i><span><small>Venue</small>@ev.Venue</span></div>
+                                        <div><i class="fas fa-hourglass-half"></i><span><small>Registration closes</small>@NigeriaTime(ev.RegistrationClosesAtUtc) WAT</span></div>
+                                    </div>
+                                    <div class="event-response">
+                                        <div class="d-flex flex-wrap gap-2 mb-3">
+                                            <button class="bcc-btn @(mode == "self" ? "bcc-btn-primary" : "profile-form-secondary-btn") event-compact-btn" @onclick='() => SetModeAsync("self", ev.Id)'>Self Registration</button>
+                                            <button class="bcc-btn @(mode == "other" ? "bcc-btn-primary" : "profile-form-secondary-btn") event-compact-btn" @onclick='() => SetModeAsync("other", ev.Id)'>Register Someone Else</button>
+                                        </div>
+                                        @if (mode == "self" && selectedEventId == ev.Id)
+                                        {
+                                            @if (selfStatus?.IsRegistered == true)
+                                            {
+                                                <div class="alert alert-info py-2 small mb-2">@SelfRegistrationMessage(selfStatus)</div>
+                                                @if (selfStatus.CanUnregister)
+                                                {
+                                                    <button class="bcc-btn profile-form-secondary-btn event-compact-btn" disabled="@busy" @onclick="() => AskUnregister(selfStatus)">Unregister</button>
+                                                }
+                                                else
+                                                {
+
+                                                    <div class="event-hint">You cannot unregister this response.</div>
+                                                }
+                                            }
+                                            else if (selfStatus != null)
+                                            {
+                                                <div class="event-hint mb-2">Your attendance response</div>
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    <button class="bcc-btn bcc-btn-primary event-compact-btn" disabled="@busy" @onclick="() => RegisterAsync(ev.Id, selfStatus.WorkerId, true, false)">Will Attend</button>
+                                                    <button class="bcc-btn profile-form-secondary-btn event-compact-btn" disabled="@busy" @onclick="() => RegisterAsync(ev.Id, selfStatus.WorkerId, false, false)">Will Not Attend</button>
+                                                </div>
+                                            }
+                                        }
+                                        else if (mode == "other" && selectedEventId == ev.Id)
+                                        {
+                                            <label class="event-hint mb-1" for="workerIdInput">Co-worker's Worker ID</label>
+                                            <div class="d-flex gap-2 mb-2">
+                                                <input id="workerIdInput" class="form-control form-control-sm" placeholder="Enter Worker ID" @bind="lookupWorkerId" />
+                                                <button class="bcc-btn bcc-btn-primary event-compact-btn" disabled="@busy" @onclick="() => LookupAsync(ev.Id)">Verify</button>
+                                            </div>
+                                            @if (otherStatus != null)
+                                            {
+                                                <div class="fw-semibold small mb-2"><i class="fas fa-user-check me-1"></i>@otherStatus.WorkerName (@otherStatus.WorkerId)</div>
+                                                @if (otherStatus.IsRegistered)
+                                                {
+                                                    <div class="alert alert-info py-2 small mb-2">@OtherRegistrationMessage(otherStatus)</div>
+                                                    @if (otherStatus.CanUnregister)
+                                                    {
+                                                        <button class="bcc-btn profile-form-secondary-btn event-compact-btn" disabled="@busy" @onclick="() => AskUnregister(otherStatus)">Unregister This Worker</button>
+                                                    }
+                                                    else
+                                                    {
+
+                                                        <div class="event-hint">Only the registered worker or the person who registered them can unregister.</div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <div class="d-flex flex-wrap gap-2">
+                                                        <button class="bcc-btn bcc-btn-primary event-compact-btn" disabled="@busy" @onclick="() => RegisterAsync(ev.Id, otherStatus.WorkerId, true, true)">Will Attend</button>
+                                                        <button class="bcc-btn profile-form-secondary-btn event-compact-btn" disabled="@busy" @onclick="() => RegisterAsync(ev.Id, otherStatus.WorkerId, false, true)">Will Not Attend</button>
+                                                    </div>
+                                                }
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@if (popupVisible)
+{
+    <div class="event-modal-backdrop" role="presentation">
+        <div class="event-modal" role="dialog" aria-modal="true" aria-label="Registration message">
+            <h6 class="fw-bold mb-2"><i class="fas fa-info-circle me-2"></i>Event Registration</h6>
+            <p class="small mb-3">@popupText</p>
+            <div class="d-flex justify-content-end gap-2">
+                @if (confirmUnregister)
+                {
+                    <button class="bcc-btn bcc-btn-primary event-compact-btn" disabled="@busy" @onclick="ConfirmUnregisterAsync">Yes, Unregister</button>
+                    <button class="bcc-btn profile-form-secondary-btn event-compact-btn" @onclick="ClosePopup">No</button>
+                }
+                else
+                {
+
+                    <button class="bcc-btn bcc-btn-primary event-compact-btn" @onclick="ClosePopup">OK</button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .bcc-event-registration-page {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+        .bcc-event-registration-page .event-compact-btn, .event-modal .event-compact-btn {
+            min-height: 32px;
+            padding: 6px 11px;
+            font-size: .78rem;
+            text-decoration: none;
+        }
+
+        .bcc-event-registration-page .event-entry {
+            background: var(--bs-body-bg, #fff);
+            border: 1px solid var(--bs-border-color, #e2e8f0);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .bcc-event-registration-page .event-name {
+            font-weight: 800;
+            font-size: 1rem;
+            margin-bottom: 7px;
+        }
+
+        .bcc-event-registration-page .event-hint {
+            color: var(--bs-secondary-color, #64748b);
+            font-size: .76rem;
+        }
+
+        .bcc-event-registration-page .event-status {
+            font-size: .7rem;
+            font-weight: 700;
+            color: var(--bs-success, #198754);
+        }
+
+            .bcc-event-registration-page .event-status i {
+                font-size: .45rem;
+            }
+
+        .bcc-event-registration-page .event-details {
+            display: grid;
+            gap: 9px;
+            padding: 11px 0;
+        }
+
+            .bcc-event-registration-page .event-details > div {
+                display: flex;
+                gap: 10px;
+                align-items: flex-start;
+                font-size: .78rem;
+            }
+
+            .bcc-event-registration-page .event-details i {
+                width: 16px;
+                margin-top: 3px;
+                color: var(--bs-secondary-color, #64748b);
+            }
+
+            .bcc-event-registration-page .event-details small {
+                display: block;
+                font-size: .69rem;
+                color: var(--bs-secondary-color, #64748b);
+            }
+
+        .bcc-event-registration-page .event-response {
+            border-top: 1px solid var(--bs-border-color, #e2e8f0);
+            padding-top: 12px;
+            margin-top: 4px;
+        }
+
+    .event-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1100;
+        background: rgba(0,0,0,.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+    }
+
+    .event-modal {
+        background: var(--bs-body-bg, #fff);
+        color: var(--bs-body-color, #212529);
+        width: min(100%, 440px);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 12px 38px rgba(0,0,0,.18);
+    }
+</style>
+
+@code {
+    private List<ChurchEvent> events = new();
+    private bool loading = true;
+    private bool busy;
+    private bool hasError;
+    private string? message;
+    private string mode = "self";
+    private int selectedEventId;
+    private string lookupWorkerId = "";
+    private EventWorkerStatus? selfStatus;
+    private EventWorkerStatus? otherStatus;
+    private bool popupVisible;
+    private bool confirmUnregister;
+    private string popupText = "";
+    private EventWorkerStatus? pendingUnregister;
+    private static string NigeriaTime(DateTime utc) => utc.AddHours(1).ToString("dd MMM yyyy, h:mm tt");
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated) await LoadAsync();
+        else loading = false;
+    }
+    private async Task LoadAsync()
+    {
+        loading = true; message = null;
+        try
+        {
+            events = await RegistrationService.GetAvailableEventsAsync();
+            if (events.Count > 0) await SetModeAsync("self", events[0].Id);
+        }
+        catch (Exception ex) { hasError = true; message = ex.Message; }
+        finally { loading = false; }
+    }
+    private async Task SetModeAsync(string newMode, int eventId)
+    {
+        mode = newMode; selectedEventId = eventId; otherStatus = null; lookupWorkerId = ""; selfStatus = null;
+        if (mode != "self") return;
+        try
+        {
+            var id = AuthService.CurrentWorker?.WorkerId ?? "";
+            selfStatus = await RegistrationService.GetWorkerStatusAsync(eventId, id);
+            if (selfStatus.IsRegistered)
+            {
+                popupText = SelfRegistrationMessage(selfStatus) +
+                    (selfStatus.CanUnregister ? " Do you want to unregister?" : "");
+                pendingUnregister = selfStatus; confirmUnregister = selfStatus.CanUnregister; popupVisible = true;
+            }
+        }
+        catch (Exception ex) { ShowError(ex.Message); }
+    }
+    private async Task LookupAsync(int eventId)
+    {
+        otherStatus = null;
+        try
+        {
+            otherStatus = await RegistrationService.GetWorkerStatusAsync(eventId, lookupWorkerId);
+            if (otherStatus.WorkerId == AuthService.CurrentWorker?.WorkerId)
+            {
+                otherStatus = null;
+                ShowPopup("Use Self Registration to register yourself.");
+                return;
+            }
+            if (otherStatus.IsRegistered)
+            {
+                popupText = OtherRegistrationMessage(otherStatus) +
+                    (otherStatus.CanUnregister ? " Do you want to unregister this worker?" : " Only the registered worker or the person who registered them can unregister.");
+                pendingUnregister = otherStatus; confirmUnregister = otherStatus.CanUnregister; popupVisible = true;
+            }
+        }
+        catch (Exception ex) { ShowPopup(ex.Message); }
+    }
+    private async Task RegisterAsync(int eventId, string workerId, bool attend, bool assisted)
+    {
+        if (busy) return;
+        busy = true;
+        try
+        {
+            if (assisted) await RegistrationService.RegisterAssistedAsync(eventId, workerId, attend);
+            else await RegistrationService.RegisterSelfAsync(eventId, attend);
+            hasError = false; message = "Registration saved successfully.";
+            if (assisted) otherStatus = await RegistrationService.GetWorkerStatusAsync(eventId, workerId);
+            else selfStatus = await RegistrationService.GetWorkerStatusAsync(eventId, workerId);
+        }
+        catch (Exception ex) { ShowError(ex.Message); }
+        finally { busy = false; }
+    }
+    private string SelfRegistrationMessage(EventWorkerStatus status)
+    {
+        var response = status.WillAttend ? "registered to attend" : "registered as not attending";
+        if (status.RegisteredByWorkerId == status.WorkerId)
+            return $"You are already {response} this event.";
+        return $"You are already {response} this event by {status.RegisteredByName}.";
+    }
+
+    private string OtherRegistrationMessage(EventWorkerStatus status)
+    {
+        var response = status.WillAttend ? "registered to attend" : "registered as not attending";
+        if (status.RegisteredByWorkerId == AuthService.CurrentWorker?.WorkerId)
+            return $"You already registered {status.WorkerName} ({status.WorkerId}) as {(status.WillAttend ? "attending" : "not attending")} this event.";
+        return $"Worker {status.WorkerName} ({status.WorkerId}) is already {response} this event by {status.RegisteredByName}.";
+    }
+
+    private void AskUnregister(EventWorkerStatus status)
+    {
+        pendingUnregister = status; confirmUnregister = true;
+        popupText = status.WorkerId == AuthService.CurrentWorker?.WorkerId
+            ? SelfRegistrationMessage(status) + " Do you want to unregister?"
+            : OtherRegistrationMessage(status) + " Do you want to unregister this worker?";
+        popupVisible = true;
+    }
+    private async Task ConfirmUnregisterAsync()
+    {
+        if (pendingUnregister == null || busy) return;
+        busy = true;
+        try
+        {
+            await RegistrationService.UnregisterAsync(selectedEventId, pendingUnregister.WorkerId);
+            hasError = false; message = "Registration removed successfully.";
+            var id = pendingUnregister.WorkerId;
+            if (id == AuthService.CurrentWorker?.WorkerId) selfStatus = await RegistrationService.GetWorkerStatusAsync(selectedEventId, id);
+            else otherStatus = await RegistrationService.GetWorkerStatusAsync(selectedEventId, id);
+            ClosePopup();
+        }
+        catch (Exception ex) { ClosePopup(); ShowError(ex.Message); }
+        finally { busy = false; }
+    }
+    private void ClosePopup() { popupVisible = false; confirmUnregister = false; pendingUnregister = null; }
+    private void ShowPopup(string text) { popupText = text; confirmUnregister = false; popupVisible = true; }
+    private void ShowError(string text) { hasError = true; message = text; ShowPopup(text); }
+}
+
+
+

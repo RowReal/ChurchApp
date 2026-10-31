@@ -18,6 +18,9 @@
     {
         PercentageOfIncome = 1,
         FixedAmount = 2,
-        NotApplicable = 3
+        NotApplicable = 3,
+
+        PercentageOfDerivedAmount = 4,
+        Independent = 5
     }
 }

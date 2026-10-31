@@ -1579,6 +1579,232 @@ namespace ChurchApp.Migrations
                     b.ToTable("Directorates");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.Event.ChurchEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CheckInClosesAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CheckInOpensAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedByWorkerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("EndsAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("MenuChangesCloseAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RegistrationClosesAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RegistrationOpensAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartsAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UpdatedByWorkerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Venue")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartsAtUtc");
+
+                    b.HasIndex("IsPublished", "RegistrationOpensAtUtc", "RegistrationClosesAtUtc");
+
+                    b.ToTable("ChurchEvents", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventCheckIn", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CheckedInAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ChurchEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EventMenuOptionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EventTableId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsLeadershipSeat")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("MenuUpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SeatNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("WorkerId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventMenuOptionId");
+
+                    b.HasIndex("ChurchEventId", "CheckedInAtUtc");
+
+                    b.HasIndex("ChurchEventId", "WorkerId")
+                        .IsUnique();
+
+                    b.HasIndex("EventTableId", "SeatNumber")
+                        .IsUnique();
+
+                    b.ToTable("EventCheckIns", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventMenuOption", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ChurchEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChurchEventId");
+
+                    b.HasIndex("ChurchEventId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("EventMenuOptions", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventRegistration", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AssistedByWorkerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ChurchEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("RegisteredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("WillAttend")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("WorkerId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChurchEventId", "WillAttend");
+
+                    b.HasIndex("ChurchEventId", "WorkerId")
+                        .IsUnique();
+
+                    b.ToTable("EventRegistrations", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventSeatingSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ChurchEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("MixDirectorates")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EventSeatingSettings");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventTable", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ChurchEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsLeadershipReserved")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TableName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EventTables");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.ExcuseRequest", b =>
                 {
                     b.Property<int>("Id")
@@ -1911,8 +2137,7 @@ namespace ChurchApp.Migrations
 
                     b.HasIndex("ReversesJournalId");
 
-                    b.HasIndex("SourceCollectionId")
-                        .IsUnique();
+                    b.HasIndex("SourceCollectionId");
 
                     b.HasIndex("Status");
 
@@ -2044,6 +2269,47 @@ namespace ChurchApp.Migrations
                     b.ToTable("IncomeTypes");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.Finance.RemittanceElement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastModifiedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RemittanceElements");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Finance.RemittanceRule", b =>
                 {
                     b.Property<int>("Id")
@@ -2062,6 +2328,9 @@ namespace ChurchApp.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal?>("DerivedBasePercentage")
+                        .HasColumnType("decimal(8,4)");
+
                     b.Property<DateTime>("EffectiveFrom")
                         .HasColumnType("TEXT");
 
@@ -2072,7 +2341,7 @@ namespace ChurchApp.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("IncomeTypeId")
+                    b.Property<int?>("IncomeTypeId")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsActive")
@@ -2093,10 +2362,14 @@ namespace ChurchApp.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("RemittanceElementId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("IncomeTypeId", "EffectiveFrom")
-                        .IsUnique();
+                    b.HasIndex("RemittanceElementId");
+
+                    b.HasIndex("IncomeTypeId", "RemittanceElementId", "EffectiveFrom");
 
                     b.ToTable("RemittanceRules");
                 });
@@ -4404,6 +4677,53 @@ namespace ChurchApp.Migrations
                     b.Navigation("HeadWorker");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.Event.EventCheckIn", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Event.ChurchEvent", "ChurchEvent")
+                        .WithMany()
+                        .HasForeignKey("ChurchEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Event.EventMenuOption", "EventMenuOption")
+                        .WithMany()
+                        .HasForeignKey("EventMenuOptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Event.EventTable", "EventTable")
+                        .WithMany()
+                        .HasForeignKey("EventTableId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ChurchEvent");
+
+                    b.Navigation("EventMenuOption");
+
+                    b.Navigation("EventTable");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventMenuOption", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Event.ChurchEvent", null)
+                        .WithMany()
+                        .HasForeignKey("ChurchEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventRegistration", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Event.ChurchEvent", "ChurchEvent")
+                        .WithMany()
+                        .HasForeignKey("ChurchEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ChurchEvent");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.ExcuseRequest", b =>
                 {
                     b.HasOne("ChurchApp.Models.Worker", "ApprovedByWorker")
@@ -4510,10 +4830,17 @@ namespace ChurchApp.Migrations
                     b.HasOne("ChurchApp.Models.Finance.IncomeType", "IncomeType")
                         .WithMany("RemittanceRules")
                         .HasForeignKey("IncomeTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.Finance.RemittanceElement", "RemittanceElement")
+                        .WithMany()
+                        .HasForeignKey("RemittanceElementId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("IncomeType");
+
+                    b.Navigation("RemittanceElement");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.FinancialRequestDetail", b =>

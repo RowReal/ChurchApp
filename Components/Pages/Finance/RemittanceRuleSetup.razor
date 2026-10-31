@@ -5,6 +5,7 @@
 @using ChurchApp.Services
 @inject RemittanceRuleService RemittanceRuleService
 @inject IncomeTypeService IncomeTypeService
+@inject RemittanceElementService RemittanceElementService
 @inject AuthService AuthService
 
 <PageTitle>Remittance Rule Setup</PageTitle>
@@ -24,7 +25,7 @@ else
             <div>
                 <div class="bcc-page-subtitle"><i class="fas fa-sliders-h me-2"></i>Finance Configuration</div>
                 <div class="bcc-page-title">Remittance Rule Setup</div>
-                <div class="bcc-page-subtitle">Manage effective-dated remittance rates for eligible church income streams.</div>
+                <div class="bcc-page-subtitle">Manage direct, derived and independent remittance rules with effective dates.</div>
             </div>
             <div class="finance-header-actions">
                 <button type="button" class="bcc-btn bcc-btn-primary finance-compact-btn" @onclick="ResetForm"><i class="fas fa-plus me-2"></i>New Rule</button>
@@ -55,12 +56,13 @@ else
                     <DataAnnotationsValidator />
                     <div class="finance-validation-summary"><ValidationSummary /></div>
                     <div class="finance-form-section">
-                        <div class="finance-form-section-title"><i class="bi bi-collection"></i><div><strong>Income & Calculation</strong><span>Select the income stream and remittance basis</span></div></div>
+                        <div class="finance-form-section-title"><i class="bi bi-collection"></i><div><strong>Income & Calculation</strong><span>Select an income source or Independent, then choose a calculation method</span></div></div>
                         <div class="row g-3">
                             <div class="col-12">
-                                <label class="form-label">Income Type <span class="required-mark">*</span></label>
-                                <InputSelect class="form-select finance-control" @bind-Value="model.IncomeTypeId">
-                                    <option value="0">Select income type</option>
+                                <label class="form-label">Income Type / Independent <span class="required-mark">*</span></label>
+                                <InputSelect class="form-select finance-control" @bind-Value="SelectedIncomeType">
+                                    <option value="">Select income type</option>
+                                    <option value="-1">Independent (no income type)</option>
                                     @foreach (var item in EligibleIncomeTypes)
                                     {
                                         <option value="@item.Id">@item.Name</option>
@@ -68,20 +70,43 @@ else
                                 </InputSelect>
                             </div>
                             <div class="col-12">
+                                <label class="form-label">Remittance Element <span class="required-mark">*</span></label>
+                                <InputSelect class="form-select finance-control" @bind-Value="model.RemittanceElementId">
+                                    <option value="0">Select remittance element</option>
+                                    @foreach (var item in EligibleRemittanceElements)
+                                    {
+                                        <option value="@item.Id">@item.Name</option>
+                                    }
+                                </InputSelect>
+                                <small class="finance-field-hint">Manage elements in <a href="/finance/remittance-elements">Remittance Element Setup</a>.</small>
+                            </div>
+                            <div class="col-12">
                                 <label class="form-label">Calculation Basis</label>
-                                <InputSelect class="form-select finance-control" @bind-Value="model.CalculationBasis">
+                                <InputSelect class="form-select finance-control" @bind-Value="SelectedCalculationBasis">
                                     <option value="@RemittanceCalculationBasis.PercentageOfIncome">Percentage of Income</option>
-                                    <option value="@RemittanceCalculationBasis.FixedAmount">Fixed Amount</option>
-                                    <option value="@RemittanceCalculationBasis.NotApplicable">Not Applicable</option>
+                                    <option value="@RemittanceCalculationBasis.PercentageOfDerivedAmount">Percentage of Derived Amount</option>
+                                    <option value="@RemittanceCalculationBasis.Independent">Independent / Discretionary</option>
                                 </InputSelect>
                             </div>
-                            @if (model.CalculationBasis == RemittanceCalculationBasis.PercentageOfIncome)
+                            @if (model.CalculationBasis == RemittanceCalculationBasis.PercentageOfIncome || model.CalculationBasis == RemittanceCalculationBasis.PercentageOfDerivedAmount)
                             {
-                                <div class="col-12"><label class="form-label">Remittance Percentage (%)</label><InputNumber class="form-control finance-control" @bind-Value="model.Percentage" step="0.0001" min="0" max="100" /><small class="finance-field-hint">Enter the approved rate. No percentage is assumed by the system.</small></div>
+                                @if (model.CalculationBasis == RemittanceCalculationBasis.PercentageOfDerivedAmount)
+                                {
+                                    <div class="col-12">
+                                        <label class="form-label">Derived Base Percentage (%) <span class="required-mark">*</span></label>
+                                        <InputNumber class="form-control finance-control" @bind-Value="model.DerivedBasePercentage" step="0.0001" min="0" max="100" />
+                                        <small class="finance-field-hint">Example: enter 70 to calculate remittance from 70% of the selected income.</small>
+                                    </div>
+                                }
+                                <div class="col-12">
+                                    <label class="form-label">Remittance Percentage (%) <span class="required-mark">*</span></label>
+                                    <InputNumber class="form-control finance-control" @bind-Value="model.Percentage" step="0.0001" min="0" max="100" />
+                                    <small class="finance-field-hint">@(model.CalculationBasis == RemittanceCalculationBasis.PercentageOfDerivedAmount ? "Example: enter 20 for 20% of the derived base." : "Percentage of the selected income type.")</small>
+                                </div>
                             }
-                            else if (model.CalculationBasis == RemittanceCalculationBasis.FixedAmount)
+                            else if (model.CalculationBasis == RemittanceCalculationBasis.Independent)
                             {
-                                <div class="col-12"><label class="form-label">Fixed Remittance Amount</label><InputNumber class="form-control finance-control" @bind-Value="model.FixedAmount" step="0.01" min="0" /></div>
+                                <div class="col-12"><div class="finance-field-hint">No income source, percentage or fixed amount is required. The amount will be entered during monthly remittance processing.</div></div>
                             }
                         </div>
                     </div>
@@ -103,7 +128,7 @@ else
             <section class="finance-panel finance-list-panel">
                 <div class="finance-panel-header"><div><div class="finance-section-label">Remittance Register</div><h4>Configured Rules</h4><p>Review effective periods, rates and status.</p></div><span class="finance-count-badge">@Filtered.Count record(s)</span></div>
                 <div class="finance-list-toolbar">
-                    <div class="finance-search-box"><i class="bi bi-search"></i><input class="form-control" value="@searchText" @oninput="HandleSearch" placeholder="Search income type or remarks" /></div>
+                    <div class="finance-search-box"><i class="bi bi-search"></i><input class="form-control" value="@searchText" @oninput="HandleSearch" placeholder="Search income type, element or remarks" /></div>
                     <select class="form-select finance-status-filter" value="@statusFilter" @onchange="HandleStatusFilter"><option value="All">All statuses</option><option value="Active">Active only</option><option value="Inactive">Inactive only</option><option value="Current">Currently effective</option></select>
                     <button type="button" class="finance-refresh-button" title="Reload" @onclick="LoadData"><i class="bi bi-arrow-clockwise"></i></button>
                 </div>
@@ -119,12 +144,13 @@ else
                 {
                     <div class="finance-table-wrapper">
                         <table class="table finance-table">
-                            <thead><tr><th>Income Type</th><th>Basis / Rate</th><th>Effective Period</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+                            <thead><tr><th>Income Type</th><th>Remittance Element</th><th>Basis / Rate</th><th>Effective Period</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
                             <tbody>
                                 @foreach (var item in Filtered)
                                 {
                                     <tr class="@(model.Id == item.Id ? "finance-editing-row" : "")">
-                                        <td><div class="finance-category-cell"><div class="finance-category-avatar">@GetInitials(item.IncomeType?.Name)</div><div><strong>@(item.IncomeType?.Name ?? "Unknown")</strong><small>@(item.Remarks ?? "No remarks")</small></div></div></td>
+                                        <td><div class="finance-category-cell"><div class="finance-category-avatar">@GetInitials(item.IncomeType?.Name)</div><div><strong>@(item.CalculationBasis == RemittanceCalculationBasis.Independent ? "Independent" : item.IncomeType?.Name ?? "Unknown")</strong><small>@(item.Remarks ?? "No remarks")</small></div></div></td>
+                                        <td><strong>@(item.RemittanceElement?.Name ?? "Unassigned")</strong><small class="d-block text-muted">@item.RemittanceElement?.Code</small></td>
                                         <td><strong>@GetRate(item)</strong><small class="d-block text-muted">@GetBasis(item.CalculationBasis)</small></td>
                                         <td><strong>@item.EffectiveFrom.ToString("dd MMM yyyy")</strong><small class="d-block text-muted">to @(item.EffectiveTo?.ToString("dd MMM yyyy") ?? "Open-ended")</small></td>
                                         <td><span class="finance-status-badge @(item.IsActive ? "status-active" : "status-inactive")">@(item.IsActive ? "Active" : "Inactive")</span></td>
@@ -143,6 +169,7 @@ else
 @code {
     private List<RemittanceRule> rules = new();
     private List<IncomeType> incomeTypes = new();
+    private List<RemittanceElement> remittanceElements = new();
     private RemittanceRule model = NewModel();
     private int formKey;
     private bool isLoading = true;
@@ -152,13 +179,57 @@ else
     private string searchText = "";
     private string statusFilter = "All";
 
+    // The -1 selection is a UI-only sentinel; independent rules persist a null IncomeTypeId.
+    private int? SelectedIncomeType
+    {
+        get => model.CalculationBasis == RemittanceCalculationBasis.Independent ? -1 : model.IncomeTypeId;
+        set
+        {
+            if (value == -1)
+            {
+                model.IncomeTypeId = null;
+                model.CalculationBasis = RemittanceCalculationBasis.Independent;
+                model.Percentage = 0m;
+                model.DerivedBasePercentage = null;
+                model.FixedAmount = null;
+            }
+            else
+            {
+                model.IncomeTypeId = value;
+                if (model.CalculationBasis == RemittanceCalculationBasis.Independent)
+                    model.CalculationBasis = RemittanceCalculationBasis.PercentageOfIncome;
+            }
+        }
+    }
+
+    private RemittanceCalculationBasis SelectedCalculationBasis
+    {
+        get => model.CalculationBasis;
+        set
+        {
+            model.CalculationBasis = value;
+            if (value == RemittanceCalculationBasis.Independent)
+            {
+                model.IncomeTypeId = null;
+                model.Percentage = 0m;
+                model.DerivedBasePercentage = null;
+                model.FixedAmount = null;
+            }
+            else if (value != RemittanceCalculationBasis.PercentageOfDerivedAmount)
+            {
+                model.DerivedBasePercentage = null;
+            }
+        }
+    }
+
     private List<IncomeType> EligibleIncomeTypes => incomeTypes.Where(x => (x.IsActive && x.RemittanceApplicable) || x.Id == model.IncomeTypeId).OrderBy(x => x.Name).ToList();
-    private List<RemittanceRule> Filtered => rules.Where(x => (statusFilter switch { "Active" => x.IsActive, "Inactive" => !x.IsActive, "Current" => IsCurrentlyEffective(x), _ => true }) && (string.IsNullOrWhiteSpace(searchText) || (x.IncomeType?.Name.Contains(searchText.Trim(), StringComparison.OrdinalIgnoreCase) ?? false) || (x.Remarks?.Contains(searchText.Trim(), StringComparison.OrdinalIgnoreCase) ?? false))).ToList();
+    private List<RemittanceElement> EligibleRemittanceElements => remittanceElements.Where(x => x.IsActive || x.Id == model.RemittanceElementId).OrderBy(x => x.Name).ToList();
+    private List<RemittanceRule> Filtered => rules.Where(x => (statusFilter switch { "Active" => x.IsActive, "Inactive" => !x.IsActive, "Current" => IsCurrentlyEffective(x), _ => true }) && (string.IsNullOrWhiteSpace(searchText) || (x.CalculationBasis == RemittanceCalculationBasis.Independent && "Independent".Contains(searchText.Trim(), StringComparison.OrdinalIgnoreCase)) || (x.IncomeType?.Name.Contains(searchText.Trim(), StringComparison.OrdinalIgnoreCase) ?? false) || (x.RemittanceElement?.Name.Contains(searchText.Trim(), StringComparison.OrdinalIgnoreCase) ?? false) || (x.RemittanceElement?.Code?.Contains(searchText.Trim(), StringComparison.OrdinalIgnoreCase) ?? false) || (x.Remarks?.Contains(searchText.Trim(), StringComparison.OrdinalIgnoreCase) ?? false))).ToList();
     private static bool IsCurrentlyEffective(RemittanceRule x) => x.IsActive && x.EffectiveFrom.Date <= DateTime.Today && (!x.EffectiveTo.HasValue || x.EffectiveTo.Value.Date >= DateTime.Today);
     protected override async Task OnInitializedAsync() { if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel()) await LoadData(); else isLoading = false; }
     private async Task LoadData()
     {
-        try { isLoading = true; rules = await RemittanceRuleService.GetAllAsync(); incomeTypes = await IncomeTypeService.GetAllAsync(); }
+        try { isLoading = true; rules = await RemittanceRuleService.GetAllAsync(); incomeTypes = await IncomeTypeService.GetAllAsync(); remittanceElements = await RemittanceElementService.GetAllAsync(); }
         catch (Exception ex) { errorMessage = $"Unable to load remittance rules: {ex.Message}"; }
         finally { isLoading = false; }
     }
@@ -168,6 +239,13 @@ else
         try
         {
             isSaving = true; successMessage = ""; errorMessage = "";
+            if (model.CalculationBasis == RemittanceCalculationBasis.Independent)
+                model.IncomeTypeId = null;
+            else if (!model.IncomeTypeId.HasValue || model.IncomeTypeId.Value <= 0)
+            {
+                errorMessage = "Select an income type, or choose Independent for discretionary remittance.";
+                return;
+            }
             var result = model.Id == 0 ? await RemittanceRuleService.CreateAsync(model, GetCurrentUserName()) : await RemittanceRuleService.UpdateAsync(model, GetCurrentUserName());
             if (!result.Success) { errorMessage = result.Message; return; }
             ResetForm(); successMessage = result.Message; await LoadData();
@@ -178,7 +256,7 @@ else
     private void Edit(RemittanceRule item)
     {
         successMessage = ""; errorMessage = "";
-        model = new RemittanceRule { Id = item.Id, IncomeTypeId = item.IncomeTypeId, CalculationBasis = item.CalculationBasis, Percentage = item.Percentage, FixedAmount = item.FixedAmount, EffectiveFrom = item.EffectiveFrom, EffectiveTo = item.EffectiveTo, Remarks = item.Remarks, IsActive = item.IsActive };
+        model = new RemittanceRule { Id = item.Id, IncomeTypeId = item.IncomeTypeId, RemittanceElementId = item.RemittanceElementId, CalculationBasis = item.CalculationBasis, Percentage = item.Percentage, DerivedBasePercentage = item.DerivedBasePercentage, FixedAmount = item.FixedAmount, EffectiveFrom = item.EffectiveFrom, EffectiveTo = item.EffectiveTo, Remarks = item.Remarks, IsActive = item.IsActive };
         formKey++;
     }
     private async Task ToggleStatus(RemittanceRule item)
@@ -199,8 +277,8 @@ else
     private void HandleStatusFilter(ChangeEventArgs e) => statusFilter = e.Value?.ToString() ?? "All";
     private static string GetCurrentUserName() => "System User";
     private static string GetInitials(string? value) => string.IsNullOrWhiteSpace(value) ? "RR" : string.Concat(value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => x[0])).ToUpperInvariant();
-    private static string GetBasis(RemittanceCalculationBasis basis) => basis switch { RemittanceCalculationBasis.PercentageOfIncome => "Percentage of Income", RemittanceCalculationBasis.FixedAmount => "Fixed Amount", _ => "Not Applicable" };
-    private static string GetRate(RemittanceRule rule) => rule.CalculationBasis switch { RemittanceCalculationBasis.PercentageOfIncome => $"{rule.Percentage:0.####}%", RemittanceCalculationBasis.FixedAmount => $"{rule.FixedAmount:N2} (fixed)", _ => "Not applicable" };
+    private static string GetBasis(RemittanceCalculationBasis basis) => basis switch { RemittanceCalculationBasis.PercentageOfIncome => "Percentage of Income", RemittanceCalculationBasis.PercentageOfDerivedAmount => "Percentage of Derived Amount", RemittanceCalculationBasis.Independent => "Independent / Discretionary", RemittanceCalculationBasis.FixedAmount => "Fixed Amount (legacy)", _ => "Not Applicable (legacy)" };
+    private static string GetRate(RemittanceRule rule) => rule.CalculationBasis switch { RemittanceCalculationBasis.PercentageOfIncome => $"{rule.Percentage:0.####}%", RemittanceCalculationBasis.PercentageOfDerivedAmount => $"{rule.Percentage:0.####}% of {rule.DerivedBasePercentage:0.####}%", RemittanceCalculationBasis.Independent => "Amount set monthly", RemittanceCalculationBasis.FixedAmount => $"{rule.FixedAmount:N2} (legacy fixed)", _ => "Not applicable" };
 }
 
 <style>
@@ -885,3 +963,6 @@ else
         background: #dc2626 !important;
     }
 </style>
+
+
+

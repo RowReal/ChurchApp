@@ -1,0 +1,297 @@
+﻿@page "/event/setup"
+@rendermode InteractiveServer
+@using ChurchApp.Models.Event
+@using ChurchApp.Services
+@using ChurchApp.Services.Event
+@inject ChurchEventService EventService
+@inject AuthService AuthService
+
+<PageTitle>Event Setup</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <p>Please sign in to manage events.</p>
+}
+else if (!AuthService.CanAccessAdminPanel())
+{
+    <p>You do not have permission to manage events.</p>
+}
+else
+{
+    <div class="worker360-page">
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle">Event Hub</div>
+                <div class="bcc-page-title">Event Setup</div>
+                <div class="bcc-page-subtitle">Create and manage church events and registration periods.</div>
+            </div>
+            <button class="btn btn-success" @onclick="NewEvent">New Event</button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <div class="alert alert-info">@message</div>
+        }
+
+        <div class="bcc-card p-3 mb-3 event-setup-panel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div><h5 class="mb-0">@(editing.Id == 0 ? "Create Event" : "Edit Event")</h5><small class="text-muted">Date and time: Nigeria (WAT)</small></div>
+                <span class="badge bg-light text-dark border">@(editing.Id == 0 ? "New" : $"Event #{editing.Id}")</span>
+            </div>
+
+            <div class="event-setup-grid">
+                <section class="event-setup-section">
+                    <h6 class="event-setup-section-title">Event Details</h6>
+                    <div class="event-setup-fields">
+                        <div class="event-field"><label>Event Name</label><input class="form-control form-control-sm" maxlength="180" @bind="editing.Name" /></div>
+                        <div class="event-field"><label>Venue</label><input class="form-control form-control-sm" maxlength="250" @bind="editing.Venue" /></div>
+                        <div class="event-field event-field-full"><label>Description (optional)</label><textarea class="form-control form-control-sm" rows="2" maxlength="2000" @bind="editing.Description"></textarea></div>
+                    </div>
+                </section>
+                <section class="event-setup-section">
+                    <h6 class="event-setup-section-title">Event Schedule</h6>
+                    <div class="event-setup-fields">
+                        <div class="event-field"><label>Event Starts</label><input @key='(editing.Id, "start")' type="datetime-local" step="60" class="form-control form-control-sm" value="@DateValue(startsLocal)" @onchange='e => UpdateDate(e, "start")' /></div>
+                        <div class="event-field"><label>Event Ends</label><input @key='(editing.Id, "end")' type="datetime-local" step="60" class="form-control form-control-sm" value="@DateValue(endsLocal)" @onchange='e => UpdateDate(e, "end")' /></div>
+                    </div>
+                </section>
+                <section class="event-setup-section">
+                    <h6 class="event-setup-section-title">Registration Window</h6>
+                    <div class="event-setup-fields">
+                        <div class="event-field"><label>Registration Opens</label><input @key='(editing.Id, "regopen")' type="datetime-local" step="60" class="form-control form-control-sm" value="@DateValue(opensLocal)" @onchange='e => UpdateDate(e, "regopen")' /></div>
+                        <div class="event-field"><label>Registration Closes</label><input @key='(editing.Id, "regclose")' type="datetime-local" step="60" class="form-control form-control-sm" value="@DateValue(closesLocal)" @onchange='e => UpdateDate(e, "regclose")' /></div>
+                    </div>
+                </section>
+                <section class="event-setup-section">
+                    <h6 class="event-setup-section-title">Check-In &amp; Menu</h6>
+                    <div class="event-setup-fields">
+                        <div class="event-field"><label>Check-In Opens</label><input @key='(editing.Id, "checkopen")' type="datetime-local" step="60" class="form-control form-control-sm" value="@DateValue(checkInOpensLocal)" @onchange='e => UpdateDate(e, "checkopen")' /></div>
+                        <div class="event-field"><label>Check-In Closes</label><input @key='(editing.Id, "checkclose")' type="datetime-local" step="60" class="form-control form-control-sm" value="@DateValue(checkInClosesLocal)" @onchange='e => UpdateDate(e, "checkclose")' /></div>
+                        <div class="event-field"><label>Menu Changes Close</label><input @key='(editing.Id, "menuclose")' type="datetime-local" step="60" class="form-control form-control-sm" value="@DateValue(menuChangesCloseLocal)" @onchange='e => UpdateDate(e, "menuclose")' /></div>
+                    </div>
+                    <div class="small text-muted mt-2">New check-ins can still select food after menu changes close.</div>
+                </section>
+            </div>
+            <div class="event-setup-actions">
+                <div class="d-flex gap-3 flex-wrap"><label class="small mb-0"><input type="checkbox" @bind="editing.IsPublished" /> Published</label><label class="small mb-0"><input type="checkbox" @bind="editing.IsCancelled" /> Cancelled</label></div>
+                <div class="d-flex gap-2"><button class="btn btn-sm btn-outline-secondary" @onclick="NewEvent">Clear</button><button class="btn btn-sm btn-success" disabled="@saving" @onclick="SaveAsync">@(saving ? "Saving..." : "Save Event")</button></div>
+            </div>
+        </div>
+
+        <div class="bcc-card p-3 event-setup-panel">
+            <h5>Configured Events</h5>
+            <div class="table-responsive">
+                <table class="table table-striped table-sm align-middle">
+                    <thead><tr><th>Event</th><th>Date (Nigeria)</th><th>Registration closes</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var ev in events)
+                        {
+                            <tr>
+                                <td><strong>@ev.Name</strong><div class="small text-muted">@ev.Venue</div></td>
+                                <td>@ToNigeria(ev.StartsAtUtc).ToString("dd MMM yyyy, HH:mm")</td>
+                                <td>@ToNigeria(ev.RegistrationClosesAtUtc).ToString("dd MMM yyyy, HH:mm")</td>
+                                <td>@(ev.IsCancelled ? "Cancelled" : ev.IsPublished ? "Published" : "Draft")</td>
+                                <td><button class="btn btn-sm btn-outline-success" @onclick="() => Edit(ev)">Edit</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .event-setup-panel {
+        max-width: 920px;
+    }
+
+    .event-setup-grid {
+        display: grid;
+        grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+        gap: 12px;
+        align-items: start;
+    }
+
+    .event-setup-section {
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: 8px;
+        padding: 12px;
+        min-width: 0;
+    }
+
+    .event-setup-section-title {
+        font-size: .86rem;
+        font-weight: 700;
+        margin: 0 0 10px;
+        padding-bottom: 7px;
+        border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+    }
+
+    .event-setup-fields {
+        display: grid;
+        grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+        gap: 9px 10px;
+    }
+
+    .event-field {
+        min-width: 0;
+    }
+
+    .event-field-full {
+        grid-column: 1 / -1;
+    }
+
+    .event-field label {
+        display: block;
+        font-size: .76rem;
+        font-weight: 600;
+        margin-bottom: 3px;
+    }
+
+    .event-field .form-control {
+        width: 100%;
+        min-width: 0;
+        font-size: .81rem;
+        padding: .25rem .4rem;
+    }
+
+    .event-field input[type="datetime-local"] {
+        font-size: .75rem;
+    }
+
+    .event-setup-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--bs-border-color, #dee2e6);
+    }
+
+    @@media (max-width: 850px) {
+        .event-setup-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 430px) {
+        .event-setup-fields {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+@code {
+    private List<ChurchEvent> events = new();
+    private ChurchEvent editing = new();
+    private DateTime startsLocal, endsLocal, opensLocal, closesLocal;
+    private DateTime checkInOpensLocal, checkInClosesLocal, menuChangesCloseLocal;
+    private bool saving;
+    private string? message;
+    private static readonly TimeSpan NigeriaOffset = TimeSpan.FromHours(1);
+
+    private static DateTime ToNigeria(DateTime utc) => utc.Add(NigeriaOffset);
+    private static DateTime ToUtc(DateTime local) =>
+        DateTime.SpecifyKind(local.Subtract(NigeriaOffset), DateTimeKind.Utc);
+
+    protected override async Task OnInitializedAsync()
+    {
+        NewEvent();
+        if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
+            await ReloadAsync();
+    }
+
+    private void NewEvent()
+    {
+        editing = new ChurchEvent();
+        startsLocal = DateTime.UtcNow.Add(NigeriaOffset).Date.AddDays(7).AddHours(17);
+        endsLocal = startsLocal.AddHours(3);
+        opensLocal = DateTime.UtcNow.Add(NigeriaOffset);
+        closesLocal = startsLocal.AddDays(-1);
+        checkInOpensLocal = startsLocal.AddHours(-1);
+        checkInClosesLocal = endsLocal;
+        menuChangesCloseLocal = startsLocal.AddHours(1);
+        message = null;
+    }
+
+    private void Edit(ChurchEvent ev)
+    {
+        editing = new ChurchEvent
+        {
+            Id = ev.Id,
+            Name = ev.Name,
+            Venue = ev.Venue,
+            Description = ev.Description,
+            IsPublished = ev.IsPublished,
+            IsCancelled = ev.IsCancelled
+        };
+        startsLocal = ToNigeria(ev.StartsAtUtc);
+        endsLocal = ToNigeria(ev.EndsAtUtc);
+        opensLocal = ToNigeria(ev.RegistrationOpensAtUtc);
+        closesLocal = ToNigeria(ev.RegistrationClosesAtUtc);
+        checkInOpensLocal = ev.CheckInOpensAtUtc.HasValue ? ToNigeria(ev.CheckInOpensAtUtc.Value) : startsLocal.AddHours(-1);
+        checkInClosesLocal = ev.CheckInClosesAtUtc.HasValue ? ToNigeria(ev.CheckInClosesAtUtc.Value) : endsLocal;
+        menuChangesCloseLocal = ev.MenuChangesCloseAtUtc.HasValue ? ToNigeria(ev.MenuChangesCloseAtUtc.Value) : startsLocal.AddHours(1);
+        message = null;
+    }
+
+    // datetime-local emits intermediate values while its calendar is open.
+    // Commit only completed values on change, not on input, to avoid resetting the picker.
+    private static string DateValue(DateTime value) => value.ToString("yyyy-MM-ddTHH:mm", System.Globalization.CultureInfo.InvariantCulture);
+
+    private void UpdateDate(ChangeEventArgs e, string field)
+    {
+        var raw = e.Value?.ToString();
+        if (!DateTime.TryParseExact(raw, new[] { "yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ss" },
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var value))
+            return;
+
+        switch (field)
+        {
+            case "start": startsLocal = value; break;
+            case "end": endsLocal = value; break;
+            case "regopen": opensLocal = value; break;
+            case "regclose": closesLocal = value; break;
+            case "checkopen": checkInOpensLocal = value; break;
+            case "menuclose": menuChangesCloseLocal = value; break;
+            case "checkclose": checkInClosesLocal = value; break;
+        }
+    }
+
+    private async Task ReloadAsync() => events = await EventService.GetAllAsync();
+
+    private async Task SaveAsync()
+    {
+        if (saving) return;
+        saving = true;
+        message = null;
+        try
+        {
+            editing.StartsAtUtc = ToUtc(startsLocal);
+            editing.EndsAtUtc = ToUtc(endsLocal);
+            editing.RegistrationOpensAtUtc = ToUtc(opensLocal);
+            editing.RegistrationClosesAtUtc = ToUtc(closesLocal);
+            editing.CheckInOpensAtUtc = ToUtc(checkInOpensLocal);
+            editing.CheckInClosesAtUtc = ToUtc(checkInClosesLocal);
+            editing.MenuChangesCloseAtUtc = ToUtc(menuChangesCloseLocal);
+            await EventService.SaveAsync(editing);
+            await ReloadAsync();
+            NewEvent();
+            message = "Event saved successfully.";
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+        }
+        finally { saving = false; }
+    }
+}
+
+
+
+
+

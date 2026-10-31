@@ -1,4 +1,5 @@
 using ChurchApp.Models;
+using ChurchApp.Models.Event;
 using ChurchApp.Models.Finance;
 using Microsoft.EntityFrameworkCore;
 
@@ -79,9 +80,21 @@ namespace ChurchApp.Data
         public DbSet<IncomeCategory> IncomeCategories { get; set; }
         public DbSet<IncomeType> IncomeTypes { get; set; }
         public DbSet<RemittanceRule> RemittanceRules { get; set; }
+        public DbSet<RemittanceElement> RemittanceElements { get; set; }
         public DbSet<BroadcastMessage> BroadcastMessages { get; set; }
         public DbSet<BroadcastRecipient> BroadcastRecipients { get; set; }
         public DbSet<BroadcastAudienceDirectorate> BroadcastAudienceDirectorates { get; set; }
+        public DbSet<ChurchEvent> ChurchEvents { get; set; }
+        public DbSet<EventRegistration> EventRegistrations { get; set; }
+
+        public DbSet<EventTable> EventTables { get; set; }
+            = null!;
+
+        public DbSet<EventSeatingSettings> EventSeatingSettings { get; set; }
+            = null!;
+        public DbSet<EventMenuOption> EventMenuOptions { get; set; } = null!;
+        public DbSet<EventCheckIn> EventCheckIns { get; set; } = null!;
+
         #endregion
 
         #region Entity Configuration
@@ -89,6 +102,51 @@ namespace ChurchApp.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // EVENT HUB — E1: event setup only.
+            modelBuilder.Entity<ChurchEvent>(entity =>
+            {
+                entity.ToTable("ChurchEvents");
+                entity.Property(x => x.Name).IsRequired().HasMaxLength(180);
+                entity.Property(x => x.Venue).IsRequired().HasMaxLength(250);
+                entity.Property(x => x.Description).HasMaxLength(2000);
+                entity.Property(x => x.CreatedByWorkerId).HasMaxLength(100);
+                entity.Property(x => x.UpdatedByWorkerId).HasMaxLength(100);
+                entity.HasIndex(x => x.StartsAtUtc);
+                entity.HasIndex(x => new { x.IsPublished, x.RegistrationOpensAtUtc, x.RegistrationClosesAtUtc });
+            });
+            // EVENT HUB — E4: one registration response per worker per event.
+            modelBuilder.Entity<EventRegistration>(entity =>
+            {
+                entity.ToTable("EventRegistrations");
+                entity.Property(x => x.WorkerId).IsRequired().HasMaxLength(100);
+                entity.Property(x => x.AssistedByWorkerId).HasMaxLength(100);
+                entity.HasIndex(x => new { x.ChurchEventId, x.WorkerId }).IsUnique();
+                entity.HasIndex(x => new { x.ChurchEventId, x.WillAttend });
+                entity.HasOne(x => x.ChurchEvent)
+                      .WithMany()
+                      .HasForeignKey(x => x.ChurchEventId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<EventCheckIn>(entity =>
+            {
+                entity.ToTable("EventCheckIns");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.WorkerId).IsRequired().HasMaxLength(100);
+                entity.HasIndex(x => new { x.ChurchEventId, x.WorkerId }).IsUnique();
+                entity.HasIndex(x => new { x.EventTableId, x.SeatNumber }).IsUnique();
+                entity.HasIndex(x => new { x.ChurchEventId, x.CheckedInAtUtc });
+                entity.HasOne(x => x.ChurchEvent).WithMany()
+                    .HasForeignKey(x => x.ChurchEventId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.EventTable).WithMany()
+                    .HasForeignKey(x => x.EventTableId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.EventMenuOption).WithMany()
+                    .HasForeignKey(x => x.EventMenuOptionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
             //finance configurations
             // FINANCE: BANK ACCOUNTS
             modelBuilder.Entity<BankAccount>(entity =>
@@ -105,6 +163,31 @@ namespace ChurchApp.Data
 
                 entity.Property(x => x.OpeningBalance)
                     .HasPrecision(18, 2);
+            });
+
+            // EVENT HUB — E11B: Food Menu Configuration
+            modelBuilder.Entity<EventMenuOption>(entity =>
+            {
+                entity.ToTable("EventMenuOptions");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Name)
+                    .IsRequired()
+                    .HasMaxLength(150);
+
+                entity.HasIndex(x => x.ChurchEventId);
+
+                entity.HasIndex(x => new
+                {
+                    x.ChurchEventId,
+                    x.Name
+                }).IsUnique();
+
+                entity.HasOne<ChurchEvent>()
+                    .WithMany()
+                    .HasForeignKey(x => x.ChurchEventId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // FINANCE: BANK ACCOUNT JOURNAL
@@ -132,9 +215,9 @@ namespace ChurchApp.Data
                     .HasForeignKey(x => x.SourceCollectionId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                // A collection can have at most one original posting request.
-                // Adjustments/reversals are separately linked by reference.
-                entity.HasIndex(x => x.SourceCollectionId).IsUnique();
+                // Preserve all historical postings, including fully reversed originals.
+                // Reposting eligibility is validated by BankAccountJournalService.
+                entity.HasIndex(x => x.SourceCollectionId);
                 entity.HasIndex(x => new { x.BankAccountId, x.TransactionDate });
                 entity.HasIndex(x => x.Status);
                 entity.HasIndex(x => x.IncomeTypeId);
@@ -202,9 +285,9 @@ namespace ChurchApp.Data
                 entity.HasIndex(x => new
                 {
                     x.IncomeTypeId,
+                    x.RemittanceElementId,
                     x.EffectiveFrom
-                })
-                .IsUnique();
+                });
 
                 entity.HasOne(x => x.IncomeType)
                     .WithMany(x => x.RemittanceRules)
@@ -1419,3 +1502,4 @@ namespace ChurchApp.Data
 
     }
 }
+

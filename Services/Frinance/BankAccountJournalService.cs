@@ -33,8 +33,40 @@ namespace ChurchApp.Services
                 ?? throw new InvalidOperationException("Collection not found.");
             if (collection.Status != ChurchCollectionService.StatusApproved)
                 throw new InvalidOperationException("Only approved collections may be submitted for posting.");
-            if (await _db.BankAccountJournals.AnyAsync(x => x.SourceCollectionId == collectionId))
-                throw new InvalidOperationException("A posting request already exists for this collection.");
+            // A fully reversed posting must not permanently lock its approved collection.
+            // Check ALL historical original postings and their posted corrections, rather
+            // than merely testing whether SourceCollectionId has ever been used.
+            var originals = await _db.BankAccountJournals.AsNoTracking()
+                .Where(x => x.SourceCollectionId == collectionId)
+                .ToListAsync();
+
+            if (originals.Any(x => x.Status == BankJournalStatus.PendingApproval ||
+                                   x.Status == BankJournalStatus.Returned))
+                throw new InvalidOperationException(
+                    "Resolve the existing collection posting request before submitting another.");
+
+            var originalIds = originals.Select(x => x.Id).ToList();
+            var corrections = await _db.BankAccountJournals.AsNoTracking()
+                .Where(x => x.ReversesJournalId.HasValue &&
+                            originalIds.Contains(x.ReversesJournalId.Value))
+                .ToListAsync();
+
+            if (corrections.Any(x => x.Status == BankJournalStatus.PendingApproval ||
+                                     x.Status == BankJournalStatus.Returned))
+                throw new InvalidOperationException(
+                    "Resolve the outstanding journal correction before reposting this collection.");
+
+            foreach (var original in originals.Where(x => x.Status == BankJournalStatus.Posted))
+            {
+                if (CalculateCurrentNet(original,
+                    corrections.Where(x => x.ReversesJournalId == original.Id)) != 0m)
+                    throw new InvalidOperationException(
+                        "This collection still has an effective bank posting. Reposting is not permitted.");
+            }
+
+            // Rejected/withdrawn original requests and fully reversed posted originals
+            // remain in history but do not prevent a new request. The database's unique
+            // SourceCollectionId index must be migrated before reposting can succeed.
             var incomeType = await _db.IncomeTypes.AsNoTracking()
                 .SingleOrDefaultAsync(x => x.Id == collection.IncomeTypeId)
                 ?? throw new InvalidOperationException("Income type not found.");

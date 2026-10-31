@@ -4,7 +4,10 @@
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
+@using Microsoft.EntityFrameworkCore
 @inject AuthService AuthService
+@inject ChurchApp.Services.Event.EventRegistrationService EventRegistrationService
+@inject ChurchApp.Data.AppDbContext EventDashboardDb
 @inject WorkforceService WorkforceService
 @inject ExcuseService ExcuseService
 @inject WorkerService WorkerService
@@ -477,6 +480,32 @@
         </a>
     </div>
 
+    @if (hasOpenEventRegistration)
+    {
+        <!-- Event registration: shown only while registration is open -->
+        <div class="col-6 col-sm-4 col-lg-3">
+            <a href="/event/register" class="action-card">
+                <div class="action-image">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <span class="action-text">Event Registration</span>
+            </a>
+        </div>
+    }
+
+    @if (hasOpenRegisteredEventCheckIn)
+    {
+        <!-- Event check-in: only for workers registered to attend an event whose check-in is open -->
+        <div class="col-6 col-sm-4 col-lg-3">
+            <a href="/event/check-in" class="action-card">
+                <div class="action-image">
+                    <i class="fas fa-clipboard-check"></i>
+                </div>
+                <span class="action-text">Event Check-In</span>
+            </a>
+        </div>
+    }
+
     <!-- My Profile -->
     <div class="col-6 col-sm-4 col-lg-3">
         <a href="/workforce/my-profile" class="action-card">
@@ -664,19 +693,29 @@
 
             @if (CanAccessWorkerManagementWorkspace())
             {
-                <div class="col-6 col-sm-4 col-lg-3">
-                    <a href="/workspace/worker-management"
-                       class="action-card">
+                
+<!-- Worker Management -->
+<div class="col-6 col-sm-4 col-lg-3">
+    <a href="/workspace/worker-management"
+       class="action-card">
+        <div class="action-image">
+            <i class="fas fa-users-cog"></i>
+        </div>
+        <span class="action-text">Worker Mgt</span>
+    </a>
+</div>
 
-                        <div class="action-image">
-                            <i class="fas fa-users-cog"></i>
-                        </div>
+<!-- Event Management -->
+<div class="col-6 col-sm-4 col-lg-3">
+    <a href="/workspace/event-hub"
+       class="action-card">
+        <div class="action-image">
+            <i class="fas fa-calendar-alt"></i>
+        </div>
+        <span class="action-text">Event Mgt</span>
+    </a>
+</div>
 
-                        <span class="action-text">
-                            Worker Mgt
-                        </span>
-                    </a>
-                </div>
             }
 
             @if (CanAccessSetupWorkspace())
@@ -1212,6 +1251,9 @@ else
 }
 
 @code {
+    private bool hasOpenEventRegistration = false;
+    private bool hasOpenRegisteredEventCheckIn = false;
+
     // Statistics
     private int totalWorkers = 0;
     private int activeWorkers = 0;
@@ -1258,6 +1300,8 @@ private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
     if (AuthService.IsAuthenticated &&
         AuthService.CurrentWorker != null)
     {
+        await LoadOpenEventRegistrationAsync();
+        await LoadOpenRegisteredEventCheckInAsync();
         await LoadDashboardData();
         await LoadMyDeskCountsAsync();
         await LoadProfileApprovalCountAsync();
@@ -1266,6 +1310,52 @@ private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
         await LoadBroadcastAccessAsync();
     }
 }
+private async Task LoadOpenEventRegistrationAsync()
+{
+    hasOpenEventRegistration = false;
+    try
+    {
+        // The service returns published, non-cancelled events only during
+        // their configured registration window (UTC).
+        var openEvents = await EventRegistrationService.GetAvailableEventsAsync();
+        hasOpenEventRegistration = openEvents.Count > 0;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Unable to check open event registrations: {ex.Message}");
+    }
+}
+
+private async Task LoadOpenRegisteredEventCheckInAsync()
+{
+    hasOpenRegisteredEventCheckIn = false;
+
+    var workerId = AuthService.CurrentWorker?.WorkerId;
+    if (string.IsNullOrWhiteSpace(workerId))
+        return;
+
+    try
+    {
+        var now = DateTime.UtcNow;
+        hasOpenRegisteredEventCheckIn = await EventDashboardDb.EventRegistrations.AsNoTracking()
+                .Where(r => r.WorkerId == workerId && r.WillAttend)
+                .Join(EventDashboardDb.ChurchEvents.AsNoTracking(),
+                    r => r.ChurchEventId,
+                    e => e.Id,
+                    (r, e) => e)
+                .Where(e => e.IsPublished && !e.IsCancelled &&
+                            e.CheckInOpensAtUtc.HasValue &&
+                            e.CheckInClosesAtUtc.HasValue &&
+                            e.CheckInOpensAtUtc.Value <= now &&
+                            e.CheckInClosesAtUtc.Value > now)
+                .AnyAsync();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Unable to check event check-in availability: {ex.Message}");
+    }
+}
+
 private async Task LoadBroadcastAccessAsync()
 {
     canAccessBroadcastCentre = false;
@@ -3732,3 +3822,4 @@ private bool CanAccessSetupWorkspace()
 
 
 </style>
+

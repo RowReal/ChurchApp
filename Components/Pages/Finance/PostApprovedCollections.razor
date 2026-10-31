@@ -119,11 +119,60 @@ else
 
     private async Task ReloadAsync()
     {
-        var records = await Db.ChurchCollectionRecords.AsNoTracking()
-            .Where(x => x.Status == ChurchCollectionService.StatusApproved && !x.IsRemoved &&
-                !Db.BankAccountJournals.Any(j => j.SourceCollectionId == x.Id))
+        // Include approved collections whose previous bank posting has been fully reversed.
+        // Preserve historical originals and corrections for audit purposes.
+        var approved = await Db.ChurchCollectionRecords.AsNoTracking()
+            .Where(x => x.Status == ChurchCollectionService.StatusApproved && !x.IsRemoved)
             .Select(x => new { x.Id, x.IncomeTypeId, x.Amount, x.Currency })
-            .OrderByDescending(x => x.Id).Take(250).ToListAsync();
+            .OrderByDescending(x => x.Id).ToListAsync();
+
+        var collectionIds = approved.Select(x => x.Id).ToList();
+        var originals = await Db.BankAccountJournals.AsNoTracking()
+            .Where(j => j.SourceCollectionId.HasValue && collectionIds.Contains(j.SourceCollectionId.Value))
+            .Select(j => new { j.Id, j.SourceCollectionId, j.Status, j.Amount, j.Direction })
+            .ToListAsync();
+        var originalIds = originals.Select(j => j.Id).ToList();
+        var corrections = await Db.BankAccountJournals.AsNoTracking()
+            .Where(j => j.ReversesJournalId.HasValue && originalIds.Contains(j.ReversesJournalId.Value))
+            .Select(j => new { j.ReversesJournalId, j.Status, j.Amount, j.Direction })
+            .ToListAsync();
+
+        var blockedCollectionIds = new HashSet<int>();
+        foreach (var group in originals.GroupBy(j => j.SourceCollectionId!.Value))
+        {
+            if (group.Any(j => j.Status == BankJournalStatus.PendingApproval ||
+                               j.Status == BankJournalStatus.Returned))
+            {
+                blockedCollectionIds.Add(group.Key);
+                continue;
+            }
+
+            foreach (var original in group)
+            {
+                var related = corrections.Where(j => j.ReversesJournalId == original.Id).ToList();
+                if (related.Any(j => j.Status == BankJournalStatus.PendingApproval ||
+                                     j.Status == BankJournalStatus.Returned))
+                {
+                    blockedCollectionIds.Add(group.Key);
+                    break;
+                }
+
+                if (original.Status == BankJournalStatus.Posted)
+                {
+                    var net = original.Amount + related
+                        .Where(j => j.Status == BankJournalStatus.Posted)
+                        .Sum(j => j.Direction == original.Direction ? j.Amount : -j.Amount);
+                    if (net != 0m)
+                    {
+                        blockedCollectionIds.Add(group.Key);
+                        break;
+                    }
+                }
+            }
+        }
+
+        var records = approved.Where(x => !blockedCollectionIds.Contains(x.Id))
+            .Take(250).ToList();
         var types = await Db.IncomeTypes.AsNoTracking().ToDictionaryAsync(x => x.Id);
         var accounts = await Db.BankAccounts.AsNoTracking().ToDictionaryAsync(x => x.Id);
         eligible = records.Select(x =>
@@ -133,7 +182,10 @@ else
             accounts.TryGetValue(accountId, out var account);
             return new CollectionItem
             {
-                Id = x.Id, IncomeTypeId = x.IncomeTypeId, Amount = x.Amount, Currency = x.Currency,
+                Id = x.Id,
+                IncomeTypeId = x.IncomeTypeId,
+                Amount = x.Amount,
+                Currency = x.Currency,
                 IncomeTypeName = type?.Name ?? "Unknown income type",
                 BankAccountId = account != null && account.IsActive && account.CanReceiveIncome &&
                     string.Equals(account.Currency.ToString(), x.Currency, StringComparison.OrdinalIgnoreCase) ? accountId : 0,
@@ -178,158 +230,159 @@ else
 }
 
 <style>
-.pc-page {
-    max-width:1400px;
-    margin:0 auto;
-    padding-top:6px
-}
+    .pc-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding-top: 6px
+    }
 
-.pc-hero {
-    margin-bottom:14px
-}
+    .pc-hero {
+        margin-bottom: 14px
+    }
 
-.pc-summary {
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    margin-bottom:12px
-}
+    .pc-summary {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px
+    }
 
-.pc-summary span {
-    background:#f4f8f5;
-    border:1px solid #dce8df;
-    border-radius:8px;
-    padding:7px 12px;
-    font-size:.8rem
-}
+        .pc-summary span {
+            background: #f4f8f5;
+            border: 1px solid #dce8df;
+            border-radius: 8px;
+            padding: 7px 12px;
+            font-size: .8rem
+        }
 
-.pc-layout {
-    display:grid;
-    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-    gap:12px;
-    align-items:start
-}
-
-.pc-panel {
-    border-radius:11px;
-    overflow:hidden
-}
-
-.pc-panel .card-header {
-    background:#f6faf7;
-    padding:10px 13px;
-    font-size:.88rem
-}
-
-.pc-panel .card-body {
-    padding:13px
-}
-
-.pc-list {
-    max-height:490px;
-    overflow-y:auto
-}
-
-.pc-item {
-    width:100%;
-    background:white;
-    border:1px solid #e5ebe7;
-    border-radius:8px;
-    padding:9px 10px;
-    margin-bottom:6px;
-    display:flex;
-    justify-content:space-between;
-    gap:10px;
-    text-align:left;
-    font-size:.82rem
-}
-
-.pc-item:hover,.pc-selected {
-    border-color:#21804b;
-    background:#f2faf5
-}
-
-.pc-item small {
-    display:block;
-    color:#64748b;
-    margin-top:3px
-}
-
-.pc-amount {
-    white-space:nowrap;
-    font-weight:600
-}
-
-.pc-details {
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:10px
-}
-
-.pc-details>div {
-    border:1px solid #e5ebe7;
-    background:#fbfcfb;
-    border-radius:7px;
-    padding:8px
-}
-
-.pc-details label {
-    display:block;
-    font-size:.72rem;
-    color:#64748b
-}
-
-.pc-details strong {
-    font-size:.83rem;
-    overflow-wrap:anywhere
-}
-
-.pc-account-number {
-    display:block;
-    margin-top:5px;
-    color:#17663a;
-    font-size:1rem;
-    font-weight:800;
-    letter-spacing:.035em;
-    overflow-wrap:anywhere
-}
-
-.pc-fields {
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:10px
-}
-
-.pc-page .form-label {
-    font-size:.78rem;
-    font-weight:600;
-    margin-bottom:4px
-}
-
-.pc-check {
-    display:flex;
-    gap:8px;
-    align-items:flex-start;
-    font-size:.8rem
-}
-
-.pc-check input {
-    margin-top:3px
-}
-
-.pc-note {
-    font-size:.76rem;
-    color:#52645a
-}
-
-@@media(max-width:800px) {
     .pc-layout {
-        grid-template-columns:1fr
+        display: grid;
+        grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+        gap: 12px;
+        align-items: start
     }
 
-    .pc-fields,.pc-details {
-        grid-template-columns:1fr
+    .pc-panel {
+        border-radius: 11px;
+        overflow: hidden
     }
 
-}
+        .pc-panel .card-header {
+            background: #f6faf7;
+            padding: 10px 13px;
+            font-size: .88rem
+        }
+
+        .pc-panel .card-body {
+            padding: 13px
+        }
+
+    .pc-list {
+        max-height: 490px;
+        overflow-y: auto
+    }
+
+    .pc-item {
+        width: 100%;
+        background: white;
+        border: 1px solid #e5ebe7;
+        border-radius: 8px;
+        padding: 9px 10px;
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        text-align: left;
+        font-size: .82rem
+    }
+
+        .pc-item:hover, .pc-selected {
+            border-color: #21804b;
+            background: #f2faf5
+        }
+
+        .pc-item small {
+            display: block;
+            color: #64748b;
+            margin-top: 3px
+        }
+
+    .pc-amount {
+        white-space: nowrap;
+        font-weight: 600
+    }
+
+    .pc-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px
+    }
+
+        .pc-details > div {
+            border: 1px solid #e5ebe7;
+            background: #fbfcfb;
+            border-radius: 7px;
+            padding: 8px
+        }
+
+        .pc-details label {
+            display: block;
+            font-size: .72rem;
+            color: #64748b
+        }
+
+        .pc-details strong {
+            font-size: .83rem;
+            overflow-wrap: anywhere
+        }
+
+    .pc-account-number {
+        display: block;
+        margin-top: 5px;
+        color: #17663a;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: .035em;
+        overflow-wrap: anywhere
+    }
+
+    .pc-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px
+    }
+
+    .pc-page .form-label {
+        font-size: .78rem;
+        font-weight: 600;
+        margin-bottom: 4px
+    }
+
+    .pc-check {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        font-size: .8rem
+    }
+
+        .pc-check input {
+            margin-top: 3px
+        }
+
+    .pc-note {
+        font-size: .76rem;
+        color: #52645a
+    }
+
+    @@media(max-width:800px) {
+        .pc-layout {
+            grid-template-columns: 1fr
+        }
+
+        .pc-fields, .pc-details {
+            grid-template-columns: 1fr
+        }
+    }
 </style>
+
+

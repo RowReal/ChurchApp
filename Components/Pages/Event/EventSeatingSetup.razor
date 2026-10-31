@@ -1,0 +1,326 @@
+﻿@page "/event/seating-setup"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Event
+@using ChurchApp.Services
+@using ChurchApp.Services.Event
+@inject AuthService AuthService
+@inject EventSeatingConfigurationService SeatingService
+@inject EventMenuService MenuService
+@inject NavigationManager Navigation
+
+<PageTitle>Table &amp; Seating Setup - BCC ServiceHub</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="bcc-empty"><i class="fas fa-lock"></i><h4>Please Log In</h4><a class="bcc-btn bcc-btn-primary" href="/login">Go to Login</a></div>
+}
+else if (!CanManage)
+{
+    <div class="bcc-empty"><i class="fas fa-ban"></i><h4>Access Denied</h4><p>Only Church Admin and Pastor in Charge can configure seating.</p></div>
+}
+else
+{
+    <div class="worker360-page" style="max-width:1180px;margin:0 auto;">
+        <div class="bcc-page-header">
+            <div>
+                <div class="bcc-page-subtitle"><i class="fas fa-calendar-alt me-2"></i>Event Management</div>
+                <div class="bcc-page-title">Table &amp; Seating Setup</div>
+                <div class="bcc-page-subtitle">Manage table capacity, leadership seating and directorate mixing.</div>
+            </div>
+            <button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" @onclick="GoBack"><i class="fas fa-arrow-left me-2"></i>Event Hub</button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") py-2 mb-3" role="alert">@message</div>
+        }
+
+        <div class="bcc-card mb-3">
+            <div class="bcc-card-body p-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-5">
+                        <label class="form-label fw-semibold small mb-1">Find event</label>
+                        <input class="form-control form-control-sm" placeholder="Search event name..." @bind="eventSearch" @bind:event="oninput" />
+                    </div>
+                    <div class="col-12 col-md-7">
+                        <label class="form-label fw-semibold small mb-1">Select event</label>
+                        <select class="form-select form-select-sm" style="width:100%;max-width:100%;text-overflow:ellipsis;" value="@selectedEventId" @onchange="EventChangedAsync" disabled="@busy">
+                            <option value="0">Choose an event</option>
+                            @foreach (var ev in FilteredEvents)
+                            {
+                                <option value="@ev.Id">@ev.Name (@ev.StartsAtUtc.AddHours(1).ToString("dd MMM yyyy"))</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (selectedEventId > 0)
+        {
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-lg-3"><div class="bcc-card h-100 seating-stat seating-stat-blue"><div class="bcc-card-body py-2 px-3"><div class="text-muted small">Total Tables</div><div class="fs-4 fw-bold">@tables.Count</div></div></div></div>
+                <div class="col-6 col-lg-3"><div class="bcc-card h-100 seating-stat seating-stat-green"><div class="bcc-card-body py-2 px-3"><div class="text-muted small">Active Seats</div><div class="fs-4 fw-bold">@tables.Where(t => t.IsActive).Sum(t => t.Capacity)</div></div></div></div>
+                <div class="col-6 col-lg-3"><div class="bcc-card h-100 seating-stat seating-stat-amber"><div class="bcc-card-body py-2 px-3"><div class="text-muted small">Leadership Tables</div><div class="fs-4 fw-bold">@tables.Count(t => t.IsLeadershipReserved && t.IsActive)</div></div></div></div>
+                <div class="col-6 col-lg-3"><div class="bcc-card h-100 seating-stat seating-stat-purple"><div class="bcc-card-body py-2 px-3"><div class="text-muted small">General Tables</div><div class="fs-4 fw-bold">@tables.Count(t => !t.IsLeadershipReserved && t.IsActive)</div></div></div></div>
+            </div>
+
+            <div class="bcc-card mb-3"><div class="bcc-card-body p-3">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div>
+                        <h6 class="mb-1"><i class="fas fa-random me-2"></i>Directorate Mixing</h6>
+                        <small class="text-muted">Allow workers from different directorates to share tables.</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="d-flex align-items-center gap-2 mb-0 small"><input type="checkbox" @bind="mixDirectorates" /> Allow mixing</label>
+                        <button type="button" class="bcc-btn bcc-btn-primary compact-btn" disabled="@busy" @onclick="SavePreferenceAsync">Save</button>
+                    </div>
+                </div>
+            </div></div>
+
+            <!-- Two-column setup: forms aligned above their corresponding lists -->
+            <div class="row g-3 mb-3 seating-overview">
+                <div class="col-12 col-lg-6">
+                    <div class="bcc-card h-100"><div class="bcc-card-body p-3">
+                        <h6 class="mb-3"><i class="fas fa-chair me-2"></i>@(editingId.HasValue ? "Edit Table" : "Add Table")</h6>
+                        <div class="row g-2">
+                            <div class="col-8">
+                                <label class="form-label small mb-1">Table Name / Number</label>
+                                <input class="form-control form-control-sm" maxlength="80" placeholder="e.g. Table 01" @bind="tableName" />
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small mb-1">Seats</label>
+                                <input class="form-control form-control-sm" type="number" min="1" max="100" @bind="capacity" />
+                            </div>
+                            <div class="col-12 d-flex flex-wrap gap-3 mt-2">
+                                <label class="d-flex align-items-center gap-2 small mb-0"><input type="checkbox" @bind="leadershipReserved" /> Leadership table</label>
+                                <label class="d-flex align-items-center gap-2 small mb-0"><input type="checkbox" @bind="isActive" /> Active</label>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="bcc-btn bcc-btn-primary compact-btn" disabled="@busy" @onclick="SaveTableAsync"><i class="fas fa-save me-1"></i>@(editingId.HasValue ? "Update Table" : "Add Table")</button>
+                            @if (editingId.HasValue)
+                            {
+                                <button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" disabled="@busy" @onclick="ResetForm">Cancel</button>
+                            }
+                        </div>
+                    </div></div>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <div class="bcc-card h-100"><div class="bcc-card-body p-3">
+                        <h6 class="mb-3"><i class="fas fa-utensils me-2"></i>@(editingMenuId.HasValue ? "Edit Meal" : "Add Meal")</h6>
+                        <label class="form-label small mb-1">Meal / Menu Option</label>
+                        <input class="form-control form-control-sm" maxlength="120" placeholder="e.g. Jollof Rice &amp; Chicken" @bind="menuName" />
+                        <label class="d-flex align-items-center gap-2 small mt-2 mb-0"><input type="checkbox" @bind="menuActive" /> Available for selection</label>
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="bcc-btn bcc-btn-primary compact-btn" disabled="@busy" @onclick="SaveMenuAsync"><i class="fas fa-save me-1"></i>@(editingMenuId.HasValue ? "Update Meal" : "Add Meal")</button>
+                            @if (editingMenuId.HasValue)
+                            {
+                                <button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" disabled="@busy" @onclick="ResetMenuForm">Cancel</button>
+                            }
+                        </div>
+                    </div></div>
+                </div>
+            </div>
+
+            <div class="row g-3 seating-overview">
+                <div class="col-12 col-lg-6">
+                    <div class="bcc-card h-100"><div class="bcc-card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                            <h6 class="mb-0"><i class="fas fa-list me-2"></i>Configured Tables</h6>
+                            <span class="text-muted small">@tables.Count table(s)</span>
+                        </div>
+                        @if (tables.Count == 0)
+                        {
+                            <div class="text-muted small py-3">No tables configured yet.</div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0 seating-overview-table">
+                                    <thead><tr><th>Table</th><th>Seats</th><th>Type</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var table in tables)
+                                        {
+                                            <tr>
+                                                <td class="fw-semibold">@table.TableName</td>
+                                                <td>@table.Capacity</td>
+                                                <td class="small">@(table.IsLeadershipReserved ? "Leadership" : "General")</td>
+                                                <td class="small">@(table.IsActive ? "Active" : "Inactive")</td>
+                                                <td class="text-end"><button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" disabled="@busy" @onclick="() => EditTable(table)"><i class="fas fa-pen me-1"></i>Edit</button></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div></div>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <div class="bcc-card h-100"><div class="bcc-card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                            <h6 class="mb-0"><i class="fas fa-utensils me-2"></i>Configured Food Menu</h6>
+                            <span class="text-muted small">@menuOptions.Count(m => m.IsActive) active</span>
+                        </div>
+                        @if (menuOptions.Count == 0)
+                        {
+                            <div class="text-muted small py-3">No meals configured for this event.</div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0 seating-overview-table">
+                                    <thead><tr><th>Meal</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var meal in menuOptions)
+                                        {
+                                            <tr>
+                                                <td class="fw-semibold">@meal.Name</td>
+                                                <td class="small">@(meal.IsActive ? "Available" : "Inactive")</td>
+                                                <td class="text-end"><button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" disabled="@busy" @onclick="() => EditMenu(meal)"><i class="fas fa-pen me-1"></i>Edit</button></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div></div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="bcc-card"><div class="bcc-card-body p-3 text-muted small text-center">Select an event to manage its seating configuration.</div></div>
+        }
+    </div>
+}
+
+@code {
+    private bool CanManage => AuthService.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge);
+    private List<ChurchEvent> events = new();
+    private List<EventTable> tables = new();
+    private List<EventMenuOption> menuOptions = new();
+    private int? editingMenuId;
+    private string menuName = "";
+    private bool menuActive = true;
+    private int selectedEventId;
+    private bool mixDirectorates = true;
+    private int? editingId;
+    private string tableName = "";
+    private int capacity = 8;
+    private bool leadershipReserved;
+    private bool isActive = true;
+    private bool busy;
+    private string eventSearch = "";
+    private IEnumerable<ChurchEvent> FilteredEvents => string.IsNullOrWhiteSpace(eventSearch) ? events : events.Where(e => e.Name.Contains(eventSearch.Trim(), StringComparison.OrdinalIgnoreCase));
+    private bool isError;
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!CanManage) return;
+        try { events = await SeatingService.GetEventsAsync(); }
+        catch (Exception ex) { ShowError(ex); }
+    }
+
+    private async Task EventChangedAsync(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out selectedEventId)) selectedEventId = 0;
+        ResetForm(); ResetMenuForm(); message = null; tables.Clear(); menuOptions.Clear();
+        if (selectedEventId > 0) await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        tables = await SeatingService.GetTablesAsync(selectedEventId);
+        mixDirectorates = await SeatingService.GetMixDirectoratesAsync(selectedEventId);
+        menuOptions = await MenuService.GetMenuAsync(selectedEventId);
+    }
+
+    private async Task SavePreferenceAsync()
+    {
+        busy = true;
+        try { await SeatingService.SaveMixDirectoratesAsync(selectedEventId, mixDirectorates); ShowSuccess("Seating preference saved."); }
+        catch (Exception ex) { ShowError(ex); }
+        finally { busy = false; }
+    }
+
+    private async Task SaveTableAsync()
+    {
+        busy = true;
+        try
+        {
+            await SeatingService.SaveTableAsync(selectedEventId, editingId, tableName, capacity, leadershipReserved, isActive);
+            ResetForm(); await RefreshAsync(); ShowSuccess("Table saved successfully.");
+        }
+        catch (Exception ex) { ShowError(ex); }
+        finally { busy = false; }
+    }
+
+    private async Task SaveMenuAsync()
+    {
+        if (selectedEventId <= 0) return;
+        busy = true;
+        try
+        {
+            await MenuService.SaveMenuAsync(selectedEventId, editingMenuId, menuName, menuActive);
+            ResetMenuForm();
+            menuOptions = await MenuService.GetMenuAsync(selectedEventId);
+            ShowSuccess("Food menu saved successfully.");
+        }
+        catch (Exception ex) { ShowError(ex); }
+        finally { busy = false; }
+    }
+
+    private void EditMenu(EventMenuOption option)
+    {
+        editingMenuId = option.Id;
+        menuName = option.Name;
+        menuActive = option.IsActive;
+        message = null;
+    }
+
+    private void ResetMenuForm()
+    {
+        editingMenuId = null;
+        menuName = "";
+        menuActive = true;
+    }
+
+    private void EditTable(EventTable t)
+    {
+        editingId = t.Id; tableName = t.TableName; capacity = t.Capacity;
+        leadershipReserved = t.IsLeadershipReserved; isActive = t.IsActive; message = null;
+    }
+    private void ResetForm() { editingId = null; tableName = ""; capacity = 8; leadershipReserved = false; isActive = true; }
+    private void ShowSuccess(string value) { isError = false; message = value; }
+    private void ShowError(Exception ex) { isError = true; message = ex.Message; }
+    private void GoBack() => Navigation.NavigateTo("/workspace/event-hub");
+}
+
+<style>
+    /* Scoped to the Event Seating page; existing BCC theme remains unchanged. */
+    .seating-overview-table { font-size: 0.84rem; }
+    .seating-overview-table th, .seating-overview-table td { white-space: nowrap; padding: 0.4rem 0.35rem; }
+    .seating-overview .bcc-card { min-width: 0; }
+    .seating-stat { border-top: 4px solid transparent; border-radius: 9px; }
+    .seating-stat-blue { border-top-color: #3185c5; }
+    .seating-stat-green { border-top-color: #2e9b68; }
+    .seating-stat-amber { border-top-color: #e2a13c; }
+    .seating-stat-purple { border-top-color: #9270bc; }
+    .seating-stat .fs-4 { font-size: 1.3rem !important; line-height: 1.35; }
+    .seating-name-input { width: 190px; max-width: 100%; }
+    .seating-menu-input { width: 260px; max-width: 100%; }
+    .seating-seats-input { width: 76px; max-width: 100%; }
+    .seating-flags { padding-bottom: 2px; }
+    @@media (max-width: 575px) {
+        .seating-name-input { width: 100%; }
+        .seating-menu-input { width: 100%; }
+        .seating-seats-input { width: 80px; }
+    }
+</style>
+
+
+
+
+

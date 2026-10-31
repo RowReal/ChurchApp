@@ -154,6 +154,12 @@ else
                          Title="Worker Attendance"
                          Description="Open the worker attendance register to test sign-in, sign-out and location validation." />
 </div>
+<div class="col-12 col-md-6 col-xl-4">
+    <WorkspaceActionCard Href="/event/setup"
+                         Icon="fas fa-calendar-check"
+                         Title="Event Setup"
+                         Description="Create and manage church events and registration periods." />
+</div>
                     }
                     @if (CanAccessFinanceSetup())
                     {
@@ -194,6 +200,16 @@ else
                                                  Icon="fas fa-list-alt"
                                                  Title="Income Type Setup"
                                                  Description="Define specific income types and their default bank accounts." />
+                        </div>
+                    }
+
+                    @if (CanManageRemittanceRules())
+                    {
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <WorkspaceActionCard Href="/finance/remittance-elements"
+                                                 Icon="fas fa-layer-group"
+                                                 Title="Setup Remiitance Type"
+                                                 Description="Create and manage remittance types and their active status." />
                         </div>
                     }
 
