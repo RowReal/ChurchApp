@@ -11,6 +11,11 @@ namespace ChurchApp.Data
         {
         }
 
+        // AWARDS MODULE
+        public DbSet<AwardProgramme> AwardProgrammes => Set<AwardProgramme>();
+        public DbSet<AwardCategory> AwardCategories => Set<AwardCategory>();
+        public DbSet<AwardNomination> AwardNominations => Set<AwardNomination>();
+
         #region Entity Sets
 
         public DbSet<Worker> Workers { get; set; }
@@ -102,8 +107,29 @@ namespace ChurchApp.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            // AWARDS MODULE
+            modelBuilder.Entity<AwardProgramme>(e => {
+                e.ToTable("AwardProgrammes"); e.HasIndex(x => new { x.Year, x.Name }).IsUnique();
+            });
+            modelBuilder.Entity<AwardCategory>(e => {
+                e.ToTable("AwardCategories");
+                e.Property(x => x.MaxNominationsPerWorker).HasDefaultValue(1);
+                e.Property(x => x.SelectionRule).HasMaxLength(30).HasDefaultValue("Any");
+                e.HasOne<AwardProgramme>().WithMany().HasForeignKey(x => x.AwardProgrammeId).OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(x => new { x.AwardProgrammeId, x.Name }).IsUnique();
+            });
+            modelBuilder.Entity<AwardNomination>(e => {
+                e.ToTable("AwardNominations");
+                e.Property(x => x.SlotNumber).HasDefaultValue(1);
+                e.HasIndex(x => new { x.AwardCategoryId, x.NominatorWorkerId, x.SlotNumber }).IsUnique();
+                e.HasOne<AwardCategory>().WithMany().HasForeignKey(x => x.AwardCategoryId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne<Worker>().WithMany().HasForeignKey(x => x.NominatorWorkerId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne<Worker>().WithMany().HasForeignKey(x => x.NomineeWorkerId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne<Directorate>().WithMany().HasForeignKey(x => x.NomineeDirectorateId).OnDelete(DeleteBehavior.Restrict);
+            });
 
-            // EVENT HUB — E1: event setup only.
+
+            // EVENT HUB ï¿½ E1: event setup only.
             modelBuilder.Entity<ChurchEvent>(entity =>
             {
                 entity.ToTable("ChurchEvents");
@@ -115,7 +141,7 @@ namespace ChurchApp.Data
                 entity.HasIndex(x => x.StartsAtUtc);
                 entity.HasIndex(x => new { x.IsPublished, x.RegistrationOpensAtUtc, x.RegistrationClosesAtUtc });
             });
-            // EVENT HUB — E4: one registration response per worker per event.
+            // EVENT HUB ï¿½ E4: one registration response per worker per event.
             modelBuilder.Entity<EventRegistration>(entity =>
             {
                 entity.ToTable("EventRegistrations");
@@ -136,6 +162,8 @@ namespace ChurchApp.Data
                 entity.HasIndex(x => new { x.ChurchEventId, x.WorkerId }).IsUnique();
                 entity.HasIndex(x => new { x.EventTableId, x.SeatNumber }).IsUnique();
                 entity.HasIndex(x => new { x.ChurchEventId, x.CheckedInAtUtc });
+                entity.Property(x => x.VerificationToken).HasMaxLength(64);
+                entity.HasIndex(x => x.VerificationToken).IsUnique();
                 entity.HasOne(x => x.ChurchEvent).WithMany()
                     .HasForeignKey(x => x.ChurchEventId)
                     .OnDelete(DeleteBehavior.Restrict);
@@ -165,7 +193,7 @@ namespace ChurchApp.Data
                     .HasPrecision(18, 2);
             });
 
-            // EVENT HUB — E11B: Food Menu Configuration
+            // EVENT HUB ï¿½ E11B: Food Menu Configuration
             modelBuilder.Entity<EventMenuOption>(entity =>
             {
                 entity.ToTable("EventMenuOptions");
@@ -1502,4 +1530,6 @@ namespace ChurchApp.Data
 
     }
 }
+
+
 

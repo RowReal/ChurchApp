@@ -1,0 +1,351 @@
+﻿@page "/event/check-in-report"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Event
+@using ChurchApp.Services.Event
+@using Microsoft.JSInterop
+@inject EventCheckInReportService ReportService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Event Check-In Report - BCC ServiceHub</PageTitle>
+
+<div class="worker360-page checkin-report-page">
+    <div class="checkin-report-hero">
+        <div>
+            <div class="checkin-report-eyebrow"><i class="fas fa-calendar-check me-2"></i>EVENT HUB / REPORTS</div>
+            <h2>Event Check-In Report</h2>
+            <div class="checkin-report-subtitle">Worker attendance, table allocations and meal selections</div>
+        </div>
+        <button type="button" class="bcc-btn checkin-back" @onclick="GoBack">
+            <i class="fas fa-arrow-left me-1"></i> Event Hub
+        </button>
+    </div>
+
+    @if (checkingAccess)
+    {
+        <div class="bcc-card"><div class="bcc-card-body"><i class="fas fa-spinner fa-spin me-2"></i>Checking access...</div></div>
+    }
+    else if (!canView)
+    {
+        <div class="alert alert-danger"><i class="fas fa-lock me-2"></i>Only Church Admin, Pastor in Charge, or workers with Event Management privilege can view this report.</div>
+    }
+    else
+    {
+        <div class="checkin-report-controls">
+            <div class="checkin-control-event">
+                <label class="form-label" for="checkinEvent">Select event</label>
+                <select id="checkinEvent" class="form-select form-select-sm" value="@selectedEventId" @onchange="ChangeEventAsync">
+                    <option value="0">-- Select an event --</option>
+                    @foreach (var ev in events)
+                    {
+                        <option value="@ev.Id">@ev.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="checkin-control-search">
+                <label class="form-label" for="checkinSearch">Search worker, table or food</label>
+                <input id="checkinSearch" class="form-control form-control-sm" placeholder="Search report..." @bind="search" @bind:event="oninput" />
+            </div>
+            <div class="checkin-control-export">
+                <button class="bcc-btn" type="button" disabled="@(selectedEventId == 0 || loading || rows.Count == 0)" @onclick="ExportCsvAsync">
+                    <i class="fas fa-file-csv me-1"></i>Export CSV
+                </button>
+            </div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-danger">@error</div>
+        }
+        <div class="row g-2 checkin-stat-grid">
+            <div class="col-4"><div class="checkin-stat stat-purple"><div class="stat-label">Checked In</div><div class="stat-number">@rows.Count</div></div></div>
+            <div class="col-4"><div class="checkin-stat stat-green"><div class="stat-label">Tables Used</div><div class="stat-number">@rows.Select(x => x.TableName).Distinct().Count()</div></div></div>
+            <div class="col-4"><div class="checkin-stat stat-amber"><div class="stat-label">Meals Allocated</div><div class="stat-number">@rows.Count(x => x.MealName != "—")</div></div></div>
+        </div>
+        <div class="checkin-report-table-card">
+            <div class="checkin-report-table-heading"><strong>Checked-In Workers</strong><span>@FilteredRows.Count displayed</span></div>
+            @if (loading)
+            {
+                <div class="p-4 text-center"><i class="fas fa-spinner fa-spin me-2"></i>Loading check-ins...</div>
+            }
+            else if (selectedEventId == 0)
+            {
+                <div class="p-4 text-muted text-center">Select an event to view its check-in records.</div>
+            }
+            else if (FilteredRows.Count == 0)
+            {
+                <div class="p-4 text-muted text-center">No matching check-ins for this event.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle checkin-report-table">
+                        <thead><tr><th>Worker Name</th><th>Worker ID</th><th>Table</th><th>Seat</th><th>Food / Meal</th><th>Check-In Time</th></tr></thead>
+                        <tbody>
+                            @foreach (var r in FilteredRows)
+                            {
+                                <tr><td class="fw-semibold">@r.WorkerName</td><td>@r.WorkerId</td><td><span class="table-pill">@r.TableName</span></td><td>@r.SeatNumber</td><td>@r.MealName</td><td>@r.CheckedInAtUtc.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private void GoBack() => Navigation.NavigateTo("/workspace/event-hub");
+
+    private bool checkingAccess = true;
+    private bool canView;
+    private bool loading;
+    private string error = "";
+    private string search = "";
+    private int selectedEventId;
+    private List<ChurchEvent> events = new();
+    private List<EventCheckInReportRow> rows = new();
+
+    private List<EventCheckInReportRow> FilteredRows => string.IsNullOrWhiteSpace(search)
+        ? rows
+        : rows.Where(x => x.WorkerName.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || x.WorkerId.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || x.TableName.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || x.MealName.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            canView = await ReportService.CanViewAsync();
+            if (canView) events = await ReportService.GetEventsAsync();
+        }
+        catch (Exception ex) { error = ex.Message; }
+        finally { checkingAccess = false; }
+    }
+
+    private async Task ChangeEventAsync(ChangeEventArgs args)
+    {
+        selectedEventId = int.TryParse(args.Value?.ToString(), out var id) ? id : 0;
+        rows.Clear();
+        error = "";
+        if (selectedEventId == 0) return;
+        loading = true;
+        try { rows = await ReportService.GetRowsAsync(selectedEventId); }
+        catch (Exception ex) { error = ex.Message; }
+        finally { loading = false; }
+    }
+
+    private async Task ExportCsvAsync()
+    {
+        try
+        {
+            // Reload from the authorized service before exporting.
+            var exportRows = await ReportService.GetRowsAsync(selectedEventId);
+            var csv = new System.Text.StringBuilder();
+            csv.AppendLine("Worker Name,Worker ID,Table,Seat,Food / Meal,Check-In (UTC)");
+            static string Cell(string? value) => "\"" + (value ?? "").Replace("\"", "\"\"") + "\"";
+            foreach (var r in exportRows)
+                csv.AppendLine(string.Join(",", Cell(r.WorkerName), Cell(r.WorkerId), Cell(r.TableName), r.SeatNumber.ToString(), Cell(r.MealName), Cell(r.CheckedInAtUtc.ToString("yyyy-MM-dd HH:mm:ss"))));
+            var bytes = System.Text.Encoding.UTF8.GetBytes("\uFEFF" + csv.ToString());
+            var uri = "data:text/csv;charset=utf-8;base64," + Convert.ToBase64String(bytes);
+            await JS.InvokeVoidAsync("open", uri, "_blank");
+        }
+        catch (Exception ex) { error = ex.Message; }
+    }
+}
+
+<style>
+    .checkin-report-page {
+        max-width: 1150px;
+        margin: 0 auto;
+        padding: 8px 0 24px
+    }
+
+    .checkin-report-hero {
+        background: linear-gradient(110deg,#291849,#7145ad);
+        border-radius: 17px;
+        color: white;
+        padding: 19px 23px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 14px
+    }
+
+        .checkin-report-hero h2 {
+            font-size: 1.45rem;
+            font-weight: 800;
+            margin: 3px 0 4px;
+            color: #fff
+        }
+
+    .checkin-report-eyebrow {
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .09em;
+        opacity: .85
+    }
+
+    .checkin-report-subtitle {
+        font-size: .86rem;
+        opacity: .85
+    }
+
+    .checkin-back {
+        background: #fff;
+        color: #362151;
+        white-space: nowrap
+    }
+
+    .checkin-report-controls {
+        background: #fff;
+        border: 1px solid #ece8f1;
+        border-radius: 13px;
+        padding: 13px 16px;
+        margin-bottom: 12px;
+        display: flex;
+        gap: 15px;
+        align-items: end;
+        flex-wrap: wrap
+    }
+
+        .checkin-report-controls .form-label {
+            font-size: .78rem;
+            font-weight: 650;
+            margin-bottom: 4px
+        }
+
+    .checkin-control-event {
+        width: min(100%,310px)
+    }
+
+    .checkin-control-search {
+        flex: 1;
+        min-width: 210px;
+        max-width: 380px
+    }
+
+    .checkin-control-export {
+        margin-left: auto
+    }
+
+    .checkin-stat {
+        background: #fff;
+        border: 1px solid #ece8f1;
+        border-top: 4px solid var(--line);
+        border-radius: 12px;
+        padding: 11px 16px;
+        box-shadow: 0 4px 14px rgba(32,18,56,.05)
+    }
+
+    .stat-purple {
+        --line: #7c4cbb
+    }
+
+    .stat-green {
+        --line: #239c75
+    }
+
+    .stat-amber {
+        --line: #e8a23b
+    }
+
+    .stat-label {
+        font-size: .75rem;
+        color: #73697b;
+        font-weight: 650
+    }
+
+    .stat-number {
+        font-size: 1.65rem;
+        font-weight: 800;
+        color: #292038;
+        line-height: 1.2;
+        margin-top: 3px
+    }
+
+    .checkin-report-table-card {
+        background: #fff;
+        border: 1px solid #ece8f1;
+        border-radius: 13px;
+        overflow: hidden;
+        margin-top: 12px;
+        box-shadow: 0 4px 14px rgba(32,18,56,.04)
+    }
+
+    .checkin-report-table-heading {
+        padding: 12px 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid #f0ecf5
+    }
+
+        .checkin-report-table-heading span {
+            font-size: .78rem;
+            color: #766d80
+        }
+
+    .checkin-report-table {
+        font-size: .81rem;
+        margin: 0
+    }
+
+        .checkin-report-table th {
+            background: #f8f5fc;
+            color: #59406f;
+            white-space: nowrap;
+            font-weight: 700
+        }
+
+        .checkin-report-table td, .checkin-report-table th {
+            padding: 10px 12px
+        }
+
+    .table-pill {
+        display: inline-block;
+        padding: 3px 8px;
+        background: #f0eafa;
+        color: #603895;
+        border-radius: 7px;
+        font-weight: 650;
+        white-space: nowrap
+    }
+    @@media(max - width:640px) {
+        .checkin-report-hero
+
+    {
+        padding: 15px;
+        align-items: start
+    }
+
+    .checkin-report-hero h2 {
+        font-size: 1.2rem
+    }
+
+    .checkin-back {
+        font-size: .75rem
+    }
+
+    .checkin-stat {
+        padding: 9px 8px
+    }
+
+    .stat-label {
+        font-size: .65rem
+    }
+
+    .stat-number {
+        font-size: 1.3rem
+    }
+
+    .checkin-control-event, .checkin-control-search {
+        max-width: none;
+        width: 100%
+    }
+
+    }
+</style>
+

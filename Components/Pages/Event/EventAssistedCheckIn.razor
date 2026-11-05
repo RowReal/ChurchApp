@@ -1,0 +1,318 @@
+﻿@page "/event/assisted-check-in"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Event
+@using ChurchApp.Services
+@using ChurchApp.Services.Event
+@using QRCoder
+@inject AuthService AuthService
+@inject EventCheckInService CheckInService
+@inject PrivilegeService PrivilegeService
+@inject NavigationManager Navigation
+
+<PageTitle>Assisted Event Check-In - BCC ServiceHub</PageTitle>
+<div class="worker360-page assisted-page">
+    <div class="assisted-hero"><div class="small text-uppercase">Event Management</div><h2>Assisted Check-In</h2><p>Help a registered worker check in without using their own phone.</p></div>
+    @if (loading)
+    {
+        <div class="bcc-card"><div class="bcc-card-body">Loading...</div></div>
+    }
+    else if (!authorised)
+    {
+
+        <div class="alert alert-danger">Access denied. You need both Event Management and Assisted Check-In privileges.</div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+        <div class="bcc-card">
+            <div class="bcc-card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Event</label>
+                        <select class="form-select" value="@eventId" @onchange="OnEventChanged">
+                            <option value="0">-- Select an open event --</option>
+                            @foreach (var e in events)
+                            {
+                                <option value="@e.Id">@e.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Worker ID</label>
+                        <div class="input-group">
+                            <input class="form-control" placeholder="Enter Worker ID" @bind="workerId" @bind:event="oninput" />
+                            <button class="btn btn-outline-secondary" disabled="@(busy || eventId == 0 || string.IsNullOrWhiteSpace(workerId))" @onclick="SearchAsync">@(busy ? "Please wait" : "Find Worker")</button>
+                        </div>
+                    </div>
+                </div>
+                @if (found != null)
+                {
+                    <div class="assisted-worker mt-3"><div class="fw-bold">@found.WorkerName</div><div class="small">Worker ID: @found.WorkerId</div><div class="small text-success">Registration confirmed</div></div>
+                    @if (found.ExistingCheckIn != null)
+                    {
+                        <div class="alert alert-info mt-3">This worker has already checked in. Their existing seat is shown below.</div>
+                        <button class="btn assisted-primary" @onclick="OpenExistingPass">View Existing Pass</button>
+         }
+                    else
+                    {
+                        <div class="mt-3">
+                            <label class="form-label fw-bold">Worker's Food Option</label>
+                            <select class="form-select" @bind="mealId">
+                                <option value="0">-- Choose a meal --</option>
+                                @foreach (var meal in meals)
+                                {
+                                    <option value="@meal.Id">@meal.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <button class="btn assisted-primary mt-3" disabled="@(busy || mealId == 0)" @onclick="SubmitAsync">@(busy ? "Checking in..." : "Confirm & Check In")</button>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+@if (showPass && pass != null && found != null)
+{
+    <div class="assisted-overlay" @onclick="ClosePass">
+        <div class="assisted-pass" role="dialog" aria-modal="true" @onclick:stopPropagation="true">
+            <div class="assisted-pass-head"><button type="button" class="assisted-x" @onclick="ClosePass">×</button><div style="font-size:26px">✓</div><strong>CHECK-IN VERIFIED</strong><div>@events.FirstOrDefault(e => e.Id == eventId)?.Name</div></div>
+            <div class="assisted-pass-body">
+                @if (!string.IsNullOrEmpty(qrImage))
+                {
+                    <img class="assisted-qr" src="@qrImage" alt="Verification QR code" />
+                    <div class="small text-muted">Scan to verify pass</div>
+     }
+                <h4>@found.WorkerName</h4><div class="assisted-grid"><div><small>TABLE</small><strong>@pass.EventTable?.TableName</strong></div><div><small>SEAT</small><strong>@pass.SeatNumber</strong></div></div>
+                <div class="assisted-meal"><small>SELECTED MENU</small><strong>@pass.EventMenuOption?.Name</strong></div>
+                <p class="assisted-note">Kindly show this to the hostess to direct you to your seat.</p>
+                <button class="btn assisted-primary w-100" @onclick="ClosePass">Close Pass</button>
+            </div>
+        </div>
+    </div>
+}
+<style>
+    .assisted-page {
+        max-width: 970px;
+        margin: auto
+    }
+
+    .assisted-hero {
+        background: linear-gradient(115deg,#43216e,#8251b4);
+        border-radius: 17px;
+        color: white;
+        padding: 24px;
+        margin-bottom: 16px
+    }
+
+        .assisted-hero h2 {
+            font-weight: 800;
+            margin: 5px 0
+        }
+
+        .assisted-hero p {
+            margin: 0;
+            opacity: .9
+        }
+
+    .assisted-primary {
+        background: #6736a1;
+        color: white;
+        border: 0;
+        padding: 10px 18px;
+        font-weight: 700
+    }
+
+        .assisted-primary:hover {
+            background: #4a2578;
+            color: white
+        }
+
+    .assisted-worker {
+        border-radius: 12px;
+        background: #f3eefa;
+        padding: 14px;
+        color: #4a267b
+    }
+
+    .assisted-overlay {
+        position: fixed;
+        inset: 0;
+        background: #1d1035b9;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px
+    }
+
+    .assisted-pass {
+        position: relative;
+        width: min(390px,100%);
+        max-height: calc(100dvh - 20px);
+        overflow: auto;
+        background: white;
+        border-radius: 17px
+    }
+
+    .assisted-pass-head {
+        background: linear-gradient(115deg,#43216e,#8251b4);
+        color: white;
+        text-align: center;
+        padding: 13px 35px;
+        font-size: 13px
+    }
+
+        .assisted-pass-head strong {
+            display: block;
+            font-size: 16px
+        }
+
+    .assisted-x {
+        position: absolute;
+        right: 10px;
+        top: 8px;
+        background: none;
+        border: 0;
+        color: white;
+        font-size: 24px
+    }
+
+    .assisted-pass-body {
+        text-align: center;
+        padding: 12px 17px;
+        color: #422765
+    }
+
+    .assisted-qr {
+        height: 112px;
+        width: 112px;
+        object-fit: contain
+    }
+
+    .assisted-pass-body h4 {
+        font-weight: 800;
+        margin: 8px 0
+    }
+
+    .assisted-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin: 10px 0
+    }
+
+        .assisted-grid > div {
+            background: #f3eefa;
+            padding: 9px;
+            border-radius: 10px
+        }
+
+        .assisted-grid small, .assisted-meal small {
+            display: block;
+            color: #765b93;
+            font-size: 10px
+        }
+
+        .assisted-grid strong {
+            display: block;
+            font-size: 20px
+        }
+
+    .assisted-meal {
+        border: 1px solid #e5d7f4;
+        padding: 8px;
+        border-radius: 10px
+    }
+
+        .assisted-meal strong {
+            display: block
+        }
+
+    .assisted-note {
+        background: #f3eefa;
+        padding: 8px;
+        border-radius: 9px;
+        font-size: 12px;
+        margin: 9px 0
+    }
+    @@media(max - height:650px)
+
+    {
+        .assisted-pass-head
+
+    {
+        padding: 7px 30px
+    }
+
+    .assisted-qr {
+        height: 90px;
+        width: 90px
+    }
+
+    .assisted-pass-body {
+        padding: 8px 12px
+    }
+
+    }
+</style>
+@code {
+    private bool loading = true, authorised, busy, showPass;
+    private string workerId = "", errorMessage = "", successMessage = "", qrImage = "";
+    private int eventId, mealId;
+    private List<ChurchEvent> events = new();
+    private List<EventMenuOption> meals = new();
+    private EventCheckInService.AssistedWorkerResult? found;
+    private ChurchApp.Models.Event.EventCheckIn? pass;
+    protected override async Task OnInitializedAsync()
+    {
+        try { authorised = await CheckInService.CanAssistAsync(); if (authorised) events = await CheckInService.AssistedEventsAsync(); }
+        catch (Exception ex) { errorMessage = ex.Message; }
+        finally { loading = false; }
+    }
+    private async Task OnEventChanged(ChangeEventArgs e)
+    {
+        eventId = int.TryParse(e.Value?.ToString(), out var value) ? value : 0;
+        found = null; pass = null; mealId = 0; errorMessage = ""; successMessage = "";
+        meals = eventId == 0 ? new() : await CheckInService.MealsAsync(eventId);
+    }
+    private async Task SearchAsync()
+    {
+        busy = true; errorMessage = ""; successMessage = ""; found = null; pass = null;
+        try { found = await CheckInService.FindAssistedWorkerAsync(eventId, workerId); mealId = 0; }
+        catch (Exception ex) { errorMessage = ex.Message; }
+        finally { busy = false; }
+    }
+    private async Task SubmitAsync()
+    {
+        if (found == null) return;
+        busy = true; errorMessage = ""; successMessage = "";
+        try
+        {
+            pass = await CheckInService.AssistedCheckInAsync(eventId, found.WorkerId, mealId);
+            found = await CheckInService.FindAssistedWorkerAsync(eventId, found.WorkerId);
+            pass = found.ExistingCheckIn;
+            BuildQr(); showPass = true; successMessage = "Worker checked in successfully.";
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+        finally { busy = false; }
+    }
+    private void OpenExistingPass() { pass = found?.ExistingCheckIn; BuildQr(); showPass = pass != null; }
+    private void ClosePass() { showPass = false; }
+    private void BuildQr()
+    {
+        qrImage = "";
+        if (string.IsNullOrWhiteSpace(pass?.VerificationToken)) return;
+        var url = Navigation.BaseUri.TrimEnd('/') + "/event/verify/" + pass.VerificationToken;
+        using var generator = new QRCodeGenerator();
+        using var data = generator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+        qrImage = "data:image/png;base64," + Convert.ToBase64String(new PngByteQRCode(data).GetGraphic(5));
+    }
+}

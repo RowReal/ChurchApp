@@ -1,0 +1,1025 @@
+@page "/event/award-nominations"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Event
+@using ChurchApp.Models
+@using ChurchApp.Services.Event
+@inject AwardService Awards
+@inject NavigationManager Nav
+
+<PageTitle>Award Nominations - BCC ServiceHub</PageTitle>
+
+<div class="award-nom-page worker360-page">
+    <header class="award-nom-hero">
+        <div class="award-nom-hero-copy">
+            <div class="award-nom-eyebrow">
+                <i class="fas fa-award" aria-hidden="true"></i>
+                PERSONAL WORKSPACE
+            </div>
+            <h1>Award Nominations</h1>
+            <span class="award-nom-hero-accent">Celebrate service. Honour dedication.</span>
+            <p>Recognise deserving workers. Review your choices and submit before nominations close.</p>
+        </div>
+        <button type="button" class="award-nom-back" @onclick="GoToWorkspace">
+            <i class="fas fa-arrow-left" aria-hidden="true"></i>
+            My Workspace
+        </button>
+    </header>
+
+    @if (loading)
+    {
+        <div class="award-nom-empty">
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            Loading available awards...
+        </div>
+    }
+    else if (cards.Count == 0)
+    {
+        <div class="award-nom-empty">
+            <i class="fas fa-calendar-check" aria-hidden="true"></i>
+            <strong>No nominations available</strong>
+            <span>There are currently no awards open for your nomination.</span>
+        </div>
+    }
+    else
+    {
+        <section class="award-nom-overview" aria-label="Nomination progress">
+            <div>
+                <span class="award-nom-overview-label">Your progress</span>
+                <div class="award-nom-overview-count">
+                    <strong>@AnsweredCount</strong>
+                    <span>of @cards.Count awards answered</span>
+                </div>
+            </div>
+            <div class="award-nom-progress" role="progressbar" aria-valuenow="@AnsweredCount" aria-valuemin="0" aria-valuemax="@cards.Count">
+                <div class="award-nom-progress-fill" style="width: @(ProgressPercent)%"></div>
+            </div>
+            <span class="award-nom-overview-help">You can revise your submission while nominations are open.</span>
+        </section>
+
+        <div class="award-nom-grid">
+            @foreach (var card in cards)
+            {
+                <section class="award-nom-card" @key="card.Award.Id">
+                    <div class="award-nom-card-top">
+                        <div class="award-nom-icon"><i class="fas fa-trophy" aria-hidden="true"></i></div>
+                        <div class="award-nom-heading">
+                            <h2>@card.Award.Name</h2>
+                            <span class="award-nom-limit">
+                                Up to @card.Award.MaxNominationsPerWorker nominee(s)
+                                · @(card.Award.NomineeType == "Directorate"
+                                    ? "Other directorates"
+                                    : card.Award.RestrictNomineesToOwnDirectorate
+                                        ? "Own directorate"
+                                        : "Church-wide")
+                            </span>
+                        </div>
+                        @if (card.Choice != "")
+                        {
+                            <span class="award-nom-done" title="Answered"><i class="fas fa-check" aria-hidden="true"></i></span>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(card.Award.Description))
+                    {
+                        <p class="award-nom-description">@card.Award.Description</p>
+                    }
+
+                    <div class="award-nom-meta">
+                        <span><i class="far fa-clock" aria-hidden="true"></i> Closes @card.Award.ClosesAtUtc.ToLocalTime().ToString("dd MMM yyyy, HH:mm")</span>
+                        @if (card.Award.SelectionRule == "OneMaleOneFemale")
+                        {
+                            <span class="award-nom-rule">One male and one female</span>
+                        }
+                    </div>
+
+                    <label class="award-nom-label" for="@($"choice-{card.Award.Id}")">Your response</label>
+                    <select id="@($"choice-{card.Award.Id}")" class="form-select form-select-sm award-nom-choice" @bind="card.Choice">
+                        <option value="">Select a response</option>
+                        <option value="nominate">Nominate worker(s)</option>
+                        <option value="none">No nomination</option>
+                    </select>
+
+                    @if (card.Choice == "nominate")
+                    {
+                        <div class="award-nom-slots">
+                            @foreach (var slot in card.Slots)
+                            {
+                                <div class="award-nom-slot" @key="slot.Number">
+                                    <div class="award-nom-slot-head">
+                                        <strong>Nominee @slot.Number</strong>
+                                        @if (card.Award.SelectionRule == "OneMaleOneFemale")
+                                        {
+                                            <span>@(slot.Number == 1 ? "Male" : "Female")</span>
+                                        }
+                                        else if (slot.Number > 1)
+                                        {
+                                            <span>Optional</span>
+                                        }
+                                    </div>
+
+                                    @if (card.Award.NomineeType == "Worker")
+                                    {
+                                        <div class="award-nom-search">
+                                            <input class="form-control form-control-sm"
+                                                   aria-label="Search worker"
+                                                   placeholder="Filter workers by name or ID"
+                                                   @bind="slot.Search"
+                                                   @bind:event="oninput" />
+                                            <button type="button" class="award-nom-search-btn" @onclick="() => SearchAsync(card, slot)">
+                                                <i class="fas fa-search" aria-hidden="true"></i>
+                                                Filter
+                                            </button>
+                                        </div>
+                                        <select class="form-select form-select-sm" aria-label="Select nominee" @bind="slot.WorkerId">
+                                            <option value="">Select worker</option>
+                                            @foreach (var worker in slot.Workers.Where(w => IsAllowedForSlot(card, slot, w)))
+                                            {
+                                                <option value="@worker.Id">@worker.FullName (@worker.WorkerId) - @worker.Sex</option>
+                                            }
+                                        </select>
+                                        <small class="award-nom-field-hint">
+                                            @GetNomineeScope(card)
+                                            (@slot.Workers.Count(w => IsAllowedForSlot(card, slot, w)) eligible workers loaded)
+                                        </small>
+                                    }
+                                    else
+                                    {
+                                        <select class="form-select form-select-sm" aria-label="Select directorate" @bind="slot.DirectorateId">
+                                            <option value="">Select another directorate (not your own)</option>
+                                            @foreach (var directorate in card.Directorates)
+                                            {
+                                                <option value="@directorate.Id">@directorate.Name</option>
+                                            }
+                                        </select>
+                                    }
+
+                                    <textarea class="form-control form-control-sm award-nom-reason"
+                                              rows="2"
+                                              maxlength="2000"
+                                              aria-label="Nomination justification"
+                                              placeholder="Why does this nominee deserve the award?"
+                                              @bind="slot.Reason"></textarea>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (card.Choice == "none")
+                    {
+                        <p class="award-nom-none"><i class="fas fa-info-circle" aria-hidden="true"></i> No nominee will be submitted for this award.</p>
+                    }
+                </section>
+            }
+        </div>
+
+        <div class="award-nom-actions">
+            <div>
+                <strong>Ready to submit?</strong>
+                <span>Only answered awards will be saved.</span>
+            </div>
+            <button type="button" class="award-nom-submit" @onclick="Review" disabled="@submitting">
+                <i class="fas fa-check-circle" aria-hidden="true"></i>
+                Review &amp; submit
+            </button>
+        </div>
+
+
+    }
+</div>
+
+@if (ShowDialog)
+{
+    <div class="award-nom-dialog-backdrop" role="presentation">
+        <div class="award-nom-dialog"
+             role="alertdialog"
+             aria-modal="true"
+             aria-labelledby="award-nom-dialog-title"
+             aria-describedby="award-nom-dialog-message">
+            <div class="award-nom-dialog-heading">
+                <span class="award-nom-dialog-icon @DialogIconClass">
+                    <i class="fas @DialogIcon" aria-hidden="true"></i>
+                </span>
+                <h2 id="award-nom-dialog-title">@DialogTitle</h2>
+            </div>
+
+            <p id="award-nom-dialog-message">@DialogMessage</p>
+
+            <div class="award-nom-dialog-actions">
+                @if (confirm)
+                {
+                    <button type="button"
+                            class="award-nom-submit"
+                            @onclick="SubmitAsync"
+                            disabled="@submitting">
+                        @(submitting ? "Submitting..." : "Yes, submit")
+                    </button>
+
+                    <button type="button"
+                            class="award-nom-cancel"
+                            @onclick="CancelReview"
+                            disabled="@submitting">
+                        Go back
+                    </button>
+                }
+                else
+                {
+                    <button type="button"
+                            class="award-nom-submit"
+                            @onclick="DismissDialog">
+                        OK
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private sealed class Slot
+    {
+        public int Number { get; set; }
+        public string Search { get; set; } = "";
+        public int? WorkerId { get; set; }
+        public int? DirectorateId { get; set; }
+        public string Reason { get; set; } = "";
+        public List<Worker> Workers { get; set; } = new();
+    }
+
+    private sealed class Card
+    {
+        public AwardCategory Award { get; set; } = new();
+        public string Choice { get; set; } = "";
+        public List<Slot> Slots { get; set; } = new();
+        public List<Directorate> Directorates { get; set; } = new();
+    }
+
+    private readonly List<Card> cards = new();
+    private bool loading = true;
+    private bool confirm;
+    private bool submitting;
+    private int unanswered;
+    private string error = "";
+    private string message = "";
+
+    private int AnsweredCount => cards.Count(c => c.Choice != "");
+    private int ProgressPercent => cards.Count == 0 ? 0 : (int)Math.Round(100.0 * AnsweredCount / cards.Count);
+
+    private void GoToWorkspace() => Nav.NavigateTo("/");
+    private bool ShowDialog => confirm ||
+                               !string.IsNullOrWhiteSpace(error) ||
+                               !string.IsNullOrWhiteSpace(message);
+
+    private string DialogTitle => confirm
+        ? "Confirm your nominations"
+        : !string.IsNullOrWhiteSpace(error)
+            ? "Action required"
+            : "Nominations saved";
+
+    private string DialogMessage => confirm
+        ? $"{unanswered} award(s) remain unanswered and will not be changed. Submit your completed responses?"
+        : !string.IsNullOrWhiteSpace(error)
+            ? error
+            : message;
+
+    private string DialogIcon => confirm
+        ? "fa-question-circle"
+        : !string.IsNullOrWhiteSpace(error)
+            ? "fa-exclamation-triangle"
+            : "fa-check-circle";
+
+    private string DialogIconClass => confirm
+        ? "award-nom-dialog-question"
+        : !string.IsNullOrWhiteSpace(error)
+            ? "award-nom-dialog-error"
+            : "award-nom-dialog-success";
+
+    private void CancelReview()
+    {
+        confirm = false;
+    }
+
+    private void DismissDialog()
+    {
+        error = "";
+        message = "";
+    }
+
+    private static bool IsAllowedForSlot(Card card, Slot slot, Worker worker)
+    {
+        return card.Award.SelectionRule != "OneMaleOneFemale" ||
+               string.Equals(worker.Sex, slot.Number == 1 ? "Male" : "Female", StringComparison.OrdinalIgnoreCase);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var open = await Awards.MyOpenAwardsAsync();
+            var existing = await Awards.MyNominationsAsync();
+
+            foreach (var award in open)
+            {
+                var card = new Card { Award = award };
+                for (var number = 1; number <= award.MaxNominationsPerWorker; number++)
+                {
+                    card.Slots.Add(new Slot { Number = number });
+                }
+
+                var saved = existing.Where(n => n.AwardCategoryId == award.Id && n.IsSubmitted).ToList();
+                if (saved.Count > 0)
+                {
+                    card.Choice = saved.All(n => n.NoNomination) ? "none" : "nominate";
+                }
+
+                foreach (var nomination in saved)
+                {
+                    var slot = card.Slots.FirstOrDefault(s => s.Number == nomination.SlotNumber);
+                    if (slot == null) continue;
+
+                    slot.WorkerId = nomination.NomineeWorkerId;
+                    slot.DirectorateId = nomination.NomineeDirectorateId;
+                    slot.Reason = nomination.Justification;
+
+                    if (nomination.NomineeWorkerId.HasValue)
+                    {
+                        var worker = await Awards.MySelectedWorkerAsync(award.Id, nomination.NomineeWorkerId.Value);
+                        if (worker != null) slot.Workers.Add(worker);
+                    }
+                }
+
+                if (award.NomineeType == "Directorate")
+                {
+                    card.Directorates = await Awards.OtherDirectoratesAsync(award.Id);
+                }
+
+                if (award.NomineeType == "Worker")
+                {
+                    var availableWorkers = await Awards.SearchWorkersAsync(award.Id, "");
+
+                    foreach (var slot in card.Slots)
+                    {
+                        var selectedWorker = slot.Workers.FirstOrDefault();
+                        slot.Workers = availableWorkers.ToList();
+
+                        if (selectedWorker != null &&
+                            slot.Workers.All(w => w.Id != selectedWorker.Id))
+                        {
+                            slot.Workers.Insert(0, selectedWorker);
+                        }
+                    }
+                }
+
+                cards.Add(card);
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task SearchAsync(Card card, Slot slot)
+    {
+        try
+        {
+            error = "";
+            var selected = slot.Workers.FirstOrDefault(w => w.Id == slot.WorkerId);
+            slot.Workers = await Awards.SearchWorkersAsync(card.Award.Id, slot.Search);
+
+            if (selected != null && slot.Workers.All(w => w.Id != selected.Id))
+            {
+                slot.Workers.Insert(0, selected);
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private static string GetNomineeScope(Card card)
+    {
+        return card.Award.RestrictNomineesToOwnDirectorate
+            ? "Own directorate only: active workers assigned to your directorate, including secondary members."
+            : "Church-wide: active workers from all directorates, excluding yourself.";
+    }
+
+    private void Review()
+    {
+        error = "";
+        message = "";
+        confirm = false;
+        unanswered = cards.Count(c => c.Choice == "");
+
+        if (AnsweredCount == 0)
+        {
+            error = "Please respond to at least one award.";
+            return;
+        }
+
+        foreach (var card in cards.Where(c => c.Choice == "nominate"))
+        {
+            var selectedSlots = card.Slots.Where(s => s.WorkerId.HasValue || s.DirectorateId.HasValue).ToList();
+            if (selectedSlots.Count == 0)
+            {
+                error = $"Select at least one nominee for {card.Award.Name}, or choose No nomination.";
+                return;
+            }
+
+            if (selectedSlots.Any(s => string.IsNullOrWhiteSpace(s.Reason)))
+            {
+                error = $"Enter a justification for every selected nominee in {card.Award.Name}.";
+                return;
+            }
+
+            var workerIds = selectedSlots.Where(s => s.WorkerId.HasValue).Select(s => s.WorkerId!.Value).ToList();
+            if (workerIds.Count != workerIds.Distinct().Count())
+            {
+                error = $"The same worker cannot be selected twice for {card.Award.Name}.";
+                return;
+            }
+
+            var directorateIds = selectedSlots.Where(s => s.DirectorateId.HasValue).Select(s => s.DirectorateId!.Value).ToList();
+            if (directorateIds.Count != directorateIds.Distinct().Count())
+            {
+                error = $"The same directorate cannot be selected twice for {card.Award.Name}.";
+                return;
+            }
+
+            if (card.Award.SelectionRule == "OneMaleOneFemale")
+            {
+                foreach (var slot in selectedSlots.Where(s => s.WorkerId.HasValue))
+                {
+                    var worker = slot.Workers.FirstOrDefault(w => w.Id == slot.WorkerId);
+                    if (worker == null || !IsAllowedForSlot(card, slot, worker))
+                    {
+                        error = $"{card.Award.Name}: nominee 1 must be male and nominee 2 must be female.";
+                        return;
+                    }
+                }
+            }
+        }
+
+        confirm = true;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (submitting) return;
+        submitting = true;
+
+        try
+        {
+            error = "";
+            var inputs = new List<AwardService.NominationInput>();
+
+            foreach (var card in cards.Where(c => c.Choice != ""))
+            {
+                foreach (var slot in card.Slots)
+                {
+                    var isNoNomination = card.Choice == "none" ||
+                                         (!slot.WorkerId.HasValue && !slot.DirectorateId.HasValue);
+
+                    inputs.Add(new AwardService.NominationInput(
+                        card.Award.Id,
+                        slot.Number,
+                        isNoNomination ? null : slot.WorkerId,
+                        isNoNomination ? null : slot.DirectorateId,
+                        isNoNomination,
+                        isNoNomination ? "" : slot.Reason));
+                }
+            }
+
+            await Awards.SubmitAsync(inputs);
+            message = "Your nominations have been saved successfully.";
+            confirm = false;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            confirm = false;
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+}
+
+<style>
+    .award-nom-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 12px 16px 36px;
+    }
+
+    .award-nom-hero {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 22px 26px;
+        margin-bottom: 18px;
+        border-radius: 14px;
+        background: linear-gradient(120deg, #063d2a 0%, #0c6741 52%, #259b5c 100%);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 22px rgba(8, 83, 49, .16);
+        color: #fff;
+    }
+
+    .award-nom-hero::after {
+        content: "";
+        position: absolute;
+        right: -65px;
+        top: -105px;
+        width: 285px;
+        height: 285px;
+        border: 1px solid rgba(255, 255, 255, .17);
+        border-radius: 50%;
+        box-shadow: 0 0 0 42px rgba(255, 255, 255, .035),
+                    0 0 0 95px rgba(255, 255, 255, .025);
+        pointer-events: none;
+    }
+
+    .award-nom-hero-copy,
+    .award-nom-back {
+        position: relative;
+        z-index: 1;
+    }
+
+    .award-nom-hero-accent {
+        display: inline-block;
+        margin: 0 0 6px;
+        color: #c8f3d7;
+        font-size: .75rem;
+        font-weight: 600;
+    }
+
+    .award-nom-field-hint {
+        display: block;
+        margin-top: 5px;
+        color: #647b6d;
+        font-size: .7rem;
+    }
+
+    .award-nom-hero-copy h1 {
+        margin: 5px 0;
+        color: #fff;
+        font-size: 1.4rem;
+        font-weight: 750;
+    }
+
+    .award-nom-hero-copy p {
+        margin: 0;
+        color: #e1f1e8;
+        font-size: .83rem;
+    }
+
+    .award-nom-eyebrow {
+        color: #d0eddb;
+        font-size: .68rem;
+        font-weight: 750;
+        letter-spacing: .11em;
+    }
+
+    .award-nom-eyebrow i {
+        margin-right: 6px;
+    }
+
+    .award-nom-back {
+        flex-shrink: 0;
+        padding: 9px 13px;
+        border: 1px solid rgba(255, 255, 255, .45);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, .12);
+        color: #fff;
+        font-size: .78rem;
+        font-weight: 650;
+    }
+
+    .award-nom-back i {
+        margin-right: 6px;
+    }
+
+    .award-nom-overview {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 14px 18px;
+        margin-bottom: 16px;
+        border: 1px solid #d9e9de;
+        border-radius: 11px;
+        background: #f4faf6;
+    }
+
+    .award-nom-overview-label,
+    .award-nom-overview-help {
+        color: #617768;
+        font-size: .72rem;
+    }
+
+    .award-nom-overview-count {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .award-nom-overview-count strong {
+        color: #176d43;
+        font-size: 1.25rem;
+    }
+
+    .award-nom-overview-count span {
+        color: #526a59;
+        font-size: .76rem;
+    }
+
+    .award-nom-progress {
+        flex: 1;
+        min-width: 60px;
+        height: 8px;
+        overflow: hidden;
+        border-radius: 10px;
+        background: #d9e9df;
+    }
+
+    .award-nom-progress-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: #198754;
+        transition: width .2s ease;
+    }
+
+    .award-nom-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: start;
+        gap: 14px;
+    }
+
+    .award-nom-card {
+        min-width: 0;
+        padding: 16px;
+        border: 1px solid #e1eae3;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 3px 12px rgba(24, 65, 38, .045);
+    }
+
+    .award-nom-card-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .award-nom-icon {
+        display: grid;
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border-radius: 9px;
+        background: #e8f5ec;
+        color: #176b42;
+    }
+
+    .award-nom-heading {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .award-nom-heading h2 {
+        margin: 0 0 3px;
+        color: #204b34;
+        font-size: .9rem;
+        font-weight: 750;
+        line-height: 1.35;
+    }
+
+    .award-nom-limit {
+        color: #728577;
+        font-size: .7rem;
+    }
+
+    .award-nom-done {
+        color: #18824d;
+        font-size: .8rem;
+    }
+
+    .award-nom-description {
+        margin: 10px 0;
+        color: #607367;
+        font-size: .76rem;
+        line-height: 1.5;
+    }
+
+    .award-nom-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 10px 0 12px;
+        color: #617968;
+        font-size: .7rem;
+    }
+
+    .award-nom-rule {
+        padding: 2px 7px;
+        border-radius: 5px;
+        background: #edf7f0;
+        color: #256b43;
+    }
+
+    .award-nom-label {
+        display: block;
+        margin-bottom: 5px;
+        color: #355541;
+        font-size: .73rem;
+        font-weight: 700;
+    }
+
+    .award-nom-choice,
+    .award-nom-slot .form-control,
+    .award-nom-slot .form-select {
+        min-height: 34px;
+        font-size: .77rem;
+    }
+
+    .award-nom-slots {
+        display: grid;
+        gap: 9px;
+        margin-top: 11px;
+    }
+
+    .award-nom-slot {
+        padding: 11px;
+        border: 1px solid #e7eee9;
+        border-radius: 9px;
+        background: #f8fbf9;
+    }
+
+    .award-nom-slot-head {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        color: #28583d;
+        font-size: .75rem;
+    }
+
+    .award-nom-slot-head span {
+        color: #728578;
+        font-size: .7rem;
+    }
+
+    .award-nom-search {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 7px;
+    }
+
+    .award-nom-search input {
+        min-width: 0;
+    }
+
+    .award-nom-search-btn {
+        flex-shrink: 0;
+        padding: 5px 9px;
+        border: 1px solid #bddbc7;
+        border-radius: 6px;
+        background: #e8f5ed;
+        color: #176b40;
+        font-size: .72rem;
+        font-weight: 650;
+    }
+
+    .award-nom-reason {
+        margin-top: 8px;
+        resize: vertical;
+    }
+
+    .award-nom-none {
+        margin: 9px 0 0;
+        color: #66796b;
+        font-size: .73rem;
+    }
+
+    .award-nom-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 18px;
+        padding: 15px 18px;
+        border: 1px solid #dce9e0;
+        border-radius: 11px;
+        background: #fff;
+    }
+
+    .award-nom-actions strong,
+    .award-nom-actions span {
+        display: block;
+    }
+
+    .award-nom-actions strong {
+        color: #28543b;
+        font-size: .85rem;
+    }
+
+    .award-nom-actions span {
+        color: #718276;
+        font-size: .73rem;
+    }
+
+    .award-nom-submit {
+        padding: 10px 15px;
+        border: 0;
+        border-radius: 8px;
+        background: #177647;
+        color: #fff;
+        font-size: .78rem;
+        font-weight: 700;
+    }
+
+    .award-nom-submit i {
+        margin-right: 6px;
+    }
+
+    .award-nom-submit:disabled {
+        opacity: .65;
+    }
+
+    .award-nom-confirm {
+        margin-top: 12px;
+        padding: 15px;
+        border: 1px solid #ebdbb0;
+        border-radius: 10px;
+        background: #fffbf1;
+        color: #5f522d;
+        font-size: .82rem;
+    }
+
+    .award-nom-confirm p {
+        margin: 6px 0 12px;
+    }
+
+    .award-nom-confirm-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .award-nom-cancel {
+        padding: 9px 14px;
+        border: 1px solid #cbd8cf;
+        border-radius: 8px;
+        background: #fff;
+        color: #405648;
+        font-size: .78rem;
+    }
+
+    .award-nom-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 50px 18px;
+        border: 1px dashed #cddfd2;
+        border-radius: 12px;
+        background: #f9fcfa;
+        color: #5d7464;
+        text-align: center;
+        font-size: .83rem;
+    }
+
+    .award-nom-empty i {
+        color: #228653;
+        font-size: 1.5rem;
+    }
+
+    @@media (max-width: 1100px) {
+        .award-nom-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .award-nom-page {
+            padding: 8px 10px 26px;
+        }
+
+        .award-nom-hero {
+            align-items: flex-start;
+            flex-direction: column;
+            padding: 19px;
+        }
+
+        .award-nom-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .award-nom-overview {
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .award-nom-progress {
+            flex-basis: 100%;
+            order: 3;
+        }
+
+        .award-nom-actions {
+            align-items: stretch;
+            flex-direction: column;
+        }
+    }
+
+    /* Fixed-position feedback and confirmation dialog */
+    .award-nom-dialog-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(12, 33, 25, 0.60);
+    }
+
+    .award-nom-dialog {
+        width: 100%;
+        max-width: 460px;
+        padding: 26px;
+        border: 1px solid #d9e8df;
+        border-radius: 16px;
+        background: #ffffff;
+        box-shadow: 0 22px 70px rgba(10, 35, 22, 0.25);
+    }
+
+    .award-nom-dialog-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .award-nom-dialog-heading h2 {
+        margin: 0;
+        color: #153d2c;
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+
+    .award-nom-dialog-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        font-size: 1.15rem;
+    }
+
+    .award-nom-dialog-error {
+        color: #9d2e20;
+        background: #fce9e6;
+    }
+
+    .award-nom-dialog-success {
+        color: #146b40;
+        background: #e5f5eb;
+    }
+
+    .award-nom-dialog-question {
+        color: #116443;
+        background: #e5f2eb;
+    }
+
+    .award-nom-dialog p {
+        margin: 0 0 24px;
+        color: #3c5248;
+        line-height: 1.55;
+        white-space: pre-wrap;
+    }
+
+    .award-nom-dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+</style>
+
+
+
+
+
+
+
+
+

@@ -131,6 +131,12 @@ builder.Services.AddScoped<EventRegistrationService>();
 builder.Services.AddScoped<EventRegistrationReportService>();
 builder.Services.AddScoped<EventSeatingConfigurationService>();
 builder.Services.AddScoped<EventMenuService>();
+builder.Services.AddScoped<EventCheckInService>();
+
+builder.Services.AddScoped<ChurchApp.Services.Event.EventCheckInReportService>();
+builder.Services.AddScoped<ChurchApp.Services.Event.AwardService>();
+
+
 var app = builder.Build();
 
 // APPLY EF CORE MIGRATIONS AUTOMATICALLY
@@ -203,5 +209,8 @@ app.UseAntiforgery();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
+
+// Public QR verification endpoint; no ServiceHub login required.
+app.MapEventPassVerification();
 
 app.Run();

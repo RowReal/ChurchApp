@@ -6,6 +6,7 @@
 @using ChurchApp.Services.Event
 @inject AuthService AuthService
 @inject EventRegistrationReportService ReportService
+@inject PrivilegeService PrivilegeService
 
 <PageTitle>Event Registration Report - BCC ServiceHub</PageTitle>
 
@@ -13,14 +14,18 @@
 {
     <div class="bcc-empty"><i class="fas fa-lock"></i><h4>Please log in</h4></div>
 }
-else if (!CanView)
+else if (checkingAccess)
 {
-    <div class="bcc-empty"><i class="fas fa-ban"></i><h4>Access denied</h4><p>Only Church Admin and Pastor in Charge can view this report.</p></div>
+    <div class="bcc-empty"><i class="fas fa-spinner fa-spin"></i><p>Checking report access...</p></div>
+}
+else if (!canView)
+{
+    <div class="bcc-empty"><i class="fas fa-ban"></i><h4>Access denied</h4><p>Access is available to Church Admin, Pastor in Charge, or workers with Event Management privilege.</p></div>
 }
 else
 {
-    <div class="worker360-page" style="max-width:1100px;margin:0 auto;">
-        <div class="bcc-page-header">
+    <div class="worker360-page event-report-compact" style="max-width:1100px;margin:0 auto;">
+        <div class="bcc-page-header event-report-header">
             <div>
                 <div class="bcc-page-subtitle"><i class="fas fa-calendar-check me-2"></i>Event Hub</div>
                 <div class="bcc-page-title">Registration Management</div>
@@ -32,9 +37,9 @@ else
         <div class="bcc-card mb-3">
             <div class="bcc-card-body p-3">
                 <div class="row g-2 align-items-end">
-                    <div class="col-12 col-md-7">
+                    <div class="col-12 col-md-5">
                         <label class="form-label small fw-semibold">Select event</label>
-                        <select class="form-select form-select-sm" value="@selectedEventId" @onchange="ChangeEventAsync">
+                        <select class="form-select form-select-sm event-report-event-select" title="Select event" value="@selectedEventId" @onchange="ChangeEventAsync">
                             <option value="0">-- Select an event --</option>
                             @foreach (var ev in events)
                             {
@@ -60,10 +65,10 @@ else
         }
         else if (selectedEventId != 0)
         {
-            <div class="row g-2 mb-3">
-                <div class="col-4"><div class="bcc-card"><div class="bcc-card-body p-3 text-center"><div class="small text-muted">Total Responses</div><h4 class="mb-0">@rows.Count</h4></div></div></div>
-                <div class="col-4"><div class="bcc-card"><div class="bcc-card-body p-3 text-center"><div class="small text-muted">Will Attend</div><h4 class="mb-0">@rows.Count(x => x.WillAttend)</h4></div></div></div>
-                <div class="col-4"><div class="bcc-card"><div class="bcc-card-body p-3 text-center"><div class="small text-muted">Will Not Attend</div><h4 class="mb-0">@rows.Count(x => !x.WillAttend)</h4></div></div></div>
+            <div class="row g-2 mb-3 event-report-stats">
+                <div class="col-4"><div class="bcc-card event-report-stat stat-purple"><div class="bcc-card-body p-2 text-center"><div class="small text-muted">Total Responses</div><h4 class="mb-0">@rows.Count</h4></div></div></div>
+                <div class="col-4"><div class="bcc-card event-report-stat stat-green"><div class="bcc-card-body p-2 text-center"><div class="small text-muted">Will Attend</div><h4 class="mb-0">@rows.Count(x => x.WillAttend)</h4></div></div></div>
+                <div class="col-4"><div class="bcc-card event-report-stat stat-orange"><div class="bcc-card-body p-2 text-center"><div class="small text-muted">Will Not Attend</div><h4 class="mb-0">@rows.Count(x => !x.WillAttend)</h4></div></div></div>
             </div>
             <div class="bcc-card">
                 <div class="bcc-card-body p-3">
@@ -108,7 +113,9 @@ else
 }
 
 @code {
-    private bool CanView => AuthService.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge);
+    private bool canView;
+    private bool checkingAccess = true;
+    private bool IsAllowedRole => AuthService.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge);
     private List<ChurchEvent> events = new();
     private List<EventRegistrationReportRow> rows = new();
     private int selectedEventId;
@@ -126,9 +133,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!CanView) return;
         try
         {
+            canView = await CheckAccessAsync();
+            checkingAccess = false;
+            if (!canView) return;
             events = await ReportService.GetEventsAsync();
             if (events.Count > 0)
             {
@@ -137,16 +146,27 @@ else
             }
         }
         catch (Exception ex) { error = ex.Message; }
+        finally { checkingAccess = false; }
+    }
+
+    private async Task<bool> CheckAccessAsync()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (!AuthService.IsAuthenticated || worker == null) return false;
+        if (IsAllowedRole) return true;
+        return await PrivilegeService.HasPrivilegeAsync(worker.Id, "Access-Event-Management");
     }
 
     private async Task ChangeEventAsync(ChangeEventArgs e)
     {
+        if (!await CheckAccessAsync()) { canView = false; rows.Clear(); return; }
         if (!int.TryParse(e.Value?.ToString(), out selectedEventId)) selectedEventId = 0;
         await LoadRowsAsync();
     }
 
     private async Task LoadRowsAsync()
     {
+        if (!await CheckAccessAsync()) { canView = false; rows.Clear(); return; }
         loading = true;
         error = null;
         rows.Clear();
@@ -159,3 +179,87 @@ else
         finally { loading = false; }
     }
 }
+
+<style>
+    .event-report-compact {
+        max-width: 1050px;
+        padding-bottom: 18px;
+    }
+
+        .event-report-compact .event-report-header {
+            padding: 10px 0 12px;
+            margin-bottom: 12px;
+        }
+
+        .event-report-compact .bcc-page-title {
+            font-size: 1.45rem;
+        }
+
+        .event-report-compact .bcc-card {
+            border-radius: 12px;
+        }
+
+        .event-report-compact .event-report-event-select {
+            width: 100%;
+            max-width: 280px;
+            height: 34px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .event-report-compact .event-report-stat {
+            border: 1px solid #e9e4ef;
+            border-top: 4px solid var(--stat-line);
+            box-shadow: 0 3px 12px rgba(34,24,50,.05);
+        }
+
+        .event-report-compact .stat-purple {
+            --stat-line: #7945b4;
+        }
+
+        .event-report-compact .stat-green {
+            --stat-line: #22996e;
+        }
+
+        .event-report-compact .stat-orange {
+            --stat-line: #e49b3b;
+        }
+
+        .event-report-compact .event-report-stat h4 {
+            font-weight: 800;
+            margin: 2px 0 0;
+            font-size: 1.55rem;
+        }
+
+        .event-report-compact .event-report-stat .small {
+            font-size: .75rem;
+        }
+
+        .event-report-compact .table {
+            font-size: .82rem;
+        }
+
+            .event-report-compact .table th, .event-report-compact .table td {
+                padding: 8px 10px;
+            }
+
+            .event-report-compact .table th {
+                background: #f7f3fc;
+            }
+
+    @@media (max-width: 575px) {
+        .event-report-compact .event-report-stat h4 {
+            font-size: 1.25rem;
+        }
+
+        .event-report-compact .event-report-stat .small {
+            font-size: .66rem;
+        }
+    }
+</style>
+
+
+
+
+

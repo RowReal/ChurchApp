@@ -1,0 +1,859 @@
+@page "/event/award-results"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Event
+@using ChurchApp.Services.Event
+@inject AwardService Awards
+@inject NavigationManager Nav
+
+<PageTitle>Award Results - BCC ServiceHub</PageTitle>
+
+<div class="award-results-page worker360-page">
+    <header class="award-results-hero">
+        <div class="award-results-hero-copy">
+            <div class="award-results-eyebrow"><i class="fas fa-trophy"></i> EVENT HUB</div>
+            <h1>Award Results</h1>
+            <span class="award-results-hero-accent">Celebrating outstanding service.</span>
+            <p>Review top nominees, their nominators and the supporting nomination justifications.</p>
+        </div>
+        <button type="button" class="award-results-back" @onclick='() => Nav.NavigateTo("/workspace/event-hub")'>
+            <i class="fas fa-arrow-left"></i> Event Hub
+        </button>
+    </header>
+
+    @if (loading)
+    {
+        <div class="award-results-empty"><i class="fas fa-spinner fa-spin"></i> Loading award results...</div>
+    }
+    else if (allowed)
+    {
+        <section class="award-results-toolbar">
+            <div class="award-results-programme">
+                <label for="results-programme">Award programme</label>
+                <select id="results-programme" class="form-select form-select-sm" @bind="programmeId" @bind:after="LoadAsync">
+                    <option value="0">Select a programme</option>
+                    @foreach (var programme in programmes)
+                    {
+                        <option value="@programme.Id">@programme.Name (@programme.Year)</option>
+                    }
+                </select>
+            </div>
+            <div class="award-results-stats">
+                <div><strong>@results.Count</strong><span>Awards</span></div>
+                <div><strong>@results.Sum(x => x.TotalNominations)</strong><span>Nominations</span></div>
+                <div><strong>@results.Sum(x => x.Nominees.Count)</strong><span>Nominees</span></div>
+            </div>
+        </section>
+
+        @if (results.Count == 0)
+        {
+            <div class="award-results-empty">
+                <i class="fas fa-award"></i>
+                <strong>No results to display</strong>
+                <span>Select a programme or check back after nominations are submitted.</span>
+            </div>
+        }
+        else
+        {
+            <div class="award-results-grid">
+                @foreach (var award in results)
+                {
+                    <section class="award-results-card" style="--award-line: @LineColour(award.AwardId)" @key="award.AwardId">
+                        <div class="award-results-card-head">
+                            <div class="award-results-card-icon"><i class="fas fa-award"></i></div>
+                            <div class="award-results-card-title">
+                                <h2>@award.AwardName</h2>
+                                <span>@(award.NomineeType == "Directorate" ? "Directorate award" : IsPaired(award) ? "Male & female rankings" : "Worker award")</span>
+                            </div>
+                        </div>
+
+                        @if (award.IsOwnDirectorateAward)
+                        {
+                            <div class="award-results-directorate-list">
+                                @foreach (var group in award.DirectorateGroups)
+                                {
+                                    <div class="award-results-group">
+                                        <div class="award-results-group-title">
+                                            <i class="fas fa-building"></i> @group.DirectorateName
+                                        </div>
+                                        @foreach (var nominee in group.Nominees.Take(3))
+                                        {
+                                            <button type="button" class="award-results-rank-row award-results-clickable"
+                                                    @onclick="() => ShowNominee(award, nominee, group.DirectorateName)">
+                                                <span class="award-results-rank">@nominee.Rank</span>
+                                                <span class="award-results-name">@nominee.Name</span>
+                                                <span class="award-results-votes">@nominee.Count</span>
+                                                <i class="fas fa-chevron-right"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                                @if (award.DirectorateGroups.Count == 0)
+                                {
+                                    <div class="award-results-no-votes">No nominations yet</div>
+                                }
+                            </div>
+                        }
+                        else if (IsPaired(award))
+                        {
+                            <div class="award-results-pair">
+                                @foreach (var gender in new[] { "Male", "Female" })
+                                {
+                                    <div class="award-results-group">
+                                        <div class="award-results-group-title">Top 3 @gender</div>
+                                        @foreach (var nominee in TopThree(award, gender))
+                                        {
+                                            <button type="button" class="award-results-rank-row award-results-clickable"
+                                                    @onclick="() => ShowNominee(award, nominee, gender)">
+                                                <span class="award-results-rank">@GroupRank(award, nominee, gender)</span>
+                                                <span class="award-results-name">@nominee.Name</span>
+                                                <span class="award-results-votes">@nominee.Count</span>
+                                                <i class="fas fa-chevron-right"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="award-results-group">
+                                <div class="award-results-group-title">Top 3 nominees</div>
+                                @foreach (var nominee in award.Nominees.Take(3))
+                                {
+                                    <button type="button" class="award-results-rank-row award-results-clickable"
+                                            @onclick='() => ShowNominee(award, nominee, "")'>
+                                        <span class="award-results-rank">@nominee.Rank</span>
+                                        <span class="award-results-name">@nominee.Name</span>
+                                        <span class="award-results-votes">@nominee.Count</span>
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                }
+                                @if (award.Nominees.Count == 0)
+                                {
+                                    <div class="award-results-no-votes">No nominations yet</div>
+                                }
+                            </div>
+                        }
+
+                        <div class="award-results-card-footer">
+                            <span>@award.TotalNominations nomination(s)</span>
+                            <span class="award-results-review-hint">Select a nominee to review evidence</span>
+                        </div>
+                    </section>
+                }
+            </div>
+        }
+    }
+</div>
+
+@if (selectedNominee is not null)
+{
+    <div class="award-results-overlay" @onclick="CloseDetails">
+        <section class="award-results-dialog" role="dialog" aria-modal="true"
+                 aria-labelledby="award-results-detail-title" @onclick:stopPropagation="true">
+            <div class="award-results-dialog-head">
+                <div>
+                    <span class="award-results-dialog-kicker">NOMINATION REVIEW EVIDENCE</span>
+                    <h2 id="award-results-detail-title">@selectedNominee.Name</h2>
+                    <p>
+                        @selectedAward?.AwardName
+                        @if (!string.IsNullOrWhiteSpace(selectedGroup))
+                        {
+                            <span> · @selectedGroup</span>
+                        }
+                    </p>
+                    <p><strong>@selectedNominee.Count nomination(s)</strong> · Individual nominators and justifications</p>
+                </div>
+                <button type="button" class="award-results-close" aria-label="Close details" @onclick="CloseDetails">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="award-results-dialog-body">
+                @foreach (var entry in selectedNominee.Entries)
+                {
+                    <article class="award-results-evidence">
+                        <div class="award-results-evidence-head">
+                            <strong><i class="fas fa-user-check"></i> @entry.NominatorName</strong>
+                            <span>@entry.NominatorDirectorate</span>
+                        </div>
+                        <div class="award-results-evidence-quote">
+                            @if (string.IsNullOrWhiteSpace(entry.Justification))
+                            {
+                                <em>No justification recorded.</em>
+                            }
+                            else
+                            {
+                                @entry.Justification
+                            }
+                        </div>
+                        <small>Submitted @entry.SubmittedAtUtc.ToString("dd MMM yyyy, HH:mm") UTC</small>
+                    </article>
+                }
+            </div>
+            <div class="award-results-dialog-footer">
+                <button type="button" class="award-results-done" @onclick="CloseDetails">Close</button>
+            </div>
+        </section>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="award-results-overlay">
+        <section class="award-results-error" role="alertdialog" aria-modal="true">
+            <i class="fas fa-exclamation-circle"></i>
+            <h2>Action required</h2>
+            <p>@error</p>
+            <button type="button" class="award-results-done" @onclick='() => error = ""'>OK</button>
+        </section>
+    </div>
+}
+
+@code {
+    private bool allowed;
+    private bool loading = true;
+    private int programmeId;
+    private string error = "";
+    private List<AwardProgramme> programmes = new();
+    private List<AwardService.AwardResultDetail> results = new();
+    private AwardService.AwardResultDetail? selectedAward;
+    private AwardService.ResultNominee? selectedNominee;
+    private string selectedGroup = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            allowed = await Awards.CanSeeResultsAsync();
+            if (!allowed)
+            {
+                error = "You are not authorised to view award results.";
+                return;
+            }
+
+            programmes = await Awards.ResultsProgrammesAsync();
+            programmeId = programmes.FirstOrDefault()?.Id ?? 0;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            error = "";
+            CloseDetails();
+            results = programmeId > 0
+                ? await Awards.ResultsDashboardAsync(programmeId)
+                : new();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+    }
+
+    private static bool IsPaired(AwardService.AwardResultDetail award) =>
+        award.NomineeType == "Worker" && award.SelectionRule == "OneMaleOneFemale";
+
+    private static IEnumerable<AwardService.ResultNominee> GenderNominees(
+        AwardService.AwardResultDetail award,
+        string gender) =>
+        award.Nominees
+            .Where(x => string.Equals(x.Gender, gender, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.Count)
+            .ThenBy(x => x.Name);
+
+    private static IEnumerable<AwardService.ResultNominee> TopThree(
+        AwardService.AwardResultDetail award,
+        string gender) => GenderNominees(award, gender).Take(3);
+
+    private static int GroupRank(
+        AwardService.AwardResultDetail award,
+        AwardService.ResultNominee nominee,
+        string gender) =>
+        GenderNominees(award, gender).TakeWhile(x => x.NomineeId != nominee.NomineeId).Count() + 1;
+
+    private static string LineColour(int id)
+    {
+        string[] colours = { "#14836b", "#3c75ad", "#9b6bb0", "#d38b37", "#3697a2", "#a66b79" };
+        return colours[(int)((uint)id % (uint)colours.Length)];
+    }
+
+    private void ShowNominee(
+        AwardService.AwardResultDetail award,
+        AwardService.ResultNominee nominee,
+        string group)
+    {
+        selectedAward = award;
+        selectedNominee = nominee;
+        selectedGroup = group;
+    }
+
+    private void CloseDetails()
+    {
+        selectedAward = null;
+        selectedNominee = null;
+        selectedGroup = "";
+    }
+}
+
+<style>
+    .award-results-page {
+        padding: 18px 22px 34px;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+
+    .award-results-hero {
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        padding: 28px 32px;
+        border-radius: 16px;
+        background: linear-gradient(120deg, #073d30 0%, #0b6c50 60%, #24916d 100%);
+        color: #fff;
+        box-shadow: 0 12px 28px rgba(5,62,45,.13);
+    }
+
+        .award-results-hero::after {
+            content: "";
+            position: absolute;
+            width: 310px;
+            height: 310px;
+            border: 45px solid rgba(255,255,255,.055);
+            border-radius: 50%;
+            right: 12%;
+            top: -190px;
+            pointer-events: none;
+        }
+
+    .award-results-hero-copy {
+        position: relative;
+        z-index: 1;
+    }
+
+    .award-results-eyebrow {
+        font-size: 10px;
+        letter-spacing: 2px;
+        font-weight: 800;
+        color: #c2e8d6;
+        margin-bottom: 8px;
+    }
+
+        .award-results-eyebrow i {
+            margin-right: 7px;
+        }
+
+    .award-results-hero h1 {
+        font-size: clamp(23px, 2.5vw, 32px);
+        font-weight: 800;
+        margin: 0 0 5px;
+    }
+
+    .award-results-hero-accent {
+        font-size: 14px;
+        font-weight: 650;
+        color: #d2f0a4;
+    }
+
+    .award-results-hero p {
+        margin: 10px 0 0;
+        font-size: 12px;
+        color: #d8eee4;
+    }
+
+    .award-results-back {
+        position: relative;
+        z-index: 1;
+        white-space: nowrap;
+        border: 1px solid rgba(255,255,255,.4);
+        border-radius: 9px;
+        padding: 9px 13px;
+        background: rgba(255,255,255,.12);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+        .award-results-back i {
+            margin-right: 6px;
+        }
+
+    .award-results-toolbar {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 17px 19px;
+        margin: 18px 0;
+        border: 1px solid #e2eae6;
+        border-radius: 13px;
+        background: #fff;
+    }
+
+    .award-results-programme {
+        min-width: min(100%, 320px);
+    }
+
+        .award-results-programme label {
+            display: block;
+            margin-bottom: 6px;
+            color: #466155;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .award-results-programme select {
+            border-color: #d4e3db;
+            font-size: 12px;
+        }
+
+    .award-results-stats {
+        display: flex;
+        gap: 24px;
+    }
+
+        .award-results-stats div {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .award-results-stats strong {
+            color: #124c3a;
+            font-size: 22px;
+            line-height: 1.2;
+        }
+
+        .award-results-stats span {
+            color: #72857c;
+            font-size: 10px;
+        }
+
+    .award-results-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 15px;
+    }
+
+    .award-results-card {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        border: 1px solid #e3ebe7;
+        border-top: 4px solid var(--award-line);
+        border-radius: 13px;
+        background: #fff;
+        box-shadow: 0 3px 14px rgba(20,56,40,.045);
+        overflow: hidden;
+    }
+
+    .award-results-card-head {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 17px 16px 10px;
+    }
+
+    .award-results-card-icon {
+        flex: 0 0 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        color: var(--award-line);
+        background: #f0f6f3;
+    }
+
+    .award-results-card-title {
+        min-width: 0;
+    }
+
+        .award-results-card-title h2 {
+            margin: 0 0 4px;
+            color: #183d30;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .award-results-card-title span {
+            font-size: 10px;
+            color: #75887d;
+        }
+
+    .award-results-group {
+        padding: 5px 16px 12px;
+    }
+
+    .award-results-group-title {
+        margin: 3px 0 8px;
+        font-size: 11px;
+        font-weight: 800;
+        color: #496c5c;
+    }
+
+        .award-results-group-title i {
+            margin-right: 5px;
+        }
+
+    .award-results-pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+    }
+
+        .award-results-pair .award-results-group:first-child {
+            border-right: 1px solid #eef2ef;
+        }
+
+    .award-results-rank-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 7px 0;
+        border-bottom: 1px solid #f0f3f1;
+    }
+
+    .award-results-rank {
+        flex: 0 0 23px;
+        height: 23px;
+        display: grid;
+        place-items: center;
+        border-radius: 7px;
+        background: #edf5f0;
+        color: #276b4f;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .award-results-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #2c4237;
+        font-size: 11px;
+    }
+
+    .award-results-votes {
+        flex: 0 0 auto;
+        min-width: 24px;
+        text-align: center;
+        padding: 4px 6px;
+        border-radius: 7px;
+        background: #edf3f1;
+        color: #255b47;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+    .award-results-no-votes {
+        color: #889a90;
+        font-size: 11px;
+        padding: 9px 0;
+    }
+
+    .award-results-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 11px 16px;
+        margin-top: auto;
+        border-top: 1px solid #edf1ee;
+        background: #fbfdfb;
+    }
+
+        .award-results-card-footer span {
+            color: #7a8c82;
+            font-size: 10px;
+        }
+
+    .award-results-view {
+        padding: 7px 10px;
+        border: 0;
+        border-radius: 7px;
+        background: #e5f3eb;
+        color: #126243;
+        font-size: 11px;
+        font-weight: 800;
+    }
+
+        .award-results-view:hover {
+            background: #cce9d9;
+        }
+
+        .award-results-view i {
+            margin-left: 5px;
+        }
+
+    .award-results-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        min-height: 170px;
+        color: #738a7d;
+        font-size: 12px;
+    }
+
+        .award-results-empty i {
+            font-size: 22px;
+            color: #44866b;
+        }
+
+    .award-results-overlay {
+        position: fixed;
+        z-index: 2000;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(9,32,23,.63);
+    }
+
+    .award-results-dialog {
+        width: min(720px, 100%);
+        max-height: min(86vh, 850px);
+        display: flex;
+        flex-direction: column;
+        border-radius: 15px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 22px 65px rgba(0,0,0,.22);
+    }
+
+    .award-results-dialog-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 22px 24px 15px;
+        border-bottom: 1px solid #e9efea;
+    }
+
+    .award-results-dialog-kicker {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        color: #18825d;
+    }
+
+    .award-results-dialog-head h2 {
+        font-size: 20px;
+        color: #173e2d;
+        margin: 7px 0;
+        font-weight: 800;
+    }
+
+    .award-results-dialog-head p {
+        margin: 0;
+        font-size: 11px;
+        color: #7c8d83;
+    }
+
+    .award-results-close {
+        align-self: flex-start;
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 8px;
+        background: #eff4f0;
+        color: #4a6656;
+    }
+
+    .award-results-dialog-body {
+        padding: 12px 24px 20px;
+        overflow-y: auto;
+    }
+
+    .award-results-detail-group {
+        font-size: 12px;
+        font-weight: 800;
+        color: #245d44;
+        margin: 18px 0 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e6eee8;
+    }
+
+    .award-results-detail-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 0;
+        border-bottom: 1px solid #f0f3f1;
+    }
+
+    .award-results-detail-name {
+        flex: 1;
+        min-width: 0;
+        color: #30483b;
+        font-size: 12px;
+    }
+
+    .award-results-detail-row strong {
+        white-space: nowrap;
+        font-size: 13px;
+        color: #176344;
+    }
+
+    .award-results-detail-row small {
+        font-size: 10px;
+        font-weight: 500;
+        color: #82978a;
+    }
+
+    .award-results-dialog-footer {
+        padding: 12px 24px;
+        border-top: 1px solid #edf1ed;
+        text-align: right;
+    }
+
+    .award-results-done {
+        border: 0;
+        border-radius: 8px;
+        padding: 9px 23px;
+        background: #13714f;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 750;
+    }
+
+    .award-results-error {
+        width: min(420px, 100%);
+        padding: 30px 25px;
+        text-align: center;
+        background: #fff;
+        border-radius: 14px;
+    }
+
+        .award-results-error > i {
+            font-size: 28px;
+            color: #c15d3e;
+        }
+
+        .award-results-error h2 {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+
+        .award-results-error p {
+            font-size: 12px;
+            color: #52665a;
+        }
+
+    .award-results-clickable {
+        width: 100%;
+        border: 0;
+        border-bottom: 1px solid #f0f3f1;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+    }
+
+        .award-results-clickable:hover {
+            background: #f1f8f4;
+        }
+
+        .award-results-clickable > i {
+            font-size: 10px;
+            color: #6c9180;
+        }
+
+    .award-results-directorate-list {
+        max-height: 340px;
+        overflow-y: auto;
+    }
+
+        .award-results-directorate-list .award-results-group {
+            border-top: 1px solid #edf1ee;
+        }
+
+    .award-results-review-hint {
+        font-size: 10px;
+        color: #237457;
+        font-weight: 700;
+    }
+
+    .award-results-evidence {
+        padding: 15px 0;
+        border-bottom: 1px solid #e9f0eb;
+    }
+
+    .award-results-evidence-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 12px;
+        color: #234d39;
+    }
+
+        .award-results-evidence-head span {
+            color: #6c8175;
+            font-size: 11px;
+        }
+
+    .award-results-evidence-quote {
+        padding: 13px 15px;
+        margin: 9px 0;
+        background: #f4f8f5;
+        border-left: 3px solid #2b946a;
+        border-radius: 4px;
+        color: #334c3d;
+        font-size: 12px;
+        white-space: pre-wrap;
+    }
+
+    .award-results-evidence small {
+        color: #85978b;
+        font-size: 10px;
+    }
+
+    @@media (max-width: 1100px) {
+        .award-results-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .award-results-page {
+            padding: 12px;
+        }
+
+        .award-results-hero {
+            padding: 22px;
+            flex-direction: column;
+        }
+
+        .award-results-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .award-results-stats {
+            gap: 16px;
+        }
+
+        .award-results-dialog-head, .award-results-dialog-body {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+    }
+</style>

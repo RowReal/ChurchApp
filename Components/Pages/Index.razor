@@ -6,7 +6,9 @@
 @using ChurchApp.Models
 @using Microsoft.EntityFrameworkCore
 @inject AuthService AuthService
+@inject PrivilegeService PrivilegeService
 @inject ChurchApp.Services.Event.EventRegistrationService EventRegistrationService
+@inject ChurchApp.Services.Event.AwardService AwardService
 @inject ChurchApp.Data.AppDbContext EventDashboardDb
 @inject WorkforceService WorkforceService
 @inject ExcuseService ExcuseService
@@ -480,6 +482,19 @@
         </a>
     </div>
 
+    @if (hasOpenAwardNomination)
+    {
+        <!-- Award nomination: visible only when this worker has an eligible open award -->
+        <div class="col-6 col-sm-4 col-lg-3">
+            <a href="/event/award-nominations" class="action-card">
+                <div class="action-image">
+                    <i class="fas fa-award"></i>
+                </div>
+                <span class="action-text">Award Nomination</span>
+            </a>
+        </div>
+    }
+
     @if (hasOpenEventRegistration)
     {
         <!-- Event registration: shown only while registration is open -->
@@ -681,7 +696,8 @@
 
 <!-- ADMINISTRATION & SETUP -->
 @if (CanAccessWorkerManagementWorkspace() ||
-     CanAccessSetupWorkspace())
+     CanAccessSetupWorkspace() ||
+     canAccessEventManagement)
 {
     <div class="menu-section">
         <div class="menu-section-title">
@@ -705,6 +721,10 @@
     </a>
 </div>
 
+            }
+
+            @if (canAccessEventManagement)
+            {
 <!-- Event Management -->
 <div class="col-6 col-sm-4 col-lg-3">
     <a href="/workspace/event-hub"
@@ -1251,7 +1271,9 @@ else
 }
 
 @code {
+    private bool canAccessEventManagement = false;
     private bool hasOpenEventRegistration = false;
+    private bool hasOpenAwardNomination = false;
     private bool hasOpenRegisteredEventCheckIn = false;
 
     // Statistics
@@ -1300,7 +1322,9 @@ private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
     if (AuthService.IsAuthenticated &&
         AuthService.CurrentWorker != null)
     {
+        await LoadEventManagementPrivilegeAsync();
         await LoadOpenEventRegistrationAsync();
+        await LoadOpenAwardNominationAsync();
         await LoadOpenRegisteredEventCheckInAsync();
         await LoadDashboardData();
         await LoadMyDeskCountsAsync();
@@ -1310,6 +1334,42 @@ private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
         await LoadBroadcastAccessAsync();
     }
 }
+private async Task LoadEventManagementPrivilegeAsync()
+{
+    canAccessEventManagement = false;
+    var worker = AuthService.CurrentWorker;
+    if (worker == null) return;
+
+    try
+    {
+        canAccessEventManagement = await PrivilegeService.HasPrivilegeAsync(
+            worker.Id, "Access-Event-Management");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Unable to check Event Management privilege: {ex.Message}");
+    }
+}
+
+private async Task LoadOpenAwardNominationAsync()
+{
+    hasOpenAwardNomination = false;
+    var worker = AuthService.CurrentWorker;
+    if (worker == null || !AuthService.IsAuthenticated || !worker.IsActive)
+        return;
+
+    try
+    {
+        // AwardService filters by active programme, nomination window,
+        // NominationAllowed, and the current worker's eligibility.
+        hasOpenAwardNomination = (await AwardService.MyOpenAwardsAsync()).Count > 0;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Unable to check open award nominations: {ex.Message}");
+    }
+}
+
 private async Task LoadOpenEventRegistrationAsync()
 {
     hasOpenEventRegistration = false;
@@ -3822,4 +3882,8 @@ private bool CanAccessSetupWorkspace()
 
 
 </style>
+
+
+
+
 

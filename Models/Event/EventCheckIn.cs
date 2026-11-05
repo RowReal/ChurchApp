@@ -18,8 +18,12 @@ namespace ChurchApp.Models.Event
         public DateTime? MenuUpdatedAtUtc { get; set; }
         public bool IsLeadershipSeat { get; set; }
 
+        [MaxLength(64)]
+        public string? VerificationToken { get; set; }
+
         public ChurchEvent ChurchEvent { get; set; } = null!;
         public EventTable EventTable { get; set; } = null!;
         public EventMenuOption EventMenuOption { get; set; } = null!;
     }
 }
+

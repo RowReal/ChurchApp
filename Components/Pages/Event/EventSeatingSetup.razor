@@ -4,6 +4,7 @@
 @using ChurchApp.Services
 @using ChurchApp.Services.Event
 @inject AuthService AuthService
+@inject PrivilegeService PrivilegeService
 @inject EventSeatingConfigurationService SeatingService
 @inject EventMenuService MenuService
 @inject NavigationManager Navigation
@@ -16,7 +17,7 @@
 }
 else if (!CanManage)
 {
-    <div class="bcc-empty"><i class="fas fa-ban"></i><h4>Access Denied</h4><p>Only Church Admin and Pastor in Charge can configure seating.</p></div>
+    <div class="bcc-empty"><i class="fas fa-ban"></i><h4>Access Denied</h4><p>Only Church Admin, Pastor in Charge, or workers with Event Management privilege can configure seating.</p></div>
 }
 else
 {
@@ -196,7 +197,8 @@ else
 }
 
 @code {
-    private bool CanManage => AuthService.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge);
+    private bool CanManage;
+
     private List<ChurchEvent> events = new();
     private List<EventTable> tables = new();
     private List<EventMenuOption> menuOptions = new();
@@ -218,6 +220,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        if (!AuthService.IsAuthenticated) return;
+        var worker = AuthService.CurrentWorker;
+        if (worker == null || !worker.IsActive) return;
+        CanManage = AuthService.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge)
+            || await PrivilegeService.HasPrivilegeAsync(worker.Id, "Access-Event-Management");
         if (!CanManage) return;
         try { events = await SeatingService.GetEventsAsync(); }
         catch (Exception ex) { ShowError(ex); }
@@ -319,6 +326,12 @@ else
         .seating-seats-input { width: 80px; }
     }
 </style>
+
+
+
+
+
+
 
 
 

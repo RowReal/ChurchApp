@@ -10,6 +10,7 @@
 @inject AttendanceService AttendanceService
 @inject ApprovalRequestService ApprovalRequestService
 @inject ServiceRecordAccessService ServiceRecordAccessService
+@inject PrivilegeService PrivilegeService
 
 @if (AuthService.IsAuthenticated)
 {
@@ -226,6 +227,19 @@
                     </a>
                 }
 
+                @if (canAccessEventMenu)
+                {
+                    <div class="bcc-nav-section">
+                        <a href="/workspace/event-hub"
+                           class="bcc-nav-item @GetNavItemClass("/workspace/event-hub")">
+                            <div class="bcc-nav-icon-container">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <span class="bcc-nav-text">Event Mgt</span>
+                        </a>
+                    </div>
+                }
+
                 @if (CanAccessWorkerManagementWorkspace())
                 {
                     <div class="bcc-nav-section">
@@ -268,6 +282,7 @@
     [Parameter]
     public bool IsVisible { get; set; }
 
+    private bool canAccessEventMenu = false;
     private bool showSetupMenu = false;
     private bool showWorkforceMenu = false;
     private bool showExcuseMenu = false;
@@ -295,12 +310,33 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadEventMenuAccessAsync();
         await LoadOrganizationalAccess();
         await LoadNotificationCounts();
         await LoadGrowthHubCounts();
         await LoadApprovalHubCounts();
         await LoadServiceRecordAccess();
         await LoadAccountRemittancePendingCountAsync();
+    }
+
+    private async Task LoadEventMenuAccessAsync()
+    {
+        canAccessEventMenu = false;
+        var worker = AuthService.CurrentWorker;
+        if (!AuthService.IsAuthenticated || worker == null)
+            return;
+
+        try
+        {
+            canAccessEventMenu =
+                await PrivilegeService.HasPrivilegeAsync(worker.Id, "Access-Event-Management") ||
+                await PrivilegeService.HasPrivilegeAsync(worker.Id, "Event-Assisted-CheckIn");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading Event Mgt menu access: {ex.Message}");
+            canAccessEventMenu = false;
+        }
     }
 
     private async Task LoadOrganizationalAccess()

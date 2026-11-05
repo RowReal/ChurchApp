@@ -85,6 +85,10 @@ namespace ChurchApp.Services
         {
             var defaultPrivileges = new List<Privilege>
             {
+                new() { Code = "Manage-Awards", Name = "Manage Awards", Description = "Can configure award programmes and categories" },
+                new() { Code = "Access-Award-Results", Name = "View Award Results", Description = "Can view confidential nomination results" },
+                new() { Code = "Access-Event-Management", Name = "Access Event Management", Description = "Can access Event Management workflows" },
+                new() { Code = "Event-Assisted-CheckIn", Name = "Assisted Event Check-In", Description = "Can check in registered workers on their behalf" },
                 new() { Code = "Access-Guest-Management", Name = "Access Guest Management", Description = "Can access the guest and first timer management module" },
                 new() { Code = "Create-Guest-Record", Name = "Create Guest Record", Description = "Can create guest or first timer records" },
                 new() { Code = "Edit-Guest-Record", Name = "Edit Guest Record", Description = "Can edit guest or first timer records" },
@@ -140,3 +144,4 @@ new()
         }
     }
 }
+

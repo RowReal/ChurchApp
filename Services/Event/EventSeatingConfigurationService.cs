@@ -8,41 +8,53 @@ public class EventSeatingConfigurationService
 {
     private readonly AppDbContext db;
     private readonly AuthService auth;
-    public EventSeatingConfigurationService(AppDbContext db, AuthService auth)
+    private readonly PrivilegeService privileges;
+    public EventSeatingConfigurationService(AppDbContext db, AuthService auth, PrivilegeService privileges)
     {
         this.db = db;
         this.auth = auth;
+        this.privileges = privileges;
     }
 
-    private void RequireAdmin()
+    private async Task RequireAccessAsync()
     {
-        if (!auth.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge))
-            throw new UnauthorizedAccessException("Only Church Admin or Pastor in Charge can configure event seating.");
+        var worker = auth.CurrentWorker;
+        if (worker == null || !auth.IsAuthenticated || !worker.IsActive)
+            throw new UnauthorizedAccessException("Please log in with an active worker account.");
+
+        if (auth.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge))
+            return;
+
+        if (await privileges.HasPrivilegeAsync(worker.Id, "Access-Event-Management"))
+            return;
+
+        throw new UnauthorizedAccessException(
+            "Only Church Admin, Pastor in Charge, or workers with Event Management privilege can configure event seating.");
     }
 
     public async Task<List<ChurchEvent>> GetEventsAsync()
     {
-        RequireAdmin();
+        await RequireAccessAsync();
         return await db.ChurchEvents.AsNoTracking().OrderByDescending(e => e.StartsAtUtc).ToListAsync();
     }
 
     public async Task<List<EventTable>> GetTablesAsync(int eventId)
     {
-        RequireAdmin();
+        await RequireAccessAsync();
         return await db.EventTables.AsNoTracking().Where(t => t.ChurchEventId == eventId)
             .OrderBy(t => t.Id).ToListAsync();
     }
 
     public async Task<bool> GetMixDirectoratesAsync(int eventId)
     {
-        RequireAdmin();
+        await RequireAccessAsync();
         return (await db.EventSeatingSettings.AsNoTracking()
             .FirstOrDefaultAsync(s => s.ChurchEventId == eventId))?.MixDirectorates ?? true;
     }
 
     public async Task SaveMixDirectoratesAsync(int eventId, bool mix)
     {
-        RequireAdmin();
+        await RequireAccessAsync();
         if (!await db.ChurchEvents.AnyAsync(e => e.Id == eventId))
             throw new InvalidOperationException("Event not found.");
         var settings = await db.EventSeatingSettings.FirstOrDefaultAsync(s => s.ChurchEventId == eventId);
@@ -57,7 +69,7 @@ public class EventSeatingConfigurationService
 
     public async Task SaveTableAsync(int eventId, int? tableId, string name, int capacity, bool leadership, bool active)
     {
-        RequireAdmin();
+        await RequireAccessAsync();
         name = (name ?? "").Trim();
         if (name.Length == 0 || name.Length > 80) throw new InvalidOperationException("Table name must be 1–80 characters.");
         if (capacity < 1 || capacity > 100) throw new InvalidOperationException("Capacity must be between 1 and 100.");

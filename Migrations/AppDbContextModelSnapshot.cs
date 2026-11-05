@@ -1579,6 +1579,157 @@ namespace ChurchApp.Migrations
                     b.ToTable("Directorates");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.Event.AwardCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AwardProgrammeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ClosesAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GenderFilter")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MaxNominationsPerWorker")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("NominationAllowed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NominationAudience")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NomineeType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OpensAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RestrictNomineesToOwnDirectorate")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SelectionRule")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Any");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AwardProgrammeId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("AwardCategories", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.AwardNomination", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AwardCategoryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsSubmitted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("NoNomination")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("NominatorWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("NomineeDirectorateId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("NomineeWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SlotNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
+
+                    b.Property<DateTime?>("SubmittedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NominatorWorkerId");
+
+                    b.HasIndex("NomineeDirectorateId");
+
+                    b.HasIndex("NomineeWorkerId");
+
+                    b.HasIndex("AwardCategoryId", "NominatorWorkerId", "SlotNumber")
+                        .IsUnique();
+
+                    b.ToTable("AwardNominations", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.AwardProgramme", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Year", "Name")
+                        .IsUnique();
+
+                    b.ToTable("AwardProgrammes", (string)null);
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Event.ChurchEvent", b =>
                 {
                     b.Property<int>("Id")
@@ -1676,6 +1827,10 @@ namespace ChurchApp.Migrations
                     b.Property<int>("SeatNumber")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("VerificationToken")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("WorkerId")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1684,6 +1839,9 @@ namespace ChurchApp.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("EventMenuOptionId");
+
+                    b.HasIndex("VerificationToken")
+                        .IsUnique();
 
                     b.HasIndex("ChurchEventId", "CheckedInAtUtc");
 
@@ -4675,6 +4833,40 @@ namespace ChurchApp.Migrations
                     b.Navigation("AssistantHeadWorker");
 
                     b.Navigation("HeadWorker");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.AwardCategory", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Event.AwardProgramme", null)
+                        .WithMany()
+                        .HasForeignKey("AwardProgrammeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.AwardNomination", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Event.AwardCategory", null)
+                        .WithMany()
+                        .HasForeignKey("AwardCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Worker", null)
+                        .WithMany()
+                        .HasForeignKey("NominatorWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Directorate", null)
+                        .WithMany()
+                        .HasForeignKey("NomineeDirectorateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.Worker", null)
+                        .WithMany()
+                        .HasForeignKey("NomineeWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ChurchApp.Models.Event.EventCheckIn", b =>

@@ -1,7 +1,10 @@
 ﻿@page "/workspace/event-hub"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
+@using ChurchApp.Services.Event
 @inject AuthService AuthService
+@inject PrivilegeService PrivilegeService
+@inject AwardService AwardService
 @inject NavigationManager Navigation
 
 <PageTitle>Event Hub - BCC ServiceHub</PageTitle>
@@ -14,6 +17,10 @@
         <p>You need to be logged in to access Event Hub.</p>
         <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
     </div>
+}
+else if (IsCheckingPrivilege)
+{
+    <div class="bcc-empty"><p>Checking Event Management access...</p></div>
 }
 else
 {
@@ -29,57 +36,78 @@ else
             </button>
         </div>
         <div class="workspace-tile-grid">
-            @if (IsAdmin)
+            @if (CanManageEvents)
             {
+                <a href="/event/setup" class="compact-workspace-tile">
+                    <div class="compact-tile-icon"><i class="fas fa-map-marker-alt"></i></div>
+                    <div class="compact-tile-title">Event Setup</div>
+                    <div class="compact-tile-arrow"><i class="fas fa-lock"></i></div>
+                </a>
                 <a href="/event/registration-report" class="compact-workspace-tile">
                     <div class="compact-tile-icon"><i class="fas fa-calendar-plus"></i></div>
-                    <div class="compact-tile-title">Event Report</div>
+                    <div class="compact-tile-title">Event Registration Report</div>
                     <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
                 </a>
             }
 
-            <div class="compact-workspace-tile disabled" title="Coming in the next stage">
-                <div class="compact-tile-icon"><i class="fas fa-user-check"></i></div>
-                <div class="compact-tile-title">My Event Registration</div>
-                <div class="compact-tile-arrow"><i class="fas fa-lock"></i></div>
-            </div>
-            @if (IsAdmin)
+            @if (CanManageAwards)
             {
-                <div class="compact-workspace-tile disabled" title="Coming in the next stage">
-                    <div class="compact-tile-icon"><i class="fas fa-users"></i></div>
-                    <div class="compact-tile-title">Assisted Registration</div>
-                    <div class="compact-tile-arrow"><i class="fas fa-lock"></i></div>
-                </div>
+                <a href="/event/award-setup" class="compact-workspace-tile">
+                    <div class="compact-tile-icon"><i class="fas fa-award"></i></div>
+                    <div class="compact-tile-title">Award Setup</div>
+                    <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+            }
+            @if (CanManageEvents)
+            {
                 <a href="/event/seating-setup" class="compact-workspace-tile">
                     <div class="compact-tile-icon"><i class="fas fa-chair"></i></div>
                     <div class="compact-tile-title">Table &amp; Seating Setup</div>
                     <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
                 </a>
             }
-            <div class="compact-workspace-tile disabled" title="Coming in a later stage">
+            <a href="/event/assisted-check-in" class="compact-workspace-tile">
                 <div class="compact-tile-icon"><i class="fas fa-map-marker-alt"></i></div>
                 <div class="compact-tile-title">Event Check-In</div>
                 <div class="compact-tile-arrow"><i class="fas fa-lock"></i></div>
-            </div>
-            @if (IsAdmin)
+            </a>
+            @if (CanManageEvents)
             {
-                <div class="compact-workspace-tile disabled" title="Coming in a later stage">
-                    <div class="compact-tile-icon"><i class="fas fa-utensils"></i></div>
-                    <div class="compact-tile-title">Food &amp; Catering</div>
-                    <div class="compact-tile-arrow"><i class="fas fa-lock"></i></div>
-                </div>
-                <div class="compact-workspace-tile disabled" title="Coming in a later stage">
+                <a href="/event/check-in-report" class="compact-workspace-tile">
                     <div class="compact-tile-icon"><i class="fas fa-chart-bar"></i></div>
-                    <div class="compact-tile-title">Event Reports</div>
-                    <div class="compact-tile-arrow"><i class="fas fa-lock"></i></div>
-                </div>
+                    <div class="compact-tile-title">Check-In Report</div>
+                    <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+            }
+            @if (CanViewAwardResults)
+            {
+                <a href="/event/award-results" class="compact-workspace-tile">
+                    <div class="compact-tile-icon"><i class="fas fa-chart-pie"></i></div>
+                    <div class="compact-tile-title">Award Results</div>
+                    <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
             }
         </div>
     </div>
 }
 
 @code {
-    private bool IsAdmin => AuthService.IsInRole(AuthService.Roles.ChurchAdmin);
+    private bool CanManageEvents;
+    private bool CanManageAwards;
+    private bool CanViewAwardResults;
+    private bool IsCheckingPrivilege = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.CurrentWorker is { } worker)
+        {
+            CanManageEvents = await PrivilegeService.HasPrivilegeAsync(
+                worker.Id, "Access-Event-Management");
+            CanManageAwards = await AwardService.CanManageAsync();
+            CanViewAwardResults = await AwardService.CanSeeResultsAsync();
+        }
+        IsCheckingPrivilege = false;
+    }
     private void GoBack() => Navigation.NavigateTo("/");
 }
 
@@ -191,4 +219,49 @@ else
         }
     }
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

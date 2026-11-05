@@ -1,0 +1,527 @@
+﻿@page "/event/check-in"
+
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Event
+@using ChurchApp.Services
+@using ChurchApp.Services.Event
+@using Microsoft.JSInterop
+@using QRCoder
+@inject AuthService AuthService
+@inject EventCheckInService CheckInService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<PageTitle>Event Check-In - BCC ServiceHub</PageTitle>
+
+<div class="worker360-page" style="max-width:1000px;margin:0 auto;">
+    <div class="bcc-page-header">
+        <div>
+            <div class="bcc-page-subtitle"><i class="fas fa-calendar-check me-2"></i>Personal Workspace</div>
+            <div class="bcc-page-title">Event Check-In</div>
+            <div class="bcc-page-subtitle">Confirm your attendance, choose your meal and receive your seat.</div>
+        </div>
+        <button class="bcc-btn" @onclick="GoToDashboard">
+            <i class="fas fa-arrow-left me-1"></i>Dashboard
+        </button>
+    </div>
+    @if (!AuthService.IsAuthenticated)
+    {
+        <div class="bcc-card"><div class="bcc-card-body">Please <a href="/login">log in</a> to check in.</div></div>
+    }
+    else if (loading)
+    {
+        <div class="bcc-card"><div class="bcc-card-body"><i class="fas fa-spinner fa-spin me-2"></i>Loading eligible events...</div></div>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <div class="alert @(error ? "alert-danger" : "alert-success")" role="alert">@message</div>
+        }
+        @if (events.Count == 0)
+        {
+            <div class="bcc-card">
+                <div class="bcc-card-body text-center py-4">
+                    <i class="fas fa-calendar-times fa-2x text-muted mb-3"></i>
+                    <h5>No event open for check-in</h5>
+                    <p class="text-muted">Only events you registered to attend will appear during their check-in window.</p>
+                    <button class="bcc-btn bcc-btn-primary" @onclick="LoadAsync">Refresh</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="bcc-card mb-3">
+                <div class="bcc-card-body">
+                    <label class="bcc-form-label">Select Event</label>
+                    <select class="form-select bcc-input" value="@selectedEventId" @onchange="EventChangedAsync">
+                        @foreach (var ev in events)
+                        {
+                            <option value="@ev.Id">@ev.Name — @ev.Venue</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            @if (selectedEvent != null)
+            {
+                <div class="row g-3">
+                    <div class="col-12 col-lg-7">
+                        <div class="bcc-card h-100">
+                            <div class="bcc-card-header"><div class="bcc-card-title"><i class="fas fa-user-check me-2"></i>My Check-In</div></div>
+                            <div class="bcc-card-body">
+                                <h5>@selectedEvent.Name</h5>
+                                <p class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>@selectedEvent.Venue</p>
+                                @if (checkIn != null)
+                                {
+                                    <div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Your check-in is confirmed.</div>
+                                    <button class="bcc-btn bcc-btn-primary" @onclick="ShowPass">View My Digital Check-In Pass</button>
+                                }
+                                else
+                                {
+                                    <label class="bcc-form-label">Select Your Meal <span class="text-danger">*</span></label>
+                                    <select class="form-select bcc-input mb-3" @bind="mealId">
+                                        <option value="0">-- Choose a meal --</option>
+                                        @foreach (var m in meals)
+                                        {
+                                            <option value="@m.Id">@m.Name</option>
+                                        }
+                                    </select>
+                                    @if (meals.Count == 0)
+                                    {
+                                        <p class="text-danger">No active meals have been configured for this event.</p>
+                                    }
+                                    <p class="text-muted small"><i class="fas fa-location-arrow me-1"></i>Your current location will be verified against the church's attendance location.</p>
+                                    <button class="bcc-btn bcc-btn-primary" disabled="@(busy || mealId == 0 || meals.Count == 0)" @onclick="CheckInAsync">
+                                        <i class="fas fa-map-marker-alt me-2"></i>@(busy ? "Checking in..." : "Verify Location & Check In")
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-5">
+                        <div class="bcc-card h-100">
+                            <div class="bcc-card-header"><div class="bcc-card-title"><i class="fas fa-info-circle me-2"></i>Event Information</div></div>
+                            <div class="bcc-card-body">
+                                <p><strong>Check-in closes</strong><br />@selectedEvent.CheckInClosesAtUtc?.ToLocalTime().ToString("dd MMM yyyy, h:mm tt")</p>
+                                <p><strong>Meal changes close</strong><br />@selectedEvent.MenuChangesCloseAtUtc?.ToLocalTime().ToString("dd MMM yyyy, h:mm tt")</p>
+                                <p class="text-muted small">Leadership roles receive leadership-reserved seating. Other eligible workers are seated according to the event's directorate-mixing configuration.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+
+@if (showPass && checkIn != null && selectedEvent != null)
+{
+    <div class="event-pass-overlay" role="presentation" @onclick="ClosePass">
+        <section class="event-pass-modal" role="dialog" aria-modal="true" aria-label="Event check-in pass" @onclick:stopPropagation="true">
+            <button class="event-pass-close" type="button" aria-label="Close" @onclick="ClosePass">×</button>
+            <div class="event-pass-head">
+                <div class="event-pass-check"><i class="fas fa-check-circle"></i></div>
+                <div class="event-pass-heading">CHECK-IN CONFIRMED</div>
+                <div class="event-pass-event">@selectedEvent.Name</div>
+            </div>
+            <div class="event-pass-body">
+                @if (!string.IsNullOrEmpty(qrImage))
+                {
+                    <img class="event-pass-qr" src="@qrImage" alt="QR code to verify check-in" />
+                    <div class="event-pass-scan">Scan to verify this pass</div>
+                }
+                <h3 class="event-pass-name">@WorkerName</h3>
+                <div class="event-pass-sub">Your seat is reserved</div>
+                <div class="event-pass-grid">
+                    <div class="event-pass-tile"><span>TABLE</span><strong>@checkIn.EventTable?.TableName</strong></div>
+                    <div class="event-pass-tile"><span>SEAT</span><strong>@checkIn.SeatNumber</strong></div>
+                </div>
+                <div class="event-pass-meal"><span>SELECTED MENU</span><strong>@checkIn.EventMenuOption?.Name</strong></div>
+                <div class="event-pass-note"><i class="fas fa-info-circle me-2"></i>Kindly show this pass to the hostess to direct you to your seat.</div>
+                @if (CanChangeMeal)
+                {
+                    <button class="event-pass-action" @onclick="OpenMealEditor"><i class="fas fa-utensils me-2"></i>Change Menu</button>
+                }
+                else
+                {
+                    <div class="event-pass-closed">Menu selection is closed.</div>
+                }
+                <button class="event-pass-secondary" @onclick="ClosePass">Close Pass</button>
+            </div>
+        </section>
+    </div>
+}
+
+@if (showMealEditor && checkIn != null)
+{
+    <div class="event-pass-overlay" role="presentation" @onclick="CloseMealEditor">
+        <section class="event-pass-modal event-meal-modal" role="dialog" aria-modal="true" aria-label="Change meal" @onclick:stopPropagation="true">
+            <div class="event-pass-head"><div class="event-pass-heading">CHANGE YOUR MENU</div><div class="event-pass-event">Your table and seat will remain unchanged.</div></div>
+            <div class="event-pass-body">
+                @if (!string.IsNullOrEmpty(message))
+                {
+                    <div class="alert @(error ? "alert-danger" : "alert-success")">@message</div>
+                }
+                <label class="bcc-form-label" for="mealChangeSelect">Select your meal</label>
+                <select id="mealChangeSelect" class="form-select bcc-input mb-3" @bind="mealId">
+                    @foreach (var m in meals)
+                    {
+                        <option value="@m.Id">@m.Name</option>
+                    }
+                </select>
+                <button class="event-pass-action" disabled="@(busy || !CanChangeMeal || mealId == 0)" @onclick="SaveMealFromPassAsync">@(busy ? "Saving..." : "Save Menu Change")</button>
+                <button class="event-pass-secondary" @onclick="CloseMealEditor">Back to Pass</button>
+            </div>
+        </section>
+    </div>
+}
+
+<style>
+    /* E11C3: compact Event Hub purple digital pass */
+    .event-pass-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(28,13,51,.74);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px;
+        overflow-y: auto
+    }
+
+    .event-pass-modal {
+        position: relative;
+        width: min(390px,100%);
+        max-height: calc(100dvh - 20px);
+        overflow-y: auto;
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 18px 65px rgba(31,12,65,.38);
+        color: #34204d
+    }
+
+    .event-pass-close {
+        position: absolute;
+        top: 8px;
+        right: 9px;
+        background: rgba(255,255,255,.19);
+        border: 1px solid rgba(255,255,255,.35);
+        border-radius: 50%;
+        color: #fff;
+        font-size: 21px;
+        width: 29px;
+        height: 29px;
+        line-height: 1;
+        z-index: 1;
+        cursor: pointer
+    }
+
+    .event-pass-head {
+        background: linear-gradient(120deg,#43216e,#7142a9 62%,#8959bf);
+        color: #fff;
+        text-align: center;
+        padding: 13px 34px 12px
+    }
+
+    .event-pass-check {
+        font-size: 27px;
+        color: #e7d9ff;
+        line-height: 1;
+        margin-bottom: 3px
+    }
+
+    .event-pass-heading {
+        font-weight: 800;
+        font-size: 16px;
+        letter-spacing: .6px;
+        line-height: 1.2
+    }
+
+    .event-pass-event {
+        font-size: 12px;
+        opacity: .95;
+        margin-top: 4px;
+        line-height: 1.25
+    }
+
+    .event-pass-body {
+        text-align: center;
+        padding: 12px 17px 13px
+    }
+
+    .event-pass-qr {
+        display: block;
+        margin: 0 auto;
+        width: 118px;
+        height: 118px;
+        object-fit: contain;
+        padding: 4px;
+        background: #fff;
+        border: 1px solid #e4d8f3;
+        border-radius: 9px
+    }
+
+    .event-pass-scan {
+        font-size: 10px;
+        color: #79688c;
+        margin: 3px 0 6px
+    }
+
+    .event-pass-name {
+        font-size: 19px;
+        font-weight: 800;
+        line-height: 1.15;
+        margin: 4px 0 1px;
+        color: #402363
+    }
+
+    .event-pass-sub {
+        font-size: 11px;
+        color: #87759b
+    }
+
+    .event-pass-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin: 10px 0 8px
+    }
+
+    .event-pass-tile {
+        background: #f3eefb;
+        border-radius: 10px;
+        padding: 8px 5px
+    }
+
+        .event-pass-tile span, .event-pass-meal span {
+            display: block;
+            font-size: 10px;
+            letter-spacing: .75px;
+            color: #775e96
+        }
+
+        .event-pass-tile strong {
+            display: block;
+            font-size: 19px;
+            line-height: 1.15;
+            margin-top: 2px;
+            color: #4a267b
+        }
+
+    .event-pass-meal {
+        border: 1px solid #e8dcf5;
+        border-radius: 10px;
+        padding: 7px
+    }
+
+        .event-pass-meal strong {
+            display: block;
+            margin-top: 2px;
+            font-size: 13px;
+            line-height: 1.2;
+            color: #44256e
+        }
+
+    .event-pass-note {
+        background: #f4effb;
+        border-radius: 9px;
+        padding: 8px 9px;
+        margin: 9px 0;
+        font-size: 11px;
+        text-align: center;
+        line-height: 1.3;
+        color: #523673
+    }
+
+    .event-pass-action {
+        width: 100%;
+        background: linear-gradient(110deg,#5b2c91,#7845b3);
+        color: #fff;
+        border: 0;
+        border-radius: 9px;
+        padding: 9px;
+        font-size: 12px;
+        font-weight: 750;
+        cursor: pointer
+    }
+
+    .event-pass-secondary {
+        margin-top: 4px;
+        border: 0;
+        background: transparent;
+        color: #694594;
+        padding: 5px;
+        font-size: 12px;
+        cursor: pointer
+    }
+
+    .event-pass-closed {
+        font-size: 11px;
+        color: #8b7a9c;
+        margin: 4px 0
+    }
+
+    .event-meal-modal .event-pass-body {
+        padding: 16px
+    }
+    @@media(max - height:680px) {
+        .event-pass-head
+
+    {
+        padding: 9px 32px 8px
+    }
+
+    .event-pass-check {
+        font-size: 22px
+    }
+
+    .event-pass-heading {
+        font-size: 14px
+    }
+
+    .event-pass-body {
+        padding: 8px 14px 9px
+    }
+
+    .event-pass-qr {
+        width: 98px;
+        height: 98px
+    }
+
+    .event-pass-scan {
+        margin: 2px 0 3px
+    }
+
+    .event-pass-name {
+        font-size: 17px
+    }
+
+    .event-pass-grid {
+        margin: 6px 0
+    }
+
+    .event-pass-tile {
+        padding: 5px
+    }
+
+    .event-pass-note {
+        margin: 6px 0;
+        padding: 6px
+    }
+
+    .event-pass-action {
+        padding: 7px
+    }
+
+    }
+    @@media(max - width:350px) {
+        .event-pass-overlay
+
+    {
+        padding: 5px
+    }
+
+    .event-pass-modal {
+        max-height: calc(100dvh - 10px)
+    }
+
+    .event-pass-body {
+        padding-left: 10px;
+        padding-right: 10px
+    }
+
+    }</style>
+
+@code {
+    private bool loading = true, busy, error, showPass, showMealEditor;
+    private string qrImage = "";
+    private string WorkerName => AuthService.CurrentWorker?.FullName ?? "Registered Worker";
+    private void ShowPass() { showMealEditor = false; showPass = checkIn != null; }
+    private void ClosePass() => showPass = false;
+    private void OpenMealEditor() { if (!CanChangeMeal) return; showPass = false; showMealEditor = true; message = ""; }
+    private void CloseMealEditor() { showMealEditor = false; showPass = true; message = ""; }
+    private async Task SaveMealFromPassAsync()
+    {
+        await ChangeMealAsync();
+        if (!error) { showMealEditor = false; showPass = true; }
+    }
+    private void BuildQr()
+    {
+        qrImage = "";
+        if (string.IsNullOrEmpty(checkIn?.VerificationToken)) return;
+        var url = Navigation.BaseUri.TrimEnd('/') + "/event/verify/" + checkIn.VerificationToken;
+        using var generator = new QRCodeGenerator();
+        using var qrData = generator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+        var png = new PngByteQRCode(qrData).GetGraphic(5);
+        qrImage = "data:image/png;base64," + Convert.ToBase64String(png);
+    }
+    private string message = "";
+    private List<ChurchEvent> events = new();
+    private List<EventMenuOption> meals = new();
+    private ChurchEvent? selectedEvent;
+    private ChurchApp.Models.Event.EventCheckIn? checkIn;
+    private int selectedEventId, mealId;
+    private bool CanChangeMeal => selectedEvent?.MenuChangesCloseAtUtc > DateTime.UtcNow;
+
+    protected override async Task OnInitializedAsync() { if (AuthService.IsAuthenticated) await LoadAsync(); else loading = false; }
+    private async Task LoadAsync()
+    {
+        loading = true; message = "";
+        try
+        {
+            events = await CheckInService.OpenEventsAsync();
+            selectedEventId = events.Any(e => e.Id == selectedEventId) ? selectedEventId : events.FirstOrDefault()?.Id ?? 0;
+            await RefreshSelectedAsync();
+        }
+        catch (Exception ex) { error = true; message = ex.Message; }
+        finally { loading = false; }
+    }
+    private async Task EventChangedAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id)) { selectedEventId = id; await RefreshSelectedAsync(); }
+    }
+    private async Task RefreshSelectedAsync()
+    {
+        selectedEvent = events.FirstOrDefault(e => e.Id == selectedEventId);
+        meals = selectedEvent == null ? new() : await CheckInService.MealsAsync(selectedEventId);
+        checkIn = selectedEvent == null ? null : await CheckInService.MyCheckInAsync(selectedEventId);
+        mealId = checkIn?.EventMenuOptionId ?? 0;
+        BuildQr();
+        if (checkIn != null) ShowPass(); else { showPass = false; showMealEditor = false; }
+    }
+    private async Task CheckInAsync()
+    {
+        busy = true; message = "";
+        try
+        {
+            var location = await JS.InvokeAsync<BrowserLocationResult>("workerAttendance.getCurrentPosition");
+            if (!location.Success) throw new InvalidOperationException(location.Message ?? "Could not get your location.");
+            await CheckInService.CheckInAsync(selectedEventId, mealId, location.Latitude, location.Longitude, location.Accuracy);
+            await RefreshSelectedAsync(); error = false; message = "Check-in successful. Your seat has been allocated.";
+        }
+        catch (Exception ex) { error = true; message = ex.Message; }
+        finally { busy = false; }
+    }
+    private async Task ChangeMealAsync()
+    {
+        busy = true; message = "";
+        try { await CheckInService.ChangeMealAsync(selectedEventId, mealId); await RefreshSelectedAsync(); error = false; message = "Meal updated successfully."; }
+        catch (Exception ex) { error = true; message = ex.Message; }
+        finally { busy = false; }
+    }
+    private sealed class BrowserLocationResult
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double Accuracy { get; set; }
+    }
+    private void GoToDashboard()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
+

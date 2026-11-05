@@ -19,28 +19,41 @@ namespace ChurchApp.Services.Event
     {
         private readonly AppDbContext _db;
         private readonly AuthService _auth;
-        public EventRegistrationReportService(AppDbContext db, AuthService auth)
+        private readonly PrivilegeService _privilegeService;
+        public EventRegistrationReportService(AppDbContext db, AuthService auth, PrivilegeService privilegeService)
         {
             _db = db;
             _auth = auth;
+            _privilegeService = privilegeService;
         }
 
-        private void RequireAccess()
+        private async Task RequireAccessAsync()
         {
-            if (!_auth.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge))
-                throw new UnauthorizedAccessException("Only Church Admin and Pastor in Charge can view event registration reports.");
+            var worker = _auth.CurrentWorker;
+            if (!_auth.IsAuthenticated || worker == null)
+                throw new UnauthorizedAccessException("You must be logged in to view event registration reports.");
+
+            if (_auth.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge))
+                return;
+
+            var hasPrivilege = await _privilegeService.HasPrivilegeAsync(
+                worker.Id, "Access-Event-Management");
+
+            if (!hasPrivilege)
+                throw new UnauthorizedAccessException(
+                    "Only Church Admin, Pastor in Charge, or workers with Event Management privilege can view event registration reports.");
         }
 
         public async Task<List<ChurchEvent>> GetEventsAsync()
         {
-            RequireAccess();
+            await RequireAccessAsync();
             return await _db.ChurchEvents.AsNoTracking()
                 .OrderByDescending(e => e.StartsAtUtc).ToListAsync();
         }
 
         public async Task<List<EventRegistrationReportRow>> GetRegistrationsAsync(int eventId)
         {
-            RequireAccess();
+            await RequireAccessAsync();
             if (!await _db.ChurchEvents.AnyAsync(e => e.Id == eventId))
                 throw new InvalidOperationException("Event not found.");
 
@@ -77,3 +90,4 @@ namespace ChurchApp.Services.Event
         }
     }
 }
+
