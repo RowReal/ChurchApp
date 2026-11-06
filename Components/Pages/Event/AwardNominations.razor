@@ -122,7 +122,7 @@
                                         <div class="award-nom-search">
                                             <input class="form-control form-control-sm"
                                                    aria-label="Search worker"
-                                                   placeholder="Filter workers by name or ID"
+                                                   placeholder="Filter W-card workers by name or ID"
                                                    @bind="slot.Search"
                                                    @bind:event="oninput" />
                                             <button type="button" class="award-nom-search-btn" @onclick="() => SearchAsync(card, slot)">
@@ -139,7 +139,7 @@
                                         </select>
                                         <small class="award-nom-field-hint">
                                             @GetNomineeScope(card)
-                                            (@slot.Workers.Count(w => IsAllowedForSlot(card, slot, w)) eligible workers loaded)
+                                            (@slot.Workers.Count(w => IsAllowedForSlot(card, slot, w)) eligible W-card workers loaded)
                                         </small>
                                     }
                                     else
@@ -403,8 +403,8 @@
     private static string GetNomineeScope(Card card)
     {
         return card.Award.RestrictNomineesToOwnDirectorate
-            ? "Own directorate only: active workers assigned to your directorate, including secondary members."
-            : "Church-wide: active workers from all directorates, excluding yourself.";
+            ? "Own directorate only: active W-card workers assigned to your directorate, including secondary members."
+            : "Church-wide: all active W-card workers across directorates, excluding yourself.";
     }
 
     private void Review()
@@ -1014,6 +1014,11 @@
     }
 
 </style>
+
+
+
+
+
 
 
 

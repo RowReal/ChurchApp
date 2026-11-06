@@ -17,6 +17,20 @@ public sealed class AwardService
     { this.db = db; this.auth = auth; this.privileges = privileges; }
 
     private Worker Current => auth.CurrentWorker is { IsActive: true } w ? w : throw new UnauthorizedAccessException("Please log in as an active worker.");
+    // Resolve nomination eligibility from the current database record, not a potentially
+    // stale worker object held in the authentication session.
+    private async Task<Worker> CurrentNominationWorkerAsync()
+    {
+        var loggedIn = Current;
+        return await db.Workers.AsNoTracking()
+            .FirstOrDefaultAsync(w => w.Id == loggedIn.Id && w.IsActive)
+            ?? throw new UnauthorizedAccessException("Your worker account is not active.");
+    }
+
+    private static bool IsOrdinaryWorker(Worker worker) =>
+        worker.WorkerId != null && worker.WorkerId.StartsWith("W", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(worker.Role?.Trim(), "Worker", StringComparison.OrdinalIgnoreCase);
+
     private bool Admin => auth.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge);
     public async Task<bool> CanManageAsync() => Admin || await privileges.HasPrivilegeAsync(Current.Id, SetupPrivilege);
     public async Task<bool> CanSeeResultsAsync() => Admin || await privileges.HasPrivilegeAsync(Current.Id, ResultsPrivilege);
@@ -77,7 +91,7 @@ public sealed class AwardService
     {
         return a.NominationAudience switch
         {
-            "AllWorkers" => true,
+            "AllWorkers" => IsOrdinaryWorker(w),
             "Leaders" => w.Role == AuthService.Roles.HeadOfDirectorate && w.DirectorateId.HasValue,
             "PastorInCharge" => w.Role == AuthService.Roles.PastorInCharge,
             _ => false
@@ -85,22 +99,22 @@ public sealed class AwardService
     }
     public async Task<List<AwardCategory>> MyOpenAwardsAsync()
     {
-        var w = Current; var now = DateTime.UtcNow;
+        var w = await CurrentNominationWorkerAsync(); var now = DateTime.UtcNow;
         var activeProgrammeIds = await db.Set<AwardProgramme>().AsNoTracking().Where(x => x.IsActive).Select(x => x.Id).ToListAsync();
         var awards = await db.Set<AwardCategory>().AsNoTracking().Where(x => activeProgrammeIds.Contains(x.AwardProgrammeId) && x.IsActive && x.NominationAllowed && x.OpensAtUtc <= now && x.ClosesAtUtc > now).OrderBy(x => x.SortOrder).ThenBy(x => x.Name).ToListAsync();
         return awards.Where(x => Eligible(w, x)).ToList();
     }
     public async Task<Worker?> MySelectedWorkerAsync(int awardId, int workerId)
     {
-        var w = Current; var award = await OpenEligibleAwardAsync(awardId, w);
+        var w = await CurrentNominationWorkerAsync(); var award = await OpenEligibleAwardAsync(awardId, w);
         if (award.NomineeType != "Worker") return null;
-        return await db.Workers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == workerId && x.IsActive && x.Id != w.Id &&
+        return await db.Workers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == workerId && x.IsActive && x.WorkerId.StartsWith("W") && x.Id != w.Id &&
             (award.GenderFilter == "Any" || x.Sex == award.GenderFilter) &&
             (!award.RestrictNomineesToOwnDirectorate || (w.DirectorateId.HasValue && (x.DirectorateId == w.DirectorateId || x.SecondaryDirectorateId == w.DirectorateId))));
     }
     public async Task<List<Worker>> SearchWorkersAsync(int awardId, string search)
     {
-        var currentWorker = Current;
+        var currentWorker = await CurrentNominationWorkerAsync();
         var award = await OpenEligibleAwardAsync(awardId, currentWorker);
 
         if (award.NomineeType != "Worker")
@@ -113,7 +127,7 @@ public sealed class AwardService
         // Church-wide is the default: all active workers except the nominator.
         var query = db.Workers
             .AsNoTracking()
-            .Where(worker => worker.IsActive && worker.Id != currentWorker.Id);
+            .Where(worker => worker.IsActive && worker.WorkerId.StartsWith("W") && worker.Id != currentWorker.Id);
 
         if (award.RestrictNomineesToOwnDirectorate)
         {
@@ -139,17 +153,17 @@ public sealed class AwardService
                 worker.WorkerId.Contains(search));
         }
 
-        // Limit initial dropdown size; users can search for more names.
+        // Return every eligible W-card worker, without an arbitrary 100-row cap.
         return await query
             .OrderBy(worker => worker.FirstName)
             .ThenBy(worker => worker.LastName)
-            .Take(100)
+            .ThenBy(worker => worker.WorkerId)
             .ToListAsync();
     }
 
     public async Task<List<Directorate>> OtherDirectoratesAsync(int awardId)
     {
-        var w = Current; var award = await OpenEligibleAwardAsync(awardId, w);
+        var w = await CurrentNominationWorkerAsync(); var award = await OpenEligibleAwardAsync(awardId, w);
         if (award.NomineeType != "Directorate" || w.Role != AuthService.Roles.HeadOfDirectorate || !w.DirectorateId.HasValue)
             throw new UnauthorizedAccessException("Only a Head of Directorate with an assigned directorate may nominate another directorate.");
         return await db.Directorates.AsNoTracking().Where(x => x.Id != w.DirectorateId.Value).OrderBy(x => x.Name).ToListAsync();
@@ -164,11 +178,11 @@ public sealed class AwardService
         return award;
     }
     public async Task<List<AwardNomination>> MyNominationsAsync()
-    { var w = Current; return await db.Set<AwardNomination>().AsNoTracking().Where(x => x.NominatorWorkerId == w.Id).ToListAsync(); }
+    { var w = await CurrentNominationWorkerAsync(); return await db.Set<AwardNomination>().AsNoTracking().Where(x => x.NominatorWorkerId == w.Id).ToListAsync(); }
     public sealed record NominationInput(int AwardId, int SlotNumber, int? WorkerId, int? DirectorateId, bool NoNomination, string Reason);
     public async Task SubmitAsync(List<NominationInput> inputs)
     {
-        var w = Current;
+        var w = await CurrentNominationWorkerAsync();
         if (inputs.GroupBy(x => (x.AwardId, x.SlotNumber)).Any(g => g.Count() > 1))
             throw new InvalidOperationException("Duplicate nomination slots.");
         var validated = new List<(NominationInput Input, AwardCategory Award, Worker? Nominee)>();
@@ -187,7 +201,7 @@ public sealed class AwardService
             {
                 if (!input.WorkerId.HasValue || input.DirectorateId.HasValue || string.IsNullOrWhiteSpace(input.Reason))
                     throw new InvalidOperationException("Select a worker and provide justification for each nomination.");
-                nominee = await db.Workers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == input.WorkerId.Value && x.IsActive)
+                nominee = await db.Workers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == input.WorkerId.Value && x.IsActive && x.WorkerId.StartsWith("W"))
                     ?? throw new InvalidOperationException("Nominee not found or inactive.");
                 if (nominee.Id == w.Id) throw new InvalidOperationException("Self-nomination is not allowed.");
                 if (award.GenderFilter != "Any" && !string.Equals(nominee.Sex, award.GenderFilter, StringComparison.OrdinalIgnoreCase))
@@ -369,7 +383,7 @@ public sealed class AwardService
                             WorkerName(x.NominatorWorkerId),
                             DirectorateName(nominator?.DirectorateId),
                             x.Justification ?? "",
-x.SubmittedAtUtc ?? x.UpdatedAtUtc);
+                           x.SubmittedAtUtc ?? x.UpdatedAtUtc);
                     })
                     .ToList();
 
@@ -450,6 +464,10 @@ x.SubmittedAtUtc ?? x.UpdatedAtUtc);
         return result;
     }
 }
+
+
+
+
 
 
 
