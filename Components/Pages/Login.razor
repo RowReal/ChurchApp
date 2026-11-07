@@ -59,10 +59,17 @@
                     <div class="input-wrap">
                         <i class="fas fa-lock"></i>
                         <InputText id="password"
-                                   type="password"
+                                   type="@(showPassword ? "text" : "password")"
                                    @bind-Value="loginModel.Password"
-                                   class="form-control"
+                                   class="form-control password-with-toggle"
+                                   autocomplete="current-password"
                                    placeholder="Enter your password" />
+                        <button type="button" class="password-toggle"
+                                @onclick="() => showPassword = !showPassword"
+                                aria-label="@(showPassword ? "Hide password" : "Show password")"
+                                aria-pressed="@showPassword" title="@(showPassword ? "Hide password" : "Show password")">
+                            <i class="@(showPassword ? "fas fa-eye-slash" : "fas fa-eye")" aria-hidden="true"></i>
+                        </button>
                     </div>
                     <ValidationMessage For="@(() => loginModel.Password)" />
                 </div>
@@ -99,6 +106,7 @@
     private LoginModel loginModel = new();
     private string errorMessage = string.Empty;
     private bool isLoading = false;
+    private bool showPassword = false;
 
     private async Task HandleLogin()
     {
@@ -312,6 +320,34 @@
             border-color: #0d6efd;
             box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.12);
         }
+
+    .password-with-toggle {
+        padding-right: 3.2rem;
+    }
+
+    .input-wrap .password-toggle {
+        position: absolute;
+        right: 9px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: none;
+        background: transparent;
+        color: #475569;
+        padding: 9px;
+        cursor: pointer;
+        z-index: 1;
+    }
+
+        .input-wrap .password-toggle i {
+            position: static;
+            transform: none;
+            color: inherit;
+        }
+
+    .password-toggle:focus-visible {
+        outline: 2px solid #0d6efd;
+        border-radius: 6px;
+    }
 
     .btn-login {
         width: 100%;
