@@ -108,7 +108,9 @@ public sealed class AwardService
     {
         var w = await CurrentNominationWorkerAsync(); var award = await OpenEligibleAwardAsync(awardId, w);
         if (award.NomineeType != "Worker") return null;
-        return await db.Workers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == workerId && x.IsActive && x.WorkerId.StartsWith("W") && x.Id != w.Id &&
+        return await db.Workers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == workerId && x.IsActive && x.WorkerId.StartsWith("W") &&
+            x.Role != null && x.Role.Trim().ToLower() == "worker" &&
+            x.Id != w.Id &&
             (award.GenderFilter == "Any" || x.Sex == award.GenderFilter) &&
             (!award.RestrictNomineesToOwnDirectorate || (w.DirectorateId.HasValue && (x.DirectorateId == w.DirectorateId || x.SecondaryDirectorateId == w.DirectorateId))));
     }
@@ -127,7 +129,10 @@ public sealed class AwardService
         // Church-wide is the default: all active workers except the nominator.
         var query = db.Workers
             .AsNoTracking()
-            .Where(worker => worker.IsActive && worker.WorkerId.StartsWith("W") && worker.Id != currentWorker.Id);
+            .Where(worker => worker.IsActive &&
+                worker.WorkerId.StartsWith("W") &&
+                worker.Role != null && worker.Role.Trim().ToLower() == "worker" &&
+                worker.Id != currentWorker.Id);
 
         if (award.RestrictNomineesToOwnDirectorate)
         {
@@ -201,8 +206,23 @@ public sealed class AwardService
             {
                 if (!input.WorkerId.HasValue || input.DirectorateId.HasValue || string.IsNullOrWhiteSpace(input.Reason))
                     throw new InvalidOperationException("Select a worker and provide justification for each nomination.");
-                nominee = await db.Workers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == input.WorkerId.Value && x.IsActive && x.WorkerId.StartsWith("W"))
+                nominee = await db.Workers.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == input.WorkerId.Value && x.IsActive)
                     ?? throw new InvalidOperationException("Nominee not found or inactive.");
+
+                // A W-card alone does not make someone eligible: promoted leaders
+                // may still retain their original W-card number.
+                if (!string.Equals(nominee.Role?.Trim(), "Worker", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException("Leaders are not allowed for nomination");
+                }
+
+                if (string.IsNullOrWhiteSpace(nominee.WorkerId) ||
+                    !nominee.WorkerId.StartsWith("W", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException("Only workers with W-card numbers are eligible for nomination.");
+                }
+
                 if (nominee.Id == w.Id) throw new InvalidOperationException("Self-nomination is not allowed.");
                 if (award.GenderFilter != "Any" && !string.Equals(nominee.Sex, award.GenderFilter, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Nominee does not match the award gender.");
@@ -464,7 +484,6 @@ public sealed class AwardService
         return result;
     }
 }
-
 
 
 
