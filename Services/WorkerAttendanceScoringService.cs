@@ -167,6 +167,17 @@ namespace ChurchApp.Services
                     a.AttendanceDate < monthStart.AddMonths(1))
                 .ToListAsync();
 
+            // Load cancellations once per monthly score calculation.
+            var cancelledOccurrences = await _context.ServiceScheduleExceptions
+                .AsNoTracking()
+                .Where(x => x.IsCancelled && x.OccurrenceDate >= monthStart &&
+                            x.OccurrenceDate < monthStart.AddMonths(1))
+                .Select(x => new { x.ServiceId, x.OccurrenceDate, x.Reason })
+                .ToListAsync();
+
+            var cancellationLookup = cancelledOccurrences.ToDictionary(
+                x => (x.ServiceId, x.OccurrenceDate.Date), x => x.Reason);
+
             var now = GetNigeriaNow();
 
             foreach (var service in services)
@@ -178,7 +189,8 @@ namespace ChurchApp.Services
                         monthStart,
                         monthEnd,
                         attendances,
-                        now);
+                        now,
+                        cancellationLookup);
 
                 result.ServiceScores.Add(serviceResult);
             }
@@ -341,7 +353,8 @@ namespace ChurchApp.Services
                 DateTime monthStart,
                 DateTime monthEnd,
                 List<WorkerAttendance> attendances,
-                DateTime now)
+                DateTime now,
+                Dictionary<(int ServiceId, DateTime Date), string> cancellationLookup)
         {
             var result =
                 new ServiceMonthlyAttendanceScore
@@ -388,6 +401,17 @@ namespace ChurchApp.Services
                         occurrenceWeight,
                         attendances,
                         now);
+
+                if (cancellationLookup.TryGetValue((service.Id, occurrence.Date.Date), out var reason))
+                {
+                    occurrenceResult.IsCancelled = true;
+                    occurrenceResult.CancellationReason = reason;
+                    occurrenceResult.IsDue = false;
+                    occurrenceResult.WasPresent = false;
+                    occurrenceResult.EarnedWeight = 0m;
+                    occurrenceResult.Score = 0;
+                    occurrenceResult.Status = AttendanceOccurrenceStatus.Cancelled;
+                }
 
                 result.Occurrences.Add(
                     occurrenceResult);
@@ -1221,7 +1245,8 @@ namespace ChurchApp.Services
         Absent = 1,
         Late = 2,
         IntermediateScore = 3,
-        FullScore = 4
+        FullScore = 4,
+        Cancelled = 5
     }
 
     // ================================================================
@@ -1386,6 +1411,10 @@ namespace ChurchApp.Services
         public DateTime AttendanceDate { get; set; }
 
         public DateTime ServiceStart { get; set; }
+
+        public bool IsCancelled { get; set; }
+
+        public string? CancellationReason { get; set; }
 
         public bool IsDue { get; set; }
 

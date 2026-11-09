@@ -1,4 +1,4 @@
-﻿@page "/finance/monthly-remittance"
+@page "/finance/monthly-remittance"
 @rendermode InteractiveServer
 @using ChurchApp.Services
 @using ChurchApp.Data
@@ -8,6 +8,8 @@
 @inject AppDbContext Db
 @using System.Globalization
 @inject MonthlyRemittanceValidationService ValidationService
+@inject MonthlyRemittanceDraftService DraftService
+@using System.Text.Json
 @inject AuthService AuthService
 
 <PageTitle>Monthly Remittance | BCC ServiceHub</PageTitle>
@@ -61,10 +63,6 @@ else
             <div class="remit-hint"><i class="fas fa-info-circle me-1"></i>Check Readiness does not generate, approve or post remittance transactions. Preparation is available only after checks pass.</div>
         </section>
 
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="remit-notice remit-error" role="alert"><i class="fas fa-exclamation-circle"></i><div><strong>Unable to complete check</strong><p>@errorMessage</p></div></div>
-        }
 
         @if (preparationRequested)
         {
@@ -119,11 +117,36 @@ else
                         <tbody>
                             @foreach (var row in previewRows)
                             {
-                                <tr><td><strong>@row.IncomeName</strong></td><td>@row.Currency</td><td class="remit-number">@(row.QualifyingAmount?.ToString("N2") ?? "")</td><td>@row.RuleDescription</td><td class="remit-number">@(row.Remittance?.ToString("N2") ?? "")</td></tr>
+                                <tr>
+                                    <td><strong>@row.IncomeName</strong></td>
+                                    <td>@row.Currency</td>
+                                    <td class="remit-number">@(row.QualifyingAmount?.ToString("N2") ?? "")</td>
+                                    <td>@row.RuleDescription</td>
+                                    <td class="remit-number">
+                                        @if (row.IsManual)
+                                        {
+                                            <div class="remit-manual-controls">
+                                                <label class="remit-manual-label">As-Will amount</label>
+                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm"
+                                                       disabled="@row.DeclareNil" @bind="row.ManualAmount" @bind:event="onchange" />
+                                                <label class="remit-nil-label"><input type="checkbox" @bind="row.DeclareNil" /> Approved nil declaration</label>
+                                                @if (row.DeclareNil)
+                                                {
+                                                    <textarea class="form-control form-control-sm" rows="2" maxlength="500"
+                                                              placeholder="Required: reason for nil declaration" @bind="row.NilReason"></textarea>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            @(row.Remittance?.ToString("N2") ?? "Requires review")
+                                        }
+                                    </td>
+                                </tr>
                             }
-                            @foreach (var total in previewRows.Where(x => x.Remittance.HasValue).GroupBy(x => x.Currency))
+                            @foreach (var total in previewRows.Where(x => x.Remittance.HasValue || (x.IsManual && (x.ManualAmount.HasValue || x.DeclareNil))).GroupBy(x => x.Currency))
                             {
-                                <tr class="remit-total-row"><td><strong>Total Remittance</strong></td><td>@total.Key</td><td></td><td></td><td class="remit-number"><strong>@total.Sum(x => x.Remittance ?? 0m).ToString("N2")</strong></td></tr>
+                                <tr class="remit-total-row"><td><strong>Total Remittance</strong></td><td>@total.Key</td><td></td><td></td><td class="remit-number"><strong>@total.Sum(x => x.IsManual ? (x.DeclareNil ? 0m : x.ManualAmount ?? 0m) : x.Remittance ?? 0m).ToString("N2")</strong></td></tr>
                             }
                         </tbody>
                     </table>
@@ -138,7 +161,13 @@ else
                         }
                     </div>
                 }
-                <div class="remit-hint">Draft only. Blank cells represent elements without a calculated amount. No remittance has been generated, saved or posted.</div>
+                <div class="remit-hint">Draft preview only. Saving stores a snapshot for review; it never posts bank transactions.</div>
+                <div class="d-flex flex-wrap gap-2 mt-3 align-items-center">
+                    <button type="button" class="bcc-btn bcc-btn-primary" disabled="@isSavingDraft" @onclick="SaveDraftAsync">
+                        <i class="fas @(isSavingDraft ? "fa-spinner fa-spin" : "fa-save") me-2"></i>@(isSavingDraft ? "Saving..." : "Save Remittance as Draft")
+                    </button>
+
+                </div>
             </section>
         }
 
@@ -191,10 +220,7 @@ else
                             {
                                 <p>Loading transaction information...</p>
                             }
-                            else if (!string.IsNullOrEmpty(detailError))
-                            {
-                                <div class="remit-notice remit-error">@detailError</div>
-                            }
+
                             else
                             {
                                 <div class="remit-detail-grid">
@@ -282,7 +308,70 @@ else
     </div>
 }
 
+@if (!string.IsNullOrWhiteSpace(popupMessage))
+{
+    <div class="remit-popup-backdrop" @onclick="ClosePopup">
+        <div class="remit-popup" role="alertdialog" aria-modal="true" aria-labelledby="remit-popup-title" @onclick:stopPropagation="true">
+            <div class="remit-popup-icon @(popupIsError ? "remit-popup-danger" : "remit-popup-ok")">
+                <i class="fas @(popupIsError ? "fa-exclamation-triangle" : "fa-check-circle")"></i>
+            </div>
+            <h4 id="remit-popup-title">@popupTitle</h4>
+            <p class="remit-popup-text">@popupMessage</p>
+            <button type="button" class="bcc-btn bcc-btn-primary" @onclick="ClosePopup">OK, Close</button>
+        </div>
+    </div>
+}
+
 <style>
+    .remit-popup-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(8, 26, 20, .66);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+    }
+
+    .remit-popup {
+        background: #fff;
+        color: #1d332b;
+        border-radius: 16px;
+        padding: 26px;
+        width: min(94vw, 460px);
+        box-shadow: 0 20px 65px rgba(0,0,0,.28);
+        text-align: center;
+    }
+
+    .remit-popup-icon {
+        font-size: 28px;
+        margin-bottom: 10px;
+    }
+
+    .remit-popup-danger {
+        color: #b42318;
+    }
+
+    .remit-popup-ok {
+        color: #137a4a;
+    }
+
+    .remit-popup h4 {
+        font-size: 19px;
+        font-weight: 750;
+        margin-bottom: 12px;
+    }
+
+    .remit-popup-text {
+        white-space: pre-line;
+        text-align: left;
+        max-height: 50vh;
+        overflow-y: auto;
+        margin-bottom: 20px;
+        line-height: 1.55;
+    }
+
     .remittance-page {
         max-width: 1200px;
         margin: 0 auto;
@@ -430,13 +519,11 @@ else
         .remit-preview-warning p {
             margin: 6px 0 0;
         }
+
     @@media(max - width:700px) {
-        .remit-preview-summary
-
-    {
-        grid-template-columns: repeat(2,minmax(0,1fr));
-    }
-
+        .remit-preview-summary {
+            grid-template-columns: repeat(2,minmax(0,1fr));
+        }
     }
 
     .remit-statement-heading {
@@ -737,9 +824,16 @@ else
     private int selectedMonth = DateTime.Today.Month;
     private bool isChecking;
     private bool isPreparing;
+    private bool isSavingDraft;
+    private string? draftMessage;
     private bool preparationRequested;
     private sealed class RemittancePreviewRow
     {
+        public int ElementId { get; set; }
+        public bool IsManual { get; set; }
+        public decimal? ManualAmount { get; set; }
+        public bool DeclareNil { get; set; }
+        public string NilReason { get; set; } = "";
         public string IncomeName { get; set; } = "";
         public string Currency { get; set; } = "";
         public decimal? QualifyingAmount { get; set; }
@@ -819,11 +913,27 @@ else
                         ? correction.Amount : -correction.Amount;
             }
         }
-        catch (Exception ex) { detailError = ex.Message; }
+        catch (Exception ex)
+        {
+            detailError = ex.Message;
+            ShowPopup("Unable to load details", ex.Message);
+        }
         finally { detailLoading = false; }
     }
 
     private string? errorMessage;
+    private string? popupMessage;
+    private string popupTitle = "Notice";
+    private bool popupIsError = true;
+
+    private void ShowPopup(string title, string message, bool isError = true)
+    {
+        popupTitle = title;
+        popupMessage = message;
+        popupIsError = isError;
+    }
+
+    private void ClosePopup() => popupMessage = null;
     private MonthlyRemittanceValidationResult? validationResult;
 
     private string ReportPeriod => new DateTime(validationResult?.Year ?? selectedYear, validationResult?.Month ?? selectedMonth, 1)
@@ -833,6 +943,7 @@ else
     {
         validationResult = null;
         errorMessage = null;
+        draftMessage = null;
         preparationRequested = false;
         ResetPreview();
         CloseDetails();
@@ -861,10 +972,97 @@ else
         {
             validationResult = null;
             errorMessage = ex.Message;
+            ShowPopup("Unable to complete request", ex.Message);
         }
         finally
         {
             isPreparing = false;
+        }
+    }
+
+    private async Task SaveDraftAsync()
+    {
+        if (isSavingDraft || !preparationRequested || !AuthService.IsAuthenticated ||
+            !AuthService.IsInRole(AuthService.Roles.ChurchAdmin))
+            return;
+
+        isSavingDraft = true;
+        draftMessage = null;
+        errorMessage = null;
+        try
+        {
+            // Refresh the preview immediately before persistence, not from stale UI data.
+            var readiness = await ValidationService.ValidateAsync(selectedYear, selectedMonth);
+            validationResult = readiness;
+            if (!readiness.CanProceed)
+                throw new InvalidOperationException("Readiness checks no longer pass. Recheck the reporting period.");
+
+            // Preserve user-entered manual amounts when financial figures are refreshed.
+            var manualEntries = previewRows.Where(x => x.IsManual)
+                .ToDictionary(x => (x.ElementId, x.Currency), x => (x.ManualAmount, x.DeclareNil, x.NilReason));
+            ResetPreview();
+            await BuildPreviewAsync();
+            foreach (var row in previewRows.Where(x => x.IsManual))
+            {
+                if (manualEntries.TryGetValue((row.ElementId, row.Currency), out var entry))
+                {
+                    row.ManualAmount = entry.ManualAmount;
+                    row.DeclareNil = entry.DeclareNil;
+                    row.NilReason = entry.NilReason;
+                }
+            }
+
+            // A blank calculation can represent a mandatory manual/As-Will element.
+            // Do not silently persist an incomplete financial statement.
+            var missingRows = previewRows
+                .Where(x => !x.IsManual && !x.Remittance.HasValue ||
+                            x.IsManual && (!x.DeclareNil && !x.ManualAmount.HasValue ||
+                                           x.DeclareNil && string.IsNullOrWhiteSpace(x.NilReason) ||
+                                           x.ManualAmount < 0 || x.DeclareNil && x.ManualAmount.HasValue && x.ManualAmount.Value != 0m))
+                .Select(x => $"• {x.IncomeName} ({x.Currency}): " +
+                    (x.IsManual ? "enter a non-negative amount, or declare nil with a reason (clear any non-zero amount)" : "unresolved calculation rule"))
+                .ToList();
+            if (missingRows.Count > 0)
+                throw new InvalidOperationException(
+                    "The following remittance elements have no calculated amount:\n\n" +
+                    string.Join("\n", missingRows) +
+                    "\n\nThe current page does not yet provide manual/As-Will amount entry. " +
+                    "These entries must be implemented and completed (or formally declared nil, where allowed) before saving.");
+
+            var snapshot = new
+            {
+                Year = selectedYear,
+                Month = selectedMonth,
+                CapturedAtUtc = DateTime.UtcNow,
+                Accounts = previewAccounts.Select(x => new { x.Name, x.Currency, x.Balance }).ToList(),
+                Income = previewIncomeRows.Select(x => new { x.IncomeTypeId, x.IncomeName, x.Currency, x.Income }).ToList(),
+                Remittances = previewRows.Select(x => new
+                {
+                    x.ElementId,
+                    ElementName = x.IncomeName,
+                    x.Currency,
+                    x.QualifyingAmount,
+                    x.RuleDescription,
+                    Remittance = x.IsManual ? (x.DeclareNil ? 0m : x.ManualAmount) : x.Remittance,
+                    x.IsManual,
+                    x.DeclareNil,
+                    NilReason = x.DeclareNil ? x.NilReason.Trim() : null
+                }).ToList(),
+                Warnings = previewWarnings.ToList()
+            };
+            var saved = await DraftService.SaveDraftAsync(
+                selectedYear, selectedMonth, JsonSerializer.Serialize(snapshot));
+            draftMessage = $"Draft #{saved.Id} saved successfully. No bank transaction was posted.";
+            ShowPopup("Draft saved successfully", draftMessage, false);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            ShowPopup("Unable to complete request", ex.Message);
+        }
+        finally
+        {
+            isSavingDraft = false;
         }
     }
 
@@ -961,10 +1159,15 @@ else
             var relevant = rules.Where(x => x.RemittanceElementId == element.Id).ToList();
             var currencies = previewIncomeRows.Where(x => relevant.Any(r => r.IncomeTypeId == x.IncomeTypeId))
                 .Select(x => x.Currency).Distinct().ToList();
-            if (currencies.Count == 0) currencies.Add("");
+            if (currencies.Count == 0)
+            {
+                // An independent remittance can exist even without qualifying income.
+                // Use the configured income currency when available; otherwise NGN.
+                currencies.Add("NGN");
+            }
             foreach (var currency in currencies)
             {
-                var row = new RemittancePreviewRow { IncomeName = element.Name, Currency = currency };
+                var row = new RemittancePreviewRow { ElementId = element.Id, IncomeName = element.Name, Currency = currency };
                 var relevantIncome = previewIncomeRows.Where(x => x.Currency == currency &&
                     relevant.Any(r => r.IncomeTypeId == x.IncomeTypeId)).ToList();
                 decimal qualifying = 0m, amount = 0m;
@@ -1009,11 +1212,18 @@ else
                         amount += rule.FixedAmount.Value;
                         ruleLabels.Add($"{source.IncomeName}: fixed {rule.FixedAmount.Value:N2}");
                     }
-                    else if (rule.CalculationBasis == RemittanceCalculationBasis.Independent ||
-                             rule.CalculationBasis == RemittanceCalculationBasis.NotApplicable)
+                    else if (rule.CalculationBasis == RemittanceCalculationBasis.Independent)
                     {
-                        // Intentionally blank: no automatic calculation is defined.
+                        // Only an explicitly configured Independent rule is editable as As-Will.
+                        row.IsManual = true;
+                        ruleLabels.Add($"{source.IncomeName}: As-Will / manual");
                         valid = false;
+                    }
+                    else if (rule.CalculationBasis == RemittanceCalculationBasis.NotApplicable)
+                    {
+                        // Not Applicable is not an authorisation for arbitrary manual entry.
+                        valid = false;
+                        ruleLabels.Add($"{source.IncomeName}: not applicable — review configuration");
                     }
                     else
                     {
@@ -1021,7 +1231,27 @@ else
                         previewWarnings.Add($"{element.Name} / {source.IncomeName} has an unrecognised calculation basis.");
                     }
                 }
-                if (valid)
+                // Independent rules can require an As-Will entry even with no income this month.
+                if (relevantIncome.Count == 0 && relevant.Count > 0 &&
+                    relevant.All(r => r.CalculationBasis == RemittanceCalculationBasis.Independent &&
+                        r.EffectiveFrom.Date <= start &&
+                        (!r.EffectiveTo.HasValue || r.EffectiveTo.Value.Date >= monthEnd)))
+                {
+                    row.IsManual = true;
+                    ruleLabels.Add("As-Will / manual (no qualifying income)");
+                }
+                if (row.IsManual)
+                {
+                    row.QualifyingAmount = qualifying;
+                    row.RuleDescription = string.Join("; ", ruleLabels);
+                    // Mixed automatic and independent rules need explicit configuration review.
+                    if (ruleLabels.Any(x => !x.Contains("As-Will / manual")))
+                    {
+                        row.IsManual = false;
+                        previewWarnings.Add($"{element.Name}: mixed calculation rules require review.");
+                    }
+                }
+                else if (valid)
                 {
                     row.QualifyingAmount = qualifying;
                     row.Remittance = amount;
@@ -1045,10 +1275,14 @@ else
         try
         {
             validationResult = await ValidationService.ValidateAsync(selectedYear, selectedMonth);
+            if (!validationResult.CanProceed)
+                ShowPopup("Remittance preparation blocked",
+                    $"There are {validationResult.Issues.Count} unresolved financial item(s). Review the detailed list on the page before proceeding.");
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+            ShowPopup("Unable to complete request", ex.Message);
         }
         finally
         {
@@ -1056,44 +1290,4 @@ else
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

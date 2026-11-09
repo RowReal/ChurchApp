@@ -135,6 +135,8 @@ builder.Services.AddScoped<EventCheckInService>();
 
 builder.Services.AddScoped<ChurchApp.Services.Event.EventCheckInReportService>();
 builder.Services.AddScoped<ChurchApp.Services.Event.AwardService>();
+builder.Services.AddScoped<MonthlyRemittanceDraftService>();
+
 
 
 var app = builder.Build();

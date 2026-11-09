@@ -39,6 +39,7 @@ namespace ChurchApp.Data
         public DbSet<AttendanceRecord> AttendanceRecords { get; set; }
         public DbSet<WorkerAttendance> WorkerAttendances { get; set; }
         public DbSet<WorkerAttendanceSettings> WorkerAttendanceSettings { get; set; }
+        public DbSet<ServiceScheduleException> ServiceScheduleExceptions { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<AccountabilityCase> AccountabilityCases { get; set; }
         public DbSet<AccountabilityMessage> AccountabilityMessages { get; set; }
@@ -99,6 +100,8 @@ namespace ChurchApp.Data
             = null!;
         public DbSet<EventMenuOption> EventMenuOptions { get; set; } = null!;
         public DbSet<EventCheckIn> EventCheckIns { get; set; } = null!;
+        public DbSet<MonthlyRemittanceDraft> MonthlyRemittanceDrafts { get; set; }
+
 
         #endregion
 
@@ -129,7 +132,7 @@ namespace ChurchApp.Data
             });
 
 
-            // EVENT HUB � E1: event setup only.
+            // EVENT HUB   E1: event setup only.
             modelBuilder.Entity<ChurchEvent>(entity =>
             {
                 entity.ToTable("ChurchEvents");
@@ -141,7 +144,7 @@ namespace ChurchApp.Data
                 entity.HasIndex(x => x.StartsAtUtc);
                 entity.HasIndex(x => new { x.IsPublished, x.RegistrationOpensAtUtc, x.RegistrationClosesAtUtc });
             });
-            // EVENT HUB � E4: one registration response per worker per event.
+            // EVENT HUB   E4: one registration response per worker per event.
             modelBuilder.Entity<EventRegistration>(entity =>
             {
                 entity.ToTable("EventRegistrations");
@@ -193,7 +196,7 @@ namespace ChurchApp.Data
                     .HasPrecision(18, 2);
             });
 
-            // EVENT HUB � E11B: Food Menu Configuration
+            // EVENT HUB   E11B: Food Menu Configuration
             modelBuilder.Entity<EventMenuOption>(entity =>
             {
                 entity.ToTable("EventMenuOptions");
@@ -217,6 +220,11 @@ namespace ChurchApp.Data
                     .HasForeignKey(x => x.ChurchEventId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+
+            modelBuilder.Entity<MonthlyRemittanceDraft>()
+        .HasIndex(x => new { x.Year, x.Month })
+        .IsUnique();
+
 
             // FINANCE: BANK ACCOUNT JOURNAL
             modelBuilder.Entity<BankAccountJournal>(entity =>
@@ -620,6 +628,24 @@ namespace ChurchApp.Data
 
                 entity.Property(s => s.AttendanceLateScore)
                     .HasDefaultValue(2);
+            });
+
+            // Cancellation of individual scheduled service occurrences.
+            modelBuilder.Entity<ServiceScheduleException>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.OccurrenceDate).HasColumnType("date");
+                entity.Property(x => x.Reason).IsRequired().HasMaxLength(500);
+                entity.HasIndex(x => new { x.ServiceId, x.OccurrenceDate }).IsUnique();
+                entity.HasOne(x => x.Service).WithMany()
+                    .HasForeignKey(x => x.ServiceId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.CancelledByWorker).WithMany()
+                    .HasForeignKey(x => x.CancelledByWorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.RestoredByWorker).WithMany()
+                    .HasForeignKey(x => x.RestoredByWorkerId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Worker Attendance configurations
@@ -1530,6 +1556,7 @@ namespace ChurchApp.Data
 
     }
 }
+
 
 
 

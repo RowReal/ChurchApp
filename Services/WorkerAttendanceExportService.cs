@@ -17,6 +17,7 @@ public sealed class WorkerAttendanceExportService
             "Worker", "Role", "Category", "Directorate", "Department"
         };
         headers.AddRange(columns.Select(x => x.Header + " %"));
+        headers.Add("Cancelled Services");
         headers.Add("MTD %");
         headers.Add("Grade");
         sb.AppendLine(string.Join(',', headers.Select(Csv)));
@@ -33,6 +34,7 @@ public sealed class WorkerAttendanceExportService
             };
 
             row.AddRange(columns.Select(c => GetServicePercentageText(worker, c.Keyword)));
+            row.Add(GetCancelledCount(worker).ToString(CultureInfo.InvariantCulture));
             row.Add(worker.AvailableWeight > 0 ? worker.MonthToDatePercentage.ToString("0.##", CultureInfo.InvariantCulture) : "");
             row.Add(worker.Grade == AttendanceGrade.NoOpportunity ? "Not Due" : worker.Grade.ToString());
 
@@ -48,7 +50,7 @@ public sealed class WorkerAttendanceExportService
         using var workbook = new XLWorkbook();
         var ws = workbook.Worksheets.Add("Attendance Report");
 
-        var totalColumns = 7 + columns.Count;
+        var totalColumns = 8 + columns.Count;
         ws.Cell(1, 1).Value = "BCC SERVICEHUB - WORKER ATTENDANCE REPORT";
         ws.Range(1, 1, 1, totalColumns).Merge();
         ws.Cell(1, 1).Style.Font.Bold = true;
@@ -64,6 +66,7 @@ public sealed class WorkerAttendanceExportService
 
         var headers = new List<string> { "Worker", "Role", "Category", "Directorate", "Department" };
         headers.AddRange(columns.Select(x => x.Header + " %"));
+        headers.Add("Cancelled Services");
         headers.Add("MTD %");
         headers.Add("Grade");
 
@@ -102,6 +105,8 @@ public sealed class WorkerAttendanceExportService
                 col++;
             }
 
+            ws.Cell(row, col++).Value = GetCancelledCount(worker);
+
             if (worker.AvailableWeight > 0)
             {
                 ws.Cell(row, col).Value = worker.MonthToDatePercentage;
@@ -130,10 +135,47 @@ public sealed class WorkerAttendanceExportService
                 column.Width = 32;
         }
 
+        // Distinct service occurrences, not one row per worker.
+        var cancellations = request.Results
+            .SelectMany(w => w.ServiceScores)
+            .SelectMany(s => s.Occurrences)
+            .Where(o => o.IsCancelled)
+            .GroupBy(o => new { o.ServiceId, Date = o.AttendanceDate.Date })
+            .Select(g => g.First())
+            .OrderBy(o => o.AttendanceDate)
+            .ThenBy(o => o.ServiceName)
+            .ToList();
+
+        if (cancellations.Count > 0)
+        {
+            var cancellationSheet = workbook.Worksheets.Add("Service Cancellations");
+            cancellationSheet.Cell(1, 1).Value = "Service";
+            cancellationSheet.Cell(1, 2).Value = "Scheduled Date";
+            cancellationSheet.Cell(1, 3).Value = "Cancellation Reason";
+            cancellationSheet.Range(1, 1, 1, 3).Style.Font.Bold = true;
+            cancellationSheet.Range(1, 1, 1, 3).Style.Fill.BackgroundColor = XLColor.FromHtml("#E2E8F0");
+            for (var i = 0; i < cancellations.Count; i++)
+            {
+                var occurrence = cancellations[i];
+                cancellationSheet.Cell(i + 2, 1).Value = occurrence.ServiceName;
+                cancellationSheet.Cell(i + 2, 2).Value = occurrence.AttendanceDate;
+                cancellationSheet.Cell(i + 2, 2).Style.DateFormat.Format = "dd MMM yyyy";
+                cancellationSheet.Cell(i + 2, 3).Value = occurrence.CancellationReason ?? string.Empty;
+            }
+            cancellationSheet.Columns().AdjustToContents();
+            if (cancellationSheet.Column(3).Width > 65)
+                cancellationSheet.Column(3).Width = 65;
+            cancellationSheet.Column(3).Style.Alignment.WrapText = true;
+            cancellationSheet.SheetView.FreezeRows(1);
+        }
+
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
         return stream.ToArray();
     }
+
+    private static int GetCancelledCount(WorkerMonthlyAttendanceScore worker) =>
+        worker.ServiceScores.Sum(s => s.Occurrences.Count(o => o.IsCancelled));
 
     private static string BuildFilterDescription(WorkerAttendanceExportRequest r)
     {
@@ -204,4 +246,6 @@ public sealed class WorkerAttendanceExportRequest
     public string SearchTerm { get; init; } = string.Empty;
     public DateTime GeneratedAt { get; init; }
 }
+
+
 

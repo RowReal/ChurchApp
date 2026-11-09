@@ -2427,6 +2427,45 @@ namespace ChurchApp.Migrations
                     b.ToTable("IncomeTypes");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.Finance.MonthlyRemittanceDraft", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedByWorkerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Year", "Month")
+                        .IsUnique();
+
+                    b.ToTable("MonthlyRemittanceDrafts");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Finance.RemittanceElement", b =>
                 {
                     b.Property<int>("Id")
@@ -3605,6 +3644,50 @@ namespace ChurchApp.Migrations
                     b.HasIndex("ServiceId");
 
                     b.ToTable("ServiceNotes");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.ServiceScheduleException", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CancelledAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CancelledByWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("OccurrenceDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RestoredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RestoredByWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ServiceId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CancelledByWorkerId");
+
+                    b.HasIndex("RestoredByWorkerId");
+
+                    b.HasIndex("ServiceId", "OccurrenceDate")
+                        .IsUnique();
+
+                    b.ToTable("ServiceScheduleExceptions");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.SupervisoryCluster", b =>
@@ -5294,6 +5377,32 @@ namespace ChurchApp.Migrations
                         .IsRequired();
 
                     b.Navigation("RecordedBy");
+
+                    b.Navigation("Service");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.ServiceScheduleException", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Worker", "CancelledByWorker")
+                        .WithMany()
+                        .HasForeignKey("CancelledByWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Worker", "RestoredByWorker")
+                        .WithMany()
+                        .HasForeignKey("RestoredByWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CancelledByWorker");
+
+                    b.Navigation("RestoredByWorker");
 
                     b.Navigation("Service");
                 });

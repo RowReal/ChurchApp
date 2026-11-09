@@ -126,6 +126,13 @@
                                         @myAttendanceScore.MonthToDatePercentage.ToString("0.##")%
                                     </h3>
                                     <p class="stat-label">My MTD Attendance</p>
+                                    @if (CancelledServiceCount > 0)
+                                    {
+                                        <p class="small text-muted mb-0" title="Cancelled services are excluded from attendance scoring">
+                                            <i class="fas fa-calendar-times" aria-hidden="true"></i>
+                                            @CancelledServiceCount service occurrence@(CancelledServiceCount == 1 ? "" : "s") cancelled this month
+                                        </p>
+                                    }
                                 }
                             </div>
                         </a>
@@ -235,6 +242,13 @@
                                         @myAttendanceScore.MonthToDatePercentage.ToString("0.##")%
                                     </h3>
                                     <p class="stat-label">My MTD Attendance</p>
+                                    @if (CancelledServiceCount > 0)
+                                    {
+                                        <p class="small text-muted mb-0" title="Cancelled services are excluded from attendance scoring">
+                                            <i class="fas fa-calendar-times" aria-hidden="true"></i>
+                                            @CancelledServiceCount service occurrence@(CancelledServiceCount == 1 ? "" : "s") cancelled this month
+                                        </p>
+                                    }
                                 }
                             </div>
                         </a>
@@ -359,6 +373,13 @@
                                         @myAttendanceScore.MonthToDatePercentage.ToString("0.##")%
                                     </h3>
                                     <p class="stat-label">My MTD Attendance</p>
+                                    @if (CancelledServiceCount > 0)
+                                    {
+                                        <p class="small text-muted mb-0" title="Cancelled services are excluded from attendance scoring">
+                                            <i class="fas fa-calendar-times" aria-hidden="true"></i>
+                                            @CancelledServiceCount service occurrence@(CancelledServiceCount == 1 ? "" : "s") cancelled this month
+                                        </p>
+                                    }
                                 }
                             </div>
                         </a>
@@ -1313,6 +1334,12 @@ private int myDeskCount;
     private List<Activity> recentActivities = new();
     private ServiceRecordAccessModel serviceRecordAccess = new();
     private WorkerMonthlyAttendanceScore? myAttendanceScore;
+    // Derived from the same central scoring result used by the report.
+    private int CancelledServiceCount =>
+        myAttendanceScore?.ServiceScores
+            .SelectMany(service => service.Occurrences)
+            .Count(occurrence => occurrence.IsCancelled) ?? 0;
+
 
 
 private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
@@ -3882,6 +3909,11 @@ private bool CanAccessSetupWorkspace()
 
 
 </style>
+
+
+
+
+
 
 
 

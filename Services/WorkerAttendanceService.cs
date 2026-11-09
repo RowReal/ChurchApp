@@ -25,10 +25,20 @@ namespace ChurchApp.Services
                 .Where(s => s.IsActive && s.EnableWorkerAttendance)
                 .ToListAsync();
 
+            // Cancellation applies to a single scheduled date, not the recurring service.
+            var cancelledServiceIds = (await _context.ServiceScheduleExceptions
+                .AsNoTracking()
+                .Where(x => x.IsCancelled && x.OccurrenceDate == now.Date)
+                .Select(x => x.ServiceId)
+                .ToListAsync()).ToHashSet();
+
             var availableServices = new List<Service>();
 
             foreach (var service in services)
             {
+                if (cancelledServiceIds.Contains(service.Id))
+                    continue;
+
                 if (!IsServiceOnDate(service, now.Date))
                     continue;
 
@@ -108,6 +118,12 @@ namespace ChurchApp.Services
             {
                 return Failure(
                     "This service is not scheduled for today.");
+            }
+
+            if (await _context.ServiceScheduleExceptions.AsNoTracking().AnyAsync(x =>
+                x.ServiceId == serviceId && x.OccurrenceDate == now.Date && x.IsCancelled))
+            {
+                return Failure("This service has been cancelled for today. Attendance registration is unavailable.");
             }
 
             var times = GetServiceTimes(service, now.Date);
@@ -255,6 +271,12 @@ namespace ChurchApp.Services
             {
                 return Failure(
                     "This service is not scheduled for today.");
+            }
+
+            if (await _context.ServiceScheduleExceptions.AsNoTracking().AnyAsync(x =>
+                x.ServiceId == serviceId && x.OccurrenceDate == now.Date && x.IsCancelled))
+            {
+                return Failure("This service has been cancelled for today. Attendance registration is unavailable.");
             }
 
             var times = GetServiceTimes(service, now.Date);
@@ -590,3 +612,4 @@ namespace ChurchApp.Services
         }
     }
 }
+

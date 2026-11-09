@@ -766,23 +766,31 @@ else
                                                                                         </td>
 
                                                                                         <td class="text-center">
-                                                                                            @(occurrence.IsDue
+                                                                                            @(occurrence.IsDue && !occurrence.IsCancelled
                                                                                                 ? occurrence.Score.ToString()
                                                                                                 : "—")
                                                                                         </td>
 
                                                                                         <td class="text-center">
-                                                                                            @occurrence.OccurrenceWeight.ToString("0.##")%
+                                                                                            @(occurrence.IsCancelled ? "Excluded" : $"{occurrence.OccurrenceWeight:0.##}%")
                                                                                         </td>
 
                                                                                         <td class="text-center">
-                                                                                            @(occurrence.IsDue
+                                                                                            @(occurrence.IsDue && !occurrence.IsCancelled
                                                                                                 ? $"{occurrence.EarnedWeight:0.##}%"
                                                                                                 : "—")
                                                                                         </td>
 
                                                                                         <td>
-                                                                                            @if (occurrence.HasApprovedException)
+                                                                                            @if (occurrence.IsCancelled)
+                                                                                            {
+                                                                                                <span class="badge bg-secondary">Cancelled — Excluded from Scoring</span>
+                                                                                                @if (!string.IsNullOrWhiteSpace(occurrence.CancellationReason))
+                                                                                                {
+                                                                                                    <div class="small text-muted mt-1">@occurrence.CancellationReason</div>
+                                                                                                }
+                                                                                            }
+                                                                                            else if (occurrence.HasApprovedException)
                                                                                             {
                                                                                                 <span class="approved-exception-status">
                                                                                                     @GetOccurrenceStatusDisplay(occurrence)
@@ -1256,6 +1264,9 @@ else
     private string GetOccurrenceRowCss(
         AttendanceOccurrenceScore occurrence)
     {
+        if (occurrence.IsCancelled)
+            return "table-secondary";
+
         if (!occurrence.IsDue)
             return "future-occurrence";
 
@@ -1314,6 +1325,9 @@ else
     private string GetOccurrenceStatusDisplay(
         AttendanceOccurrenceScore occurrence)
     {
+        if (occurrence.IsCancelled)
+            return "Cancelled";
+
         if (!occurrence.IsDue)
             return "Not Yet Due";
 

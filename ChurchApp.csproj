@@ -39,4 +39,12 @@
     <Folder Include="wwwroot\uploads\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EditorConfigFiles Remove="C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\Models\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="C:\NewChurchProj\ChurchApp\ChurchApp\ChurchApp\Models\.editorconfig" />
+  </ItemGroup>
+
 </Project>

@@ -3,10 +3,14 @@
 
 @using ChurchApp.Models
 @using ChurchApp.Services
+@using ChurchApp.Data
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.DependencyInjection
 
 @inject ExcuseService ExcuseService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject IServiceScopeFactory ScopeFactory
 
 <PageTitle>Service Management - BCC ServiceHub</PageTitle>
 
@@ -223,6 +227,12 @@ else
                                                     <i class="fas fa-pen"></i>
                                                 </button>
 
+                                                <button type="button" class="service-action-btn edit"
+                                                        title="Manage cancelled occurrences"
+                                                        @onclick="() => OpenCancellationModal(service)">
+                                                    <i class="fas fa-calendar-xmark"></i>
+                                                </button>
+
                                                 @if (service.IsActive)
                                                 {
                                                     <button type="button"
@@ -263,6 +273,75 @@ else
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+}
+
+@if (showCancellationModal && cancellationService != null)
+{
+    <div class="service-modal-backdrop" @onclick="CloseCancellationModal">
+        <div class="service-modal-card" @onclick:stopPropagation="true" style="max-width:680px">
+            <div class="service-modal-header">
+                <div>
+                    <div class="modal-eyebrow">Service Schedule Exceptions</div>
+                    <h4>Cancelled Occurrences — @cancellationService.Name</h4>
+                    <p>Cancel one scheduled date without changing the recurring service.</p>
+                </div>
+                <button type="button" class="service-action-btn" @onclick="CloseCancellationModal" aria-label="Close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="service-modal-body">
+                @if (!string.IsNullOrEmpty(cancellationError))
+                {
+                    <div class="alert alert-danger">@cancellationError</div>
+                }
+                @if (!string.IsNullOrEmpty(cancellationSuccess))
+                {
+                    <div class="alert alert-success">@cancellationSuccess</div>
+                }
+                <div class="mb-3">
+                    <label class="form-label">Scheduled occurrence date</label>
+                    <InputDate class="form-control" @bind-Value="cancellationDate" />
+                    <small class="text-muted">Only dates matching the service's configured recurrence are accepted.</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Reason for cancellation</label>
+                    <InputTextArea class="form-control" @bind-Value="cancellationReason" />
+                </div>
+                <button type="button" class="bcc-btn bcc-btn-primary compact-btn" disabled="@cancellationSaving" @onclick="SaveCancellationAsync">
+                    <i class="fas fa-calendar-xmark me-1"></i> Cancel this occurrence
+                </button>
+                <hr />
+                <h6>Cancellation history</h6>
+                @if (cancellationRecords.Count == 0)
+                {
+                    <p class="text-muted">No cancellation records for this service.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead><tr><th>Date</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+                            <tbody>
+                                @foreach (var record in cancellationRecords)
+                                {
+                                    <tr>
+                                        <td>@record.OccurrenceDate.ToString("dd MMM yyyy")</td>
+                                        <td>@record.Reason</td>
+                                        <td>@(record.IsCancelled ? "Cancelled" : "Restored")</td>
+                                        <td>
+                                            @if (record.IsCancelled)
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-success" disabled="@cancellationSaving" @onclick="() => RestoreCancellationAsync(record.Id)">Restore</button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+            <div class="service-modal-footer"><button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" @onclick="CloseCancellationModal">Close</button></div>
         </div>
     </div>
 }
@@ -810,6 +889,125 @@ else
 }
 
 @code {
+    // Service cancellation management (kept separate from the existing service editor).
+    private bool showCancellationModal;
+    private bool cancellationSaving;
+    private Service? cancellationService;
+    private DateTime cancellationDate = DateTime.Today;
+    private string cancellationReason = string.Empty;
+    private string cancellationError = string.Empty;
+    private string cancellationSuccess = string.Empty;
+    private List<ServiceScheduleException> cancellationRecords = new();
+
+    private async Task OpenCancellationModal(Service service)
+    {
+        cancellationService = service;
+        cancellationDate = service.RecurrencePattern == "OneTime" && service.SpecificDate.HasValue
+            ? service.SpecificDate.Value.Date : DateTime.Today;
+        cancellationReason = string.Empty;
+        cancellationError = cancellationSuccess = string.Empty;
+        showCancellationModal = true;
+        await LoadCancellationRecordsAsync();
+    }
+
+    private void CloseCancellationModal()
+    {
+        if (cancellationSaving) return;
+        showCancellationModal = false;
+        cancellationService = null;
+    }
+
+    private async Task LoadCancellationRecordsAsync()
+    {
+        if (cancellationService == null) return;
+        using var scope = ScopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        cancellationRecords = await db.ServiceScheduleExceptions.AsNoTracking()
+            .Where(x => x.ServiceId == cancellationService.Id)
+            .OrderByDescending(x => x.OccurrenceDate).ToListAsync();
+    }
+
+    private static bool MatchesScheduledOccurrence(Service service, DateTime date)
+    {
+        date = date.Date;
+        if (service.RecurrencePattern == "OneTime")
+            return service.SpecificDate?.Date == date;
+        if (!service.DayOfWeek.HasValue || date.DayOfWeek != service.DayOfWeek.Value)
+            return false;
+        if (service.RecurrencePattern == "Weekly") return true;
+        if (service.RecurrencePattern != "Monthly" || !service.WeekOfMonth.HasValue) return false;
+        var first = new DateTime(date.Year, date.Month, 1);
+        var offset = ((int)service.DayOfWeek.Value - (int)first.DayOfWeek + 7) % 7;
+        var firstDay = 1 + offset;
+        if (service.WeekOfMonth.Value == 5)
+            return date.AddDays(7).Month != date.Month; // Last occurrence in month
+        return date.Day == firstDay + (service.WeekOfMonth.Value - 1) * 7;
+    }
+
+    private async Task SaveCancellationAsync()
+    {
+        if (cancellationService == null || AuthService.CurrentWorker == null) return;
+        cancellationError = cancellationSuccess = string.Empty;
+        if (!MatchesScheduledOccurrence(cancellationService, cancellationDate))
+        {
+            cancellationError = "The selected date does not match this service's recurrence schedule.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(cancellationReason) || cancellationReason.Trim().Length > 500)
+        {
+            cancellationError = "Provide a cancellation reason (maximum 500 characters).";
+            return;
+        }
+        cancellationSaving = true;
+        try
+        {
+            using var scope = ScopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var date = cancellationDate.Date;
+            var record = await db.ServiceScheduleExceptions
+                .SingleOrDefaultAsync(x => x.ServiceId == cancellationService.Id && x.OccurrenceDate == date);
+            if (record == null)
+            {
+                record = new ServiceScheduleException { ServiceId = cancellationService.Id, OccurrenceDate = date };
+                db.ServiceScheduleExceptions.Add(record);
+            }
+            record.IsCancelled = true;
+            record.Reason = cancellationReason.Trim();
+            record.CancelledByWorkerId = AuthService.CurrentWorker.Id;
+            record.CancelledAtUtc = DateTime.UtcNow;
+            record.RestoredAtUtc = null;
+            record.RestoredByWorkerId = null;
+            await db.SaveChangesAsync();
+            await LoadCancellationRecordsAsync();
+            cancellationSuccess = "Service occurrence cancelled. Attendance scoring integration is required before this affects worker scores.";
+            cancellationReason = string.Empty;
+        }
+        catch (Exception ex) { cancellationError = $"Unable to cancel occurrence: {ex.Message}"; }
+        finally { cancellationSaving = false; }
+    }
+
+    private async Task RestoreCancellationAsync(int recordId)
+    {
+        if (cancellationService == null || AuthService.CurrentWorker == null) return;
+        cancellationSaving = true;
+        cancellationError = cancellationSuccess = string.Empty;
+        try
+        {
+            using var scope = ScopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var record = await db.ServiceScheduleExceptions.SingleOrDefaultAsync(x => x.Id == recordId && x.ServiceId == cancellationService.Id);
+            if (record == null) { cancellationError = "Cancellation record not found."; return; }
+            record.IsCancelled = false;
+            record.RestoredByWorkerId = AuthService.CurrentWorker.Id;
+            record.RestoredAtUtc = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+            await LoadCancellationRecordsAsync();
+            cancellationSuccess = "Scheduled occurrence restored.";
+        }
+        catch (Exception ex) { cancellationError = $"Unable to restore occurrence: {ex.Message}"; }
+        finally { cancellationSaving = false; }
+    }
+
     private List<Service> allServices = new();
     private List<Service> filteredServices = new();
     private bool showServiceModal;
@@ -1863,6 +2061,13 @@ else
         }
     }
 </style>
+
+
+
+
+
+
+
 
 
 
