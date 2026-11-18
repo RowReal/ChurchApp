@@ -7,18 +7,19 @@
 @inject GuestService GuestService
 @inject ServiceService ServiceService
 @inject AuthService AuthService
+@inject ServiceRecordAccessService ServiceRecordAccessService
 @inject NavigationManager Navigation
 
 <PageTitle>Edit Guest - BCC ServiceHub</PageTitle>
 
 @if (AuthService.IsAuthenticated)
 {
-    @if (!IsFIGDirectorateMember())
+    @if (!canEditGuest)
     {
         <div class="bcc-empty">
             <i class="fas fa-lock"></i>
             <h4>Access Restricted</h4>
-            <p>This section is only accessible to authorised FIG Directorate members.</p>
+            <p>You do not have permission to edit guest records.</p>
             <a href="/guest/daily-list" class="bcc-btn bcc-btn-primary">Back to Daily List</a>
         </div>
     }
@@ -444,6 +445,8 @@ else
     {
         try
         {
+            await LoadGuestAccessAsync();
+            if (!canEditGuest) { isLoading = false; return; }
             await LoadServices();
             await LoadGuestForEdit();
         }
@@ -500,35 +503,27 @@ else
         }
     }
 
-    private bool IsFIGDirectorateMember()
+    private bool canEditGuest;
+
+    private async Task LoadGuestAccessAsync()
     {
         var worker = AuthService.CurrentWorker;
-        if (worker == null) return false;
+        if (!AuthService.IsAuthenticated || worker == null) return;
 
-        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
-        var secondaryDirectorateName = worker.SecondaryDirectorate?.Name?.ToLowerInvariant() ?? "";
-        var departmentName = worker.Department?.Name?.ToLowerInvariant() ?? "";
-        var secondaryDepartmentName = worker.SecondaryDepartment?.Name?.ToLowerInvariant() ?? "";
+        var access = await ServiceRecordAccessService.GetAccessAsync(worker.Id);
+        if (!access.CanAccessGuestManagement) return;
+
         var role = worker.Role?.ToLowerInvariant() ?? "";
-
-        var isPrimaryFIG = directorateName.Contains("fig");
-        var isSecondaryFIG = secondaryDirectorateName.Contains("fig");
-
-        var isMembershipAssimilation =
-            departmentName.Contains("membership assimilation") ||
-            secondaryDepartmentName.Contains("membership assimilation");
-
-        var hasValidRole =
-            role.Contains("head of directorate") ||
-            role.Contains("asst head of directorate") ||
-            role.Contains("directorate member") ||
-            AuthService.IsInRole("Church Admin") ||
-            AuthService.IsInRole("Pastor in Charge");
-
-        return (isPrimaryFIG || isSecondaryFIG || isMembershipAssimilation) && hasValidRole;
+        canEditGuest = role.Contains("head of directorate") ||
+                       role.Contains("asst head of directorate") ||
+                       role.Contains("directorate member") ||
+                       AuthService.IsInRole("Church Admin") ||
+                       AuthService.IsInRole("Pastor in Charge");
     }
+
     private async Task UpdateGuest()
     {
+        if (!canEditGuest) return;
         ClearValidationMessages();
 
         if (!ValidateModel())
@@ -625,6 +620,7 @@ else
 
     private async Task ConfirmDelete()
     {
+        if (!canEditGuest) return;
         isDeleting = true;
         try
         {

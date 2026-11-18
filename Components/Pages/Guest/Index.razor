@@ -284,27 +284,7 @@ else
                 await ServiceRecordAccessService
                     .GetAccessAsync(worker.Id);
 
-            var hasGuestPrivilege =
-                access.CanAccessGuestManagement;
-
-            var isFigDirectorate =
-                IsFigName(worker.Directorate?.Name);
-
-            var isSecondaryDepartmentFig =
-                IsFigName(worker.SecondaryDepartment?.Name);
-
-            var hasAuthorisedRole =
-                AuthService.IsInRole("Church Admin") ||
-                AuthService.IsInRole("Head of Service") ||
-                AuthService.IsInRole("Pastor in Charge");
-
-            canAccessGuestManagement =
-                hasGuestPrivilege &&
-                (
-                    isFigDirectorate ||
-                    isSecondaryDepartmentFig ||
-                    hasAuthorisedRole
-                );
+            canAccessGuestManagement = access.CanAccessGuestManagement;
 
             if (!canAccessGuestManagement)
                 return;

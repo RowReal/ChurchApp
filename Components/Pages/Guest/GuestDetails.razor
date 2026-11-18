@@ -4,19 +4,20 @@
 @using ChurchApp.Models
 @inject GuestService GuestService
 @inject AuthService AuthService
+@inject ServiceRecordAccessService ServiceRecordAccessService
 @inject NavigationManager Navigation
 
 <PageTitle>Guest 360 - BCC ServiceHub</PageTitle>
 
 @if (AuthService.IsAuthenticated)
 {
-    @if (!IsFIGDirectorateMember())
+    @if (!canAccessGuestManagement)
     {
         <div class="guest360-v2-page">
             <div class="bcc-empty">
                 <i class="fas fa-lock"></i>
                 <h4>Access Denied</h4>
-                <p>This section is only accessible to FIG Directorate members.</p>
+                <p>You do not have the Guest Management privilege.</p>
                 <a href="/guest" class="bcc-btn bcc-btn-primary text-decoration-none">
                     <i class="fas fa-arrow-left me-1"></i>Back to Guest Centre
                 </a>
@@ -91,6 +92,8 @@
                         <i class="fas fa-arrow-left me-1"></i>Back
                     </button>
 
+                    @if (canManageGuest)
+                    {
                     <a href="@($"/guest/edit/{Id}")" class="bcc-btn guest-warning-btn text-decoration-none">
                         <i class="fas fa-edit me-1"></i>Edit
                     </a>
@@ -98,6 +101,7 @@
                     <button class="bcc-btn guest-danger-outline-btn" @onclick="DeleteGuest">
                         <i class="fas fa-trash me-1"></i>Delete
                     </button>
+                    }
                 </div>
             </div>
 
@@ -359,10 +363,13 @@
                                     <span>Print Guest Profile</span>
                                 </button>
 
+                                @if (canManageGuest)
+                                {
                                 <button class="guest360-action danger" @onclick="DeleteGuest">
                                     <i class="fas fa-trash"></i>
                                     <span>Delete Record</span>
                                 </button>
+                                }
                             </div>
                         </div>
                     </div>
@@ -519,7 +526,16 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadGuestDetails();
+        try
+        {
+            await LoadGuestAccessAsync();
+            if (canAccessGuestManagement) await LoadGuestDetails();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to check Guest Management access: {ex.Message}";
+            isLoading = false;
+        }
     }
 
     private async Task LoadGuestDetails()
@@ -538,33 +554,36 @@ else
         }
     }
 
-    private bool IsFIGDirectorateMember()
+    private bool canAccessGuestManagement;
+    private bool canManageGuest;
+
+    private async Task LoadGuestAccessAsync()
     {
         var worker = AuthService.CurrentWorker;
-        if (worker == null) return false;
+        if (!AuthService.IsAuthenticated || worker == null) return;
 
-        var directorateName = worker.Directorate?.Name?.ToLowerInvariant() ?? "";
+        var access = await ServiceRecordAccessService.GetAccessAsync(worker.Id);
+        canAccessGuestManagement = access.CanAccessGuestManagement;
+        if (!canAccessGuestManagement) return;
+
         var role = worker.Role?.ToLowerInvariant() ?? "";
-
-        var isInFIG = directorateName.Contains("fig");
-
-        var hasValidRole = role.Contains("head of directorate") ||
-                           role.Contains("asst head of directorate") ||
-                           role.Contains("directorate member") ||
-                           AuthService.IsInRole("Church Admin") ||
-                           AuthService.IsInRole("Pastor in Charge");
-
-        return isInFIG && hasValidRole;
+        canManageGuest = role.Contains("head of directorate") ||
+                         role.Contains("asst head of directorate") ||
+                         role.Contains("directorate member") ||
+                         AuthService.IsInRole("Church Admin") ||
+                         AuthService.IsInRole("Pastor in Charge");
     }
 
     private void DeleteGuest()
     {
+        if (!canManageGuest) return;
         showDeleteModal = true;
         StateHasChanged();
     }
 
     private async Task ConfirmDelete()
     {
+        if (!canManageGuest || !canAccessGuestManagement) return;
         isDeleting = true;
 
         try

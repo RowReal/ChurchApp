@@ -45,9 +45,7 @@ else if (!canAccessGuestManagement)
         <h4>Access Denied</h4>
 
         <p>
-            You must have the Guest Management privilege and either belong
-            to the FIG Directorate, have FIG as your secondary department,
-            or hold an authorised leadership role.
+            You must have the Guest Management privilege to access this page.
         </p>
 
         <button type="button"
@@ -669,27 +667,7 @@ else
                 await ServiceRecordAccessService
                     .GetAccessAsync(worker.Id);
 
-            var hasGuestPrivilege =
-                access.CanAccessGuestManagement;
-
-            var isFigDirectorate =
-                IsFigName(worker.Directorate?.Name);
-
-            var isSecondaryDepartmentFig =
-                IsFigName(worker.SecondaryDepartment?.Name);
-
-            var hasAuthorisedRole =
-                AuthService.IsInRole("Church Admin") ||
-                AuthService.IsInRole("Head of Service") ||
-                AuthService.IsInRole("Pastor in Charge");
-
-            canAccessGuestManagement =
-                hasGuestPrivilege &&
-                (
-                    isFigDirectorate ||
-                    isSecondaryDepartmentFig ||
-                    hasAuthorisedRole
-                );
+            canAccessGuestManagement = access.CanAccessGuestManagement;
         }
         catch (Exception ex)
         {
@@ -889,22 +867,6 @@ else
         return modalTab == tab
             ? "guest-popup-tab active"
             : "guest-popup-tab";
-    }
-
-    private static bool IsFigName(
-        string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return false;
-
-        return string.Equals(
-                   value.Trim(),
-                   "FIG",
-                   StringComparison.OrdinalIgnoreCase)
-               ||
-               value.Contains(
-                   "FIG",
-                   StringComparison.OrdinalIgnoreCase);
     }
 
     private void GoBack()
