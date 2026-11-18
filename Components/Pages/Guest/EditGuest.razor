@@ -1,4 +1,4 @@
-﻿
+
 @page "/guest/edit/{Id:int}"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
@@ -893,5 +893,41 @@ else
     .form-check-input:checked {
         background-color: #667eea;
         border-color: #667eea;
+    }
+
+    /* BCC ServiceHub | Guest workspace green visual refresh */
+    .guest-edit-v2-page { --guest-brand: #145c39; --guest-brand-dark: #0c4328; --guest-brand-soft: #eaf5ed; --guest-border: #dbe8df; color: #243b2e; }
+    .guest-edit-v2-page .bcc-page-header {
+        background: #145c39 !important; background-image: none !important;
+        color: #fff !important; border: 1px solid #0c4328 !important;
+        border-radius: 5px !important; padding: 17px 21px !important;
+        margin-bottom: 14px !important; box-shadow: 0 3px 12px rgba(12,67,40,.12) !important;
+    }
+    .guest-edit-v2-page .bcc-page-header .bcc-page-title,
+    .guest-edit-v2-page .bcc-page-header h1, .guest-edit-v2-page .bcc-page-header h2,
+    .guest-edit-v2-page .bcc-page-header h3, .guest-edit-v2-page .bcc-page-header .bcc-page-subtitle,
+    .guest-edit-v2-page .bcc-page-header p, .guest-edit-v2-page .bcc-page-header .guest-page-kicker { color: #fff !important; }
+    .guest-edit-v2-page .bcc-page-header .bcc-page-subtitle, .guest-edit-v2-page .bcc-page-header p { opacity: .88; }
+    .guest-edit-v2-page .bcc-card, .guest-edit-v2-page .card { border: 1px solid var(--guest-border) !important; border-radius: 7px !important; box-shadow: 0 2px 9px rgba(22,69,43,.045); }
+    .guest-edit-v2-page .bcc-card-header, .guest-edit-v2-page .card-header { border-bottom-color: var(--guest-border) !important; }
+    .guest-edit-v2-page .table thead th, .guest-edit-v2-page .bcc-table thead th { background: #eaf5ed !important; color: #174b30 !important; border-bottom: 1px solid #c8dfce !important; font-weight: 700; }
+    .guest-edit-v2-page .table td, .guest-edit-v2-page .table th { vertical-align: middle; }
+    .guest-edit-v2-page .form-control, .guest-edit-v2-page .form-select, .guest-edit-v2-page input:not([type=checkbox]):not([type=radio]), .guest-edit-v2-page select, .guest-edit-v2-page textarea { border-radius: 5px; }
+    .guest-edit-v2-page .form-control:focus, .guest-edit-v2-page .form-select:focus, .guest-edit-v2-page input:focus, .guest-edit-v2-page select:focus, .guest-edit-v2-page textarea:focus { border-color: #31845a !important; box-shadow: 0 0 0 .15rem rgba(49,132,90,.13) !important; }
+    .guest-edit-v2-page .btn-primary, .guest-edit-v2-page .btn-success, .guest-edit-v2-page .bcc-btn-primary { background: #145c39 !important; border-color: #145c39 !important; color: #fff !important; border-radius: 5px !important; }
+    .guest-edit-v2-page .btn-primary:hover, .guest-edit-v2-page .btn-success:hover, .guest-edit-v2-page .bcc-btn-primary:hover { background: #0c4328 !important; border-color: #0c4328 !important; }
+    .guest-edit-v2-page .btn-outline-primary, .guest-edit-v2-page .btn-outline-success { border-color: #31845a !important; color: #145c39 !important; }
+    .guest-edit-v2-page .btn-outline-primary:hover, .guest-edit-v2-page .btn-outline-success:hover { background: #145c39 !important; color: #fff !important; }
+    .guest-edit-v2-page .text-primary { color: #145c39 !important; }
+    .guest-edit-v2-page .bg-primary { background-color: #145c39 !important; }
+    .guest-edit-v2-page .badge.bg-primary { background-color: #145c39 !important; }
+    .guest-edit-v2-page .guest-summary-item, .guest-edit-v2-page .followup-summary-strip > div, .guest-edit-v2-page .guest-summary-strip > div { border-color: var(--guest-border) !important; border-radius: 7px !important; }
+    .guest-edit-v2-page .guest-summary-item strong, .guest-edit-v2-page .guest-summary-strip strong, .guest-edit-v2-page .followup-summary-strip strong { color: #145c39; }
+    .guest-edit-v2-page .guest-popup-header, .guest-edit-v2-page .followup-popup-header, .guest-edit-v2-page .second-timer-popup-header { background: #145c39 !important; background-image: none !important; color: #fff !important; }
+    .guest-edit-v2-page .guest-popup-header *, .guest-edit-v2-page .followup-popup-header *, .guest-edit-v2-page .second-timer-popup-header * { color: #fff; }
+    .guest-edit-v2-page .guest360-profile-hero, .guest-edit-v2-page .profile-form-v2-hero { border-color: #c8dfce !important; }
+    @@media (max-width: 767px) {
+        .guest-edit-v2-page .bcc-page-header { padding: 14px 15px !important; }
+        .guest-edit-v2-page .bcc-card-body, .guest-edit-v2-page .card-body { padding: 12px !important; }
     }
 </style>

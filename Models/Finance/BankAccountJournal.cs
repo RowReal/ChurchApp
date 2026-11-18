@@ -46,6 +46,7 @@ namespace ChurchApp.Models.Finance
         public int BankAccountId { get; set; }
         // Income classification is retained independently of the bank account for remittance.
         public int? IncomeTypeId { get; set; }
+        public int? SourceExpenditureId { get; set; }
         public IncomeType? IncomeType { get; set; }
         public BankAccount? BankAccount { get; set; }
 

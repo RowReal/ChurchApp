@@ -82,11 +82,37 @@ namespace ChurchApp.Services
 
             return true;
         }
+        // Existing authenticated-worker API retained unchanged.
+        public Task<Guest> CreateFirstTimerAsync(CreateGuestModel model, Worker currentWorker)
+        {
+            ArgumentNullException.ThrowIfNull(currentWorker);
+            return CreateFirstTimerCoreAsync(model, currentWorker.WorkerId,
+                $"{currentWorker.FirstName} {currentWorker.LastName}");
+        }
+
+        // Public self-registration: reserved audit identity, no Worker record or login required.
+        public Task<Guest> CreateSelfRegisteredGuestAsync(CreateGuestModel model)
+        {
+            return CreateFirstTimerCoreAsync(model, "SYS-GUEST-001", "Guest Self-Registration");
+        }
+
         // Create First Timer
-        public async Task<Guest> CreateFirstTimerAsync(CreateGuestModel model, Worker currentWorker)
+        private async Task<Guest> CreateFirstTimerCoreAsync(CreateGuestModel model, string recorderId, string recorderName)
         {
             try
             {
+                if (model.ServiceId <= 0 || string.IsNullOrWhiteSpace(model.Title) ||
+                    string.IsNullOrWhiteSpace(model.FirstName) ||
+                    string.IsNullOrWhiteSpace(model.Surname) ||
+                    string.IsNullOrWhiteSpace(model.Sex) ||
+                    model.VisitingDate.Date > DateTime.Today ||
+                    model.VisitingDate.Date < DateTime.Today.AddDays(-30))
+                    throw new InvalidOperationException("Invalid guest registration information.");
+
+                var serviceExists = await _context.Services.AnyAsync(x => x.Id == model.ServiceId);
+                if (!serviceExists)
+                    throw new InvalidOperationException("Invalid service selected.");
+
                 // Validate phone uniqueness
                 if (!string.IsNullOrWhiteSpace(model.PhoneNumber))
                 {
@@ -136,8 +162,8 @@ namespace ChurchApp.Services
                     InvitedByName = model.HowFoundUs == "invite" ? model.InvitedByName : string.Empty,
                     ServiceId = model.ServiceId,
                     VisitingDate = model.VisitingDate,
-                    RecordedByWorkerId = currentWorker.WorkerId,
-                    RecordedByName = $"{currentWorker.FirstName} {currentWorker.LastName}",
+                    RecordedByWorkerId = recorderId,
+                    RecordedByName = recorderName,
                     IsSecondTimer = false,
                     CreatedDate = DateTime.UtcNow,
                     IsActive = true

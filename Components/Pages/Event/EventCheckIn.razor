@@ -13,7 +13,7 @@
 
 <PageTitle>Event Check-In - BCC ServiceHub</PageTitle>
 
-<div class="worker360-page" style="max-width:1000px;margin:0 auto;">
+<div class="worker360-page bcc-event-checkin-refresh" style="max-width:1000px;margin:0 auto;">
     <div class="bcc-page-header">
         <div>
             <div class="bcc-page-subtitle"><i class="fas fa-calendar-check me-2"></i>Personal Workspace</div>
@@ -432,7 +432,51 @@
         padding-right: 10px
     }
 
-    }</style>
+    }
+
+/* BCC 2026 | unified event and awards design | presentation only */
+.bcc-event-checkin-refresh { --bcc-event-green: #145c39; --bcc-event-bright: #278354; --bcc-event-soft: #edf7f0; --bcc-event-border: #d8e7dd; color: #213b2d; }
+.bcc-event-checkin-refresh .bcc-page-header {
+    background: linear-gradient(105deg,#124f32 0%,#187245 72%,#268756 100%) !important;
+    color: #fff !important;
+    border: 1px solid #217b4e !important;
+    border-radius: 7px !important;
+    padding: 17px 21px !important;
+    margin-bottom: 14px !important;
+    box-shadow: 0 4px 14px rgba(14,76,45,.12) !important;
+}
+.bcc-event-checkin-refresh .bcc-page-title, .bcc-event-checkin-refresh .bcc-page-header h1, .bcc-event-checkin-refresh .bcc-page-header h2,
+.bcc-event-checkin-refresh .award-nom-hero h1, .bcc-event-checkin-refresh .award-results-hero h1, .bcc-event-checkin-refresh .assisted-hero h2,
+.bcc-event-checkin-refresh .checkin-report-hero h2 { font-size: clamp(1.24rem,2vw,1.7rem) !important; font-weight: 750 !important; letter-spacing: -.025em; line-height: 1.2; }
+.bcc-event-checkin-refresh .bcc-page-header .bcc-page-subtitle, .bcc-event-checkin-refresh .award-nom-hero p,
+.bcc-event-checkin-refresh .award-results-hero p, .bcc-event-checkin-refresh .assisted-hero p,
+.bcc-event-checkin-refresh .checkin-report-hero .checkin-report-subtitle { color: #e5f5ea !important; }
+.bcc-event-checkin-refresh .bcc-card, .bcc-event-checkin-refresh .award-panel, .bcc-event-checkin-refresh .award-results-toolbar,
+.bcc-event-checkin-refresh .award-nom-panel, .bcc-event-checkin-refresh .event-setup-section {
+    border: 1px solid var(--bcc-event-border) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 9px rgba(20,92,57,.055);
+}
+.bcc-event-checkin-refresh .bcc-card-body, .bcc-event-checkin-refresh .card-body { padding: 14px 16px; }
+.bcc-event-checkin-refresh .form-control, .bcc-event-checkin-refresh .form-select, .bcc-event-checkin-refresh .form-check-input,
+.bcc-event-checkin-refresh input:not([type=checkbox]):not([type=radio]), .bcc-event-checkin-refresh select, .bcc-event-checkin-refresh textarea { border-radius: 5px; }
+.bcc-event-checkin-refresh .form-control:focus, .bcc-event-checkin-refresh .form-select:focus, .bcc-event-checkin-refresh input:focus, .bcc-event-checkin-refresh select:focus, .bcc-event-checkin-refresh textarea:focus { border-color: #43a572; box-shadow: 0 0 0 .15rem rgba(39,131,84,.14); }
+.bcc-event-checkin-refresh .btn, .bcc-event-checkin-refresh .bcc-btn { border-radius: 5px !important; font-weight: 600; }
+.bcc-event-checkin-refresh .btn-primary, .bcc-event-checkin-refresh .btn-success, .bcc-event-checkin-refresh .bcc-btn-primary { background: #187347 !important; border-color: #187347 !important; color: #fff !important; }
+.bcc-event-checkin-refresh .btn-primary:hover, .bcc-event-checkin-refresh .btn-success:hover, .bcc-event-checkin-refresh .bcc-btn-primary:hover { background: #105c37 !important; border-color: #105c37 !important; }
+.bcc-event-checkin-refresh .table thead th, .bcc-event-checkin-refresh table thead th { background: #e8f4ec; color: #185536; border-bottom-color: #c8e0d0; font-size: .81rem; font-weight: 750; }
+.bcc-event-checkin-refresh .table td, .bcc-event-checkin-refresh .table th { padding-top: .48rem; padding-bottom: .48rem; vertical-align: middle; }
+.bcc-event-checkin-refresh .badge.bg-primary, .bcc-event-checkin-refresh .badge.bg-success { background: #218451 !important; }
+@@media (max-width: 767px) {
+    .bcc-event-checkin-refresh .bcc-page-header { padding: 14px 15px !important; gap: 10px !important; }
+    .bcc-event-checkin-refresh .bcc-card-body, .bcc-event-checkin-refresh .card-body { padding: 12px !important; }
+}
+
+/* Digital pass is a separate overlay, outside the page container. */
+.event-pass-overlay { background: rgba(6,36,22,.76) !important; }
+.event-pass-modal { border-radius: 9px !important; }
+.event-pass-modal .btn-primary { background: #187347 !important; border-color: #187347 !important; }
+</style>
 
 @code {
     private bool loading = true, busy, error, showPass, showMealEditor;

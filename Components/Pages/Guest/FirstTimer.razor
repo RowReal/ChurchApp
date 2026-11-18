@@ -1,4 +1,4 @@
-﻿@page "/guest/first-timer"
+@page "/guest/first-timer"
 @layout Components.Layout.MainLayout
 
 @using ChurchApp.Models
@@ -1276,5 +1276,41 @@ else
             max-width: 96vw;
             padding: 16px;
         }
+    }
+
+    /* BCC ServiceHub | Guest workspace green visual refresh */
+    .first-timer-page { --guest-brand: #145c39; --guest-brand-dark: #0c4328; --guest-brand-soft: #eaf5ed; --guest-border: #dbe8df; color: #243b2e; }
+    .first-timer-page .bcc-page-header {
+        background: #145c39 !important; background-image: none !important;
+        color: #fff !important; border: 1px solid #0c4328 !important;
+        border-radius: 5px !important; padding: 17px 21px !important;
+        margin-bottom: 14px !important; box-shadow: 0 3px 12px rgba(12,67,40,.12) !important;
+    }
+    .first-timer-page .bcc-page-header .bcc-page-title,
+    .first-timer-page .bcc-page-header h1, .first-timer-page .bcc-page-header h2,
+    .first-timer-page .bcc-page-header h3, .first-timer-page .bcc-page-header .bcc-page-subtitle,
+    .first-timer-page .bcc-page-header p, .first-timer-page .bcc-page-header .guest-page-kicker { color: #fff !important; }
+    .first-timer-page .bcc-page-header .bcc-page-subtitle, .first-timer-page .bcc-page-header p { opacity: .88; }
+    .first-timer-page .bcc-card, .first-timer-page .card { border: 1px solid var(--guest-border) !important; border-radius: 7px !important; box-shadow: 0 2px 9px rgba(22,69,43,.045); }
+    .first-timer-page .bcc-card-header, .first-timer-page .card-header { border-bottom-color: var(--guest-border) !important; }
+    .first-timer-page .table thead th, .first-timer-page .bcc-table thead th { background: #eaf5ed !important; color: #174b30 !important; border-bottom: 1px solid #c8dfce !important; font-weight: 700; }
+    .first-timer-page .table td, .first-timer-page .table th { vertical-align: middle; }
+    .first-timer-page .form-control, .first-timer-page .form-select, .first-timer-page input:not([type=checkbox]):not([type=radio]), .first-timer-page select, .first-timer-page textarea { border-radius: 5px; }
+    .first-timer-page .form-control:focus, .first-timer-page .form-select:focus, .first-timer-page input:focus, .first-timer-page select:focus, .first-timer-page textarea:focus { border-color: #31845a !important; box-shadow: 0 0 0 .15rem rgba(49,132,90,.13) !important; }
+    .first-timer-page .btn-primary, .first-timer-page .btn-success, .first-timer-page .bcc-btn-primary { background: #145c39 !important; border-color: #145c39 !important; color: #fff !important; border-radius: 5px !important; }
+    .first-timer-page .btn-primary:hover, .first-timer-page .btn-success:hover, .first-timer-page .bcc-btn-primary:hover { background: #0c4328 !important; border-color: #0c4328 !important; }
+    .first-timer-page .btn-outline-primary, .first-timer-page .btn-outline-success { border-color: #31845a !important; color: #145c39 !important; }
+    .first-timer-page .btn-outline-primary:hover, .first-timer-page .btn-outline-success:hover { background: #145c39 !important; color: #fff !important; }
+    .first-timer-page .text-primary { color: #145c39 !important; }
+    .first-timer-page .bg-primary { background-color: #145c39 !important; }
+    .first-timer-page .badge.bg-primary { background-color: #145c39 !important; }
+    .first-timer-page .guest-summary-item, .first-timer-page .followup-summary-strip > div, .first-timer-page .guest-summary-strip > div { border-color: var(--guest-border) !important; border-radius: 7px !important; }
+    .first-timer-page .guest-summary-item strong, .first-timer-page .guest-summary-strip strong, .first-timer-page .followup-summary-strip strong { color: #145c39; }
+    .first-timer-page .guest-popup-header, .first-timer-page .followup-popup-header, .first-timer-page .second-timer-popup-header { background: #145c39 !important; background-image: none !important; color: #fff !important; }
+    .first-timer-page .guest-popup-header *, .first-timer-page .followup-popup-header *, .first-timer-page .second-timer-popup-header * { color: #fff; }
+    .first-timer-page .guest360-profile-hero, .first-timer-page .profile-form-v2-hero { border-color: #c8dfce !important; }
+    @@media (max-width: 767px) {
+        .first-timer-page .bcc-page-header { padding: 14px 15px !important; }
+        .first-timer-page .bcc-card-body, .first-timer-page .card-body { padding: 12px !important; }
     }
 </style>

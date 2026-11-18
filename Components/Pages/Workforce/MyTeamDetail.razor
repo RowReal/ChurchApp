@@ -1,4 +1,4 @@
-﻿@page "/workforce/worker-details/{workerId:int}"
+@page "/workforce/worker-details/{workerId:int}"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
 @using ChurchApp.Models
@@ -7,6 +7,7 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject WorkerProfileComplianceService ProfileComplianceService
+<div class="bcc-green-refresh">
 
 <PageTitle>Worker 360 - BCC ServiceHub</PageTitle>
 
@@ -437,6 +438,8 @@ else
         <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
     </div>
 }
+
+</div>
 
 @code {
     [Parameter] public int workerId { get; set; }
@@ -924,3 +927,71 @@ else
     }
 </style>
 
+
+
+<style>
+/* BCC ServiceHub workforce green visual system — page-scoped */
+.bcc-green-refresh { --bcc-green:#31845a; --bcc-dark:#145c39; --bcc-pale:#edf8f1; --bcc-border:#d9e9de; color:#253a30; font-size:.91rem; }
+.bcc-green-refresh .container-fluid { padding-top: .85rem !important; padding-bottom: .85rem !important; }
+.bcc-green-refresh .worker360-page { padding-top: .55rem !important; }
+.bcc-green-refresh .bcc-page-header,
+.bcc-green-refresh .attendance-page-header,
+.bcc-green-refresh .profile-update-header,
+.bcc-green-refresh .my-profile-header,
+.bcc-green-refresh .my-team-header,
+.bcc-green-refresh .workforce-inbox-header { background:#145c39 !important; color:#fff !important; border:1px solid #145c39 !important; border-radius:7px !important; padding:15px 19px !important; margin-bottom:14px !important; box-shadow:0 4px 12px rgba(20,92,57,.10) !important; }
+.bcc-green-refresh .bcc-page-header *,
+.bcc-green-refresh .attendance-page-header h1,
+.bcc-green-refresh .attendance-page-header h2,
+.bcc-green-refresh .attendance-page-header h3,
+.bcc-green-refresh .profile-update-header *,
+.bcc-green-refresh .my-profile-header *,
+.bcc-green-refresh .my-team-header *,
+.bcc-green-refresh .workforce-inbox-header * { color:#fff !important; }
+.bcc-green-refresh .bcc-page-header .btn,
+.bcc-green-refresh .bcc-page-header .bcc-btn,
+.bcc-green-refresh .my-team-header .btn,
+.bcc-green-refresh .workforce-inbox-header .btn { background:#fff !important; color:#145c39 !important; border-color:#fff !important; }
+.bcc-green-refresh .bcc-page-title { font-weight:800 !important; letter-spacing:-.025em; }
+.bcc-green-refresh .bcc-page-subtitle { opacity:.9; }
+.bcc-green-refresh .card,
+.bcc-green-refresh .bcc-card { border:1px solid var(--bcc-border) !important; border-radius:7px !important; box-shadow:0 3px 12px rgba(18,69,41,.055) !important; }
+.bcc-green-refresh .card-body,
+.bcc-green-refresh .bcc-card-body { padding:13px 15px !important; }
+.bcc-green-refresh .card-header,
+.bcc-green-refresh .bcc-card-header { border-bottom:1px solid var(--bcc-border) !important; padding:10px 14px !important; }
+.bcc-green-refresh .card-header.bg-primary,
+.bcc-green-refresh .card-header.bg-info,
+.bcc-green-refresh .card-header.bg-secondary { background:#31845a !important; color:#fff !important; }
+.bcc-green-refresh .btn-primary,
+.bcc-green-refresh .bcc-btn-primary,
+.bcc-green-refresh .bg-primary { background-color:#31845a !important; border-color:#31845a !important; color:#fff !important; }
+.bcc-green-refresh .btn-primary:hover,
+.bcc-green-refresh .bcc-btn-primary:hover { background:#145c39 !important; border-color:#145c39 !important; }
+.bcc-green-refresh .btn-outline-primary { border-color:#31845a !important; color:#145c39 !important; }
+.bcc-green-refresh .btn-outline-primary:hover { background:#31845a !important; color:#fff !important; }
+.bcc-green-refresh .text-primary,
+.bcc-green-refresh .attendance-page-kicker { color:#21754a !important; }
+.bcc-green-refresh .badge.bg-primary { background:#31845a !important; }
+.bcc-green-refresh .nav-pills .nav-link.active,
+.bcc-green-refresh .nav-tabs .nav-link.active { background:#edf8f1 !important; color:#145c39 !important; border-color:#31845a !important; font-weight:700; }
+.bcc-green-refresh .form-control,
+.bcc-green-refresh .form-select,
+.bcc-green-refresh .form-control-sm,
+.bcc-green-refresh .form-select-sm { border-color:#cbded1 !important; border-radius:5px !important; }
+.bcc-green-refresh .form-control:focus,
+.bcc-green-refresh .form-select:focus { border-color:#31845a !important; box-shadow:0 0 0 .15rem rgba(49,132,90,.14) !important; }
+.bcc-green-refresh .btn,
+.bcc-green-refresh .bcc-btn { border-radius:5px !important; font-weight:650; }
+.bcc-green-refresh .table { font-size:.85rem; }
+.bcc-green-refresh .table thead th { background:#e9f5ee !important; color:#145c39 !important; border-bottom:1px solid #c7dfcf !important; font-weight:750; }
+.bcc-green-refresh .table td,
+.bcc-green-refresh .table th { padding:.48rem .6rem !important; vertical-align:middle; }
+.bcc-green-refresh .table-hover tbody tr:hover { background:#f2faf5 !important; }
+.bcc-green-refresh .team-filter-card,
+.bcc-green-refresh .team-list-card { border-top:3px solid #31845a !important; }
+.bcc-green-refresh .alert-success { background:#edf8f1; border-color:#cce7d6; color:#145c39; }
+.bcc-green-refresh .spinner-border.text-primary { color:#31845a !important; }
+.bcc-green-refresh img { object-fit:contain; }
+@@media(max-width:767px) { .bcc-green-refresh .bcc-page-header { padding:13px !important; } .bcc-green-refresh .card-body,.bcc-green-refresh .bcc-card-body { padding:11px !important; } }
+</style>

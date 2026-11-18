@@ -347,5 +347,46 @@
     }
 
     }
+
+
+/* BCC 2026 | unified event and awards design | presentation only */
+.checkin-report-page { --bcc-event-green: #145c39; --bcc-event-bright: #278354; --bcc-event-soft: #edf7f0; --bcc-event-border: #d8e7dd; color: #213b2d; }
+.checkin-report-page .checkin-report-hero {
+    background: linear-gradient(105deg,#124f32 0%,#187245 72%,#268756 100%) !important;
+    color: #fff !important;
+    border: 1px solid #217b4e !important;
+    border-radius: 7px !important;
+    padding: 17px 21px !important;
+    margin-bottom: 14px !important;
+    box-shadow: 0 4px 14px rgba(14,76,45,.12) !important;
+}
+.checkin-report-page .bcc-page-title, .checkin-report-page .bcc-page-header h1, .checkin-report-page .bcc-page-header h2,
+.checkin-report-page .award-nom-hero h1, .checkin-report-page .award-results-hero h1, .checkin-report-page .assisted-hero h2,
+.checkin-report-page .checkin-report-hero h2 { font-size: clamp(1.24rem,2vw,1.7rem) !important; font-weight: 750 !important; letter-spacing: -.025em; line-height: 1.2; }
+.checkin-report-page .bcc-page-header .bcc-page-subtitle, .checkin-report-page .award-nom-hero p,
+.checkin-report-page .award-results-hero p, .checkin-report-page .assisted-hero p,
+.checkin-report-page .checkin-report-hero .checkin-report-subtitle { color: #e5f5ea !important; }
+.checkin-report-page .bcc-card, .checkin-report-page .award-panel, .checkin-report-page .award-results-toolbar,
+.checkin-report-page .award-nom-panel, .checkin-report-page .event-setup-section {
+    border: 1px solid var(--bcc-event-border) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 9px rgba(20,92,57,.055);
+}
+.checkin-report-page .bcc-card-body, .checkin-report-page .card-body { padding: 14px 16px; }
+.checkin-report-page .form-control, .checkin-report-page .form-select, .checkin-report-page .form-check-input,
+.checkin-report-page input:not([type=checkbox]):not([type=radio]), .checkin-report-page select, .checkin-report-page textarea { border-radius: 5px; }
+.checkin-report-page .form-control:focus, .checkin-report-page .form-select:focus, .checkin-report-page input:focus, .checkin-report-page select:focus, .checkin-report-page textarea:focus { border-color: #43a572; box-shadow: 0 0 0 .15rem rgba(39,131,84,.14); }
+.checkin-report-page .btn, .checkin-report-page .bcc-btn { border-radius: 5px !important; font-weight: 600; }
+.checkin-report-page .btn-primary, .checkin-report-page .btn-success, .checkin-report-page .bcc-btn-primary { background: #187347 !important; border-color: #187347 !important; color: #fff !important; }
+.checkin-report-page .btn-primary:hover, .checkin-report-page .btn-success:hover, .checkin-report-page .bcc-btn-primary:hover { background: #105c37 !important; border-color: #105c37 !important; }
+.checkin-report-page .table thead th, .checkin-report-page table thead th { background: #e8f4ec; color: #185536; border-bottom-color: #c8e0d0; font-size: .81rem; font-weight: 750; }
+.checkin-report-page .table td, .checkin-report-page .table th { padding-top: .48rem; padding-bottom: .48rem; vertical-align: middle; }
+.checkin-report-page .badge.bg-primary, .checkin-report-page .badge.bg-success { background: #218451 !important; }
+@@media (max-width: 767px) {
+    .checkin-report-page .checkin-report-hero { padding: 14px 15px !important; gap: 10px !important; }
+    .checkin-report-page .bcc-card-body, .checkin-report-page .card-body { padding: 12px !important; }
+}
+
+.checkin-report-page .checkin-report-hero { background: linear-gradient(105deg,#124f32,#268756) !important; }
 </style>
 

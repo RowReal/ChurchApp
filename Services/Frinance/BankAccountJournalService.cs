@@ -150,6 +150,8 @@ namespace ChurchApp.Services
         {
             RequireWorker(approvingWorkerId);
             var entry = await GetPendingAsync(journalId);
+            if (entry.TransactionType == BankJournalTransactionType.ExpenditurePayment)
+                throw new InvalidOperationException("Expenditure is approved only through the dedicated Auditor/Pastor workflow.");
             if (entry.InitiatedByWorkerId == approvingWorkerId)
                 throw new InvalidOperationException("A Worker cannot approve their own posting request.");
             if (entry.ReversesJournalId.HasValue)

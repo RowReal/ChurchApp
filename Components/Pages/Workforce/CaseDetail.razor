@@ -12,6 +12,7 @@
 
 <PageTitle>Growth Case Details</PageTitle>
 <PageHero Title="Growth  Case  Details" Subtitle="Manage workers, teams and workforce activity." Kicker="Workforce" Icon="fas fa-users" />
+<span class="bcc-green-page-marker" hidden></span>
 
 
 @if (AuthService.IsAuthenticated && AuthService.CurrentWorker != null)
@@ -1307,3 +1308,20 @@ else
         public string VisibleTo { get; set; } = "auto";
     }
 }
+
+<style>
+/* BCC ServiceHub green workforce styling; scoped to the current page */
+body:has(.bcc-green-page-marker) .card { border:1px solid #dcece3!important; border-radius:12px; box-shadow:0 3px 14px rgba(7,91,59,.06)!important; overflow:hidden; }
+body:has(.bcc-green-page-marker) .card-header:not(.bg-danger):not(.bg-warning) { background:#e8f4ec!important; color:#12583b!important; border-bottom:1px solid #d4e8db; }
+body:has(.bcc-green-page-marker) .btn-primary,body:has(.bcc-green-page-marker) .btn-success { background:#08784e; border-color:#08784e; }
+body:has(.bcc-green-page-marker) .btn-primary:hover,body:has(.bcc-green-page-marker) .btn-success:hover { background:#075b3b; border-color:#075b3b; }
+body:has(.bcc-green-page-marker) .btn-outline-primary { color:#08784e; border-color:#08784e; }
+body:has(.bcc-green-page-marker) .btn-outline-primary:hover { background:#08784e; color:white; }
+body:has(.bcc-green-page-marker) .badge.bg-primary { background:#08784e!important; }
+body:has(.bcc-green-page-marker) .text-primary { color:#08784e!important; }
+body:has(.bcc-green-page-marker) .table thead th { background:#e8f4ec; color:#12583b; border-bottom:1px solid #d4e8db; }
+body:has(.bcc-green-page-marker) .table-hover tbody tr:hover { background:#f4faf6; }
+body:has(.bcc-green-page-marker) .form-control:focus,body:has(.bcc-green-page-marker) .form-select:focus { border-color:#42a77a; box-shadow:0 0 0 .2rem rgba(12,124,79,.12); }
+body:has(.bcc-green-page-marker) .progress-bar { background:#08784e; }
+@@media (max-width:767.98px) { body:has(.bcc-green-page-marker) .container-fluid { padding-left:12px; padding-right:12px; } body:has(.bcc-green-page-marker) .card-body { padding:15px; } }
+</style>

@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   <!-- Add this only if needed -->
   <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  <UserSecretsId>dad27650-5b05-4b19-8cee-66c945855b29</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

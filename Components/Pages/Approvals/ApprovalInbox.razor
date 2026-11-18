@@ -1,4 +1,4 @@
-﻿@page "/approvals/inbox"
+@page "/approvals/inbox"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Models
 @using ChurchApp.Services
@@ -132,3 +132,109 @@ else
         Navigation.NavigateTo($"/approvals/details/{requestId}");
     }
 }
+
+
+<style>
+/* BCC ServiceHub | Approval Hub green visual refresh.
+   Presentation-only overrides: existing Razor bindings and actions are unchanged. */
+.worker360-page {
+    --approval-green: #145c39;
+    --approval-green-hover: #1d7549;
+    --approval-green-soft: #eaf5ee;
+    --approval-border: #d8e7dc;
+    color: #203b2d;
+    font-size: .93rem;
+}
+.worker360-page .bcc-page-header,
+.worker360-page .worker360-hero {
+    background: #145c39 !important;
+    background-image: none !important;
+    border: 1px solid #0f4b2e !important;
+    border-radius: 7px !important;
+    box-shadow: 0 5px 14px rgba(20,92,57,.12) !important;
+    color: #fff !important;
+    padding: 16px 20px !important;
+    margin-bottom: 15px !important;
+}
+.worker360-page .bcc-page-header *,
+.worker360-page .worker360-hero .bcc-page-title,
+.worker360-page .worker360-hero .bcc-page-subtitle {
+    color: #fff !important;
+}
+.worker360-page .bcc-page-title {
+    font-size: 1.42rem !important;
+    font-weight: 750 !important;
+    line-height: 1.2 !important;
+    letter-spacing: -.025em;
+}
+.worker360-page .bcc-page-subtitle { font-size: .84rem !important; opacity: .93; }
+.worker360-page .bcc-card,
+.worker360-page .card {
+    border: 1px solid var(--approval-border) !important;
+    border-radius: 7px !important;
+    box-shadow: 0 3px 12px rgba(20,92,57,.055) !important;
+    background: #fff;
+}
+.worker360-page .bcc-card-body,
+.worker360-page .card-body { padding: 14px 16px !important; }
+.worker360-page .bcc-btn-primary,
+.worker360-page .btn-primary,
+.worker360-page .btn-success {
+    background: var(--approval-green) !important;
+    border-color: var(--approval-green) !important;
+    color: #fff !important;
+}
+.worker360-page .bcc-btn-primary:hover,
+.worker360-page .btn-primary:hover,
+.worker360-page .btn-success:hover {
+    background: var(--approval-green-hover) !important;
+    border-color: var(--approval-green-hover) !important;
+}
+.worker360-page .btn-outline-primary,
+.worker360-page .bcc-btn-outline-primary {
+    border-color: var(--approval-green) !important;
+    color: var(--approval-green) !important;
+    background: #fff !important;
+}
+.worker360-page .btn-outline-primary:hover,
+.worker360-page .bcc-btn-outline-primary:hover { color: #fff !important; background: var(--approval-green) !important; }
+.worker360-page .form-control,
+.worker360-page .form-select,
+.worker360-page input:not([type=checkbox]):not([type=radio]),
+.worker360-page textarea,
+.worker360-page select {
+    border-radius: 5px !important;
+    border-color: #cbded1;
+}
+.worker360-page .form-control:focus,
+.worker360-page .form-select:focus {
+    border-color: #31845a !important;
+    box-shadow: 0 0 0 .15rem rgba(49,132,90,.15) !important;
+}
+.worker360-page .table { font-size: .88rem; }
+.worker360-page .table thead th,
+.worker360-page .bcc-table thead th {
+    background: var(--approval-green-soft) !important;
+    color: #145c39 !important;
+    border-bottom: 1px solid #c9dfd0 !important;
+    font-weight: 700;
+    padding: 9px 10px !important;
+}
+.worker360-page .table tbody td { padding: 8px 10px !important; vertical-align: middle; }
+.worker360-page .table tbody tr:hover { background: #f4faf6; }
+.worker360-page a:not(.btn):not(.bcc-btn) { color: #17643d; }
+.worker360-page a:not(.btn):not(.bcc-btn):hover { color: #0c4328; }
+.worker360-page .nav-pills .nav-link.active,
+.worker360-page .nav-tabs .nav-link.active { color: #145c39 !important; border-color: #31845a !important; font-weight: 700; }
+.worker360-page .badge.bg-primary,
+.worker360-page .bg-primary { background-color: #247a4d !important; }
+.worker360-page .text-primary { color: #145c39 !important; }
+.worker360-page .alert { border-radius: 6px; padding: 9px 12px; }
+@@media (max-width: 767px) {
+    .worker360-page .bcc-page-header,
+    .worker360-page .worker360-hero { padding: 14px !important; }
+    .worker360-page .bcc-card-body,
+    .worker360-page .card-body { padding: 12px !important; }
+    .worker360-page .bcc-page-title { font-size: 1.23rem !important; }
+}
+</style>

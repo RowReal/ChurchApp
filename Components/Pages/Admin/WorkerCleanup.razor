@@ -11,7 +11,7 @@
 @if (AuthService.IsAuthenticated && AuthService.CanAccessAdminPanel())
 {
     <PageTitle>Worker Cleanup</PageTitle>
-<PageHero Title="Worker  Cleanup" Subtitle="Configure and manage ServiceHub settings." Kicker="Administration" Icon="fas fa-sliders-h" />
+<div class="bcc-green-hero"><div class="small text-uppercase fw-semibold opacity-75 mb-1">Administration</div><h2 class="mb-1">Worker  Cleanup</h2><p class="mb-0">Configure and manage ServiceHub settings.</p></div>
 
 
     <div class="container py-4">
@@ -282,3 +282,42 @@ else
         }
     }
 }
+
+<style>
+
+/* BCC ServiceHub | Compact Green Brand | Presentation only */
+.bcc-page-header, .notice-page-header, .bcc-green-hero {
+    background: #145c39 !important;
+    background-image: linear-gradient(110deg,#145c39 0%,#1c7548 100%) !important;
+    color: #fff !important;
+    border: 1px solid #105032 !important;
+    border-radius: 5px !important;
+    padding: 17px 21px !important;
+    box-shadow: 0 5px 15px rgba(20,92,57,.13) !important;
+    margin-bottom: 15px !important;
+}
+.bcc-page-header :is(.bcc-page-title,.bcc-page-subtitle,h1,h2,h3,p,span),
+.notice-page-header :is(h1,h2,h3,p,span,.notice-kicker),
+.bcc-green-hero :is(h1,h2,h3,p,span) {color:#fff !important;}
+.bcc-page-header .bcc-page-title,.notice-page-header h2,.bcc-green-hero h2 {font-weight:800 !important;letter-spacing:-.025em;margin-bottom:4px !important;}
+.bcc-page-header .bcc-page-subtitle,.notice-page-header p,.bcc-green-hero p {opacity:.91;}
+.bcc-card,.card,.notice-form-card,.notice-list-card {border-radius:6px !important;border-color:#dce9e1 !important;box-shadow:0 3px 12px rgba(14,60,38,.055) !important;}
+.bcc-card-body,.card-body {padding:14px !important;}
+.bcc-card-header,.card-header,.notice-form-header,.notice-list-header {background:#eff8f2 !important;border-bottom:1px solid #dce9e1 !important;color:#174d31 !important;}
+.bcc-btn-primary,.notice-primary-btn,.btn-primary,.btn-success {background:#197447 !important;border-color:#197447 !important;color:white !important;border-radius:5px !important;font-weight:700 !important;}
+.bcc-btn-primary:hover,.notice-primary-btn:hover,.btn-primary:hover,.btn-success:hover {background:#105a36 !important;border-color:#105a36 !important;}
+.bcc-page-header .bcc-btn,.notice-page-header .notice-primary-btn {background:#fff !important;color:#145c39 !important;border:1px solid #fff !important;}
+.bcc-page-header .bcc-btn:hover,.notice-page-header .notice-primary-btn:hover {background:#e7f5ec !important;color:#0e492d !important;}
+.form-control,.form-select,.notice-input {border-color:#cddfd2 !important;border-radius:5px !important;min-height:34px;}
+.form-control:focus,.form-select:focus,.notice-input:focus {border-color:#31845a !important;box-shadow:0 0 0 .16rem rgba(49,132,90,.14) !important;}
+.table thead th,table thead th {background:#eaf5ed !important;color:#145c39 !important;border-color:#d4e8db !important;font-size:.8rem;}
+.table td,.table th {padding:8px 10px !important;vertical-align:middle;}
+.form-label,label {font-size:.83rem;font-weight:600;}
+.worker360-page,.notice-page {padding-top:8px;}
+@@media (max-width: 767px) {
+    .bcc-page-header,.notice-page-header,.bcc-green-hero {padding:14px 15px !important;}
+    .bcc-card-body,.card-body {padding:11px !important;}
+}
+
+.container {max-width:1050px;}.text-danger {color:#a52c2c !important;}.card {border-top:2px solid #d5e8db !important;}
+</style>

@@ -101,6 +101,12 @@ namespace ChurchApp.Data
         public DbSet<EventMenuOption> EventMenuOptions { get; set; } = null!;
         public DbSet<EventCheckIn> EventCheckIns { get; set; } = null!;
         public DbSet<MonthlyRemittanceDraft> MonthlyRemittanceDrafts { get; set; }
+        public DbSet<ExpenditureCategory> ExpenditureCategories => Set<ExpenditureCategory>();
+        public DbSet<ExpenditureRecord> ExpenditureRecords => Set<ExpenditureRecord>();
+        public DbSet<ExpenditureAttachment> ExpenditureAttachments => Set<ExpenditureAttachment>();
+
+        public DbSet<ExpenditureApprovalSettings> ExpenditureApprovalSettings => Set<ExpenditureApprovalSettings>();
+        public DbSet<ExpenditureApprovalAction> ExpenditureApprovalActions => Set<ExpenditureApprovalAction>();
 
 
         #endregion
@@ -194,6 +200,71 @@ namespace ChurchApp.Data
 
                 entity.Property(x => x.OpeningBalance)
                     .HasPrecision(18, 2);
+            });
+
+            modelBuilder.Entity<ExpenditureCategory>(e => {
+                e.ToTable("ExpenditureCategories");
+                e.HasIndex(x => x.Name).IsUnique();
+                e.HasIndex(x => x.IsSystemOthers).IsUnique().HasFilter("IsSystemOthers = 1");
+                e.Property(x => x.Name).IsRequired().HasMaxLength(120);
+            });
+            modelBuilder.Entity<ExpenditureApprovalSettings>(e => {
+                e.ToTable("ExpenditureApprovalSettings");
+                e.HasKey(x => x.Id);
+            });
+
+            modelBuilder.Entity<ExpenditureApprovalAction>(e =>
+            {
+                e.ToTable("ExpenditureApprovalActions");
+
+                e.HasOne(x => x.ExpenditureRecord)
+                    .WithMany()
+                    .HasForeignKey(x => x.ExpenditureRecordId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasIndex(x => new
+                {
+                    x.ExpenditureRecordId,
+                    x.ActionAtUtc
+                });
+            });
+
+            modelBuilder.Entity<BankAccountJournal>()
+    .HasIndex(x => x.SourceExpenditureId)
+    .IsUnique()
+    .HasFilter("SourceExpenditureId IS NOT NULL");
+
+            modelBuilder.Entity<ExpenditureRecord>(e =>
+            {
+                e.ToTable("ExpenditureRecords");
+
+                e.HasOne(x => x.BankAccount)
+                    .WithMany()
+                    .HasForeignKey(x => x.BankAccountId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(x => x.ExpenditureCategory)
+                    .WithMany()
+                    .HasForeignKey(x => x.ExpenditureCategoryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasIndex(x => new
+                {
+                    x.BankAccountId,
+                    x.BankReference
+                });
+            });
+
+            modelBuilder.Entity<ExpenditureAttachment>(e =>
+            {
+                e.ToTable("ExpenditureAttachments");
+
+                e.HasOne(x => x.ExpenditureRecord)
+                    .WithMany(x => x.Attachments)
+                    .HasForeignKey(x => x.ExpenditureRecordId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasIndex(x => x.StoredFileName).IsUnique();
             });
 
             // EVENT HUB   E11B: Food Menu Configuration

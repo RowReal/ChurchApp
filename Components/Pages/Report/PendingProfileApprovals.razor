@@ -1,4 +1,4 @@
-﻿@page "/reports/pending-profile-approvals"
+@page "/reports/pending-profile-approvals"
 @layout Components.Layout.MainLayout
 
 @using ChurchApp.Models
@@ -570,7 +570,7 @@ else
     }
 
     .ppa-hero {
-        background: linear-gradient(135deg, #4b2e83, #6845a7);
+        background: linear-gradient(135deg, #075b3b, #11835a);
         color: #fff;
         border-radius: 18px;
         padding: 18px 20px;
@@ -611,7 +611,7 @@ else
     .ppa-summary,
     .ppa-card {
         background: #fff;
-        border: 1px solid #e9e5f0;
+        border: 1px solid #dcece3;
         border-radius: 14px;
         box-shadow: 0 3px 12px rgba(30, 20, 50, .04);
     }
@@ -622,14 +622,14 @@ else
 
         .ppa-summary span {
             display: block;
-            color: #777080;
+            color: #64766d;
             font-size: .72rem;
             margin-bottom: 3px;
         }
 
         .ppa-summary strong {
             font-size: 1.25rem;
-            color: #33244e;
+            color: #14543a;
         }
 
     .ppa-toolbar {
@@ -638,7 +638,7 @@ else
         justify-content: space-between;
         align-items: center;
         gap: 12px;
-        border-bottom: 1px solid #eeeaf3;
+        border-bottom: 1px solid #dcece3;
     }
 
     .ppa-search {
@@ -651,7 +651,7 @@ else
             position: absolute;
             left: 10px;
             top: 9px;
-            color: #8a8490;
+            color: #648473;
             font-size: .75rem;
         }
 
@@ -728,7 +728,7 @@ else
 
         .ppa-empty i {
             font-size: 1.5rem;
-            color: #6845a7;
+            color: #11835a;
             margin-bottom: 8px;
         }
 
@@ -767,14 +767,14 @@ else
     .ppa-modal-header,
     .ppa-modal-footer {
         padding: 13px 16px;
-        border-bottom: 1px solid #eeeaf3;
+        border-bottom: 1px solid #dcece3;
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
 
     .ppa-modal-footer {
-        border-top: 1px solid #eeeaf3;
+        border-top: 1px solid #dcece3;
         border-bottom: 0;
         justify-content: flex-end;
     }
@@ -805,7 +805,7 @@ else
     }
 
         .ppa-detail-grid > div {
-            border: 1px solid #eeeaf3;
+            border: 1px solid #dcece3;
             border-radius: 10px;
             padding: 9px 10px;
             background: #fbfafc;
@@ -826,7 +826,7 @@ else
     .ppa-section-title {
         font-size: .82rem;
         font-weight: 700;
-        color: #4b2e83;
+        color: #075b3b;
         margin-bottom: 8px;
     }
 
@@ -844,7 +844,7 @@ else
     .ppa-change-label {
         font-size: .7rem;
         font-weight: 700;
-        color: #4b2e83;
+        color: #075b3b;
         margin-bottom: 6px;
     }
 
@@ -907,4 +907,16 @@ else
             max-height: 94vh;
         }
     }
+
+    /* BCC ServiceHub green visual standard */
+    .ppa-page { color: #234638; }
+    .ppa-hero { background: linear-gradient(115deg,#075b3b,#128456); border-radius: 12px; box-shadow: 0 6px 18px rgba(7,91,59,.13); }
+    .ppa-summary,.ppa-card { border-radius: 11px; box-shadow: 0 3px 12px rgba(7,91,59,.045); }
+    .ppa-summary { border-top: 3px solid #15865a; }
+    .ppa-summary strong { color: #075b3b; }
+    .ppa-page .btn-primary,.ppa-page .btn-success { background: #08784e; border-color: #08784e; }
+    .ppa-page .btn-primary:hover,.ppa-page .btn-success:hover { background: #075b3b; border-color: #075b3b; }
+    .ppa-page .form-control:focus,.ppa-page .form-select:focus { border-color: #42a77a; box-shadow: 0 0 0 .2rem rgba(12,124,79,.12); }
+    .ppa-page .table thead th { background: #e7f4eb; color: #12583b; border-bottom: 1px solid #cce5d5; font-weight: 700; }
+    .ppa-page .table-hover tbody tr:hover { background: #f4faf6; }
 </style>

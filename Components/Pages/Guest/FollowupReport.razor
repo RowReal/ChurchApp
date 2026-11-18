@@ -1,4 +1,4 @@
-﻿@page "/guest/followup-report"
+@page "/guest/followup-report"
 @layout Components.Layout.MainLayout
 
 @using ChurchApp.Models
@@ -1533,5 +1533,41 @@ else
             align-items: flex-start;
             flex-direction: column;
         }
+    }
+
+    /* BCC ServiceHub | Guest workspace green visual refresh */
+    .followup-report-page { --guest-brand: #145c39; --guest-brand-dark: #0c4328; --guest-brand-soft: #eaf5ed; --guest-border: #dbe8df; color: #243b2e; }
+    .followup-report-page .bcc-page-header {
+        background: #145c39 !important; background-image: none !important;
+        color: #fff !important; border: 1px solid #0c4328 !important;
+        border-radius: 5px !important; padding: 17px 21px !important;
+        margin-bottom: 14px !important; box-shadow: 0 3px 12px rgba(12,67,40,.12) !important;
+    }
+    .followup-report-page .bcc-page-header .bcc-page-title,
+    .followup-report-page .bcc-page-header h1, .followup-report-page .bcc-page-header h2,
+    .followup-report-page .bcc-page-header h3, .followup-report-page .bcc-page-header .bcc-page-subtitle,
+    .followup-report-page .bcc-page-header p, .followup-report-page .bcc-page-header .guest-page-kicker { color: #fff !important; }
+    .followup-report-page .bcc-page-header .bcc-page-subtitle, .followup-report-page .bcc-page-header p { opacity: .88; }
+    .followup-report-page .bcc-card, .followup-report-page .card { border: 1px solid var(--guest-border) !important; border-radius: 7px !important; box-shadow: 0 2px 9px rgba(22,69,43,.045); }
+    .followup-report-page .bcc-card-header, .followup-report-page .card-header { border-bottom-color: var(--guest-border) !important; }
+    .followup-report-page .table thead th, .followup-report-page .bcc-table thead th { background: #eaf5ed !important; color: #174b30 !important; border-bottom: 1px solid #c8dfce !important; font-weight: 700; }
+    .followup-report-page .table td, .followup-report-page .table th { vertical-align: middle; }
+    .followup-report-page .form-control, .followup-report-page .form-select, .followup-report-page input:not([type=checkbox]):not([type=radio]), .followup-report-page select, .followup-report-page textarea { border-radius: 5px; }
+    .followup-report-page .form-control:focus, .followup-report-page .form-select:focus, .followup-report-page input:focus, .followup-report-page select:focus, .followup-report-page textarea:focus { border-color: #31845a !important; box-shadow: 0 0 0 .15rem rgba(49,132,90,.13) !important; }
+    .followup-report-page .btn-primary, .followup-report-page .btn-success, .followup-report-page .bcc-btn-primary { background: #145c39 !important; border-color: #145c39 !important; color: #fff !important; border-radius: 5px !important; }
+    .followup-report-page .btn-primary:hover, .followup-report-page .btn-success:hover, .followup-report-page .bcc-btn-primary:hover { background: #0c4328 !important; border-color: #0c4328 !important; }
+    .followup-report-page .btn-outline-primary, .followup-report-page .btn-outline-success { border-color: #31845a !important; color: #145c39 !important; }
+    .followup-report-page .btn-outline-primary:hover, .followup-report-page .btn-outline-success:hover { background: #145c39 !important; color: #fff !important; }
+    .followup-report-page .text-primary { color: #145c39 !important; }
+    .followup-report-page .bg-primary { background-color: #145c39 !important; }
+    .followup-report-page .badge.bg-primary { background-color: #145c39 !important; }
+    .followup-report-page .guest-summary-item, .followup-report-page .followup-summary-strip > div, .followup-report-page .guest-summary-strip > div { border-color: var(--guest-border) !important; border-radius: 7px !important; }
+    .followup-report-page .guest-summary-item strong, .followup-report-page .guest-summary-strip strong, .followup-report-page .followup-summary-strip strong { color: #145c39; }
+    .followup-report-page .guest-popup-header, .followup-report-page .followup-popup-header, .followup-report-page .second-timer-popup-header { background: #145c39 !important; background-image: none !important; color: #fff !important; }
+    .followup-report-page .guest-popup-header *, .followup-report-page .followup-popup-header *, .followup-report-page .second-timer-popup-header * { color: #fff; }
+    .followup-report-page .guest360-profile-hero, .followup-report-page .profile-form-v2-hero { border-color: #c8dfce !important; }
+    @@media (max-width: 767px) {
+        .followup-report-page .bcc-page-header { padding: 14px 15px !important; }
+        .followup-report-page .bcc-card-body, .followup-report-page .card-body { padding: 12px !important; }
     }
 </style>

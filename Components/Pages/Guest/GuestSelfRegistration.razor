@@ -1,0 +1,355 @@
+@page "/guest/self-registration"
+@using ChurchApp.Models
+@using ChurchApp.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject GuestService GuestService
+@inject GuestRegistrationAvailabilityService RegistrationAvailability
+
+<PageTitle>Welcome - BCC Guest Registration</PageTitle>
+
+<div class="self-register">
+    <div class="guest-banner">
+        <div class="guest-kicker">BCC SERVICEHUB · GUEST WELCOME</div>
+        <h1>Welcome to BCC! ❤️</h1>
+
+        <p>
+            We are delighted to have you as our valued guest today!
+            Your presence is a blessing to us, and we pray your time
+            with us will be truly memorable.
+        </p>
+
+        <p>
+            Kindly complete the information below so we can get to
+            know you better and extend the warmth, love, and
+            hospitality of our church family to you.
+        </p>
+
+        <p>
+            <strong>You are special, valued, and warmly welcome!</strong>
+        </p>
+    </div>
+
+    @if (completed)
+    {
+        <section class="guest-panel guest-success" role="status">
+            <i class="fas fa-check-circle"></i>
+            <h2>Thank you for registering!</h2>
+            <p>We are glad you worshipped with us. We look forward to welcoming you again.</p>
+            <p class="guest-reference">Registration number: <strong>@registeredNumber</strong></p>
+        </section>
+    }
+    else if (loading)
+    {
+        <section class="guest-panel">Loading registration form…</section>
+    }
+    else if (currentService is null)
+    {
+        <section class="guest-panel">
+            <h2>Guest Registration</h2>
+            <p>Guest registration is currently unavailable. Please contact one of our welcome team members for assistance.</p>
+        </section>
+    }
+    else
+    {
+        <section class="guest-panel">
+            <h2>Your Details</h2>
+            <p class="hint">Fields marked * are required.</p>
+            <EditForm Model="@model" OnValidSubmit="SubmitAsync" OnInvalidSubmit="ShowValidationPopup" FormName="guest-self-registration">
+                <DataAnnotationsValidator />
+                <div class="guest-grid">
+                    <div class="wide"><label>Today’s Service</label><div class="guest-service-name">@currentService.Name</div></div>
+                    <div><label>Title *</label><InputSelect @bind-Value="model.Title" class="form-select"><option value="">Select</option><option>Mr</option><option>Mrs</option><option>Miss</option><option>Dr</option><option>Pastor</option><option>Rev</option><option>Prof</option><option>Engr</option></InputSelect></div>
+                    <div><label>First Name *</label><InputText @bind-Value="model.FirstName" class="form-control" /></div>
+                    <div><label>Middle Name</label><InputText @bind-Value="model.MiddleName" class="form-control" /></div>
+                    <div><label>Surname *</label><InputText @bind-Value="model.Surname" class="form-control" /></div>
+                    <div><label>Sex *</label><InputSelect @bind-Value="model.Sex" class="form-select"><option value="">Select</option><option>Male</option><option>Female</option></InputSelect></div>
+                    <div><label>Age Group</label><InputSelect @bind-Value="model.AgeGroup" class="form-select"><option value="">Select</option><option>Child</option><option>Teenager</option><option>Young Adult</option><option>Adult</option><option>Senior</option></InputSelect></div>
+                    <div><label>Phone Number</label><InputText @bind-Value="model.PhoneNumber" class="form-control" /></div>
+                    <div><label>WhatsApp Number</label><InputText @bind-Value="model.WhatsAppNumber" class="form-control" /></div>
+                    <div class="wide"><label>Email</label><InputText @bind-Value="model.Email" class="form-control" type="email" /></div>
+                    <div class="wide"><label>Address</label><InputText @bind-Value="model.Address" class="form-control" /></div>
+                    <div class="wide"><label>Landmark</label><InputText @bind-Value="model.Landmark" class="form-control" /></div>
+                    <div><label>Visiting Date</label><InputDate @bind-Value="model.VisitingDate" class="form-control" /></div>
+                    <div><label>How Did You Find Us?</label><InputSelect @bind-Value="model.HowFoundUs" class="form-select"><option value="">Select</option><option value="invite">Invited</option><option value="social-media">Social Media</option><option value="signboard">Signboard</option><option value="nearby">Lives Nearby</option><option value="event">Church Event</option><option value="other">Other</option></InputSelect></div>
+                    @if (model.HowFoundUs == "invite")
+                    {
+                        <div class="wide"><label>Invited By</label><InputText @bind-Value="model.InvitedByName" class="form-control" /></div>
+                    }
+                    <div class="wide"><label class="check"><InputCheckbox @bind-Value="model.IsRCCGMember" /> RCCG Member</label></div>
+                    @if (model.IsRCCGMember)
+                    {
+                        <div class="wide"><label>Other Church / Parish</label><InputText @bind-Value="model.OtherChurch" class="form-control" /></div>
+                    }
+                </div>
+                <ValidationSummary />
+                <div class="privacy">Your information will be used by the church to welcome you and follow up with you on our future program.</div>
+                <button class="guest-submit" type="submit" disabled="@submitting">@(submitting ? "Submitting…" : "Submit Registration")</button>
+            </EditForm>
+        </section>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="guest-modal-backdrop">
+        <div class="guest-modal" role="alertdialog" aria-modal="true" aria-labelledby="guest-error-title" aria-describedby="guest-error-text">
+            <div class="guest-modal-icon"><i class="fas fa-exclamation-circle"></i></div>
+            <h2 id="guest-error-title">Please check your registration</h2>
+            <p id="guest-error-text">@error</p>
+            <button type="button" class="guest-modal-button" @onclick="DismissError">OK, I understand</button>
+        </div>
+    </div>
+}
+
+<style>
+    .self-register {
+        max-width: 760px;
+        margin: 20px auto 48px;
+        padding: 0 14px;
+        font-family: inherit
+    }
+
+    .guest-banner {
+        background: linear-gradient(130deg,#145c39,#26784c);
+        color: white;
+        padding: 27px 25px;
+        border-radius: 15px 15px 0 0
+    }
+
+        .guest-banner h1 {
+            font-size: 1.65rem;
+            font-weight: 750;
+            margin: 7px 0
+        }
+
+        .guest-banner p {
+            margin: 0;
+            color: #e7f4eb
+        }
+
+    .guest-kicker {
+        font-size: .72rem;
+        letter-spacing: .12em;
+        font-weight: 700
+    }
+
+    .guest-panel {
+        padding: 25px;
+        background: #fff;
+        border: 1px solid #d9e8de;
+        border-top: 0;
+        border-radius: 0 0 15px 15px;
+        box-shadow: 0 8px 24px #123f2610
+    }
+
+        .guest-panel h2 {
+            font-size: 1.1rem;
+            color: #145c39;
+            font-weight: 750
+        }
+
+    .hint {
+        font-size: .84rem;
+        color: #647568
+    }
+
+    .guest-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px
+    }
+
+        .guest-grid .wide {
+            grid-column: 1/-1
+        }
+
+        .guest-grid label {
+            display: block;
+            font-size: .83rem;
+            font-weight: 650;
+            color: #34483a;
+            margin-bottom: 5px
+        }
+
+        .guest-grid .check {
+            display: flex;
+            gap: 8px;
+            align-items: center
+        }
+
+        .guest-grid .form-control, .guest-grid .form-select {
+            min-height: 40px
+        }
+
+    .guest-service-name {
+        background: #eef7f0;
+        border: 1px solid #d5e8d9;
+        border-radius: 8px;
+        padding: 11px 12px;
+        color: #145c39;
+        font-weight: 700
+    }
+
+    .guest-submit {
+        display: block;
+        width: 100%;
+        background: #145c39;
+        color: #fff;
+        border: 0;
+        border-radius: 9px;
+        padding: 12px;
+        margin-top: 17px;
+        font-weight: 700
+    }
+
+        .guest-submit:disabled {
+            opacity: .65
+        }
+
+    .privacy {
+        font-size: .78rem;
+        color: #647568;
+        margin-top: 15px
+    }
+
+    .guest-success {
+        text-align: center
+    }
+
+        .guest-success i {
+            font-size: 2.7rem;
+            color: #168447
+        }
+
+    .guest-reference {
+        background: #eaf6ee;
+        padding: 12px;
+        border-radius: 9px
+    }
+
+    .guest-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(12,31,21,.62);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        z-index: 99999
+    }
+
+    .guest-modal {
+        background: #fff;
+        width: 100%;
+        max-width: 410px;
+        border-radius: 16px;
+        padding: 28px 24px;
+        text-align: center;
+        box-shadow: 0 18px 55px rgba(0,0,0,.25)
+    }
+
+    .guest-modal-icon {
+        font-size: 2.4rem;
+        color: #b45309;
+        margin-bottom: 8px
+    }
+
+    .guest-modal h2 {
+        font-size: 1.2rem;
+        color: #145c39;
+        margin: 0 0 12px;
+        font-weight: 750
+    }
+
+    .guest-modal p {
+        color: #43554a;
+        line-height: 1.55;
+        margin: 0 0 22px
+    }
+
+    .guest-modal-button {
+        background: #145c39;
+        color: white;
+        border: 0;
+        border-radius: 9px;
+        padding: 11px 24px;
+        font-weight: 700;
+        cursor: pointer;
+        width: 100%
+    }
+
+    @@media(max-width:560px) {
+        .guest-grid {
+            grid-template-columns: 1fr
+        }
+
+            .guest-grid .wide {
+                grid-column: auto
+            }
+
+        .guest-panel {
+            padding: 17px
+        }
+
+        .guest-banner {
+            padding: 22px 18px
+        }
+    }
+</style>
+
+@code {
+    private CreateGuestModel model = new() { VisitingDate = DateTime.Today };
+    private Service? currentService;
+    private bool loading = true, submitting, completed;
+    private string error = "", registeredNumber = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            currentService = await RegistrationAvailability.GetCurrentServiceAsync();
+            if (currentService != null)
+                model.ServiceId = currentService.Id;
+        }
+        catch { ShowError("Registration is temporarily unavailable. Please contact the welcome desk."); }
+        finally { loading = false; }
+    }
+
+    private void ShowError(string message) => error = message;
+    private void DismissError() => error = "";
+    private void ShowValidationPopup(EditContext _) =>
+        ShowError("Please review the form and complete all required fields before submitting.");
+
+    private async Task SubmitAsync()
+    {
+        if (submitting || completed || currentService is null) return;
+        error = "";
+        if (model.ServiceId <= 0 || string.IsNullOrWhiteSpace(model.Title) ||
+            string.IsNullOrWhiteSpace(model.FirstName) || string.IsNullOrWhiteSpace(model.Surname) ||
+            string.IsNullOrWhiteSpace(model.Sex) || model.VisitingDate.Date > DateTime.Today ||
+            model.VisitingDate.Date < DateTime.Today.AddDays(-30))
+        { ShowError("Please complete all required fields and check your visiting date."); return; }
+        try
+        {
+            submitting = true;
+            // Never trust a ServiceId submitted by the browser. Re-evaluate at submission.
+            var eligibleService = await RegistrationAvailability.GetCurrentServiceAsync();
+            if (eligibleService is null || eligibleService.Id != currentService.Id)
+            {
+                ShowError("The registration window for this service has closed. Please contact the welcome team.");
+                currentService = eligibleService;
+                return;
+            }
+            model.ServiceId = eligibleService.Id;
+            var guest = await GuestService.CreateSelfRegisteredGuestAsync(model);
+            registeredNumber = guest.GuestNumber;
+            completed = true;
+        }
+        catch (Exception)
+        {
+            // Do not disclose existing guest details or internal exception messages publicly.
+            ShowError("We could not complete your registration. If you have registered before, please speak to the welcome desk.");
+        }
+        finally { submitting = false; }
+    }
+}

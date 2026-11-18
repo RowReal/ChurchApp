@@ -1,0 +1,199 @@
+@page "/finance/expenditure-setup"
+@rendermode InteractiveServer
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+@inject ExpenditureSetupService Setup
+@inject AuthService Auth
+
+<PageTitle>Expenditure Setup | BCC ServiceHub</PageTitle>
+@if (!Auth.IsAuthenticated || !Auth.IsInRole(AuthService.Roles.ChurchAdmin))
+{
+    <div class="alert alert-warning">Church Admin access is required.</div>
+}
+else
+{
+    <div class="container-fluid py-3 bcc-finance-polish">
+        <div class="p-3 rounded mb-3 text-white bcc-finance-hero" style="background:#176343">
+            <h3 class="mb-1">Expenditure Setup</h3>
+            <div>Manage expenditure categories and Pastor approval threshold.</div>
+        </div>
+        <div class="row g-3">
+            <div class="col-lg-7">
+                <div class="card shadow-sm"><div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Expenditure Categories</h5>
+                        <button class="btn btn-success btn-sm" @onclick="NewCategory">New category</button>
+                    </div>
+                    <div class="table-responsive"><table class="table table-sm table-hover align-middle">
+                        <thead><tr><th>Name</th><th>Code</th><th>Status</th><th></th></tr></thead>
+                        <tbody>
+                        @foreach (var item in categories)
+                        {
+                            <tr><td>@item.Name</td><td>@item.Code</td><td>@(item.IsActive ? "Active" : "Inactive")</td>
+                            <td><button class="btn btn-outline-success btn-sm" @onclick="() => Edit(item)">Edit</button></td></tr>
+                        }
+                        </tbody>
+                    </table></div>
+                    <hr />
+                    <h6>@(editing.Id == 0 ? "New category" : "Edit category")</h6>
+                    <div class="mb-2"><label class="form-label">Category name</label>
+                        <input class="form-control" maxlength="120" @bind="editing.Name" disabled="@editing.IsSystemOthers" /></div>
+                    <div class="mb-2"><label class="form-label">Code (optional)</label>
+                        <input class="form-control" maxlength="30" @bind="editing.Code" /></div>
+                    <div class="mb-2"><label class="form-label">Description (optional)</label>
+                        <textarea class="form-control" maxlength="500" @bind="editing.Description"></textarea></div>
+                    <div class="mb-2"><label class="form-label">Display order</label>
+                        <InputNumber class="form-control" @bind-Value="editing.DisplayOrder" /></div>
+                    <div class="form-check mb-2"><input class="form-check-input" type="checkbox" @bind="editing.RequiresPurposeDescription" disabled="@editing.IsSystemOthers" />
+                        <label class="form-check-label">Require purpose description on expenditure entry</label></div>
+                    <div class="form-check mb-3"><input class="form-check-input" type="checkbox" @bind="editing.IsActive" disabled="@editing.IsSystemOthers" />
+                        <label class="form-check-label">Active</label></div>
+                    <button class="btn btn-success" disabled="@busy" @onclick="SaveCategory">Save category</button>
+                </div></div>
+            </div>
+            <div class="col-lg-5"><div class="card shadow-sm"><div class="card-body">
+                <h5>Pastor Approval Settings</h5>
+                <p class="text-muted small">All expenditures require Auditor approval. Amounts above this NGN threshold also require Pastor approval.</p>
+                <label class="form-label">Pastor approval threshold (NGN)</label>
+                <InputNumber class="form-control mb-3" @bind-Value="threshold" />
+                <button class="btn btn-success" disabled="@busy" @onclick="SaveThreshold">Save threshold</button>
+                <p class="text-muted small mt-3 mb-0">At exactly the threshold, Auditor approval alone is sufficient. The threshold is for NGN; foreign-currency equivalents require a separate approved FX policy before expenditure processing is enabled for those accounts.</p>
+            </div></div></div>
+        </div>
+    </div>
+}
+@if (popupOpen)
+{
+    <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" style="background:rgba(0,0,0,.55);z-index:1100">
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">@(popupError ? "Unable to complete request" : "Successful")</h5></div>
+            <div class="modal-body" style="white-space:pre-wrap">@popupMessage</div>
+            <div class="modal-footer"><button class="btn btn-success" @onclick="() => popupOpen = false">OK, Close</button></div>
+        </div></div>
+    </div>
+}
+<style>
+
+/* BCC ServiceHub finance visual alignment — presentation only */
+.bcc-finance-polish {
+    --bcc-finance-green: #145c39;
+    --bcc-finance-bright: #237a50;
+    --bcc-finance-pale: #edf7f0;
+    --bcc-finance-border: #d9e9df;
+    color: #20372c;
+    font-size: .91rem;
+}
+.bcc-finance-polish .bcc-page-header,
+.bcc-finance-polish .journal-hero,
+.bcc-finance-polish .ba-hero,
+.bcc-finance-polish .cab-hero,
+.bcc-finance-polish .ob-hero,
+.bcc-finance-polish .pc-hero,
+.bcc-finance-polish .returned-hero {
+    background: #145c39 !important;
+    background-image: none !important;
+    color: #fff !important;
+    border: 1px solid #0d4a2e !important;
+    border-radius: 5px !important;
+    box-shadow: 0 5px 16px rgba(13,74,46,.12);
+    padding: 16px 20px !important;
+}
+.bcc-finance-polish .bcc-page-header .bcc-page-title,
+.bcc-finance-polish .bcc-page-header .bcc-page-subtitle,
+.bcc-finance-polish .bcc-page-header h1,
+.bcc-finance-polish .bcc-page-header h2,
+.bcc-finance-polish .bcc-page-header h3,
+.bcc-finance-polish .journal-hero h1,
+.bcc-finance-polish .ba-hero h1,
+.bcc-finance-polish .cab-hero h1,
+.bcc-finance-polish .ob-hero h1,
+.bcc-finance-polish .pc-hero h1,
+.bcc-finance-polish .returned-hero h1 { color: #fff !important; }
+.bcc-finance-polish .bcc-page-header .bcc-page-subtitle { opacity: .91; }
+.bcc-finance-polish .card,
+.bcc-finance-polish .journal-panel,
+.bcc-finance-polish .correction-panel,
+.bcc-finance-polish .ob-card,
+.bcc-finance-polish .remit-panel {
+    border-color: var(--bcc-finance-border) !important;
+    border-radius: 7px !important;
+    box-shadow: 0 3px 12px rgba(19,75,45,.055);
+}
+.bcc-finance-polish .card-header,
+.bcc-finance-polish .journal-panel-header,
+.bcc-finance-polish .table thead th {
+    background-color: var(--bcc-finance-pale) !important;
+    color: #155c39 !important;
+    border-color: var(--bcc-finance-border) !important;
+    font-weight: 700;
+}
+.bcc-finance-polish .card-body { padding: 14px 16px; }
+.bcc-finance-polish .form-label,
+.bcc-finance-polish label:not(.form-check-label) { font-size: .81rem; font-weight: 600; color: #305443; margin-bottom: 4px; }
+.bcc-finance-polish .form-control,
+.bcc-finance-polish .form-select { border-color: #cbded2; border-radius: 5px; font-size: .87rem; }
+.bcc-finance-polish .form-control:focus,
+.bcc-finance-polish .form-select:focus { border-color: #31845a; box-shadow: 0 0 0 .15rem rgba(49,132,90,.15); }
+.bcc-finance-polish .btn-success,
+.bcc-finance-polish .bcc-btn-primary { background: #176640 !important; border-color: #176640 !important; color: #fff !important; }
+.bcc-finance-polish .btn-success:hover,
+.bcc-finance-polish .bcc-btn-primary:hover { background: #0f4e30 !important; border-color: #0f4e30 !important; }
+.bcc-finance-polish .btn-outline-success { color: #176640; border-color: #31845a; }
+.bcc-finance-polish .btn-outline-success:hover { background: #176640; color: white; }
+.bcc-finance-polish .table { font-size: .83rem; }
+.bcc-finance-polish .table > :not(caption) > * > * { padding: .48rem .6rem; }
+.bcc-finance-polish .table tbody tr:hover { background: #f6fbf7; }
+.bcc-finance-polish .badge.bg-success { background: #237a50 !important; }
+@@media (max-width: 767px) {
+    .bcc-finance-polish .bcc-page-header,
+    .bcc-finance-polish .journal-hero,
+    .bcc-finance-polish .ba-hero,
+    .bcc-finance-polish .cab-hero,
+    .bcc-finance-polish .ob-hero,
+    .bcc-finance-polish .pc-hero,
+    .bcc-finance-polish .returned-hero { padding: 13px 14px !important; }
+    .bcc-finance-polish .card-body { padding: 12px; }
+}
+
+.bcc-finance-polish .bcc-finance-hero { background: #145c39 !important; border-radius: 5px !important; padding: 16px 20px !important; margin-bottom: 14px !important; box-shadow: 0 5px 16px rgba(13,74,46,.12); }
+.bcc-finance-polish .bcc-finance-hero h1, .bcc-finance-polish .bcc-finance-hero h2, .bcc-finance-polish .bcc-finance-hero h3 { color: #fff !important; }
+
+</style>
+
+@code {
+    private List<ExpenditureCategory> categories = new();
+    private ExpenditureCategory editing = new();
+    private decimal threshold = 5000000m;
+    private bool busy, popupOpen, popupError;
+    private string popupMessage = "";
+    protected override async Task OnInitializedAsync() {
+        if (!Auth.IsAuthenticated || !Auth.IsInRole(AuthService.Roles.ChurchAdmin)) return;
+        try { await Setup.EnsureOthersAsync(); await Reload(); }
+        catch (Exception ex) { Show(ex.Message, true); }
+    }
+    private async Task Reload() {
+        categories = await Setup.GetCategoriesAsync();
+        threshold = (await Setup.GetSettingsAsync()).PastorApprovalThresholdNgn;
+    }
+    private void NewCategory() => editing = new ExpenditureCategory();
+    private void Edit(ExpenditureCategory c) => editing = new ExpenditureCategory {
+        Id=c.Id, Name=c.Name, Code=c.Code, Description=c.Description,
+        DisplayOrder=c.DisplayOrder, IsActive=c.IsActive,
+        RequiresPurposeDescription=c.RequiresPurposeDescription, IsSystemOthers=c.IsSystemOthers
+    };
+    private void Show(string message, bool error = false) { popupMessage = message; popupError = error; popupOpen = true; }
+    private async Task SaveCategory() {
+        if (busy) return;
+        busy = true;
+        try { await Setup.SaveCategoryAsync(editing); await Reload(); NewCategory(); Show("Expenditure category saved."); }
+        catch (Exception ex) { Show(ex.Message, true); }
+        finally { busy = false; }
+    }
+    private async Task SaveThreshold() {
+        if (busy) return;
+        busy = true;
+        try { await Setup.SaveThresholdAsync(threshold); Show("Pastor approval threshold saved."); }
+        catch (Exception ex) { Show(ex.Message, true); }
+        finally { busy = false; }
+    }
+}

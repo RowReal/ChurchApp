@@ -1,0 +1,200 @@
+@page "/finance/expenditure-approvals"
+@rendermode InteractiveServer
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+@using Microsoft.JSInterop
+@inject ExpenditureApprovalService ApprovalService
+@inject ExpenditureDocumentReviewService DocumentReview
+@inject AuthService AuthService
+@inject IJSRuntime JS
+
+<PageTitle>Expenditure Approvals - BCC ServiceHub</PageTitle>
+<div class="container py-4 bcc-finance-polish">
+    <div class="p-4 mb-4 rounded text-white bcc-finance-hero" style="background:#14613b">
+        <h2 class="mb-1">Expenditure Approvals</h2>
+        <div>Independent Auditor review and Pastor approval for expenditure above the configured threshold.</div>
+    </div>
+    @if (!AuthService.IsAuthenticated)
+    {
+        <p>Sign in to view expenditure approvals.</p>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Awaiting my approval (@records.Count)</h5>
+            <button class="btn btn-outline-success" disabled="@busy" @onclick="LoadAsync">Refresh</button>
+        </div>
+        @if (records.Count == 0) { <p class="text-muted">No expenditure currently awaiting your approval.</p> }
+        <div class="row g-3">
+            @foreach (var record in records)
+            {
+                <div class="col-12 col-lg-6" @key="record.Id">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between"><strong>Expenditure #@record.Id</strong><span class="badge bg-secondary">@record.Status</span></div>
+                            <div class="mt-2"><strong>@record.Currency @record.Amount.ToString("N2")</strong> — @record.Payee</div>
+                            <div class="small text-muted">@record.PaymentDate.ToString("dd MMM yyyy") · @record.ExpenditureCategory?.Name · @record.BankAccount?.ShortName</div>
+                            <p class="mt-2 mb-1">@record.Description</p>
+                            @if (!string.IsNullOrWhiteSpace(record.PurposeDescription)) { <p class="small">Purpose: @record.PurposeDescription</p> }
+                            <p class="small mb-1">Bank reference: @(record.BankReference ?? "Not provided")</p>
+                            <p class="small mb-2">Submitted by: @record.SubmittedByWorkerId</p>
+                            <div class="border rounded p-2 mb-3">
+                                <strong class="small">Supporting documents (optional)</strong>
+                                @if (record.Attachments.Count == 0) { <div class="small text-muted">No documents attached.</div> }
+                                @foreach (var file in record.Attachments)
+                                {
+                                    <div><button class="btn btn-link btn-sm px-0" disabled="@busy" @onclick="() => DownloadAsync(file.Id)">@file.OriginalFileName</button></div>
+                                }
+                            </div>
+                            <label class="form-label">Review comments / reason</label>
+                            <textarea class="form-control mb-2" rows="2" maxlength="1000" @bind="comments[record.Id]"></textarea>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-success btn-sm" disabled="@busy" @onclick='() => DecideAsync(record.Id, "Approve")'>Approve</button>
+                                <button class="btn btn-outline-warning btn-sm" disabled="@busy" @onclick='() => DecideAsync(record.Id, "Return")'>Return</button>
+                                <button class="btn btn-outline-danger btn-sm" disabled="@busy" @onclick='() => DecideAsync(record.Id, "Reject")'>Reject</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+@if (popupVisible)
+{
+    <div class="modal d-block" tabindex="-1" role="dialog" style="background:rgba(0,0,0,.55);z-index:1055">
+        <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">@popupTitle</h5><button class="btn-close" @onclick="ClosePopup"></button></div>
+            <div class="modal-body" style="white-space:pre-wrap">@popupText</div>
+            <div class="modal-footer"><button class="btn btn-success" @onclick="ClosePopup">OK</button></div>
+        </div></div>
+    </div>
+}
+<style>
+
+/* BCC ServiceHub finance visual alignment — presentation only */
+.bcc-finance-polish {
+    --bcc-finance-green: #145c39;
+    --bcc-finance-bright: #237a50;
+    --bcc-finance-pale: #edf7f0;
+    --bcc-finance-border: #d9e9df;
+    color: #20372c;
+    font-size: .91rem;
+}
+.bcc-finance-polish .bcc-page-header,
+.bcc-finance-polish .journal-hero,
+.bcc-finance-polish .ba-hero,
+.bcc-finance-polish .cab-hero,
+.bcc-finance-polish .ob-hero,
+.bcc-finance-polish .pc-hero,
+.bcc-finance-polish .returned-hero {
+    background: #145c39 !important;
+    background-image: none !important;
+    color: #fff !important;
+    border: 1px solid #0d4a2e !important;
+    border-radius: 5px !important;
+    box-shadow: 0 5px 16px rgba(13,74,46,.12);
+    padding: 16px 20px !important;
+}
+.bcc-finance-polish .bcc-page-header .bcc-page-title,
+.bcc-finance-polish .bcc-page-header .bcc-page-subtitle,
+.bcc-finance-polish .bcc-page-header h1,
+.bcc-finance-polish .bcc-page-header h2,
+.bcc-finance-polish .bcc-page-header h3,
+.bcc-finance-polish .journal-hero h1,
+.bcc-finance-polish .ba-hero h1,
+.bcc-finance-polish .cab-hero h1,
+.bcc-finance-polish .ob-hero h1,
+.bcc-finance-polish .pc-hero h1,
+.bcc-finance-polish .returned-hero h1 { color: #fff !important; }
+.bcc-finance-polish .bcc-page-header .bcc-page-subtitle { opacity: .91; }
+.bcc-finance-polish .card,
+.bcc-finance-polish .journal-panel,
+.bcc-finance-polish .correction-panel,
+.bcc-finance-polish .ob-card,
+.bcc-finance-polish .remit-panel {
+    border-color: var(--bcc-finance-border) !important;
+    border-radius: 7px !important;
+    box-shadow: 0 3px 12px rgba(19,75,45,.055);
+}
+.bcc-finance-polish .card-header,
+.bcc-finance-polish .journal-panel-header,
+.bcc-finance-polish .table thead th {
+    background-color: var(--bcc-finance-pale) !important;
+    color: #155c39 !important;
+    border-color: var(--bcc-finance-border) !important;
+    font-weight: 700;
+}
+.bcc-finance-polish .card-body { padding: 14px 16px; }
+.bcc-finance-polish .form-label,
+.bcc-finance-polish label:not(.form-check-label) { font-size: .81rem; font-weight: 600; color: #305443; margin-bottom: 4px; }
+.bcc-finance-polish .form-control,
+.bcc-finance-polish .form-select { border-color: #cbded2; border-radius: 5px; font-size: .87rem; }
+.bcc-finance-polish .form-control:focus,
+.bcc-finance-polish .form-select:focus { border-color: #31845a; box-shadow: 0 0 0 .15rem rgba(49,132,90,.15); }
+.bcc-finance-polish .btn-success,
+.bcc-finance-polish .bcc-btn-primary { background: #176640 !important; border-color: #176640 !important; color: #fff !important; }
+.bcc-finance-polish .btn-success:hover,
+.bcc-finance-polish .bcc-btn-primary:hover { background: #0f4e30 !important; border-color: #0f4e30 !important; }
+.bcc-finance-polish .btn-outline-success { color: #176640; border-color: #31845a; }
+.bcc-finance-polish .btn-outline-success:hover { background: #176640; color: white; }
+.bcc-finance-polish .table { font-size: .83rem; }
+.bcc-finance-polish .table > :not(caption) > * > * { padding: .48rem .6rem; }
+.bcc-finance-polish .table tbody tr:hover { background: #f6fbf7; }
+.bcc-finance-polish .badge.bg-success { background: #237a50 !important; }
+@@media (max-width: 767px) {
+    .bcc-finance-polish .bcc-page-header,
+    .bcc-finance-polish .journal-hero,
+    .bcc-finance-polish .ba-hero,
+    .bcc-finance-polish .cab-hero,
+    .bcc-finance-polish .ob-hero,
+    .bcc-finance-polish .pc-hero,
+    .bcc-finance-polish .returned-hero { padding: 13px 14px !important; }
+    .bcc-finance-polish .card-body { padding: 12px; }
+}
+
+.bcc-finance-polish .bcc-finance-hero { background: #145c39 !important; border-radius: 5px !important; padding: 16px 20px !important; margin-bottom: 14px !important; box-shadow: 0 5px 16px rgba(13,74,46,.12); }
+.bcc-finance-polish .bcc-finance-hero h1, .bcc-finance-polish .bcc-finance-hero h2, .bcc-finance-polish .bcc-finance-hero h3 { color: #fff !important; }
+
+</style>
+
+@code {
+    private List<ExpenditureRecord> records = new();
+    private Dictionary<int,string> comments = new();
+    private bool busy, popupVisible;
+    private string popupTitle = "", popupText = "";
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private async Task LoadAsync()
+    {
+        busy = true;
+        try {
+            records = await ApprovalService.PendingAsync();
+            foreach (var r in records) if (!comments.ContainsKey(r.Id)) comments[r.Id] = "";
+        } catch (Exception ex) { Show("Unable to load approvals", ex.Message); }
+        finally { busy = false; }
+    }
+    private async Task DecideAsync(int id, string decision)
+    {
+        busy = true;
+        try {
+            await ApprovalService.DecideAsync(id, decision, comments.GetValueOrDefault(id));
+            await LoadAsync();
+            Show("Review recorded", $"Expenditure #{id}: {decision} recorded successfully.");
+        } catch (Exception ex) { Show("Unable to complete review", ex.Message); }
+        finally { busy = false; }
+    }
+    private async Task DownloadAsync(int id)
+    {
+        busy = true;
+        try {
+            var document = await DocumentReview.ReadAsync(id);
+            await using var stream = new MemoryStream(document.Bytes);
+            using var reference = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("bccExpenditureDownload", document.Name, reference);
+        } catch (Exception ex) { Show("Document unavailable", ex.Message); }
+        finally { busy = false; }
+    }
+    private void Show(string title, string message) { popupTitle = title; popupText = message; popupVisible = true; }
+    private void ClosePopup() => popupVisible = false;
+}

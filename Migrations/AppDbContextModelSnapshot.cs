@@ -2261,6 +2261,9 @@ namespace ChurchApp.Migrations
                     b.Property<int?>("SourceCollectionId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("SourceExpenditureId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(25)
@@ -2297,6 +2300,10 @@ namespace ChurchApp.Migrations
 
                     b.HasIndex("SourceCollectionId");
 
+                    b.HasIndex("SourceExpenditureId")
+                        .IsUnique()
+                        .HasFilter("SourceExpenditureId IS NOT NULL");
+
                     b.HasIndex("Status");
 
                     b.HasIndex("TransactionReference");
@@ -2304,6 +2311,234 @@ namespace ChurchApp.Migrations
                     b.HasIndex("BankAccountId", "TransactionDate");
 
                     b.ToTable("BankAccountJournals");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Finance.ExpenditureApprovalAction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ActionAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Comments")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ExpenditureRecordId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WorkerId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpenditureRecordId", "ActionAtUtc");
+
+                    b.ToTable("ExpenditureApprovalActions", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Finance.ExpenditureApprovalSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("PastorApprovalThresholdNgn")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UpdatedByWorkerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ExpenditureApprovalSettings", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Finance.ExpenditureAttachment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ExpenditureRecordId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UploadedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpenditureRecordId");
+
+                    b.HasIndex("StoredFileName")
+                        .IsUnique();
+
+                    b.ToTable("ExpenditureAttachments", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Finance.ExpenditureCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedByWorkerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsSystemOthers")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RequiresPurposeDescription")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UpdatedByWorkerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsSystemOthers")
+                        .IsUnique()
+                        .HasFilter("IsSystemOthers = 1");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("ExpenditureCategories", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Finance.ExpenditureRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ApprovalThresholdNgnSnapshot")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("BankAccountId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BankReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Currency")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ExpenditureCategoryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Payee")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PostedJournalId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PurposeDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RequiresPastorApproval")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("SubmittedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubmittedByWorkerId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpenditureCategoryId");
+
+                    b.HasIndex("BankAccountId", "BankReference");
+
+                    b.ToTable("ExpenditureRecords", (string)null);
                 });
 
             modelBuilder.Entity("ChurchApp.Models.Finance.IncomeCategory", b =>
@@ -5081,6 +5316,47 @@ namespace ChurchApp.Migrations
                     b.Navigation("IncomeType");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.Finance.ExpenditureApprovalAction", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Finance.ExpenditureRecord", "ExpenditureRecord")
+                        .WithMany()
+                        .HasForeignKey("ExpenditureRecordId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ExpenditureRecord");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Finance.ExpenditureAttachment", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Finance.ExpenditureRecord", "ExpenditureRecord")
+                        .WithMany("Attachments")
+                        .HasForeignKey("ExpenditureRecordId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ExpenditureRecord");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Finance.ExpenditureRecord", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Finance.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Finance.ExpenditureCategory", "ExpenditureCategory")
+                        .WithMany()
+                        .HasForeignKey("ExpenditureCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("ExpenditureCategory");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Finance.IncomeType", b =>
                 {
                     b.HasOne("ChurchApp.Models.Finance.BankAccount", "DefaultBankAccount")
@@ -5635,6 +5911,11 @@ namespace ChurchApp.Migrations
             modelBuilder.Entity("ChurchApp.Models.Finance.BankAccount", b =>
                 {
                     b.Navigation("IncomeTypes");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Finance.ExpenditureRecord", b =>
+                {
+                    b.Navigation("Attachments");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.Finance.IncomeCategory", b =>

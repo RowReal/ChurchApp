@@ -1,4 +1,4 @@
-﻿@page "/admin/church-notices"
+@page "/admin/church-notices"
 
 @layout Components.Layout.MainLayout
 @using ChurchApp.Models
@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 
 <PageTitle>Church Notices - BCC ServiceHub</PageTitle>
+<div class="bcc-admin-theme-marker" aria-hidden="true"></div>
 
 @if (!CanManageNotices())
 {
@@ -425,3 +426,86 @@ else
         errorMessage = "";
     }
 }
+
+
+<style>
+/* BCC ServiceHub | Administration green visual system. Scoped to this page. */
+body:has(.bcc-admin-theme-marker) { --bcc-green: #145c39; --bcc-green-dark: #10482f; --bcc-green-light: #eaf5ed; --bcc-ink: #20362b; }
+body:has(.bcc-admin-theme-marker) .bcc-admin-theme-marker { display:none !important; }
+body:has(.bcc-admin-theme-marker) .bcc-admin-hero,
+body:has(.bcc-admin-theme-marker) .bcc-page-header,
+body:has(.bcc-admin-theme-marker) .notice-page-header {
+    background: #145c39 !important; background-image: none !important;
+    color: #fff !important; border: 0 !important; border-radius: 7px !important;
+    padding: 19px 23px !important; margin-bottom: 15px !important;
+    box-shadow: 0 5px 16px rgba(20,92,57,.13) !important;
+}
+body:has(.bcc-admin-theme-marker) .bcc-admin-hero .bcc-admin-kicker {
+    display:block; color:#d2efdc; font-size:.69rem; font-weight:750; text-transform:uppercase;
+    letter-spacing:.11em; margin-bottom:5px;
+}
+body:has(.bcc-admin-theme-marker) .bcc-admin-hero h1 {
+    font-size:1.4rem; line-height:1.2; font-weight:800; margin:0 0 4px; color:white !important;
+}
+body:has(.bcc-admin-theme-marker) .bcc-admin-hero p {
+    font-size:.84rem; color:#e4f5e9 !important; margin:0; line-height:1.4;
+}
+body:has(.bcc-admin-theme-marker) .bcc-page-header :is(.bcc-page-title,h1,h2,h3),
+body:has(.bcc-admin-theme-marker) .notice-page-header :is(h1,h2,h3),
+body:has(.bcc-admin-theme-marker) .bcc-page-header .bcc-page-subtitle,
+body:has(.bcc-admin-theme-marker) .notice-page-header p,
+body:has(.bcc-admin-theme-marker) .notice-page-header .notice-kicker { color:#fff !important; }
+body:has(.bcc-admin-theme-marker) .notice-page-header .notice-kicker,
+body:has(.bcc-admin-theme-marker) .bcc-page-header .bcc-page-subtitle:first-child { color:#d5f0df !important; }
+body:has(.bcc-admin-theme-marker) :is(.container,.container-fluid,.worker360-page,.notice-page) { --bs-primary:#145c39; --bs-link-color:#17663e; }
+body:has(.bcc-admin-theme-marker) :is(.card,.notice-form-card,.notice-list-card,.bcc-card,.profile-card,.section-card) {
+    border:1px solid #e0eae3 !important; border-radius:7px !important;
+    box-shadow:0 3px 13px rgba(16,72,47,.055) !important;
+}
+body:has(.bcc-admin-theme-marker) :is(.card-body,.notice-form-card) { padding: 15px !important; }
+body:has(.bcc-admin-theme-marker) .card-header:not(.bg-danger):not(.bg-warning) {
+    background:#eaf5ed !important; color:#145c39 !important; border-bottom:1px solid #d6e9db !important;
+    padding:10px 14px !important; font-weight:750;
+}
+body:has(.bcc-admin-theme-marker) :is(.btn-primary,.bcc-btn-primary,.notice-primary-btn,.btn-success) {
+    background:#176c43 !important; background-image:none !important; border-color:#176c43 !important;
+    color:#fff !important; border-radius:5px !important; font-weight:650;
+    box-shadow:none !important;
+}
+body:has(.bcc-admin-theme-marker) :is(.btn-primary,.bcc-btn-primary,.notice-primary-btn,.btn-success):hover {
+    background:#104b30 !important; border-color:#104b30 !important;
+}
+body:has(.bcc-admin-theme-marker) :is(.btn-outline-primary,.btn-outline-success) {
+    color:#176c43 !important; border-color:#7eb89a !important; border-radius:5px !important;
+}
+body:has(.bcc-admin-theme-marker) :is(.btn-outline-primary,.btn-outline-success):hover {
+    background:#176c43 !important; color:#fff !important; border-color:#176c43 !important;
+}
+body:has(.bcc-admin-theme-marker) .text-primary { color:#176c43 !important; }
+body:has(.bcc-admin-theme-marker) .bg-primary { background:#176c43 !important; }
+body:has(.bcc-admin-theme-marker) :is(.form-control,.form-select,.form-check-input,.input-group-text) {
+    border-color:#d4e1d8; border-radius:5px !important;
+}
+body:has(.bcc-admin-theme-marker) :is(.form-control,.form-select):focus {
+    border-color:#348c5b; box-shadow:0 0 0 .17rem rgba(36,124,73,.13) !important;
+}
+body:has(.bcc-admin-theme-marker) :is(.form-control,.form-select,.btn) { min-height:34px; }
+body:has(.bcc-admin-theme-marker) :is(.form-label,label) { font-size:.84rem; font-weight:600; }
+body:has(.bcc-admin-theme-marker) :is(.table,.table-responsive) { font-size:.85rem; }
+body:has(.bcc-admin-theme-marker) .table thead th {
+    background:#eaf5ed !important; color:#145c39 !important; border-color:#d4e6d9 !important;
+    padding:9px 11px !important; font-weight:750;
+}
+body:has(.bcc-admin-theme-marker) .table tbody td { padding:8px 11px !important; vertical-align:middle; }
+body:has(.bcc-admin-theme-marker) .table tbody tr:hover { background:rgba(234,245,237,.65); }
+body:has(.bcc-admin-theme-marker) :is(.badge.bg-primary,.badge.bg-success) { background:#176c43 !important; }
+body:has(.bcc-admin-theme-marker) :is(.nav-link.active,.page-link.active) { color:#145c39 !important; }
+body:has(.bcc-admin-theme-marker) :is(.container.py-5,.container-fluid.py-4,.container.py-4) { padding-top:13px !important; padding-bottom:15px !important; }
+body:has(.bcc-admin-theme-marker) :is(.mb-4,.my-4) { margin-bottom:14px !important; }
+body:has(.bcc-admin-theme-marker) :is(.rounded-4,.rounded-3) { border-radius:7px !important; }
+@@media (max-width: 767px) {
+  body:has(.bcc-admin-theme-marker) :is(.bcc-admin-hero,.bcc-page-header,.notice-page-header) { padding:15px 16px !important; }
+  body:has(.bcc-admin-theme-marker) .bcc-admin-hero h1 { font-size:1.22rem; }
+  body:has(.bcc-admin-theme-marker) .card-body { padding:12px !important; }
+}
+</style>

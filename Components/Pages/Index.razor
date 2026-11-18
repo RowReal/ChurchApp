@@ -780,7 +780,7 @@
     </div>
 }
         <!-- ACCOUNT & REMITTANCE WORKSPACE -->
-        @if (AuthService.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge))
+        @if (AuthService.IsInRole(AuthService.Roles.ChurchAdmin, AuthService.Roles.PastorInCharge) || hasAuditorPrivilege)
         {
             <div class="menu-section mb-0">
                 <div class="menu-section-title">
@@ -1293,6 +1293,7 @@ else
 
 @code {
     private bool canAccessEventManagement = false;
+    private bool hasAuditorPrivilege = false;
     private bool hasOpenEventRegistration = false;
     private bool hasOpenAwardNomination = false;
     private bool hasOpenRegisteredEventCheckIn = false;
@@ -1350,6 +1351,7 @@ private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
         AuthService.CurrentWorker != null)
     {
         await LoadEventManagementPrivilegeAsync();
+        await LoadAuditorPrivilegeAsync();
         await LoadOpenEventRegistrationAsync();
         await LoadOpenAwardNominationAsync();
         await LoadOpenRegisteredEventCheckInAsync();
@@ -1361,6 +1363,23 @@ private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
         await LoadBroadcastAccessAsync();
     }
 }
+private async Task LoadAuditorPrivilegeAsync()
+{
+    hasAuditorPrivilege = false;
+    var worker = AuthService.CurrentWorker;
+    if (worker == null) return;
+
+    try
+    {
+        hasAuditorPrivilege = await PrivilegeService.HasPrivilegeAsync(
+            worker.Id, "Approve-Church-Expenditure");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Unable to check Auditor privilege: {ex.Message}");
+    }
+}
+
 private async Task LoadEventManagementPrivilegeAsync()
 {
     canAccessEventManagement = false;
@@ -2375,13 +2394,13 @@ private bool CanAccessSetupWorkspace()
 
 <style>
     :root {
-        --bcc-primary: #0d6efd;
-        --bcc-primary-dark: #084298;
+        --bcc-primary: #145c39;
+        --bcc-primary-dark: #0c3e27;
         --bcc-navy: #111827;
         --bcc-dark: #1f2937;
         --bcc-muted: #6b7280;
         --bcc-light: #f6f8fb;
-        --bcc-soft-blue: #eff6ff;
+        --bcc-soft-blue: #eef7f1;
         --bcc-border: #e5e7eb;
         --bcc-gold: #d4af37;
         --bcc-success: #22c55e;
@@ -2390,7 +2409,7 @@ private bool CanAccessSetupWorkspace()
         --bcc-white: #ffffff;
         --bcc-radius: 22px;
         --bcc-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
-        --bcc-shadow-hover: 0 18px 40px rgba(13, 110, 253, 0.14);
+        --bcc-shadow-hover: 0 18px 40px rgba(20, 92, 57, 0.14);
     }
 
     body {
@@ -2408,7 +2427,7 @@ private bool CanAccessSetupWorkspace()
     =============================== */
 
     .dashboard-hero {
-        background: linear-gradient(135deg, #0d6efd 0%, #1f2937 100%);
+        background: linear-gradient(135deg, #145c39 0%, #1f2937 100%);
         border-radius: 26px;
         padding: 30px;
         color: #ffffff;
@@ -2416,7 +2435,7 @@ private bool CanAccessSetupWorkspace()
         align-items: center;
         justify-content: space-between;
         gap: 22px;
-        box-shadow: 0 22px 55px rgba(13, 110, 253, 0.22);
+        box-shadow: 0 22px 55px rgba(20, 92, 57, 0.22);
         position: relative;
         overflow: hidden;
     }
@@ -2568,7 +2587,7 @@ private bool CanAccessSetupWorkspace()
     .stat-card:hover {
         transform: translateY(-5px);
         box-shadow: var(--bcc-shadow-hover);
-        border-color: rgba(13, 110, 253, 0.25);
+        border-color: rgba(20, 92, 57, 0.25);
     }
 
     .stat-image-container {
@@ -2726,7 +2745,7 @@ private bool CanAccessSetupWorkspace()
 
     .action-card:hover {
         transform: translateY(-5px);
-        border-color: rgba(13, 110, 253, 0.35);
+        border-color: rgba(20, 92, 57, 0.35);
         box-shadow: var(--bcc-shadow-hover);
         color: var(--bcc-primary);
     }
@@ -3342,13 +3361,13 @@ private bool CanAccessSetupWorkspace()
 
 /* Stat cards: give each top card its own soft colour */
 .row.mb-4 > .col-6:nth-child(1) .stat-card {
-    background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%) !important;
-    border-left: 5px solid #0d6efd !important;
+    background: linear-gradient(135deg, #ffffff 0%, #eef7f1 100%) !important;
+    border-left: 5px solid #145c39 !important;
 }
 
 .row.mb-4 > .col-6:nth-child(1) .stat-image-container {
     background: #dbeafe !important;
-    color: #0d6efd !important;
+    color: #145c39 !important;
 }
 
 .row.mb-4 > .col-6:nth-child(2) .stat-card {
@@ -3387,7 +3406,7 @@ private bool CanAccessSetupWorkspace()
 }
 
 .menu-section:nth-child(2) {
-    background: #eff6ff !important;
+    background: #eef7f1 !important;
     border-color: #bfdbfe !important;
 }
 
@@ -3414,12 +3433,12 @@ private bool CanAccessSetupWorkspace()
 /* Section title icon colours */
 .menu-section:nth-child(1) .menu-section-title i {
     background: #dbeafe !important;
-    color: #0d6efd !important;
+    color: #145c39 !important;
 }
 
 .menu-section:nth-child(2) .menu-section-title i {
     background: #dbeafe !important;
-    color: #2563eb !important;
+    color: #177449 !important;
 }
 
 .menu-section:nth-child(3) .menu-section-title i {
@@ -3450,12 +3469,12 @@ private bool CanAccessSetupWorkspace()
 /* Give quick action icons pleasant colours */
 .menu-section:nth-child(1) .action-image {
     background: #dbeafe !important;
-    color: #0d6efd !important;
+    color: #145c39 !important;
 }
 
 .menu-section:nth-child(2) .action-image {
     background: #dbeafe !important;
-    color: #2563eb !important;
+    color: #177449 !important;
 }
 
 .menu-section:nth-child(3) .action-image {
@@ -3495,8 +3514,8 @@ private bool CanAccessSetupWorkspace()
 }
 
 .activity-header-icon {
-    background: #eff6ff !important;
-    color: #0d6efd !important;
+    background: #eef7f1 !important;
+    color: #145c39 !important;
 }
 
 /* Better notification highlight */
@@ -3508,7 +3527,7 @@ private bool CanAccessSetupWorkspace()
 /* Add stronger hover colour */
 .action-card:hover {
     background: #ffffff !important;
-    border-color: #0d6efd !important;
+    border-color: #145c39 !important;
 }
 @* /* ===============================
    DASHBOARD COMPACT PASS
@@ -3908,14 +3927,127 @@ private bool CanAccessSetupWorkspace()
 
 
 
+
+/* BCC FINANCE GREEN BRAND — final visual polish, no functional changes */
+:root {
+    --bcc-primary: #145c39;
+    --bcc-primary-dark: #0c3e27;
+    --bcc-soft-blue: #eef7f1;
+    --bcc-light: #f5f8f6;
+    --bcc-border: #e1eae4;
+    --bcc-shadow-hover: 0 14px 32px rgba(20,92,57,.12);
+}
+.dashboard-hero {
+    background: #145c39 !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 24px rgba(12,62,39,.14) !important;
+    padding: 20px 24px !important;
+}
+.dashboard-hero::before {
+    width: 230px !important; height: 230px !important;
+    right: -85px !important; top: -125px !important;
+    background: rgba(255,255,255,.065) !important;
+}
+.dashboard-hero::after {
+    background: rgba(211,178,93,.10) !important;
+}
+.dashboard-kicker {
+    border-radius: 5px !important;
+    font-weight: 700 !important;
+    letter-spacing: .035em;
+}
+.dashboard-hero h2 { color: #fff !important; letter-spacing: -.025em; }
+.dashboard-hero p, .dashboard-meta { color: #e3f1e8 !important; }
+.dashboard-user img, .dashboard-user-placeholder { border-radius: 10px !important; }
+.stat-card, .action-card, .feature-card, .scripture-card,
+.card, .hero-card { border-radius: 10px !important; }
+.stat-card, .action-card { border-color: #e1eae4 !important; }
+.stat-card:hover, .action-card:hover { box-shadow: 0 8px 25px rgba(20,92,57,.10) !important; }
+.stat-number, .links-header-icon, .budget-icon, .remittance-icon, .profile-icon { color: #145c39; }
+.btn-primary { background-color: #145c39 !important; border-color: #145c39 !important; }
+.btn-primary:hover, .btn-primary:focus { background-color: #0c3e27 !important; border-color: #0c3e27 !important; }
+.btn-outline-primary { color: #145c39 !important; border-color: #145c39 !important; }
+.btn-outline-primary:hover { color: white !important; background-color: #145c39 !important; }
+a:not(.btn):hover { color: #0c3e27; }
+.form-control:focus, .form-select:focus { border-color: #72ad89; box-shadow: 0 0 0 .18rem rgba(20,92,57,.12); }
+@@media (max-width: 575.98px) {
+    .dashboard-hero { padding: 16px !important; border-radius: 9px !important; }
+    .dashboard-hero h2 { font-size: 1.25rem !important; }
+}
+
+/* BCC public landing: green branded, image kept clear */
+.public-landing { background:#f6faf7; }
+.public-landing .hero-section {
+    min-height: min(760px, calc(100vh - 86px));
+    background: url('/images/church-hero.jpg') center center / cover no-repeat !important;
+    isolation:isolate;
+}
+.public-landing .hero-overlay {
+    background: linear-gradient(90deg, rgba(4,38,25,.93) 0%, rgba(8,59,37,.84) 41%, rgba(7,54,35,.60) 73%, rgba(7,42,28,.48) 100%) !important;
+    z-index:0;
+}
+.public-landing .hero-content { position:relative; z-index:1; }
+.public-landing .hero-content > .row { min-height:min(760px, calc(100vh - 86px)) !important; padding-top:54px; padding-bottom:54px; }
+.public-landing .hero-badge { border-radius:7px; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.23); color:#eaf8ef; font-size:.88rem; padding:9px 14px; letter-spacing:.02em; }
+.public-landing .hero-title { font-size:clamp(3rem,5.6vw,5.6rem); letter-spacing:-.045em; line-height:1.04; text-shadow:0 4px 24px rgba(0,0,0,.18); }
+.public-landing .hero-subtitle { max-width:680px; font-size:clamp(1.02rem,1.5vw,1.25rem); line-height:1.7; color:#f1f9f3; }
+.public-landing .hero-scripture { color:#f3d777; font-size:1.05rem; letter-spacing:.005em; }
+.public-landing .hero-btn { border-radius:7px; padding:12px 23px; font-weight:750; box-shadow:none; }
+.public-landing .hero-actions .btn-primary { background:#1b774b !important; border-color:#1b774b !important; }
+.public-landing .hero-actions .btn-primary:hover { background:#218a57 !important; border-color:#218a57 !important; }
+.public-landing .hero-actions .btn-outline-light { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.72); }
+.public-landing .hero-actions .btn-outline-light:hover { background:#fff; color:#145c39; }
+.public-landing .hero-card { background:rgba(7,40,27,.89) !important; border:1px solid rgba(208,238,217,.34) !important; border-radius:12px !important; padding:34px 32px; box-shadow:0 22px 50px rgba(0,0,0,.22); backdrop-filter:blur(5px); }
+.public-landing .hero-card-icon { width:62px; height:62px; border-radius:10px; background:#e6c65c; color:#123927; font-size:1.55rem; }
+.public-landing .hero-card h4 { font-size:1.45rem; line-height:1.25; color:#fff; }
+.public-landing .hero-card p { color:#d9eee1; line-height:1.65; }
+.public-landing .hero-card-list { gap:13px; }
+.public-landing .hero-card-list i { color:#e6c65c; }
+.public-landing .feature-card { border-top:3px solid #1b774b; }
+.public-landing .section-heading span, .public-landing .feature-icon { color:#145c39; }
+@@media (max-width:991.98px) {
+  .public-landing .hero-section, .public-landing .hero-content > .row { min-height:620px !important; }
+  .public-landing .hero-overlay { background:linear-gradient(90deg,rgba(4,38,25,.93),rgba(7,54,35,.72)) !important; }
+}
+@@media (max-width:575.98px) {
+  .public-landing .hero-content > .row { padding-top:45px; padding-bottom:45px; }
+  .public-landing .hero-title { font-size:clamp(2.5rem,12vw,3.6rem); }
+  .public-landing .hero-subtitle { font-size:1rem; }
+}
+/* BCC ServiceHub - Green Header */
+.bcc-public-header {
+    background: #145c39 !important;
+    border-bottom: 3px solid #0c4328;
+    padding: 12px 20px;
+}
+
+.bcc-public-logo {
+    background: #111111 !important;
+    border-radius: 10px;
+    padding: 10px 16px;
+}
+
+.bcc-public-title {
+    color: #ffffff !important;
+    font-weight: 800;
+}
+
+.bcc-public-subtitle {
+    color: #d8eee1 !important;
+}
+
+.bcc-public-login {
+    background: #ffffff !important;
+    color: #145c39 !important;
+    border: 1px solid #ffffff !important;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.bcc-public-login:hover {
+    background: #e1f2e8 !important;
+    color: #0c4328 !important;
+}
+
 </style>
-
-
-
-
-
-
-
-
-
-

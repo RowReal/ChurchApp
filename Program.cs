@@ -136,6 +136,12 @@ builder.Services.AddScoped<EventCheckInService>();
 builder.Services.AddScoped<ChurchApp.Services.Event.EventCheckInReportService>();
 builder.Services.AddScoped<ChurchApp.Services.Event.AwardService>();
 builder.Services.AddScoped<MonthlyRemittanceDraftService>();
+builder.Services.AddScoped<ExpenditureSetupService>();
+builder.Services.AddScoped<ExpenditureApprovalService>();
+builder.Services.AddScoped<ExpenditureDocumentReviewService>();
+builder.Services.AddScoped<ExpenditureEntryService>();
+builder.Services.AddScoped<ExpenditureDocumentService>();
+builder.Services.AddScoped<GuestRegistrationAvailabilityService>();
 
 
 

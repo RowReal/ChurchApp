@@ -6,6 +6,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject AppDbContext Db
 @inject AuthService AuthService
+@inject PrivilegeService PrivilegeService
 @inject NavigationManager Navigation
 
 <PageTitle>Account &amp; Remittance - BCC ServiceHub</PageTitle>
@@ -13,17 +14,19 @@
 @if (!AuthService.IsAuthenticated)
 {
     <div class="bcc-empty">
-        <i class="fas fa-lock"></i>
-        <h4>Please Log In</h4>
+        <i class="fas fa-lock"></i><h4>Please Log In</h4>
         <p>You need to be logged in to access Account &amp; Remittance.</p>
         <a href="/login" class="bcc-btn bcc-btn-primary">Go to Login</a>
     </div>
 }
+else if (isLoadingAccess)
+{
+    <div class="bcc-empty"><span class="spinner-border text-success"></span><p>Checking access...</p></div>
+}
 else if (!CanAccessWorkspace())
 {
     <div class="bcc-empty">
-        <i class="fas fa-ban"></i>
-        <h4>Access Denied</h4>
+        <i class="fas fa-ban"></i><h4>Access Denied</h4>
         <p>You do not currently have access to Account &amp; Remittance.</p>
         <button type="button" class="bcc-btn bcc-btn-primary" @onclick="GoBack">Return to Dashboard</button>
     </div>
@@ -51,13 +54,11 @@ else
                 }
                 <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
             </a>
-
             <a href="/finance/bank-journal" class="compact-workspace-tile">
                 <div class="compact-tile-icon"><i class="fas fa-book"></i></div>
                 <div class="compact-tile-title">Bank Journal Entries</div>
                 <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
             </a>
-
             <a href="/finance/post-approved-collections" class="compact-workspace-tile">
                 <div class="compact-tile-icon"><i class="fas fa-file-invoice-dollar"></i></div>
                 <div class="compact-tile-title">Move Collection To Bank</div>
@@ -67,7 +68,6 @@ else
                 }
                 <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
             </a>
-
             <a href="/finance/bank-journal-approvals" class="compact-workspace-tile">
                 <div class="compact-tile-icon"><i class="fas fa-clipboard-check"></i></div>
                 <div class="compact-tile-title">Approve Bank Journal</div>
@@ -77,7 +77,6 @@ else
                 }
                 <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
             </a>
-
             @if (IsAdmin)
             {
                 <a href="/finance/returned-bank-entries" class="compact-workspace-tile">
@@ -89,9 +88,6 @@ else
                     }
                     <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
                 </a>
-            }
-            @if (IsAdmin)
-            {
                 <a href="/finance/bank-journal-corrections" class="compact-workspace-tile">
                     <div class="compact-tile-icon"><i class="fas fa-exchange-alt"></i></div>
                     <div class="compact-tile-title">Reverse / Adjust Bank Entries</div>
@@ -110,152 +106,147 @@ else
                     <div class="compact-tile-title">Monthly Remittance Processing</div>
                     <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
                 </a>
+                <a href="/finance/expenditure-setup" class="compact-workspace-tile">
+                    <div class="compact-tile-icon"><i class="fas fa-sliders-h"></i></div>
+                    <div class="compact-tile-title">Expenditure Setup</div>
+                    <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+                <a href="/finance/expenditure-entry" class="compact-workspace-tile">
+                    <div class="compact-tile-icon"><i class="fas fa-file-invoice"></i></div>
+                    <div class="compact-tile-title">Record Expenditure</div>
+                    <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
             }
-            @* Add additional Account & Remittance menu cards here as modules are completed. *@
+            @if (IsAuditor || IsPastor)
+            {
+                <a href="/finance/expenditure-approvals" class="compact-workspace-tile">
+                    <div class="compact-tile-icon"><i class="fas fa-user-check"></i></div>
+                    <div class="compact-tile-title">Approve Expenditure</div>
+                    <div class="compact-tile-arrow"><i class="fas fa-chevron-right"></i></div>
+                </a>
+            }
         </div>
     </div>
 }
 
 @code {
-    #region Page State and Computed Properties
-
-    private int returnedCount;
-    private int unlockedCount;
-    private int unpostedCount;
-    private int pendingCount;
-
+    private int returnedCount, unlockedCount, unpostedCount, pendingCount;
+    private bool IsAuditor;
+    private bool isLoadingAccess = true;
     private bool IsAdmin => AuthService.IsInRole(AuthService.Roles.ChurchAdmin);
-
     private bool IsPastor => AuthService.IsInRole(AuthService.Roles.PastorInCharge);
-
-    #endregion
-
-    #region Can Access Workspace
-
-    private bool CanAccessWorkspace()
-    {
-        return IsAdmin || IsPastor;
-    }
-
-    #endregion
-
-    #region On Initialized
+    private bool CanAccessWorkspace() => IsAdmin || IsPastor || IsAuditor;
 
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthService.IsAuthenticated || !CanAccessWorkspace())
+        try
         {
-            return;
-        }
-
-        if (IsAdmin)
-        {
-            var workerId = AuthService.CurrentWorker?.WorkerId;
-
-            if (!string.IsNullOrWhiteSpace(workerId))
+            if (!AuthService.IsAuthenticated) return;
+            var currentWorkerId = AuthService.CurrentWorker?.WorkerId;
+            if (!string.IsNullOrWhiteSpace(currentWorkerId))
             {
-                returnedCount = await Db.BankAccountJournals
-                    .AsNoTracking()
-                    .CountAsync(entry =>
-                        (entry.Status == BankJournalStatus.Returned ||
-                         entry.Status == BankJournalStatus.Rejected) &&
-                        entry.InitiatedByWorkerId == workerId);
+                var workerDbId = await Db.Workers.AsNoTracking()
+                    .Where(w => w.WorkerId == currentWorkerId)
+                    .Select(w => (int?)w.Id)
+                    .FirstOrDefaultAsync();
+                if (workerDbId.HasValue)
+                    IsAuditor = await PrivilegeService.HasPrivilegeAsync(
+                        workerDbId.Value, PrivilegeService.ApproveChurchExpenditure);
             }
-
-            unlockedCount = await Db.BankAccounts
-                .AsNoTracking()
-                .CountAsync(account =>
-                    account.IsActive &&
-                    !account.IsOpeningBalanceLocked);
-
-            unpostedCount = await Db.ChurchCollectionRecords
-                .AsNoTracking()
-                .CountAsync(collection =>
-                    collection.Status == ChurchCollectionService.StatusApproved &&
-                    !collection.IsRemoved &&
-                    !Db.BankAccountJournals.Any(entry =>
-                        entry.SourceCollectionId == collection.Id));
+            if (!CanAccessWorkspace()) return;
+            if (IsAdmin)
+            {
+                if (!string.IsNullOrWhiteSpace(currentWorkerId))
+                {
+                    returnedCount = await Db.BankAccountJournals.AsNoTracking()
+                        .CountAsync(entry =>
+                            (entry.Status == BankJournalStatus.Returned ||
+                             entry.Status == BankJournalStatus.Rejected) &&
+                            entry.InitiatedByWorkerId == currentWorkerId);
+                }
+                unlockedCount = await Db.BankAccounts.AsNoTracking()
+                    .CountAsync(account => account.IsActive && !account.IsOpeningBalanceLocked);
+                unpostedCount = await Db.ChurchCollectionRecords.AsNoTracking()
+                    .CountAsync(collection =>
+                        collection.Status == ChurchCollectionService.StatusApproved &&
+                        !collection.IsRemoved &&
+                        !Db.BankAccountJournals.Any(entry => entry.SourceCollectionId == collection.Id));
+            }
+            if (IsPastor)
+                pendingCount = await Db.BankAccountJournals.AsNoTracking()
+                    .CountAsync(entry => entry.Status == BankJournalStatus.PendingApproval);
         }
-
-        if (IsPastor)
-        {
-            pendingCount = await Db.BankAccountJournals
-                .AsNoTracking()
-                .CountAsync(entry =>
-                    entry.Status == BankJournalStatus.PendingApproval);
-        }
+        finally { isLoadingAccess = false; }
     }
-
-    #endregion
-
-    #region Go Back
-
-    private void GoBack()
-    {
-        Navigation.NavigateTo("/");
-    }
-    #endregion
+    private void GoBack() => Navigation.NavigateTo("/");
 }
 <style>
-    /* Page styling: readable declarations and responsive rules. */
     .compact-workspace-page {
         max-width: 1400px;
         margin: 0 auto;
         padding-top: 6px;
+        --bcc-green: #145c39;
     }
 
-    .service-records-page-header {
-        margin-bottom: 14px;
-    }
+        .compact-workspace-page .bcc-page-header {
+            background: linear-gradient(115deg,#145c39,#23774c) !important;
+            color: #fff !important;
+            border: 1px solid #145c39 !important;
+            border-radius: 7px !important;
+            padding: 17px 20px !important;
+            margin-bottom: 15px !important;
+            box-shadow: 0 5px 15px rgba(20,92,57,.13) !important;
+        }
 
-    .compact-btn {
-        min-height: 32px;
-        padding: 6px 11px;
-        font-size: 0.78rem;
-    }
+            .compact-workspace-page .bcc-page-header .bcc-page-title {
+                color: #fff !important;
+                font-size: 1.5rem;
+                font-weight: 800;
+            }
+
+            .compact-workspace-page .bcc-page-header .bcc-page-subtitle {
+                color: #fff !important;
+                font-size: .78rem;
+                opacity: .92;
+            }
+
+            .compact-workspace-page .bcc-page-header .bcc-btn {
+                background: #fff !important;
+                color: #145c39 !important;
+                border-radius: 5px;
+                padding: 7px 12px;
+            }
 
     .workspace-tile-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(4,minmax(0,1fr));
         gap: 9px;
     }
 
     .compact-workspace-tile {
         display: grid;
-        grid-template-columns: 36px minmax(0, 1fr) auto 16px;
+        grid-template-columns: 36px minmax(0,1fr) auto 16px;
         align-items: center;
         gap: 9px;
         min-height: 58px;
         padding: 9px 11px;
-        color: inherit;
+        color: #174a30;
         text-decoration: none;
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 11px;
-        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
-        transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+        background: #fff;
+        border: 1px solid #d8e8dc;
+        border-radius: 7px;
+        box-shadow: 0 2px 8px rgba(22,70,42,.045);
+        transition: transform .16s,border-color .16s,box-shadow .16s;
     }
 
         .compact-workspace-tile:hover {
-            color: inherit;
+            color: #174a30;
             text-decoration: none;
-            border-color: #c7d2fe;
-            box-shadow: 0 7px 18px rgba(15, 23, 42, 0.08);
+            background: #f4faf6;
+            border-color: #6cb28a;
+            box-shadow: 0 5px 13px rgba(20,92,57,.09);
             transform: translateY(-1px);
         }
-
-        .compact-workspace-tile.disabled {
-            cursor: not-allowed;
-            opacity: 0.48;
-            background: #f8fafc;
-            box-shadow: none;
-        }
-
-            .compact-workspace-tile.disabled:hover {
-                border-color: #e5e7eb;
-                box-shadow: none;
-                transform: none;
-            }
 
     .compact-tile-icon {
         display: flex;
@@ -263,22 +254,15 @@ else
         justify-content: center;
         width: 36px;
         height: 36px;
-        color: #4338ca;
-        background: #eef2ff;
-        border-radius: 9px;
-        font-size: 0.9rem;
-    }
-
-    .compact-workspace-tile.disabled
-    .compact-tile-icon {
-        color: #64748b;
-        background: #e2e8f0;
+        background: #eaf6ee;
+        color: #17633d;
+        border-radius: 6px;
+        font-size: .9rem;
     }
 
     .compact-tile-title {
         min-width: 0;
-        color: #0f172a;
-        font-size: 0.78rem;
+        font-size: .78rem;
         font-weight: 800;
         line-height: 1.2;
     }
@@ -290,33 +274,37 @@ else
         min-width: 22px;
         height: 22px;
         padding: 0 6px;
-        color: #ffffff;
+        color: #fff;
         background: #dc2626;
         border-radius: 999px;
-        font-size: 0.67rem;
+        font-size: .67rem;
         font-weight: 800;
     }
 
     .compact-tile-arrow {
-        color: #94a3b8;
-        font-size: 0.68rem;
+        color: #31845a;
+        font-size: .68rem;
     }
 
-    @@media (max-width: 1100px) {
+    @@media (max-width:1100px) {
         .workspace-tile-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(3,minmax(0,1fr));
         }
     }
 
-    @@media (max-width: 800px) {
+    @@media (max-width:800px) {
         .workspace-tile-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(2,minmax(0,1fr));
         }
     }
 
-    @@media (max-width: 520px) {
+    @@media (max-width:520px) {
         .workspace-tile-grid {
             grid-template-columns: 1fr;
+        }
+
+        .compact-workspace-page .bcc-page-header {
+            padding: 14px 15px !important;
         }
     }
 </style>

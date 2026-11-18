@@ -1,4 +1,4 @@
-﻿@page "/finance/income-types"
+@page "/finance/income-types"
 @rendermode InteractiveServer
 
 @using ChurchApp.Models.Finance
@@ -29,7 +29,7 @@ else if (!AuthService.CanAccessAdminPanel())
 }
 else
 {
-    <div class="worker360-page finance-page">
+    <div class="worker360-page finance-page bcc-finance-polish">
         <div class="bcc-page-header">
             <div>
                 <div class="bcc-page-subtitle"><i class="fas fa-layer-group me-2"></i>Finance Configuration</div>
@@ -1192,5 +1192,90 @@ else
     .action-disable {
         background: #dc2626 !important;
     }
+
+/* BCC ServiceHub finance visual alignment — presentation only */
+.bcc-finance-polish {
+    --bcc-finance-green: #145c39;
+    --bcc-finance-bright: #237a50;
+    --bcc-finance-pale: #edf7f0;
+    --bcc-finance-border: #d9e9df;
+    color: #20372c;
+    font-size: .91rem;
+}
+.bcc-finance-polish .bcc-page-header,
+.bcc-finance-polish .journal-hero,
+.bcc-finance-polish .ba-hero,
+.bcc-finance-polish .cab-hero,
+.bcc-finance-polish .ob-hero,
+.bcc-finance-polish .pc-hero,
+.bcc-finance-polish .returned-hero {
+    background: #145c39 !important;
+    background-image: none !important;
+    color: #fff !important;
+    border: 1px solid #0d4a2e !important;
+    border-radius: 5px !important;
+    box-shadow: 0 5px 16px rgba(13,74,46,.12);
+    padding: 16px 20px !important;
+}
+.bcc-finance-polish .bcc-page-header .bcc-page-title,
+.bcc-finance-polish .bcc-page-header .bcc-page-subtitle,
+.bcc-finance-polish .bcc-page-header h1,
+.bcc-finance-polish .bcc-page-header h2,
+.bcc-finance-polish .bcc-page-header h3,
+.bcc-finance-polish .journal-hero h1,
+.bcc-finance-polish .ba-hero h1,
+.bcc-finance-polish .cab-hero h1,
+.bcc-finance-polish .ob-hero h1,
+.bcc-finance-polish .pc-hero h1,
+.bcc-finance-polish .returned-hero h1 { color: #fff !important; }
+.bcc-finance-polish .bcc-page-header .bcc-page-subtitle { opacity: .91; }
+.bcc-finance-polish .card,
+.bcc-finance-polish .journal-panel,
+.bcc-finance-polish .correction-panel,
+.bcc-finance-polish .ob-card,
+.bcc-finance-polish .remit-panel {
+    border-color: var(--bcc-finance-border) !important;
+    border-radius: 7px !important;
+    box-shadow: 0 3px 12px rgba(19,75,45,.055);
+}
+.bcc-finance-polish .card-header,
+.bcc-finance-polish .journal-panel-header,
+.bcc-finance-polish .table thead th {
+    background-color: var(--bcc-finance-pale) !important;
+    color: #155c39 !important;
+    border-color: var(--bcc-finance-border) !important;
+    font-weight: 700;
+}
+.bcc-finance-polish .card-body { padding: 14px 16px; }
+.bcc-finance-polish .form-label,
+.bcc-finance-polish label:not(.form-check-label) { font-size: .81rem; font-weight: 600; color: #305443; margin-bottom: 4px; }
+.bcc-finance-polish .form-control,
+.bcc-finance-polish .form-select { border-color: #cbded2; border-radius: 5px; font-size: .87rem; }
+.bcc-finance-polish .form-control:focus,
+.bcc-finance-polish .form-select:focus { border-color: #31845a; box-shadow: 0 0 0 .15rem rgba(49,132,90,.15); }
+.bcc-finance-polish .btn-success,
+.bcc-finance-polish .bcc-btn-primary { background: #176640 !important; border-color: #176640 !important; color: #fff !important; }
+.bcc-finance-polish .btn-success:hover,
+.bcc-finance-polish .bcc-btn-primary:hover { background: #0f4e30 !important; border-color: #0f4e30 !important; }
+.bcc-finance-polish .btn-outline-success { color: #176640; border-color: #31845a; }
+.bcc-finance-polish .btn-outline-success:hover { background: #176640; color: white; }
+.bcc-finance-polish .table { font-size: .83rem; }
+.bcc-finance-polish .table > :not(caption) > * > * { padding: .48rem .6rem; }
+.bcc-finance-polish .table tbody tr:hover { background: #f6fbf7; }
+.bcc-finance-polish .badge.bg-success { background: #237a50 !important; }
+@@media (max-width: 767px) {
+    .bcc-finance-polish .bcc-page-header,
+    .bcc-finance-polish .journal-hero,
+    .bcc-finance-polish .ba-hero,
+    .bcc-finance-polish .cab-hero,
+    .bcc-finance-polish .ob-hero,
+    .bcc-finance-polish .pc-hero,
+    .bcc-finance-polish .returned-hero { padding: 13px 14px !important; }
+    .bcc-finance-polish .card-body { padding: 12px; }
+}
+
+.bcc-finance-polish .bcc-finance-hero { background: #145c39 !important; border-radius: 5px !important; padding: 16px 20px !important; margin-bottom: 14px !important; box-shadow: 0 5px 16px rgba(13,74,46,.12); }
+.bcc-finance-polish .bcc-finance-hero h1, .bcc-finance-polish .bcc-finance-hero h2, .bcc-finance-polish .bcc-finance-hero h3 { color: #fff !important; }
+
 </style>
 

@@ -1,4 +1,4 @@
-﻿@page "/workspace/my-team"
+@page "/workspace/my-team"
 @layout Components.Layout.MainLayout
 
 @using ChurchApp.Services
@@ -146,4 +146,114 @@ else
             color: #64748b;
             font-size: 0.86rem;
         }
+
+    /* BCC ServiceHub | unified compact green workspace design */
+    .worker360-page {
+        --bcc-workspace-green: #145c39;
+        --bcc-workspace-green-light: #31845a;
+        --bcc-workspace-mint: #eaf6ee;
+        --bcc-workspace-border: #d8e8dc;
+        color: #18372a;
+    }
+    .worker360-page .bcc-page-header {
+        background: #145c39 !important;
+        background-image: linear-gradient(115deg, #145c39 0%, #23774c 100%) !important;
+        color: #fff !important;
+        border: 1px solid #145c39 !important;
+        border-radius: 7px !important;
+        padding: 17px 20px !important;
+        margin-bottom: 15px !important;
+        box-shadow: 0 5px 15px rgba(20, 92, 57, .13) !important;
+    }
+    .worker360-page .bcc-page-header .bcc-page-title,
+    .worker360-page .bcc-page-header .bcc-page-subtitle,
+    .worker360-page .bcc-page-header h1,
+    .worker360-page .bcc-page-header h2,
+    .worker360-page .bcc-page-header h3,
+    .worker360-page .bcc-page-header p,
+    .worker360-page .bcc-page-header i { color: #fff !important; }
+    .worker360-page .bcc-page-header .bcc-page-title {
+        font-size: clamp(1.24rem, 1.9vw, 1.65rem) !important;
+        font-weight: 800 !important;
+        line-height: 1.22 !important;
+        letter-spacing: -.025em;
+        margin: 3px 0 !important;
+    }
+    .worker360-page .bcc-page-header .bcc-page-subtitle {
+        font-size: .78rem !important;
+        line-height: 1.45 !important;
+        opacity: .92;
+    }
+    .worker360-page .bcc-page-header .bcc-btn,
+    .worker360-page .bcc-page-header .btn,
+    .worker360-page .bcc-page-header a:not(.bcc-page-title) {
+        background: #fff !important;
+        border: 1px solid rgba(255,255,255,.9) !important;
+        color: #145c39 !important;
+        border-radius: 5px !important;
+        font-size: .77rem !important;
+        font-weight: 750 !important;
+        padding: 7px 12px !important;
+        box-shadow: none !important;
+    }
+    .worker360-page .bcc-page-header .bcc-btn i,
+    .worker360-page .bcc-page-header .btn i,
+    .worker360-page .bcc-page-header a i { color: #145c39 !important; }
+    .worker360-page .bcc-page-header .bcc-btn:hover,
+    .worker360-page .bcc-page-header .btn:hover,
+    .worker360-page .bcc-page-header a:hover { background: #eaf6ee !important; }
+    .worker360-page .compact-workspace-tile,
+    .worker360-page .my-desk-action-card,
+    .worker360-page .workspace-tile,
+    .worker360-page .bcc-card {
+        border-color: #d8e8dc !important;
+        border-radius: 7px !important;
+        box-shadow: 0 2px 8px rgba(22, 70, 42, .045) !important;
+    }
+    .worker360-page a.compact-workspace-tile:hover,
+    .worker360-page a.my-desk-action-card:hover,
+    .worker360-page a.workspace-tile:hover {
+        background: #f4faf6 !important;
+        border-color: #6cb28a !important;
+        box-shadow: 0 5px 13px rgba(20,92,57,.09) !important;
+        transform: translateY(-1px);
+    }
+    .worker360-page .compact-tile-icon,
+    .worker360-page .my-desk-action-icon,
+    .worker360-page .workspace-tile-icon {
+        background: #eaf6ee !important;
+        color: #17633d !important;
+        border-radius: 6px !important;
+    }
+    .worker360-page .compact-tile-icon i,
+    .worker360-page .my-desk-action-icon i,
+    .worker360-page .workspace-tile-icon i { color: #17633d !important; }
+    .worker360-page .compact-tile-title,
+    .worker360-page .my-desk-action-content h5,
+    .worker360-page .workspace-section-heading h5,
+    .worker360-page .workspace-heading h6,
+    .worker360-page .my-desk-section-heading h6 { color: #174a30 !important; }
+    .worker360-page .compact-tile-arrow,
+    .worker360-page .my-desk-action-arrow { color: #31845a !important; }
+    .worker360-page .my-desk-actions-card,
+    .worker360-page .setup-workspace-card { border-top: 3px solid #31845a !important; }
+    .worker360-page .my-desk-summary-strip .attention {
+        background: #eaf6ee !important;
+        border-color: #b9ddc6 !important;
+    }
+    .worker360-page .my-desk-summary-strip .attention strong { color: #145c39 !important; }
+    .worker360-page .bcc-btn-primary,
+    .worker360-page .btn-primary { background: #145c39 !important; border-color: #145c39 !important; color: #fff !important; }
+    .worker360-page .bcc-btn-primary:hover,
+    .worker360-page .btn-primary:hover { background: #23774c !important; border-color: #23774c !important; }
+    .worker360-page .form-control:focus,
+    .worker360-page .form-select:focus { border-color: #31845a !important; box-shadow: 0 0 0 .15rem rgba(49,132,90,.14) !important; }
+    .worker360-page .table thead th { background: #eaf6ee !important; color: #174a30 !important; border-color: #d8e8dc !important; }
+    .worker360-page .table td { vertical-align: middle; }
+    .worker360-page .card { border-radius: 7px; }
+    .worker360-page .card-header { background: #f0f8f3; color: #174a30; }
+    @@media (max-width: 700px) {
+        .worker360-page .bcc-page-header { padding: 14px 15px !important; gap: 10px; }
+        .worker360-page .bcc-page-header .bcc-page-title { font-size: 1.24rem !important; }
+    }
 </style>

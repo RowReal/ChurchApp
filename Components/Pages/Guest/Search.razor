@@ -1,4 +1,4 @@
-﻿@page "/guest/search"
+@page "/guest/search"
 @layout Components.Layout.MainLayout
 
 @using ChurchApp.Models
@@ -1313,5 +1313,41 @@ else
             max-width: 96vw;
             padding: 16px;
         }
+    }
+
+    /* BCC ServiceHub | Guest workspace green visual refresh */
+    .guest-search-page { --guest-brand: #145c39; --guest-brand-dark: #0c4328; --guest-brand-soft: #eaf5ed; --guest-border: #dbe8df; color: #243b2e; }
+    .guest-search-page .bcc-page-header {
+        background: #145c39 !important; background-image: none !important;
+        color: #fff !important; border: 1px solid #0c4328 !important;
+        border-radius: 5px !important; padding: 17px 21px !important;
+        margin-bottom: 14px !important; box-shadow: 0 3px 12px rgba(12,67,40,.12) !important;
+    }
+    .guest-search-page .bcc-page-header .bcc-page-title,
+    .guest-search-page .bcc-page-header h1, .guest-search-page .bcc-page-header h2,
+    .guest-search-page .bcc-page-header h3, .guest-search-page .bcc-page-header .bcc-page-subtitle,
+    .guest-search-page .bcc-page-header p, .guest-search-page .bcc-page-header .guest-page-kicker { color: #fff !important; }
+    .guest-search-page .bcc-page-header .bcc-page-subtitle, .guest-search-page .bcc-page-header p { opacity: .88; }
+    .guest-search-page .bcc-card, .guest-search-page .card { border: 1px solid var(--guest-border) !important; border-radius: 7px !important; box-shadow: 0 2px 9px rgba(22,69,43,.045); }
+    .guest-search-page .bcc-card-header, .guest-search-page .card-header { border-bottom-color: var(--guest-border) !important; }
+    .guest-search-page .table thead th, .guest-search-page .bcc-table thead th { background: #eaf5ed !important; color: #174b30 !important; border-bottom: 1px solid #c8dfce !important; font-weight: 700; }
+    .guest-search-page .table td, .guest-search-page .table th { vertical-align: middle; }
+    .guest-search-page .form-control, .guest-search-page .form-select, .guest-search-page input:not([type=checkbox]):not([type=radio]), .guest-search-page select, .guest-search-page textarea { border-radius: 5px; }
+    .guest-search-page .form-control:focus, .guest-search-page .form-select:focus, .guest-search-page input:focus, .guest-search-page select:focus, .guest-search-page textarea:focus { border-color: #31845a !important; box-shadow: 0 0 0 .15rem rgba(49,132,90,.13) !important; }
+    .guest-search-page .btn-primary, .guest-search-page .btn-success, .guest-search-page .bcc-btn-primary { background: #145c39 !important; border-color: #145c39 !important; color: #fff !important; border-radius: 5px !important; }
+    .guest-search-page .btn-primary:hover, .guest-search-page .btn-success:hover, .guest-search-page .bcc-btn-primary:hover { background: #0c4328 !important; border-color: #0c4328 !important; }
+    .guest-search-page .btn-outline-primary, .guest-search-page .btn-outline-success { border-color: #31845a !important; color: #145c39 !important; }
+    .guest-search-page .btn-outline-primary:hover, .guest-search-page .btn-outline-success:hover { background: #145c39 !important; color: #fff !important; }
+    .guest-search-page .text-primary { color: #145c39 !important; }
+    .guest-search-page .bg-primary { background-color: #145c39 !important; }
+    .guest-search-page .badge.bg-primary { background-color: #145c39 !important; }
+    .guest-search-page .guest-summary-item, .guest-search-page .followup-summary-strip > div, .guest-search-page .guest-summary-strip > div { border-color: var(--guest-border) !important; border-radius: 7px !important; }
+    .guest-search-page .guest-summary-item strong, .guest-search-page .guest-summary-strip strong, .guest-search-page .followup-summary-strip strong { color: #145c39; }
+    .guest-search-page .guest-popup-header, .guest-search-page .followup-popup-header, .guest-search-page .second-timer-popup-header { background: #145c39 !important; background-image: none !important; color: #fff !important; }
+    .guest-search-page .guest-popup-header *, .guest-search-page .followup-popup-header *, .guest-search-page .second-timer-popup-header * { color: #fff; }
+    .guest-search-page .guest360-profile-hero, .guest-search-page .profile-form-v2-hero { border-color: #c8dfce !important; }
+    @@media (max-width: 767px) {
+        .guest-search-page .bcc-page-header { padding: 14px 15px !important; }
+        .guest-search-page .bcc-card-body, .guest-search-page .card-body { padding: 12px !important; }
     }
 </style>

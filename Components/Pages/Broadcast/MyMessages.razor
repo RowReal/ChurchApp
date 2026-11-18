@@ -1,4 +1,4 @@
-﻿@page "/broadcast/my-messages"
+@page "/broadcast/my-messages"
 @rendermode InteractiveServer
 
 @using ChurchApp.Services
@@ -222,8 +222,8 @@
         justify-content: space-between;
         gap: 20px;
         color: #fff;
-        background: radial-gradient(circle at 85% 25%, rgba(255,255,255,.15), transparent 28%), linear-gradient( 135deg, #4c1d95 0%, #6d28d9 55%, #7c3aed 100% );
-        box-shadow: 0 8px 22px rgba(76,29,149,.13);
+        background: radial-gradient(circle at 85% 25%, rgba(255,255,255,.15), transparent 28%), linear-gradient( 135deg, #075b3b 0%, #08784e 55%, #169365 100% );
+        box-shadow: 0 8px 22px rgba(7,91,59,.13);
     }
 
     .messages-hero-kicker {
@@ -285,7 +285,7 @@
     .inbox-panel,
     .reader-panel {
         background: #fff;
-        border: 1px solid #e8e4ef;
+        border: 1px solid #dcebe1;
         border-radius: 14px;
         overflow: hidden;
         box-shadow: 0 3px 12px rgba(31,41,55,.04);
@@ -302,19 +302,19 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid #eeeaf3;
+        border-bottom: 1px solid #dcebe1;
     }
 
         .panel-heading h2 {
             margin: 0;
             font-size: .98rem;
             font-weight: 750;
-            color: #2f2938;
+            color: #244638;
         }
 
         .panel-heading span {
             font-size: .7rem;
-            color: #8a8492;
+            color: #728579;
         }
 
         .panel-heading .unread-pill {
@@ -340,26 +340,26 @@
         text-align: left;
         background: #fff;
         border: 0;
-        border-bottom: 1px solid #f0edf4;
+        border-bottom: 1px solid #e8f4ec;
         transition: background .15s ease;
     }
 
         .message-item:hover {
-            background: #faf8fd;
+            background: #f5faf7;
         }
 
         .message-item.selected {
-            background: #f5f0ff;
-            box-shadow: inset 3px 0 0 #6d28d9;
+            background: #e8f4ec;
+            box-shadow: inset 3px 0 0 #08784e;
         }
 
         .message-item.unread {
-            background: #fbf9ff;
+            background: #f5faf7;
         }
 
             .message-item.unread .message-subject {
                 font-weight: 750;
-                color: #27202f;
+                color: #244638;
             }
 
     .message-indicator {
@@ -389,7 +389,7 @@
     }
 
     .message-source {
-        color: #6d28d9;
+        color: #08784e;
         font-size: .69rem;
         font-weight: 800;
         letter-spacing: .02em;
@@ -638,6 +638,10 @@
         }
     }
 
+
+    /* BCC green visual refinements */
+    .broadcast-hero, .messages-hero { border-radius: 12px; box-shadow: 0 6px 18px rgba(7,91,59,.13); }
+    .broadcast-page .form-control:focus, .broadcast-page .form-select:focus, .messages-page .form-control:focus { border-color: #42a77a; box-shadow: 0 0 0 .2rem rgba(12,124,79,.12); }
 </style>
 
 

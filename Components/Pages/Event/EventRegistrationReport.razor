@@ -257,6 +257,45 @@ else
             font-size: .66rem;
         }
     }
+
+
+/* BCC 2026 | unified event and awards design | presentation only */
+.event-report-compact { --bcc-event-green: #145c39; --bcc-event-bright: #278354; --bcc-event-soft: #edf7f0; --bcc-event-border: #d8e7dd; color: #213b2d; }
+.event-report-compact .event-report-header {
+    background: linear-gradient(105deg,#124f32 0%,#187245 72%,#268756 100%) !important;
+    color: #fff !important;
+    border: 1px solid #217b4e !important;
+    border-radius: 7px !important;
+    padding: 17px 21px !important;
+    margin-bottom: 14px !important;
+    box-shadow: 0 4px 14px rgba(14,76,45,.12) !important;
+}
+.event-report-compact .bcc-page-title, .event-report-compact .bcc-page-header h1, .event-report-compact .bcc-page-header h2,
+.event-report-compact .award-nom-hero h1, .event-report-compact .award-results-hero h1, .event-report-compact .assisted-hero h2,
+.event-report-compact .checkin-report-hero h2 { font-size: clamp(1.24rem,2vw,1.7rem) !important; font-weight: 750 !important; letter-spacing: -.025em; line-height: 1.2; }
+.event-report-compact .bcc-page-header .bcc-page-subtitle, .event-report-compact .award-nom-hero p,
+.event-report-compact .award-results-hero p, .event-report-compact .assisted-hero p,
+.event-report-compact .checkin-report-hero .checkin-report-subtitle { color: #e5f5ea !important; }
+.event-report-compact .bcc-card, .event-report-compact .award-panel, .event-report-compact .award-results-toolbar,
+.event-report-compact .award-nom-panel, .event-report-compact .event-setup-section {
+    border: 1px solid var(--bcc-event-border) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 9px rgba(20,92,57,.055);
+}
+.event-report-compact .bcc-card-body, .event-report-compact .card-body { padding: 14px 16px; }
+.event-report-compact .form-control, .event-report-compact .form-select, .event-report-compact .form-check-input,
+.event-report-compact input:not([type=checkbox]):not([type=radio]), .event-report-compact select, .event-report-compact textarea { border-radius: 5px; }
+.event-report-compact .form-control:focus, .event-report-compact .form-select:focus, .event-report-compact input:focus, .event-report-compact select:focus, .event-report-compact textarea:focus { border-color: #43a572; box-shadow: 0 0 0 .15rem rgba(39,131,84,.14); }
+.event-report-compact .btn, .event-report-compact .bcc-btn { border-radius: 5px !important; font-weight: 600; }
+.event-report-compact .btn-primary, .event-report-compact .btn-success, .event-report-compact .bcc-btn-primary { background: #187347 !important; border-color: #187347 !important; color: #fff !important; }
+.event-report-compact .btn-primary:hover, .event-report-compact .btn-success:hover, .event-report-compact .bcc-btn-primary:hover { background: #105c37 !important; border-color: #105c37 !important; }
+.event-report-compact .table thead th, .event-report-compact table thead th { background: #e8f4ec; color: #185536; border-bottom-color: #c8e0d0; font-size: .81rem; font-weight: 750; }
+.event-report-compact .table td, .event-report-compact .table th { padding-top: .48rem; padding-bottom: .48rem; vertical-align: middle; }
+.event-report-compact .badge.bg-primary, .event-report-compact .badge.bg-success { background: #218451 !important; }
+@@media (max-width: 767px) {
+    .event-report-compact .event-report-header { padding: 14px 15px !important; gap: 10px !important; }
+    .event-report-compact .bcc-card-body, .event-report-compact .card-body { padding: 12px !important; }
+}
 </style>
 
 

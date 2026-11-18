@@ -1,0 +1,283 @@
+@page "/finance/expenditure-entry"
+@using ChurchApp.Models.Finance
+@using ChurchApp.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject AuthService Auth
+@inject ExpenditureEntryService EntryService
+@inject ExpenditureDocumentService Documents
+
+<PageTitle>Expenditure Entry | BCC ServiceHub</PageTitle>
+<div class="container-fluid py-3 expenditure-page bcc-finance-polish" style="max-width:1600px">
+    <div class="rounded-3 text-white px-3 py-3 mb-3" style="background:#145c39">
+        <h4 class="mb-1">Expenditure Entry</h4>
+        <div class="small">Record church payments and submit for approval. Supporting documents are optional.</div>
+    </div>
+    @if (!Auth.IsAuthenticated || !Auth.IsInRole(AuthService.Roles.ChurchAdmin))
+    {
+        <div class="alert alert-warning">Church Admin access is required.</div>
+    }
+    else
+    {
+        <div class="row g-3 align-items-start">
+          <div class="col-12 col-xl-5">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body p-3">
+                <h6 class="fw-bold mb-3">New expenditure</h6>
+                <div class="row g-2">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Payment date</label>
+                        <InputDate class="form-control form-control-sm" @bind-Value="model.PaymentDate" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Expenditure category</label>
+                        <InputSelect class="form-select form-select-sm" @bind-Value="model.ExpenditureCategoryId">
+                            <option value="0">Select category</option>
+                            @foreach (var category in categories) { <option value="@category.Id">@category.Name</option> }
+                        </InputSelect>
+                    </div>
+                    @if (NeedsPurpose)
+                    {
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Specify expenditure purpose *</label>
+                            <InputText class="form-control form-control-sm" @bind-Value="model.PurposeDescription" />
+                        </div>
+                    }
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Bank account to debit</label>
+                        <InputSelect class="form-select form-select-sm" @bind-Value="model.BankAccountId" title="Select an expenditure-enabled bank account">
+                            <option value="0">Select bank account</option>
+                            @foreach (var account in accounts) { <option value="@account.Id">@account.ShortName — @account.BankName (@account.Currency)</option> }
+                        </InputSelect>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Payee / beneficiary</label>
+                        <InputText class="form-control form-control-sm" @bind-Value="model.Payee" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Amount</label>
+                        <InputNumber class="form-control form-control-sm" @bind-Value="model.Amount" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Bank reference <span class="text-muted fw-normal">(optional)</span></label>
+                        <InputText class="form-control form-control-sm" @bind-Value="model.BankReference" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Supporting documents <span class="text-muted fw-normal">(optional)</span></label>
+                        <InputFile OnChange="SelectFiles" multiple class="form-control form-control-sm" />
+                        @if (selectedFiles.Count > 0) { <div class="small text-muted mt-1">@selectedFiles.Count file(s) selected</div> }
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Description</label>
+                        <InputTextArea class="form-control form-control-sm" rows="2" @bind-Value="model.Description" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">Remarks <span class="text-muted fw-normal">(optional)</span></label>
+                        <InputTextArea class="form-control form-control-sm" rows="2" @bind-Value="model.Remarks" />
+                    </div>
+                </div>
+                <div class="small text-muted mt-2">Only active expenditure-enabled accounts are listed. Foreign-currency posting awaits an FX approval policy. Attachments: PDF, PNG or JPG; maximum 10 MB each (up to 5 files).</div>
+                <div class="d-flex justify-content-end mt-3">
+                    <button class="btn btn-sm text-white px-3" style="background:#145c39" disabled="@saving" @onclick="SubmitAsync">@(saving ? "Submitting..." : "Submit for Auditor Review")</button>
+                </div>
+            </div>
+        </div>
+          </div>
+          <div class="col-12 col-xl-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <h6 class="fw-bold mb-0">Expenditure entries</h6>
+                    <span class="small text-muted">@recent.Count result(s)</span>
+                </div>
+                <div class="input-group input-group-sm mb-3">
+                    <input class="form-control" placeholder="Search ID, payee, reference, category or status"
+                           aria-label="Search expenditure entries" @bind="searchText" @bind:event="oninput"
+                           @onkeydown="SearchKeyDown" />
+                    <button class="btn btn-success" type="button" disabled="@searching" @onclick="SearchAsync">@(searching ? "Searching..." : "Search")</button>
+                    <button class="btn btn-outline-secondary" type="button" disabled="@searching" @onclick="ClearSearchAsync">Clear</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead><tr><th>#</th><th>Date</th><th>Payee</th><th>Category</th><th>Account</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
+                        <tbody>
+                            @if (recent.Count == 0)
+                            {
+                                <tr><td colspan="7" class="text-center text-muted py-3">No matching expenditure entries found.</td></tr>
+                            }
+                            @foreach (var item in recent)
+                            {
+                                <tr><td>@item.Id</td><td class="text-nowrap">@item.PaymentDate.ToString("dd MMM yyyy")</td><td>@item.Payee</td><td>@item.ExpenditureCategory?.Name</td><td>@item.BankAccount?.ShortName</td><td class="text-end text-nowrap">@item.Amount.ToString("N2") @item.Currency</td><td>@item.Status</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+          </div>
+        </div>
+    }
+</div>
+<style>
+    .expenditure-page .form-label { font-size: .82rem; font-weight: 600; margin-bottom: .25rem; }
+    .expenditure-page .form-control, .expenditure-page .form-select { min-width: 0; max-width: 100%; }
+    .expenditure-page .table { font-size: .84rem; }
+    .expenditure-page .card { border-radius: .65rem; }
+
+/* BCC ServiceHub finance visual alignment — presentation only */
+.bcc-finance-polish {
+    --bcc-finance-green: #145c39;
+    --bcc-finance-bright: #237a50;
+    --bcc-finance-pale: #edf7f0;
+    --bcc-finance-border: #d9e9df;
+    color: #20372c;
+    font-size: .91rem;
+}
+.bcc-finance-polish .bcc-page-header,
+.bcc-finance-polish .journal-hero,
+.bcc-finance-polish .ba-hero,
+.bcc-finance-polish .cab-hero,
+.bcc-finance-polish .ob-hero,
+.bcc-finance-polish .pc-hero,
+.bcc-finance-polish .returned-hero {
+    background: #145c39 !important;
+    background-image: none !important;
+    color: #fff !important;
+    border: 1px solid #0d4a2e !important;
+    border-radius: 5px !important;
+    box-shadow: 0 5px 16px rgba(13,74,46,.12);
+    padding: 16px 20px !important;
+}
+.bcc-finance-polish .bcc-page-header .bcc-page-title,
+.bcc-finance-polish .bcc-page-header .bcc-page-subtitle,
+.bcc-finance-polish .bcc-page-header h1,
+.bcc-finance-polish .bcc-page-header h2,
+.bcc-finance-polish .bcc-page-header h3,
+.bcc-finance-polish .journal-hero h1,
+.bcc-finance-polish .ba-hero h1,
+.bcc-finance-polish .cab-hero h1,
+.bcc-finance-polish .ob-hero h1,
+.bcc-finance-polish .pc-hero h1,
+.bcc-finance-polish .returned-hero h1 { color: #fff !important; }
+.bcc-finance-polish .bcc-page-header .bcc-page-subtitle { opacity: .91; }
+.bcc-finance-polish .card,
+.bcc-finance-polish .journal-panel,
+.bcc-finance-polish .correction-panel,
+.bcc-finance-polish .ob-card,
+.bcc-finance-polish .remit-panel {
+    border-color: var(--bcc-finance-border) !important;
+    border-radius: 7px !important;
+    box-shadow: 0 3px 12px rgba(19,75,45,.055);
+}
+.bcc-finance-polish .card-header,
+.bcc-finance-polish .journal-panel-header,
+.bcc-finance-polish .table thead th {
+    background-color: var(--bcc-finance-pale) !important;
+    color: #155c39 !important;
+    border-color: var(--bcc-finance-border) !important;
+    font-weight: 700;
+}
+.bcc-finance-polish .card-body { padding: 14px 16px; }
+.bcc-finance-polish .form-label,
+.bcc-finance-polish label:not(.form-check-label) { font-size: .81rem; font-weight: 600; color: #305443; margin-bottom: 4px; }
+.bcc-finance-polish .form-control,
+.bcc-finance-polish .form-select { border-color: #cbded2; border-radius: 5px; font-size: .87rem; }
+.bcc-finance-polish .form-control:focus,
+.bcc-finance-polish .form-select:focus { border-color: #31845a; box-shadow: 0 0 0 .15rem rgba(49,132,90,.15); }
+.bcc-finance-polish .btn-success,
+.bcc-finance-polish .bcc-btn-primary { background: #176640 !important; border-color: #176640 !important; color: #fff !important; }
+.bcc-finance-polish .btn-success:hover,
+.bcc-finance-polish .bcc-btn-primary:hover { background: #0f4e30 !important; border-color: #0f4e30 !important; }
+.bcc-finance-polish .btn-outline-success { color: #176640; border-color: #31845a; }
+.bcc-finance-polish .btn-outline-success:hover { background: #176640; color: white; }
+.bcc-finance-polish .table { font-size: .83rem; }
+.bcc-finance-polish .table > :not(caption) > * > * { padding: .48rem .6rem; }
+.bcc-finance-polish .table tbody tr:hover { background: #f6fbf7; }
+.bcc-finance-polish .badge.bg-success { background: #237a50 !important; }
+@@media (max-width: 767px) {
+    .bcc-finance-polish .bcc-page-header,
+    .bcc-finance-polish .journal-hero,
+    .bcc-finance-polish .ba-hero,
+    .bcc-finance-polish .cab-hero,
+    .bcc-finance-polish .ob-hero,
+    .bcc-finance-polish .pc-hero,
+    .bcc-finance-polish .returned-hero { padding: 13px 14px !important; }
+    .bcc-finance-polish .card-body { padding: 12px; }
+}
+
+.bcc-finance-polish .bcc-finance-hero { background: #145c39 !important; border-radius: 5px !important; padding: 16px 20px !important; margin-bottom: 14px !important; box-shadow: 0 5px 16px rgba(13,74,46,.12); }
+.bcc-finance-polish .bcc-finance-hero h1, .bcc-finance-polish .bcc-finance-hero h2, .bcc-finance-polish .bcc-finance-hero h3 { color: #fff !important; }
+
+</style>
+@if (popupMessage is not null)
+{
+    <div style="position:fixed;inset:0;background:#0008;z-index:1055;display:flex;align-items:center;justify-content:center;padding:16px">
+        <div class="bg-white rounded-3 shadow p-4" style="max-width:500px;width:100%" role="alertdialog" aria-modal="true">
+            <h5>@(popupError ? "Action needs attention" : "Expenditure submitted")</h5>
+            <p style="white-space:pre-wrap">@popupMessage</p>
+            <button class="btn btn-success" @onclick="() => popupMessage = null">OK</button>
+        </div>
+    </div>
+}
+@code {
+    private ExpenditureRecord model = NewModel();
+    private List<BankAccount> accounts = new();
+    private List<ExpenditureCategory> categories = new();
+    private List<ExpenditureRecord> recent = new();
+    private IReadOnlyList<IBrowserFile> selectedFiles = Array.Empty<IBrowserFile>();
+    private bool saving, popupError, searching;
+    private string searchText = "";
+    private string? popupMessage;
+    private bool NeedsPurpose => categories.Any(x => x.Id == model.ExpenditureCategoryId && (x.IsSystemOthers || x.RequiresPurposeDescription));
+    private static ExpenditureRecord NewModel() => new() { PaymentDate = DateTime.Today };
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated || !Auth.IsInRole(AuthService.Roles.ChurchAdmin)) return;
+        try { accounts = await EntryService.EligibleAccountsAsync(); categories = await EntryService.CategoriesAsync(); recent = await EntryService.RecentAsync(); }
+        catch (Exception ex) { Show(ex.Message, true); }
+    }
+    private async Task SearchAsync()
+    {
+        if (searching) return;
+        searching = true;
+        try { recent = await EntryService.SearchAsync(searchText); }
+        catch (Exception ex) { Show(ex.Message, true); }
+        finally { searching = false; }
+    }
+    private async Task ClearSearchAsync()
+    {
+        searchText = "";
+        await SearchAsync();
+    }
+    private async Task SearchKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SearchAsync();
+    }
+    private void SelectFiles(InputFileChangeEventArgs args)
+    {
+        try { selectedFiles = args.GetMultipleFiles(5); }
+        catch (Exception ex) { Show(ex.Message, true); }
+    }
+    private async Task SubmitAsync()
+    {
+        if (saving) return;
+        saving = true;
+        try
+        {
+            var saved = await EntryService.SubmitAsync(model);
+            var errors = new List<string>();
+            foreach (var file in selectedFiles)
+            {
+                try { await Documents.AddAsync(saved.Id, file); }
+                catch (Exception ex) { errors.Add($"{file.Name}: {ex.Message}"); }
+            }
+            model = NewModel(); selectedFiles = Array.Empty<IBrowserFile>();
+            recent = await EntryService.SearchAsync(searchText);
+            Show(errors.Count == 0
+                ? $"Expenditure #{saved.Id} submitted for Auditor review. No bank debit has been posted."
+                : $"Expenditure #{saved.Id} was submitted, but some attachments failed:\n{string.Join("\n", errors)}\nThe expenditure remains pending review. Please resolve the attachment issues before approval.", errors.Count > 0);
+        }
+        catch (Exception ex) { Show(ex.Message, true); }
+        finally { saving = false; }
+    }
+    private void Show(string message, bool error = false) { popupMessage = message; popupError = error; }
+}

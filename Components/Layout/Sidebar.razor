@@ -19,9 +19,6 @@
             <nav class="bcc-nav-menu">
 
                 <a href="/" class="bcc-nav-item @GetNavItemClass("/")">
-                    <div class="bcc-nav-icon-container">
-                        <i class="fas fa-chart-pie"></i>
-                    </div>
                     <span class="bcc-nav-text">Dashboard</span>
                 </a>
 
@@ -29,10 +26,6 @@
                 <div class="bcc-nav-section">
                     <a href="/workforce/my-profile"
                        class="bcc-nav-item @GetNavItemClass("/workforce/my-profile")">
-
-                        <div class="bcc-nav-icon-container">
-                            <i class="fas fa-user"></i>
-                        </div>
 
                         <span class="bcc-nav-text">My Profile</span>
                     </a>
@@ -43,10 +36,6 @@
                     <div class="bcc-nav-section">
                         <a href="/workforce/my-team"
                            class="bcc-nav-item @GetNavItemClass("/workforce/my-team")">
-
-                            <div class="bcc-nav-icon-container">
-                                <i class="fas fa-users-cog"></i>
-                            </div>
 
                             <span class="bcc-nav-text">My Team</span>
                         </a>
@@ -62,10 +51,6 @@
                     <div class="bcc-nav-section">
                         <a href="/workforce/my-inbox"
                            class="bcc-nav-item @GetNavItemClass("/workforce/my-inbox")">
-
-                            <div class="bcc-nav-icon-container">
-                                <i class="fas fa-inbox"></i>
-                            </div>
 
                             <span class="bcc-nav-text">
                                 Profile Approval
@@ -86,10 +71,6 @@
                     <a href="/workspace/my-desk"
                        class="bcc-nav-item @GetNavItemClass("/workspace/my-desk")">
 
-                        <div class="bcc-nav-icon-container">
-                            <i class="fas fa-clipboard-check"></i>
-                        </div>
-
                         <span class="bcc-nav-text">
                             Approval Request
                         </span>
@@ -105,9 +86,6 @@
 
                 <div class="bcc-nav-section">
                     <div class="bcc-nav-section-header" @onclick="ToggleGrowthHubMenu">
-                        <div class="bcc-nav-icon-container">
-                            <i class="fas fa-seedling"></i>
-                        </div>
                         <span class="bcc-nav-text">Growth Hub</span>
 
                         @if (growthHubCounts.Total > 0)
@@ -122,9 +100,6 @@
                     {
                         <div class="bcc-nav-submenu">
                             <a href="/Workforce/feedback" class="bcc-nav-subitem @GetNavItemClass("/Workforce/feedback")">
-                                <div class="bcc-nav-icon-container">
-                                    <i class="fas fa-comment-dots"></i>
-                                </div>
                                 <span class="bcc-nav-text">Feedback Report</span>
                                 @if (growthHubCounts.MyFeedback > 0)
                                 {
@@ -133,9 +108,6 @@
                             </a>
 
                             <a href="/Workforce/assigned" class="bcc-nav-subitem @GetNavItemClass("/Workforce/assigned")">
-                                <div class="bcc-nav-icon-container">
-                                    <i class="fas fa-tasks"></i>
-                                </div>
                                 <span class="bcc-nav-text">My Feedback</span>
                                 @if (growthHubCounts.AssignedToMe > 0)
                                 {
@@ -144,18 +116,12 @@
                             </a>
 
                             <a href="/Workforce/create-feedback" class="bcc-nav-subitem @GetNavItemClass("/Workforce/create-feedback")">
-                                <div class="bcc-nav-icon-container">
-                                    <i class="fas fa-plus-circle"></i>
-                                </div>
                                 <span class="bcc-nav-text">Create Feedback</span>
                             </a>
 
                             @if (CanViewGrowthReports())
                             {
                                 <a href="/Workforce/reports" class="bcc-nav-subitem @GetNavItemClass("/Workforce/reports")">
-                                    <div class="bcc-nav-icon-container">
-                                        <i class="fas fa-file-alt"></i>
-                                    </div>
                                     <span class="bcc-nav-text">Growth Reports</span>
                                 </a>
                             }
@@ -174,10 +140,6 @@
                     <a href="/workspace/service-records"
                        class="bcc-nav-item @GetNavItemClass("/workspace/service-records")">
 
-                        <div class="bcc-nav-icon-container">
-                            <i class="fas fa-clipboard-list"></i>
-                        </div>
-
                         <span class="bcc-nav-text">
                             Service Records
                         </span>
@@ -194,19 +156,12 @@
                     <a href="/workspace/reports"
                        class="bcc-nav-section-header @GetNavItemClass("/workspace/reports")">
 
-                        <div class="bcc-nav-icon-container">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-
                         <span class="bcc-nav-text">Reports</span>
                     </a>
                 </div>
                 @if (CanAccessBudget())
                 {
                     <a href="/budget" class="bcc-nav-item @GetNavItemClass("/budget")">
-                        <div class="bcc-nav-icon-container">
-                            <i class="fas fa-wallet"></i>
-                        </div>
                         <span class="bcc-nav-text">Church Budget</span>
                     </a>
                 }
@@ -214,9 +169,6 @@
                 @if (CanAccessRemittance())
                 {
                     <a href="/workspace/account-remittance" class="bcc-nav-item @GetNavItemClass("/workspace/account-remittance")">
-                        <div class="bcc-nav-icon-container">
-                            <i class="fas fa-exchange-alt"></i>
-                        </div>
                         <span class="bcc-nav-text">Account &amp; Remittance</span>
                         @if (accountRemittancePendingCount > 0)
                         {
@@ -232,9 +184,6 @@
                     <div class="bcc-nav-section">
                         <a href="/workspace/event-hub"
                            class="bcc-nav-item @GetNavItemClass("/workspace/event-hub")">
-                            <div class="bcc-nav-icon-container">
-                                <i class="fas fa-calendar-check"></i>
-                            </div>
                             <span class="bcc-nav-text">Event Mgt</span>
                         </a>
                     </div>
@@ -245,10 +194,6 @@
                     <div class="bcc-nav-section">
                         <a href="/workspace/worker-management"
                            class="bcc-nav-item @GetNavItemClass("/workspace/worker-management")">
-
-                            <div class="bcc-nav-icon-container">
-                                <i class="fas fa-users-cog"></i>
-                            </div>
 
                             <span class="bcc-nav-text">
                                 Worker Management
@@ -263,10 +208,6 @@
                         <a href="/workspace/setup"
                            class="bcc-nav-item @GetNavItemClass("/workspace/setup")">
 
-                            <div class="bcc-nav-icon-container">
-                                <i class="fas fa-cogs"></i>
-                            </div>
-
                             <span class="bcc-nav-text">
                                 Setup
                             </span>
@@ -277,6 +218,129 @@
         </div>
     </div>
 }
+
+<style>
+    /* BCC ServiceHub � clean green text-only navigation */
+    .bcc-sidebar {
+        background: #31845a !important;
+        background-image: none !important;
+        border-right: 1px solid #28724c !important;
+        box-shadow: 3px 0 18px rgba(8,46,27,.10);
+        color: #fff !important;
+    }
+
+        .bcc-sidebar .bcc-sidebar-content,
+        .bcc-sidebar .bcc-nav-menu,
+        .bcc-sidebar .bcc-nav-section,
+        .bcc-sidebar .bcc-nav-submenu {
+            background: transparent !important;
+            background-image: none !important;
+        }
+
+        .bcc-sidebar .bcc-sidebar-content {
+            padding: 12px 12px 20px !important;
+            scrollbar-color: rgba(255,255,255,.32) transparent;
+        }
+
+        .bcc-sidebar .bcc-nav-item,
+        .bcc-sidebar .bcc-nav-section-header,
+        .bcc-sidebar .bcc-nav-subitem {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px;
+            width: 100%;
+            color: #fff !important;
+            background: transparent !important;
+            border: 0 !important;
+            border-bottom: 1px solid rgba(255,255,255,.33) !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            text-decoration: none !important;
+            transition: background-color .15s ease !important;
+        }
+
+        .bcc-sidebar .bcc-nav-item,
+        .bcc-sidebar .bcc-nav-section-header {
+            min-height: 45px;
+            padding: 11px 12px !important;
+            margin: 0 !important;
+            cursor: pointer;
+        }
+
+        .bcc-sidebar .bcc-nav-subitem {
+            min-height: 39px;
+            padding: 9px 10px !important;
+            margin: 0 !important;
+            border-bottom-color: rgba(255,255,255,.20) !important;
+        }
+
+        .bcc-sidebar .bcc-nav-section {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .bcc-sidebar .bcc-nav-text,
+        .bcc-sidebar .bcc-nav-item span:not(.bcc-nav-badge):not(.bcc-menu-arrow),
+        .bcc-sidebar .bcc-nav-section-header span:not(.bcc-nav-badge):not(.bcc-menu-arrow),
+        .bcc-sidebar .bcc-nav-subitem span:not(.bcc-nav-badge):not(.bcc-menu-arrow) {
+            color: #fff !important;
+            font-weight: 600;
+            letter-spacing: .1px;
+        }
+        /* Defensive: hide any icons introduced by other sidebar styles. */
+        .bcc-sidebar .bcc-nav-icon-container {
+            display: none !important;
+        }
+
+        .bcc-sidebar .bcc-nav-item:hover,
+        .bcc-sidebar .bcc-nav-section-header:hover,
+        .bcc-sidebar .bcc-nav-subitem:hover {
+            background: #26734d !important;
+        }
+
+        .bcc-sidebar .bcc-nav-item.active,
+        .bcc-sidebar .bcc-nav-section-header.active,
+        .bcc-sidebar .bcc-nav-subitem.active {
+            background: #1e6542 !important;
+            border-left: 3px solid #e9bf43 !important;
+            padding-left: 9px !important;
+            font-weight: 700 !important;
+        }
+
+        .bcc-sidebar .bcc-nav-submenu {
+            margin: 0 0 4px 12px !important;
+            padding-left: 10px !important;
+            border-left: 1px solid rgba(255,255,255,.24) !important;
+        }
+
+        .bcc-sidebar .bcc-nav-badge,
+        .bcc-sidebar .bcc-nav-badge span {
+            margin-left: auto;
+            background: #e9bf43 !important;
+            color: #15351f !important;
+            border: 0 !important;
+            border-radius: 999px !important;
+            font-weight: 800 !important;
+        }
+        /* Keep the small expand/collapse arrow for menus with children. */
+        .bcc-sidebar .bcc-menu-arrow {
+            margin-left: auto;
+        }
+
+            .bcc-sidebar .bcc-menu-arrow,
+            .bcc-sidebar .bcc-menu-arrow::before,
+            .bcc-sidebar .bcc-menu-arrow::after {
+                color: #fff !important;
+                border-color: #fff !important;
+            }
+
+        .bcc-sidebar .bcc-nav-item:focus-visible,
+        .bcc-sidebar .bcc-nav-section-header:focus-visible,
+        .bcc-sidebar .bcc-nav-subitem:focus-visible {
+            outline: 2px solid #e9bf43 !important;
+            outline-offset: -2px;
+        }
+</style>
 
 @code {
     [Parameter]
@@ -290,6 +354,7 @@
     private bool showReportsMenu = false;
     private bool showGrowthHubMenu = false;
 
+    private bool hasAuditorPrivilege = false;
     private int accountRemittancePendingCount = 0;
     private int pendingApprovalCount = 0;
     private int rejectionNotificationCount = 0;
@@ -316,6 +381,7 @@
         await LoadGrowthHubCounts();
         await LoadApprovalHubCounts();
         await LoadServiceRecordAccess();
+        await LoadAuditorPrivilegeAsync();
         await LoadAccountRemittancePendingCountAsync();
     }
 
@@ -585,7 +651,25 @@
     private bool CanAccessRemittance()
     {
         return AuthService.IsInRole("Pastor in Charge") ||
-               AuthService.IsInRole("Church Admin");
+               AuthService.IsInRole("Church Admin") ||
+               hasAuditorPrivilege;
+    }
+
+    private async Task LoadAuditorPrivilegeAsync()
+    {
+        hasAuditorPrivilege = false;
+        var worker = AuthService.CurrentWorker;
+        if (!AuthService.IsAuthenticated || worker == null)
+            return;
+        try
+        {
+            hasAuditorPrivilege = await PrivilegeService.HasPrivilegeAsync(
+                worker.Id, PrivilegeService.ApproveChurchExpenditure);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading Auditor privilege: {ex.Message}");
+        }
     }
 
     #region Account and Remittance Badge

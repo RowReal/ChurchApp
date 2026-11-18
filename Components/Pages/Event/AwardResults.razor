@@ -159,10 +159,10 @@
                         @selectedAward?.AwardName
                         @if (!string.IsNullOrWhiteSpace(selectedGroup))
                         {
-                            <span> · @selectedGroup</span>
+                            <span> ï¿½ @selectedGroup</span>
                         }
                     </p>
-                    <p><strong>@selectedNominee.Count nomination(s)</strong> · Individual nominators and justifications</p>
+                    <p><strong>@selectedNominee.Count nomination(s)</strong> ï¿½ Individual nominators and justifications</p>
                 </div>
                 <button type="button" class="award-results-close" aria-label="Close details" @onclick="CloseDetails">
                     <i class="fas fa-times"></i>
@@ -856,5 +856,44 @@
             padding-right: 16px;
         }
     }
+
+
+/* BCC 2026 | unified event and awards design | presentation only */
+.award-results-page { --bcc-event-green: #145c39; --bcc-event-bright: #278354; --bcc-event-soft: #edf7f0; --bcc-event-border: #d8e7dd; color: #213b2d; }
+.award-results-page .award-results-hero {
+    background: linear-gradient(105deg,#124f32 0%,#187245 72%,#268756 100%) !important;
+    color: #fff !important;
+    border: 1px solid #217b4e !important;
+    border-radius: 7px !important;
+    padding: 17px 21px !important;
+    margin-bottom: 14px !important;
+    box-shadow: 0 4px 14px rgba(14,76,45,.12) !important;
+}
+.award-results-page .bcc-page-title, .award-results-page .bcc-page-header h1, .award-results-page .bcc-page-header h2,
+.award-results-page .award-nom-hero h1, .award-results-page .award-results-hero h1, .award-results-page .assisted-hero h2,
+.award-results-page .checkin-report-hero h2 { font-size: clamp(1.24rem,2vw,1.7rem) !important; font-weight: 750 !important; letter-spacing: -.025em; line-height: 1.2; }
+.award-results-page .bcc-page-header .bcc-page-subtitle, .award-results-page .award-nom-hero p,
+.award-results-page .award-results-hero p, .award-results-page .assisted-hero p,
+.award-results-page .checkin-report-hero .checkin-report-subtitle { color: #e5f5ea !important; }
+.award-results-page .bcc-card, .award-results-page .award-panel, .award-results-page .award-results-toolbar,
+.award-results-page .award-nom-panel, .award-results-page .event-setup-section {
+    border: 1px solid var(--bcc-event-border) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 9px rgba(20,92,57,.055);
+}
+.award-results-page .bcc-card-body, .award-results-page .card-body { padding: 14px 16px; }
+.award-results-page .form-control, .award-results-page .form-select, .award-results-page .form-check-input,
+.award-results-page input:not([type=checkbox]):not([type=radio]), .award-results-page select, .award-results-page textarea { border-radius: 5px; }
+.award-results-page .form-control:focus, .award-results-page .form-select:focus, .award-results-page input:focus, .award-results-page select:focus, .award-results-page textarea:focus { border-color: #43a572; box-shadow: 0 0 0 .15rem rgba(39,131,84,.14); }
+.award-results-page .btn, .award-results-page .bcc-btn { border-radius: 5px !important; font-weight: 600; }
+.award-results-page .btn-primary, .award-results-page .btn-success, .award-results-page .bcc-btn-primary { background: #187347 !important; border-color: #187347 !important; color: #fff !important; }
+.award-results-page .btn-primary:hover, .award-results-page .btn-success:hover, .award-results-page .bcc-btn-primary:hover { background: #105c37 !important; border-color: #105c37 !important; }
+.award-results-page .table thead th, .award-results-page table thead th { background: #e8f4ec; color: #185536; border-bottom-color: #c8e0d0; font-size: .81rem; font-weight: 750; }
+.award-results-page .table td, .award-results-page .table th { padding-top: .48rem; padding-bottom: .48rem; vertical-align: middle; }
+.award-results-page .badge.bg-primary, .award-results-page .badge.bg-success { background: #218451 !important; }
+@@media (max-width: 767px) {
+    .award-results-page .award-results-hero { padding: 14px 15px !important; gap: 10px !important; }
+    .award-results-page .bcc-card-body, .award-results-page .card-body { padding: 12px !important; }
+}
 </style>
 

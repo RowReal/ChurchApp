@@ -1,4 +1,4 @@
-﻿@page "/guest/daily-list"
+@page "/guest/daily-list"
 @layout Components.Layout.MainLayout
 
 @using ChurchApp.Models
@@ -1186,5 +1186,41 @@ else
             max-width: 96vw;
             padding: 16px;
         }
+    }
+
+    /* BCC ServiceHub | Guest workspace green visual refresh */
+    .daily-guest-page { --guest-brand: #145c39; --guest-brand-dark: #0c4328; --guest-brand-soft: #eaf5ed; --guest-border: #dbe8df; color: #243b2e; }
+    .daily-guest-page .bcc-page-header {
+        background: #145c39 !important; background-image: none !important;
+        color: #fff !important; border: 1px solid #0c4328 !important;
+        border-radius: 5px !important; padding: 17px 21px !important;
+        margin-bottom: 14px !important; box-shadow: 0 3px 12px rgba(12,67,40,.12) !important;
+    }
+    .daily-guest-page .bcc-page-header .bcc-page-title,
+    .daily-guest-page .bcc-page-header h1, .daily-guest-page .bcc-page-header h2,
+    .daily-guest-page .bcc-page-header h3, .daily-guest-page .bcc-page-header .bcc-page-subtitle,
+    .daily-guest-page .bcc-page-header p, .daily-guest-page .bcc-page-header .guest-page-kicker { color: #fff !important; }
+    .daily-guest-page .bcc-page-header .bcc-page-subtitle, .daily-guest-page .bcc-page-header p { opacity: .88; }
+    .daily-guest-page .bcc-card, .daily-guest-page .card { border: 1px solid var(--guest-border) !important; border-radius: 7px !important; box-shadow: 0 2px 9px rgba(22,69,43,.045); }
+    .daily-guest-page .bcc-card-header, .daily-guest-page .card-header { border-bottom-color: var(--guest-border) !important; }
+    .daily-guest-page .table thead th, .daily-guest-page .bcc-table thead th { background: #eaf5ed !important; color: #174b30 !important; border-bottom: 1px solid #c8dfce !important; font-weight: 700; }
+    .daily-guest-page .table td, .daily-guest-page .table th { vertical-align: middle; }
+    .daily-guest-page .form-control, .daily-guest-page .form-select, .daily-guest-page input:not([type=checkbox]):not([type=radio]), .daily-guest-page select, .daily-guest-page textarea { border-radius: 5px; }
+    .daily-guest-page .form-control:focus, .daily-guest-page .form-select:focus, .daily-guest-page input:focus, .daily-guest-page select:focus, .daily-guest-page textarea:focus { border-color: #31845a !important; box-shadow: 0 0 0 .15rem rgba(49,132,90,.13) !important; }
+    .daily-guest-page .btn-primary, .daily-guest-page .btn-success, .daily-guest-page .bcc-btn-primary { background: #145c39 !important; border-color: #145c39 !important; color: #fff !important; border-radius: 5px !important; }
+    .daily-guest-page .btn-primary:hover, .daily-guest-page .btn-success:hover, .daily-guest-page .bcc-btn-primary:hover { background: #0c4328 !important; border-color: #0c4328 !important; }
+    .daily-guest-page .btn-outline-primary, .daily-guest-page .btn-outline-success { border-color: #31845a !important; color: #145c39 !important; }
+    .daily-guest-page .btn-outline-primary:hover, .daily-guest-page .btn-outline-success:hover { background: #145c39 !important; color: #fff !important; }
+    .daily-guest-page .text-primary { color: #145c39 !important; }
+    .daily-guest-page .bg-primary { background-color: #145c39 !important; }
+    .daily-guest-page .badge.bg-primary { background-color: #145c39 !important; }
+    .daily-guest-page .guest-summary-item, .daily-guest-page .followup-summary-strip > div, .daily-guest-page .guest-summary-strip > div { border-color: var(--guest-border) !important; border-radius: 7px !important; }
+    .daily-guest-page .guest-summary-item strong, .daily-guest-page .guest-summary-strip strong, .daily-guest-page .followup-summary-strip strong { color: #145c39; }
+    .daily-guest-page .guest-popup-header, .daily-guest-page .followup-popup-header, .daily-guest-page .second-timer-popup-header { background: #145c39 !important; background-image: none !important; color: #fff !important; }
+    .daily-guest-page .guest-popup-header *, .daily-guest-page .followup-popup-header *, .daily-guest-page .second-timer-popup-header * { color: #fff; }
+    .daily-guest-page .guest360-profile-hero, .daily-guest-page .profile-form-v2-hero { border-color: #c8dfce !important; }
+    @@media (max-width: 767px) {
+        .daily-guest-page .bcc-page-header { padding: 14px 15px !important; }
+        .daily-guest-page .bcc-card-body, .daily-guest-page .card-body { padding: 12px !important; }
     }
 </style>

@@ -262,6 +262,47 @@
     }
 
     }
+
+
+/* BCC 2026 | unified event and awards design | presentation only */
+.assisted-page { --bcc-event-green: #145c39; --bcc-event-bright: #278354; --bcc-event-soft: #edf7f0; --bcc-event-border: #d8e7dd; color: #213b2d; }
+.assisted-page .assisted-hero {
+    background: linear-gradient(105deg,#124f32 0%,#187245 72%,#268756 100%) !important;
+    color: #fff !important;
+    border: 1px solid #217b4e !important;
+    border-radius: 7px !important;
+    padding: 17px 21px !important;
+    margin-bottom: 14px !important;
+    box-shadow: 0 4px 14px rgba(14,76,45,.12) !important;
+}
+.assisted-page .bcc-page-title, .assisted-page .bcc-page-header h1, .assisted-page .bcc-page-header h2,
+.assisted-page .award-nom-hero h1, .assisted-page .award-results-hero h1, .assisted-page .assisted-hero h2,
+.assisted-page .checkin-report-hero h2 { font-size: clamp(1.24rem,2vw,1.7rem) !important; font-weight: 750 !important; letter-spacing: -.025em; line-height: 1.2; }
+.assisted-page .bcc-page-header .bcc-page-subtitle, .assisted-page .award-nom-hero p,
+.assisted-page .award-results-hero p, .assisted-page .assisted-hero p,
+.assisted-page .checkin-report-hero .checkin-report-subtitle { color: #e5f5ea !important; }
+.assisted-page .bcc-card, .assisted-page .award-panel, .assisted-page .award-results-toolbar,
+.assisted-page .award-nom-panel, .assisted-page .event-setup-section {
+    border: 1px solid var(--bcc-event-border) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 9px rgba(20,92,57,.055);
+}
+.assisted-page .bcc-card-body, .assisted-page .card-body { padding: 14px 16px; }
+.assisted-page .form-control, .assisted-page .form-select, .assisted-page .form-check-input,
+.assisted-page input:not([type=checkbox]):not([type=radio]), .assisted-page select, .assisted-page textarea { border-radius: 5px; }
+.assisted-page .form-control:focus, .assisted-page .form-select:focus, .assisted-page input:focus, .assisted-page select:focus, .assisted-page textarea:focus { border-color: #43a572; box-shadow: 0 0 0 .15rem rgba(39,131,84,.14); }
+.assisted-page .btn, .assisted-page .bcc-btn { border-radius: 5px !important; font-weight: 600; }
+.assisted-page .btn-primary, .assisted-page .btn-success, .assisted-page .bcc-btn-primary { background: #187347 !important; border-color: #187347 !important; color: #fff !important; }
+.assisted-page .btn-primary:hover, .assisted-page .btn-success:hover, .assisted-page .bcc-btn-primary:hover { background: #105c37 !important; border-color: #105c37 !important; }
+.assisted-page .table thead th, .assisted-page table thead th { background: #e8f4ec; color: #185536; border-bottom-color: #c8e0d0; font-size: .81rem; font-weight: 750; }
+.assisted-page .table td, .assisted-page .table th { padding-top: .48rem; padding-bottom: .48rem; vertical-align: middle; }
+.assisted-page .badge.bg-primary, .assisted-page .badge.bg-success { background: #218451 !important; }
+@@media (max-width: 767px) {
+    .assisted-page .assisted-hero { padding: 14px 15px !important; gap: 10px !important; }
+    .assisted-page .bcc-card-body, .assisted-page .card-body { padding: 12px !important; }
+}
+
+.assisted-page .assisted-hero { background: linear-gradient(105deg,#124f32,#268756) !important; }
 </style>
 @code {
     private bool loading = true, authorised, busy, showPass;

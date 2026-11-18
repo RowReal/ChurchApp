@@ -245,6 +245,45 @@ else
         padding: 20px;
         box-shadow: 0 12px 38px rgba(0,0,0,.18);
     }
+
+
+/* BCC 2026 | unified event and awards design | presentation only */
+.bcc-event-registration-page { --bcc-event-green: #145c39; --bcc-event-bright: #278354; --bcc-event-soft: #edf7f0; --bcc-event-border: #d8e7dd; color: #213b2d; }
+.bcc-event-registration-page .bcc-page-header {
+    background: linear-gradient(105deg,#124f32 0%,#187245 72%,#268756 100%) !important;
+    color: #fff !important;
+    border: 1px solid #217b4e !important;
+    border-radius: 7px !important;
+    padding: 17px 21px !important;
+    margin-bottom: 14px !important;
+    box-shadow: 0 4px 14px rgba(14,76,45,.12) !important;
+}
+.bcc-event-registration-page .bcc-page-title, .bcc-event-registration-page .bcc-page-header h1, .bcc-event-registration-page .bcc-page-header h2,
+.bcc-event-registration-page .award-nom-hero h1, .bcc-event-registration-page .award-results-hero h1, .bcc-event-registration-page .assisted-hero h2,
+.bcc-event-registration-page .checkin-report-hero h2 { font-size: clamp(1.24rem,2vw,1.7rem) !important; font-weight: 750 !important; letter-spacing: -.025em; line-height: 1.2; }
+.bcc-event-registration-page .bcc-page-header .bcc-page-subtitle, .bcc-event-registration-page .award-nom-hero p,
+.bcc-event-registration-page .award-results-hero p, .bcc-event-registration-page .assisted-hero p,
+.bcc-event-registration-page .checkin-report-hero .checkin-report-subtitle { color: #e5f5ea !important; }
+.bcc-event-registration-page .bcc-card, .bcc-event-registration-page .award-panel, .bcc-event-registration-page .award-results-toolbar,
+.bcc-event-registration-page .award-nom-panel, .bcc-event-registration-page .event-setup-section {
+    border: 1px solid var(--bcc-event-border) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 9px rgba(20,92,57,.055);
+}
+.bcc-event-registration-page .bcc-card-body, .bcc-event-registration-page .card-body { padding: 14px 16px; }
+.bcc-event-registration-page .form-control, .bcc-event-registration-page .form-select, .bcc-event-registration-page .form-check-input,
+.bcc-event-registration-page input:not([type=checkbox]):not([type=radio]), .bcc-event-registration-page select, .bcc-event-registration-page textarea { border-radius: 5px; }
+.bcc-event-registration-page .form-control:focus, .bcc-event-registration-page .form-select:focus, .bcc-event-registration-page input:focus, .bcc-event-registration-page select:focus, .bcc-event-registration-page textarea:focus { border-color: #43a572; box-shadow: 0 0 0 .15rem rgba(39,131,84,.14); }
+.bcc-event-registration-page .btn, .bcc-event-registration-page .bcc-btn { border-radius: 5px !important; font-weight: 600; }
+.bcc-event-registration-page .btn-primary, .bcc-event-registration-page .btn-success, .bcc-event-registration-page .bcc-btn-primary { background: #187347 !important; border-color: #187347 !important; color: #fff !important; }
+.bcc-event-registration-page .btn-primary:hover, .bcc-event-registration-page .btn-success:hover, .bcc-event-registration-page .bcc-btn-primary:hover { background: #105c37 !important; border-color: #105c37 !important; }
+.bcc-event-registration-page .table thead th, .bcc-event-registration-page table thead th { background: #e8f4ec; color: #185536; border-bottom-color: #c8e0d0; font-size: .81rem; font-weight: 750; }
+.bcc-event-registration-page .table td, .bcc-event-registration-page .table th { padding-top: .48rem; padding-bottom: .48rem; vertical-align: middle; }
+.bcc-event-registration-page .badge.bg-primary, .bcc-event-registration-page .badge.bg-success { background: #218451 !important; }
+@@media (max-width: 767px) {
+    .bcc-event-registration-page .bcc-page-header { padding: 14px 15px !important; gap: 10px !important; }
+    .bcc-event-registration-page .bcc-card-body, .bcc-event-registration-page .card-body { padding: 12px !important; }
+}
 </style>
 
 @code {
