@@ -18,3 +18,15 @@ Data/*.db-journal
 # Operating system files
 .DS_Store
 Thumbs.db
+# Additional SQLite database protection
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Local environment and secrets
+.env
+.env.*
+appsettings.Development.json
