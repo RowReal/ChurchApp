@@ -1,6 +1,8 @@
 using ChurchApp.Models;
 using ChurchApp.Models.Event;
 using ChurchApp.Models.Finance;
+using ChurchApp.Models.HouseFellowship;
+using ChurchApp.Models.Bricks;
 using Microsoft.EntityFrameworkCore;
 
 namespace ChurchApp.Data
@@ -15,6 +17,20 @@ namespace ChurchApp.Data
         public DbSet<AwardProgramme> AwardProgrammes => Set<AwardProgramme>();
         public DbSet<AwardCategory> AwardCategories => Set<AwardCategory>();
         public DbSet<AwardNomination> AwardNominations => Set<AwardNomination>();
+
+        public DbSet<BricksPrivilege> BricksPrivileges => Set<BricksPrivilege>();
+        public DbSet<BricksUserPrivilege> BricksUserPrivileges => Set<BricksUserPrivilege>();
+        public DbSet<BricksPrivilegeAudit> BricksPrivilegeAudits => Set<BricksPrivilegeAudit>();
+
+        // HOUSE FELLOWSHIP MODULE
+        public DbSet<HouseFellowshipCentre> HouseFellowshipCentres => Set<HouseFellowshipCentre>();
+        public DbSet<HouseFellowshipMember> HouseFellowshipMembers => Set<HouseFellowshipMember>();
+        public DbSet<HouseFellowshipSession> HouseFellowshipSessions => Set<HouseFellowshipSession>();
+        public DbSet<HouseFellowshipAttendance> HouseFellowshipAttendances => Set<HouseFellowshipAttendance>();
+        public DbSet<HouseFellowshipOffering> HouseFellowshipOfferings => Set<HouseFellowshipOffering>();
+        public DbSet<HouseFellowshipClosure> HouseFellowshipClosures => Set<HouseFellowshipClosure>();
+        public DbSet<HouseFellowshipLeadershipHistory> HouseFellowshipLeadershipHistories => Set<HouseFellowshipLeadershipHistory>();
+        public DbSet<HouseFellowshipMemberTransfer> HouseFellowshipMemberTransfers => Set<HouseFellowshipMemberTransfer>();
 
         #region Entity Sets
 
@@ -116,6 +132,71 @@ namespace ChurchApp.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<BricksPrivilege>(e => e.HasIndex(x => x.Code).IsUnique());
+            modelBuilder.Entity<BricksUserPrivilege>(e =>
+            {
+                e.HasIndex(x => new { x.WorkerId, x.BricksPrivilegeId }).IsUnique();
+                e.HasOne(x => x.Worker).WithMany().HasForeignKey(x => x.WorkerId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Privilege).WithMany().HasForeignKey(x => x.BricksPrivilegeId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<BricksPrivilegeAudit>(e => e.HasIndex(x => new { x.WorkerId, x.OccurredAtUtc }));
+            // HOUSE FELLOWSHIP MODULE
+            modelBuilder.Entity<HouseFellowshipCentre>(e =>
+            {
+                e.HasIndex(x => x.Code).IsUnique();
+                e.HasIndex(x => x.Name).IsUnique();
+                e.HasOne(x => x.LeaderWorker).WithMany().HasForeignKey(x => x.LeaderWorkerId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.AssistantWorker).WithMany().HasForeignKey(x => x.AssistantWorkerId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<HouseFellowshipMember>(e =>
+            {
+                e.HasIndex(x => new { x.CentreId, x.IsActive });
+                e.HasIndex(x => x.LinkedWorkerId).IsUnique().HasFilter("LinkedWorkerId IS NOT NULL");
+                e.HasOne(x => x.Centre).WithMany().HasForeignKey(x => x.CentreId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Directorate).WithMany().HasForeignKey(x => x.DirectorateId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.LinkedWorker).WithMany().HasForeignKey(x => x.LinkedWorkerId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<HouseFellowshipSession>(e =>
+            {
+                e.Property(x => x.SessionDate).HasColumnType("date");
+                e.HasIndex(x => new { x.CentreId, x.SessionDate }).IsUnique();
+                e.HasOne(x => x.Centre).WithMany().HasForeignKey(x => x.CentreId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<HouseFellowshipAttendance>(e =>
+            {
+                e.HasIndex(x => new { x.SessionId, x.MemberId }).IsUnique().HasFilter("MemberId IS NOT NULL");
+                e.HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Member).WithMany().HasForeignKey(x => x.MemberId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<HouseFellowshipOffering>(e =>
+            {
+                e.Property(x => x.Amount).HasPrecision(18, 2);
+                e.HasIndex(x => x.SessionId).IsUnique();
+                e.HasOne(x => x.Session).WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.RecordedByWorker).WithMany().HasForeignKey(x => x.RecordedByWorkerId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<HouseFellowshipClosure>(e =>
+            {
+                e.Property(x => x.FellowshipDate).HasColumnType("date");
+                e.HasIndex(x => new { x.FellowshipDate, x.CentreId });
+                e.HasOne(x => x.Centre).WithMany().HasForeignKey(x => x.CentreId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.ClosedByWorker).WithMany().HasForeignKey(x => x.ClosedByWorkerId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<HouseFellowshipLeadershipHistory>(e =>
+            {
+                e.HasIndex(x => new { x.CentreId, x.Position, x.EffectiveFrom });
+                e.HasOne(x => x.Centre).WithMany().HasForeignKey(x => x.CentreId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne(x => x.Worker).WithMany().HasForeignKey(x => x.WorkerId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<HouseFellowshipMemberTransfer>(e =>
+            {
+                e.HasIndex(x => new { x.MemberId, x.TransferredAtUtc });
+                e.HasOne(x => x.Member).WithMany().HasForeignKey(x => x.MemberId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne<HouseFellowshipCentre>().WithMany().HasForeignKey(x => x.FromCentreId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne<HouseFellowshipCentre>().WithMany().HasForeignKey(x => x.ToCentreId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+
             // AWARDS MODULE
             modelBuilder.Entity<AwardProgramme>(e => {
                 e.ToTable("AwardProgrammes"); e.HasIndex(x => new { x.Year, x.Name }).IsUnique();

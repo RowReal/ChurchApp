@@ -3098,6 +3098,382 @@ namespace ChurchApp.Migrations
                     b.ToTable("GuestPhoneFollowUps");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipAttendance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsPresent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("MemberId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SessionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("VisitorAgeGroup")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VisitorName")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VisitorSex")
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MemberId");
+
+                    b.HasIndex("SessionId", "MemberId")
+                        .IsUnique()
+                        .HasFilter("MemberId IS NOT NULL");
+
+                    b.ToTable("HouseFellowshipAttendances");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipCentre", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AssistantWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedByWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("HostName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HostPhone")
+                        .IsRequired()
+                        .HasMaxLength(25)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LeaderPhoneOverride")
+                        .HasMaxLength(25)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LeaderWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NearestLandmark")
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("StartedOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssistantWorkerId");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("LeaderWorkerId");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("HouseFellowshipCentres");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipClosure", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CentreId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ClosedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ClosedByWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("FellowshipDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RevokedByWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CentreId");
+
+                    b.HasIndex("ClosedByWorkerId");
+
+                    b.HasIndex("FellowshipDate", "CentreId");
+
+                    b.ToTable("HouseFellowshipClosures");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipLeadershipHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CentreId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkerId");
+
+                    b.HasIndex("CentreId", "Position", "EffectiveFrom");
+
+                    b.ToTable("HouseFellowshipLeadershipHistories");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AgeGroup")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CentreId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("DirectorateId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsChurchWorker")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("JoinedOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("LinkedWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MaritalStatus")
+                        .IsRequired()
+                        .HasMaxLength(25)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OtherNames")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(25)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Sex")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Surname")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WhatsAppNumber")
+                        .HasMaxLength(25)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DirectorateId");
+
+                    b.HasIndex("LinkedWorkerId")
+                        .IsUnique()
+                        .HasFilter("LinkedWorkerId IS NOT NULL");
+
+                    b.HasIndex("CentreId", "IsActive");
+
+                    b.ToTable("HouseFellowshipMembers");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipMemberTransfer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FromCentreId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MemberId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ToCentreId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("TransferredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("TransferredByWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromCentreId");
+
+                    b.HasIndex("ToCentreId");
+
+                    b.HasIndex("MemberId", "TransferredAtUtc");
+
+                    b.ToTable("HouseFellowshipMemberTransfers");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipOffering", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RecordedByWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SessionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordedByWorkerId");
+
+                    b.HasIndex("SessionId")
+                        .IsUnique();
+
+                    b.ToTable("HouseFellowshipOfferings");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CentreId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("SessionDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("SubmittedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SubmittedByWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CentreId", "SessionDate")
+                        .IsUnique();
+
+                    b.ToTable("HouseFellowshipSessions");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.LatePermissionRequestDetail", b =>
                 {
                     b.Property<int>("Id")
@@ -5432,6 +5808,158 @@ namespace ChurchApp.Migrations
                         .IsRequired();
 
                     b.Navigation("Guest");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipAttendance", b =>
+                {
+                    b.HasOne("ChurchApp.Models.HouseFellowship.HouseFellowshipMember", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.HouseFellowship.HouseFellowshipSession", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Member");
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipCentre", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Worker", "AssistantWorker")
+                        .WithMany()
+                        .HasForeignKey("AssistantWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Worker", "LeaderWorker")
+                        .WithMany()
+                        .HasForeignKey("LeaderWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AssistantWorker");
+
+                    b.Navigation("LeaderWorker");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipClosure", b =>
+                {
+                    b.HasOne("ChurchApp.Models.HouseFellowship.HouseFellowshipCentre", "Centre")
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.Worker", "ClosedByWorker")
+                        .WithMany()
+                        .HasForeignKey("ClosedByWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Centre");
+
+                    b.Navigation("ClosedByWorker");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipLeadershipHistory", b =>
+                {
+                    b.HasOne("ChurchApp.Models.HouseFellowship.HouseFellowshipCentre", "Centre")
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Worker", "Worker")
+                        .WithMany()
+                        .HasForeignKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Centre");
+
+                    b.Navigation("Worker");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipMember", b =>
+                {
+                    b.HasOne("ChurchApp.Models.HouseFellowship.HouseFellowshipCentre", "Centre")
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Directorate", "Directorate")
+                        .WithMany()
+                        .HasForeignKey("DirectorateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ChurchApp.Models.Worker", "LinkedWorker")
+                        .WithMany()
+                        .HasForeignKey("LinkedWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Centre");
+
+                    b.Navigation("Directorate");
+
+                    b.Navigation("LinkedWorker");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipMemberTransfer", b =>
+                {
+                    b.HasOne("ChurchApp.Models.HouseFellowship.HouseFellowshipCentre", null)
+                        .WithMany()
+                        .HasForeignKey("FromCentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.HouseFellowship.HouseFellowshipMember", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.HouseFellowship.HouseFellowshipCentre", null)
+                        .WithMany()
+                        .HasForeignKey("ToCentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Member");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipOffering", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Worker", "RecordedByWorker")
+                        .WithMany()
+                        .HasForeignKey("RecordedByWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.HouseFellowship.HouseFellowshipSession", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RecordedByWorker");
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.HouseFellowship.HouseFellowshipSession", b =>
+                {
+                    b.HasOne("ChurchApp.Models.HouseFellowship.HouseFellowshipCentre", "Centre")
+                        .WithMany()
+                        .HasForeignKey("CentreId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Centre");
                 });
 
             modelBuilder.Entity("ChurchApp.Models.LatePermissionRequestDetail", b =>

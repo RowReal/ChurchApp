@@ -1,0 +1,163 @@
+@page "/bricks/centres"
+@layout ChurchApp.Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Services.Bricks
+@using ChurchApp.Data
+@using ChurchApp.Models
+@using ChurchApp.Models.HouseFellowship
+@using Microsoft.EntityFrameworkCore
+@inject AuthService AuthService
+@inject BricksPrivilegeService BricksPrivileges
+@inject AppDbContext Db
+<PageTitle>Fellowship Centres - BRICKS</PageTitle>
+@if (!AuthService.IsAuthenticated) { <div class="br-page">Please log in to continue.</div> }
+else if (loading) { <div class="br-page">Loading centres...</div> }
+else if (!authorized) { <div class="br-page">Access denied. You do not have permission to manage fellowship centres.</div> }
+else
+{
+<div class="br-page">
+    <div class="br-hero"><div><div class="br-kicker">BRICKS / House Fellowship</div><h2>Fellowship Centres</h2><p>Register and manage centres, hosts and leadership.</p></div><a class="br-back" href="/workspace/bricks"><i class="fas fa-arrow-left me-1"></i>BRICKS Workspace</a></div>
+    @if (!string.IsNullOrWhiteSpace(message)) { <div class="alert @(isError ? "alert-danger" : "alert-success")" role="alert">@message</div> }
+    <div class="br-two-col">
+        <section class="br-panel"><div class="br-panel-head"><h3><i class="fas fa-plus-circle me-2"></i>@(editingId == null ? "Register Fellowship Centre" : "Edit Fellowship Centre")</h3></div>
+            <div class="br-panel-body"><div class="br-field-grid">
+                <div><label class="form-label">Centre Name *</label><input class="form-control" @bind="name" maxlength="150" /></div>
+                <div><label class="form-label">Location *</label><input class="form-control" @bind="location" maxlength="150" /></div>
+                <div class="br-field-full"><label class="form-label">Address *</label><input class="form-control" @bind="address" maxlength="500" /></div>
+                <div class="br-field-full"><label class="form-label">Nearest Landmark</label><input class="form-control" @bind="landmark" maxlength="250" /></div>
+                <div><label class="form-label">Host Name *</label><input class="form-control" @bind="hostName" maxlength="150" /></div>
+                <div><label class="form-label">Host Phone *</label><input class="form-control" type="tel" @bind="hostPhone" maxlength="25" /></div>
+                <div><label class="form-label">Leader Name *</label><select class="form-select" @bind="leaderId"><option value="0">Select worker</option>@foreach (var w in workers) { <option value="@w.Id">@w.FullName (@w.WorkerId)</option> }</select></div>
+                <div><label class="form-label">Leader Phone (Override)</label><input class="form-control" type="tel" @bind="leaderPhone" maxlength="25" /></div>
+                <div class="br-field-full"><label class="form-label">Assistant Leader *</label><select class="form-select" @bind="assistantId"><option value="0">Select worker</option>@foreach (var w in workers) { <option value="@w.Id">@w.FullName (@w.WorkerId)</option> }</select></div>
+                <div><label class="form-label">Start Date</label><input type="date" class="form-control" @bind="startedOn" @bind:format="yyyy-MM-dd" /></div>
+                <div><label class="form-label">Status</label><select class="form-select" @bind="status"><option>Active</option><option>Inactive</option><option>Suspended</option></select></div>
+            </div><div class="d-flex flex-wrap gap-2 mt-3"><button class="br-primary" disabled="@saving" @onclick="SaveAsync">@(saving ? "Saving..." : editingId == null ? "Register Centre" : "Save Changes")</button><button class="br-secondary" @onclick="ResetForm">Clear</button></div></div>
+        </section>
+        <section class="br-panel"><div class="br-panel-head"><h3><i class="fas fa-list me-2"></i>Registered Centres</h3><span class="br-pill">@centres.Count centres</span></div>
+            <div class="br-panel-body"><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Code</th><th>Centre / Location</th><th>Leader</th><th>Assistant</th><th>Status</th><th></th></tr></thead><tbody>
+                @foreach (var c in centres) { <tr><td><strong>@c.Code</strong></td><td><strong>@c.Name</strong><div class="br-note">@c.Location</div></td><td>@c.LeaderWorker?.FullName</td><td>@c.AssistantWorker?.FullName</td><td><span class="br-pill">@c.Status</span></td><td><button class="br-secondary" @onclick="() => Edit(c)">Edit</button></td></tr> }
+                @if (centres.Count == 0) { <tr><td colspan="6" class="text-center py-4 br-note">No fellowship centres registered yet.</td></tr> }
+            </tbody></table></div></div>
+        </section>
+    </div>
+</div>
+}
+@code {
+    private bool loading = true, authorized, saving, isError;
+    private string? message;
+    private int? editingId;
+    private string name = "", location = "", address = "", landmark = "", hostName = "", hostPhone = "", leaderPhone = "", status = "Active";
+    private int leaderId, assistantId;
+    private DateTime? startedOn;
+    private List<Worker> workers = new();
+    private List<HouseFellowshipCentre> centres = new();
+    protected override async Task OnInitializedAsync()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) { loading = false; return; }
+        authorized = await BricksPrivileges.HasPrivilegeAsync(worker.Id, BricksPrivilegeService.Centres);
+        if (authorized)
+        {
+            workers = await Db.Workers.AsNoTracking().Where(w => w.IsActive).OrderBy(w => w.LastName).ThenBy(w => w.FirstName).ToListAsync();
+            await ReloadAsync();
+        }
+        loading = false;
+    }
+    private async Task ReloadAsync() => centres = await Db.HouseFellowshipCentres.AsNoTracking().Include(c => c.LeaderWorker).Include(c => c.AssistantWorker).OrderBy(c => c.Name).ToListAsync();
+    private void Edit(HouseFellowshipCentre c)
+    {
+        editingId = c.Id; name = c.Name; location = c.Location; address = c.Address; landmark = c.NearestLandmark ?? ""; hostName = c.HostName; hostPhone = c.HostPhone; leaderId = c.LeaderWorkerId; assistantId = c.AssistantWorkerId; leaderPhone = c.LeaderPhoneOverride ?? ""; startedOn = c.StartedOn; status = c.Status; message = null;
+    }
+    private void ResetForm()
+    {
+        editingId = null; name = location = address = landmark = hostName = hostPhone = leaderPhone = ""; leaderId = assistantId = 0; startedOn = null; status = "Active"; message = null;
+    }
+    private async Task SaveAsync()
+    {
+        if (AuthService.CurrentWorker == null || !await BricksPrivileges.HasPrivilegeAsync(AuthService.CurrentWorker.Id, BricksPrivilegeService.Centres)) return;
+        message = null; isError = true;
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(location) || string.IsNullOrWhiteSpace(address) || string.IsNullOrWhiteSpace(hostName) || string.IsNullOrWhiteSpace(hostPhone) || leaderId == 0 || assistantId == 0) { message = "Complete all required fields."; return; }
+        if (leaderId == assistantId) { message = "Leader and assistant must be different workers."; return; }
+        if (!workers.Any(w => w.Id == leaderId) || !workers.Any(w => w.Id == assistantId)) { message = "Select active workers for both leadership positions."; return; }
+        if (await Db.HouseFellowshipCentres.AnyAsync(c => c.Name == name.Trim() && c.Id != editingId)) { message = "A centre with this name already exists."; return; }
+        saving = true;
+        try
+        {
+            HouseFellowshipCentre centre;
+            if (editingId.HasValue)
+            {
+                centre = await Db.HouseFellowshipCentres.FirstAsync(c => c.Id == editingId.Value);
+            }
+            else
+            {
+                // Centre codes are generated after insert using the database-assigned ID.
+                centre = new HouseFellowshipCentre { Code = "PENDING-" + Guid.NewGuid().ToString("N")[..12], CreatedByWorkerId = AuthService.CurrentWorker.Id };
+                Db.HouseFellowshipCentres.Add(centre);
+            }
+            var oldLeader = editingId.HasValue ? centre.LeaderWorkerId : 0;
+            var oldAssistant = editingId.HasValue ? centre.AssistantWorkerId : 0;
+            centre.Name = name.Trim(); centre.Location = location.Trim(); centre.Address = address.Trim(); centre.NearestLandmark = string.IsNullOrWhiteSpace(landmark) ? null : landmark.Trim(); centre.HostName = hostName.Trim(); centre.HostPhone = hostPhone.Trim(); centre.LeaderWorkerId = leaderId; centre.AssistantWorkerId = assistantId; centre.LeaderPhoneOverride = string.IsNullOrWhiteSpace(leaderPhone) ? null : leaderPhone.Trim(); centre.StartedOn = startedOn; centre.Status = status;
+            await Db.SaveChangesAsync();
+            if (centre.Code.StartsWith("PENDING-")) { centre.Code = $"HF-{centre.Id:D3}"; }
+            var today = DateTime.UtcNow;
+            if (oldLeader != leaderId)
+            {
+                var previous = await Db.HouseFellowshipLeadershipHistories.Where(h => h.CentreId == centre.Id && h.Position == "Leader" && h.EffectiveTo == null).ToListAsync();
+                foreach (var h in previous) h.EffectiveTo = today;
+                Db.HouseFellowshipLeadershipHistories.Add(new HouseFellowshipLeadershipHistory { CentreId = centre.Id, WorkerId = leaderId, Position = "Leader", EffectiveFrom = today });
+            }
+            if (oldAssistant != assistantId)
+            {
+                var previous = await Db.HouseFellowshipLeadershipHistories.Where(h => h.CentreId == centre.Id && h.Position == "Assistant" && h.EffectiveTo == null).ToListAsync();
+                foreach (var h in previous) h.EffectiveTo = today;
+                Db.HouseFellowshipLeadershipHistories.Add(new HouseFellowshipLeadershipHistory { CentreId = centre.Id, WorkerId = assistantId, Position = "Assistant", EffectiveFrom = today });
+            }
+            await Db.SaveChangesAsync();
+            await ReloadAsync(); ResetForm(); message = "Fellowship centre saved successfully."; isError = false;
+        }
+        catch (Exception ex) { message = "Unable to save centre: " + ex.Message; isError = true; }
+        finally { saving = false; }
+    }
+}
+
+<style>
+    .br-page { --br-green:#146b43; --br-dark:#104b34; --br-light:#eaf6ee; --br-line:#cfe5d6; --br-ink:#173b2c; max-width:1600px; margin:0 auto; padding:16px 18px 28px; color:var(--br-ink); }
+    .br-hero { background:linear-gradient(110deg,#0d5937,#198353); color:#fff; border-radius:13px; padding:17px 21px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .br-kicker { font-size:11px; letter-spacing:.09em; text-transform:uppercase; opacity:.83; font-weight:700; }
+    .br-hero h2 { color:#fff; font-size:21px; margin:3px 0; font-weight:750; }
+    .br-hero p { margin:0; color:#e5f5eb; font-size:12px; }
+    .br-back { background:#fff; color:var(--br-dark); padding:8px 12px; border-radius:8px; text-decoration:none; font-size:12px; font-weight:700; white-space:nowrap; }
+    .br-panel { background:#fff; border:1px solid var(--br-line); border-radius:12px; overflow:hidden; box-shadow:0 2px 9px rgba(14,79,45,.045); }
+    .br-panel-head { background:var(--br-light); border-bottom:1px solid var(--br-line); padding:11px 14px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .br-panel-head h3 { color:var(--br-dark); font-size:14px; margin:0; font-weight:750; }
+    .br-panel-body { padding:14px; }
+    .br-page .form-label { font-size:11px; color:#315c45; font-weight:700; margin-bottom:4px; }
+    .br-page .form-control,.br-page .form-select { border:1px solid #cbded1; border-radius:7px; font-size:12px; min-height:34px; padding:6px 9px; }
+    .br-page .form-control:focus,.br-page .form-select:focus { border-color:#278b58; box-shadow:0 0 0 2px #cdebd9; }
+    .br-primary { background:#167647; border:1px solid #167647; color:white; padding:8px 13px; font-size:12px; font-weight:700; border-radius:7px; }
+    .br-primary:hover { background:#105b38; color:#fff; }
+    .br-secondary { background:#f2f8f4; border:1px solid #b9d8c3; color:#14583a; padding:8px 13px; font-size:12px; font-weight:700; border-radius:7px; }
+    .br-secondary:hover { background:#e3f1e8; }
+    .br-page .table { font-size:11px; margin-bottom:0; }
+    .br-page .table thead th { background:#eaf6ee; color:#14573a; border-bottom:1px solid #c8e2d0; font-weight:750; white-space:nowrap; }
+    .br-page .table td { vertical-align:middle; }
+    .br-pill { display:inline-block; border-radius:20px; padding:3px 8px; background:#e6f5eb; color:#17633f; font-size:10px; font-weight:700; }
+    .br-note { font-size:11px; color:#557465; }
+    .br-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .br-tile { display:block; height:100%; padding:16px; border:1px solid #cde4d4; border-radius:11px; background:linear-gradient(145deg,#fff,#f2faf5); text-decoration:none; color:#174c32; transition:transform .12s,border-color .12s; }
+    .br-tile:hover { transform:translateY(-2px); border-color:#29945f; color:#0c5934; }
+    .br-tile-icon { display:inline-flex; align-items:center; justify-content:center; width:35px; height:35px; border-radius:9px; background:#dbf1e3; color:#117443; margin-bottom:10px; font-size:16px; }
+    .br-tile h4 { font-size:13px; font-weight:750; margin:0 0 5px; color:#135a39; }
+    .br-tile p { font-size:11px; line-height:1.5; color:#577264; margin:0; }
+    .br-tile-disabled { opacity:.75; cursor:default; }
+    .br-two-col { display:grid; grid-template-columns:minmax(320px, .9fr) minmax(0,1.1fr); gap:13px; align-items:start; }
+    .br-field-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px 10px; }
+    .br-field-full { grid-column:1/-1; }
+    .br-page .alert { font-size:12px; padding:9px 12px; }
+    .br-priv-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid #e1eee5; }
+    .br-priv-row:last-child { border-bottom:0; }
+    .br-priv-row strong { font-size:12px; color:#155e3c; }
+    @@media(max-width:1100px) { .br-two-col { grid-template-columns:1fr; } .br-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @@media(max-width:600px) { .br-page { padding:10px; } .br-hero { padding:14px; flex-wrap:wrap; } .br-grid { grid-template-columns:1fr; } .br-field-grid { grid-template-columns:1fr; } .br-field-full { grid-column:auto; } }
+</style>

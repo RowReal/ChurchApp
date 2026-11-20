@@ -240,8 +240,8 @@
                             <input id="award-opens"
                                    class="form-control form-control-sm"
                                    type="datetime-local"
-                                   @bind="award.OpensAtUtc"
-                                   @bind:format="yyyy-MM-ddTHH:mm" />
+                                   value="@OpensAtInput"
+                                   @onchange="OnOpensAtChanged" />
                         </div>
 
                         <div class="award-field">
@@ -249,8 +249,8 @@
                             <input id="award-closes"
                                    class="form-control form-control-sm"
                                    type="datetime-local"
-                                   @bind="award.ClosesAtUtc"
-                                   @bind:format="yyyy-MM-ddTHH:mm" />
+                                   value="@ClosesAtInput"
+                                   @onchange="OnClosesAtChanged" />
                         </div>
                     </div>
 
@@ -336,6 +336,77 @@
     private List<AwardProgramme> programmes = new();
     private List<AwardCategory> categories = new();
 
+    // Bind datetime-local controls to ISO-formatted strings rather than directly
+    // to DateTime. This prevents invalid browser input from resetting the model
+    // to DateTime.MinValue (01/01/0001).
+    private bool invalidAwardDateInput;
+
+    private string OpensAtInput
+    {
+        get => FormatDateTimeInput(award.OpensAtUtc);
+        set
+        {
+            if (TryReadDateTimeInput(value, out var parsed))
+            {
+                award.OpensAtUtc = parsed;
+                invalidAwardDateInput = false;
+                error = string.Empty;
+            }
+            else
+            {
+                invalidAwardDateInput = true;
+                error = "Please select a valid opening date and time.";
+            }
+        }
+    }
+
+    private string ClosesAtInput
+    {
+        get => FormatDateTimeInput(award.ClosesAtUtc);
+        set
+        {
+            if (TryReadDateTimeInput(value, out var parsed))
+            {
+                award.ClosesAtUtc = parsed;
+                invalidAwardDateInput = false;
+                error = string.Empty;
+            }
+            else
+            {
+                invalidAwardDateInput = true;
+                error = "Please select a valid closing date and time.";
+            }
+        }
+    }
+
+    private void OnOpensAtChanged(ChangeEventArgs e)
+    {
+        OpensAtInput = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void OnClosesAtChanged(ChangeEventArgs e)
+    {
+        ClosesAtInput = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private static string FormatDateTimeInput(DateTime? date)
+    {
+        return date.HasValue && date.Value.Year > 1
+            ? date.Value.ToString("yyyy-MM-ddTHH:mm", System.Globalization.CultureInfo.InvariantCulture)
+            : string.Empty;
+    }
+
+    private static bool TryReadDateTimeInput(string? input, out DateTime date)
+    {
+        return DateTime.TryParseExact(
+            input,
+            new[] { "yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ss" },
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None,
+            out date) && date.Year > 1;
+    }
+
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -391,6 +462,7 @@
 
     private void NewAward()
     {
+        invalidAwardDateInput = false;
         award = new AwardCategory
         {
             AwardProgrammeId = programme.Id
@@ -524,6 +596,7 @@
 
     private void Edit(AwardCategory item)
     {
+        invalidAwardDateInput = false;
         error = string.Empty;
         message = string.Empty;
 
@@ -551,6 +624,11 @@
     {
         try
         {
+            if (invalidAwardDateInput)
+            {
+                error = "Please correct the opening or closing date before saving.";
+                return;
+            }
             error = string.Empty;
             message = string.Empty;
 
@@ -878,4 +956,7 @@
     .award-setup-page .bcc-card-body, .award-setup-page .card-body { padding: 12px !important; }
 }
 </style>
+
+
+
 

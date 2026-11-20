@@ -1,8 +1,10 @@
 @using ChurchApp.Services
+@using ChurchApp.Services.Bricks
 @using ChurchApp.Models
 @using ChurchApp.Data
 @using ChurchApp.Models.Finance
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.DependencyInjection
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject IServiceProvider ScopedServices
@@ -11,6 +13,7 @@
 @inject ApprovalRequestService ApprovalRequestService
 @inject ServiceRecordAccessService ServiceRecordAccessService
 @inject PrivilegeService PrivilegeService
+@inject BricksPrivilegeService BricksPrivileges
 
 @if (AuthService.IsAuthenticated)
 {
@@ -202,6 +205,15 @@
                     </div>
                 }
 
+                @if (canAccessBricks)
+                {
+                    <div class="bcc-nav-section">
+                        <a href="/workspace/bricks" class="bcc-nav-item @GetNavItemClass("/workspace/bricks")">
+                            <span class="bcc-nav-text">BRICKS</span>
+                        </a>
+                    </div>
+                }
+
                 @if (CanAccessSetupWorkspace())
                 {
                     <div class="bcc-nav-section">
@@ -346,6 +358,7 @@
     [Parameter]
     public bool IsVisible { get; set; }
 
+    private bool canAccessBricks = false;
     private bool canAccessEventMenu = false;
     private bool showSetupMenu = false;
     private bool showWorkforceMenu = false;
@@ -375,6 +388,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadBricksAccessAsync();
         await LoadEventMenuAccessAsync();
         await LoadOrganizationalAccess();
         await LoadNotificationCounts();
@@ -383,6 +397,18 @@
         await LoadServiceRecordAccess();
         await LoadAuditorPrivilegeAsync();
         await LoadAccountRemittancePendingCountAsync();
+    }
+
+    private async Task LoadBricksAccessAsync()
+    {
+        canAccessBricks = false;
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) return;
+        try
+        {
+            canAccessBricks = AuthService.IsInRole("Pastor in Charge") || await BricksPrivileges.CanAccessAsync(worker.Id);
+        }
+        catch (Exception ex) { Console.WriteLine($"BRICKS access check failed: {ex.Message}"); }
     }
 
     private async Task LoadEventMenuAccessAsync()

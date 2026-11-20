@@ -1,0 +1,86 @@
+@page "/workspace/bricks"
+@layout ChurchApp.Components.Layout.MainLayout
+@using ChurchApp.Services
+@using ChurchApp.Services.Bricks
+@using ChurchApp.Data
+@using Microsoft.EntityFrameworkCore
+@inject AuthService AuthService
+@inject BricksPrivilegeService BricksPrivileges
+@inject AppDbContext Db
+<PageTitle>BRICKS Workspace - BCC ServiceHub</PageTitle>
+@if (!AuthService.IsAuthenticated) { <div class="br-page"><div class="br-panel br-panel-body">Please log in to continue. <a href="/login">Log in</a></div></div> }
+else if (loading) { <div class="br-page">Loading BRICKS workspace...</div> }
+else if (!canAccess) { <div class="br-page"><div class="br-panel br-panel-body">Access denied. You do not have BRICKS access.</div></div> }
+else
+{
+<div class="br-page">
+    <div class="br-hero"><div><div class="br-kicker">House Fellowship Management</div><h2>BRICKS Workspace</h2><p>Building lives, strengthening fellowship, and growing together.</p></div></div>
+    <div class="br-panel"><div class="br-panel-head"><h3><i class="fas fa-th-large me-2"></i>Fellowship Functions</h3><span class="br-note">Select a function to continue</span></div>
+    <div class="br-panel-body"><div class="br-grid">
+        @if (canManageCentres) { <a class="br-tile" href="/bricks/centres"><span class="br-tile-icon"><i class="fas fa-home"></i></span><h4>Fellowship Centres</h4><p>Register centres, assign leaders and maintain locations.</p></a> }
+        @if (canManageCentres || isCentreLeader) {
+            <div class="br-tile br-tile-disabled"><span class="br-tile-icon"><i class="fas fa-users"></i></span><h4>Members</h4><p>Registration and transfers — coming next.</p></div>
+            <div class="br-tile br-tile-disabled"><span class="br-tile-icon"><i class="fas fa-clipboard-check"></i></span><h4>Attendance &amp; Offering</h4><p>Weekly records — coming next.</p></div>
+        }
+        @if (canManageCentres || canManageSchedule) { <div class="br-tile br-tile-disabled"><span class="br-tile-icon"><i class="fas fa-calendar-alt"></i></span><h4>Fellowship Calendar</h4><p>Schedules and closures — coming next.</p></div> }
+        @if (canManageCentres || canViewReports) { <div class="br-tile br-tile-disabled"><span class="br-tile-icon"><i class="fas fa-chart-bar"></i></span><h4>Reports &amp; Analytics</h4><p>Fellowship performance — coming next.</p></div> }
+        @if (isBricksAdmin) { <a class="br-tile" href="/bricks/access"><span class="br-tile-icon"><i class="fas fa-user-shield"></i></span><h4>Access Management</h4><p>Grant and revoke BRICKS-specific worker privileges.</p></a> }
+    </div></div></div>
+</div>
+}
+@code {
+    private bool loading = true, canAccess, canManageCentres, canManageSchedule, canViewReports, isCentreLeader, isBricksAdmin;
+    protected override async Task OnInitializedAsync()
+    {
+        var worker = AuthService.CurrentWorker;
+        if (worker == null) { loading = false; return; }
+        isBricksAdmin = await BricksPrivileges.IsAdministratorAsync(worker.Id);
+        canManageCentres = await BricksPrivileges.HasPrivilegeAsync(worker.Id, BricksPrivilegeService.Centres);
+        canManageSchedule = await BricksPrivileges.HasPrivilegeAsync(worker.Id, BricksPrivilegeService.Schedule);
+        canViewReports = await BricksPrivileges.HasPrivilegeAsync(worker.Id, BricksPrivilegeService.Reports);
+        isCentreLeader = await BricksPrivileges.IsCentreLeaderAsync(worker.Id);
+        canAccess = await BricksPrivileges.CanAccessAsync(worker.Id);
+        loading = false;
+    }
+}
+
+<style>
+    .br-page { --br-green:#146b43; --br-dark:#104b34; --br-light:#eaf6ee; --br-line:#cfe5d6; --br-ink:#173b2c; max-width:1600px; margin:0 auto; padding:16px 18px 28px; color:var(--br-ink); }
+    .br-hero { background:linear-gradient(110deg,#0d5937,#198353); color:#fff; border-radius:13px; padding:17px 21px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .br-kicker { font-size:11px; letter-spacing:.09em; text-transform:uppercase; opacity:.83; font-weight:700; }
+    .br-hero h2 { color:#fff; font-size:21px; margin:3px 0; font-weight:750; }
+    .br-hero p { margin:0; color:#e5f5eb; font-size:12px; }
+    .br-back { background:#fff; color:var(--br-dark); padding:8px 12px; border-radius:8px; text-decoration:none; font-size:12px; font-weight:700; white-space:nowrap; }
+    .br-panel { background:#fff; border:1px solid var(--br-line); border-radius:12px; overflow:hidden; box-shadow:0 2px 9px rgba(14,79,45,.045); }
+    .br-panel-head { background:var(--br-light); border-bottom:1px solid var(--br-line); padding:11px 14px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .br-panel-head h3 { color:var(--br-dark); font-size:14px; margin:0; font-weight:750; }
+    .br-panel-body { padding:14px; }
+    .br-page .form-label { font-size:11px; color:#315c45; font-weight:700; margin-bottom:4px; }
+    .br-page .form-control,.br-page .form-select { border:1px solid #cbded1; border-radius:7px; font-size:12px; min-height:34px; padding:6px 9px; }
+    .br-page .form-control:focus,.br-page .form-select:focus { border-color:#278b58; box-shadow:0 0 0 2px #cdebd9; }
+    .br-primary { background:#167647; border:1px solid #167647; color:white; padding:8px 13px; font-size:12px; font-weight:700; border-radius:7px; }
+    .br-primary:hover { background:#105b38; color:#fff; }
+    .br-secondary { background:#f2f8f4; border:1px solid #b9d8c3; color:#14583a; padding:8px 13px; font-size:12px; font-weight:700; border-radius:7px; }
+    .br-secondary:hover { background:#e3f1e8; }
+    .br-page .table { font-size:11px; margin-bottom:0; }
+    .br-page .table thead th { background:#eaf6ee; color:#14573a; border-bottom:1px solid #c8e2d0; font-weight:750; white-space:nowrap; }
+    .br-page .table td { vertical-align:middle; }
+    .br-pill { display:inline-block; border-radius:20px; padding:3px 8px; background:#e6f5eb; color:#17633f; font-size:10px; font-weight:700; }
+    .br-note { font-size:11px; color:#557465; }
+    .br-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .br-tile { display:block; height:100%; padding:16px; border:1px solid #cde4d4; border-radius:11px; background:linear-gradient(145deg,#fff,#f2faf5); text-decoration:none; color:#174c32; transition:transform .12s,border-color .12s; }
+    .br-tile:hover { transform:translateY(-2px); border-color:#29945f; color:#0c5934; }
+    .br-tile-icon { display:inline-flex; align-items:center; justify-content:center; width:35px; height:35px; border-radius:9px; background:#dbf1e3; color:#117443; margin-bottom:10px; font-size:16px; }
+    .br-tile h4 { font-size:13px; font-weight:750; margin:0 0 5px; color:#135a39; }
+    .br-tile p { font-size:11px; line-height:1.5; color:#577264; margin:0; }
+    .br-tile-disabled { opacity:.75; cursor:default; }
+    .br-two-col { display:grid; grid-template-columns:minmax(320px, .9fr) minmax(0,1.1fr); gap:13px; align-items:start; }
+    .br-field-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px 10px; }
+    .br-field-full { grid-column:1/-1; }
+    .br-page .alert { font-size:12px; padding:9px 12px; }
+    .br-priv-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid #e1eee5; }
+    .br-priv-row:last-child { border-bottom:0; }
+    .br-priv-row strong { font-size:12px; color:#155e3c; }
+    @@media(max-width:1100px) { .br-two-col { grid-template-columns:1fr; } .br-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @@media(max-width:600px) { .br-page { padding:10px; } .br-hero { padding:14px; flex-wrap:wrap; } .br-grid { grid-template-columns:1fr; } .br-field-grid { grid-template-columns:1fr; } .br-field-full { grid-column:auto; } }
+</style>

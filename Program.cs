@@ -3,6 +3,7 @@ using ChurchApp.Data;
 using ChurchApp.Models;
 using ChurchApp.Services;
 using ChurchApp.Services.Event;
+using ChurchApp.Services.Bricks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 
@@ -69,6 +70,7 @@ builder.Services.AddScoped<RecordNominationService>();
 builder.Services.AddScoped<ServiceService>();
 builder.Services.AddScoped<AttendanceService>();
 builder.Services.AddScoped<WorkerAttendanceService>();
+builder.Services.AddScoped<GuestRegistrationAvailabilityService>();
 builder.Services.AddScoped<WorkerAttendanceScoringService>();
 builder.Services.AddScoped<SupervisoryClusterService>();
 builder.Services.AddScoped<OrganizationalAccessService>();
@@ -80,6 +82,7 @@ builder.Services.AddScoped<ChurchNoticeService>();
 builder.Services.AddScoped<VerseOfTheDayService>();
 builder.Services.AddScoped<PrayerFocusService>();
 builder.Services.AddScoped<PrivilegeService>();
+builder.Services.AddScoped<BricksPrivilegeService>();
 builder.Services.AddScoped<ServiceReportService>();
 
 //builder.Services.AddScoped<WorkerAttendanceTestSeeder>();
@@ -141,7 +144,6 @@ builder.Services.AddScoped<ExpenditureApprovalService>();
 builder.Services.AddScoped<ExpenditureDocumentReviewService>();
 builder.Services.AddScoped<ExpenditureEntryService>();
 builder.Services.AddScoped<ExpenditureDocumentService>();
-builder.Services.AddScoped<GuestRegistrationAvailabilityService>();
 
 
 

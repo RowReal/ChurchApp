@@ -3,10 +3,12 @@
 
 @layout Components.Layout.MainLayout
 @using ChurchApp.Services
+@using ChurchApp.Services.Bricks
 @using ChurchApp.Models
 @using Microsoft.EntityFrameworkCore
 @inject AuthService AuthService
 @inject PrivilegeService PrivilegeService
+@inject BricksPrivilegeService BricksPrivileges
 @inject ChurchApp.Services.Event.EventRegistrationService EventRegistrationService
 @inject ChurchApp.Services.Event.AwardService AwardService
 @inject ChurchApp.Data.AppDbContext EventDashboardDb
@@ -538,6 +540,19 @@
                     <i class="fas fa-clipboard-check"></i>
                 </div>
                 <span class="action-text">Event Check-In</span>
+            </a>
+        </div>
+    }
+
+    @if (canAccessBricks)
+    {
+        <!-- BRICKS: uses the same access rule and workspace URL as the sidebar -->
+        <div class="col-6 col-sm-4 col-lg-3">
+            <a href="/workspace/bricks" class="action-card">
+                <div class="action-image">
+                    <i class="fas fa-home"></i>
+                </div>
+                <span class="action-text">BRICKS</span>
             </a>
         </div>
     }
@@ -1292,6 +1307,7 @@ else
 }
 
 @code {
+    private bool canAccessBricks = false;
     private bool canAccessEventManagement = false;
     private bool hasAuditorPrivilege = false;
     private bool hasOpenEventRegistration = false;
@@ -1350,6 +1366,7 @@ private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
     if (AuthService.IsAuthenticated &&
         AuthService.CurrentWorker != null)
     {
+        await LoadBricksAccessAsync();
         await LoadEventManagementPrivilegeAsync();
         await LoadAuditorPrivilegeAsync();
         await LoadOpenEventRegistrationAsync();
@@ -1363,6 +1380,24 @@ private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
         await LoadBroadcastAccessAsync();
     }
 }
+private async Task LoadBricksAccessAsync()
+{
+    canAccessBricks = false;
+    var worker = AuthService.CurrentWorker;
+    if (worker == null || !AuthService.IsAuthenticated || !worker.IsActive)
+        return;
+
+    try
+    {
+        // Shared with Sidebar: Pastor in Charge, BRICKS Head, or assigned BRICKS privilege.
+        canAccessBricks = await BricksPrivileges.CanAccessAsync(worker.Id);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Unable to check BRICKS access: {ex.Message}");
+    }
+}
+
 private async Task LoadAuditorPrivilegeAsync()
 {
     hasAuditorPrivilege = false;
