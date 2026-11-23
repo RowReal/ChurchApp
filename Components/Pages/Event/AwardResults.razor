@@ -182,6 +182,42 @@
                 }
             </section>
         }
+        @if (programmeId > 0)
+        {
+            <section class="award-participation-panel">
+                <div class="award-participation-heading">
+                    <div>
+                        <h2><i class="fas fa-award"></i> Overall Nominee Recognition Report</h2>
+                        <p>Each worker's total nominations across all award categories in this programme.</p>
+                    </div>
+                    <span class="award-participation-total">@nomineeSummary.Count nominees</span>
+                </div>
+                @if (nomineeSummary.Count == 0)
+                {
+                    <div class="award-results-no-votes">No worker nominations have been submitted for this programme.</div>
+                }
+                else
+                {
+                    <div class="award-participation-scroll">
+                        <table class="award-participation-table">
+                            <thead><tr><th>Rank</th><th>Nominee name</th><th>Directorate</th><th class="award-participation-number">Total nominations received</th></tr></thead>
+                            <tbody>
+                                @for (var i = 0; i < nomineeSummary.Count; i++)
+                                {
+                                    var person = nomineeSummary[i];
+                                    <tr @key="person.WorkerId">
+                                        <td><span class="award-participation-rank">@(i + 1)</span></td>
+                                        <td class="award-participation-name">@person.Name</td>
+                                        <td>@person.Directorate</td>
+                                        <td class="award-participation-number"><strong>@person.Total</strong></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        }
     }
 </div>
 
@@ -257,6 +293,7 @@
     private List<AwardService.AwardResultDetail> results = new();
     private sealed record NominatorSummary(int WorkerId, string Name, string Directorate, int Total);
     private List<NominatorSummary> nominatorSummary = new();
+    private List<NominatorSummary> nomineeSummary = new();
     private AwardService.AwardResultDetail? selectedAward;
     private AwardService.ResultNominee? selectedNominee;
     private string selectedGroup = "";
@@ -298,6 +335,9 @@
             nominatorSummary = programmeId > 0
                 ? await LoadNominatorSummaryAsync(programmeId)
                 : new();
+            nomineeSummary = programmeId > 0
+                ? await LoadNomineeSummaryAsync(programmeId)
+                : new();
         }
         catch (Exception ex)
         {
@@ -319,6 +359,48 @@
                 && !nomination.NoNomination
             group nomination by nomination.NominatorWorkerId into nominationsByWorker
             select new { WorkerId = nominationsByWorker.Key, Total = nominationsByWorker.Count() }
+        ).ToListAsync();
+
+        if (counts.Count == 0) return new();
+        var ids = counts.Select(x => x.WorkerId).ToList();
+        var workers = await AwardResultsDb.Workers.AsNoTracking()
+            .Where(x => ids.Contains(x.Id))
+            .Select(x => new { x.Id, x.FirstName, x.LastName, x.DirectorateId })
+            .ToListAsync();
+        var names = workers.ToDictionary(x => x.Id);
+        var directorates = await AwardResultsDb.Directorates.AsNoTracking()
+            .ToDictionaryAsync(x => x.Id, x => x.Name);
+
+        return counts.Select(x =>
+        {
+            var found = names.TryGetValue(x.WorkerId, out var worker);
+            var name = found ? ($"{worker!.FirstName} {worker.LastName}").Trim() : "Unknown worker";
+            var directorate = found && worker!.DirectorateId.HasValue
+                ? directorates.GetValueOrDefault(worker.DirectorateId.Value, "Unknown directorate")
+                : "Unassigned directorate";
+            return new NominatorSummary(x.WorkerId, name, directorate, x.Total);
+        })
+        .OrderByDescending(x => x.Total)
+        .ThenBy(x => x.Name)
+        .ToList();
+    }
+
+    private async Task<List<NominatorSummary>> LoadNomineeSummaryAsync(int selectedProgrammeId)
+    {
+        // Count each submitted nomination of a worker once, across all eligible
+        // award categories in the selected programme. Directorate-only awards
+        // are excluded because they do not nominate individual workers.
+        var counts = await (
+            from nomination in AwardResultsDb.AwardNominations.AsNoTracking()
+            join category in AwardResultsDb.Set<AwardCategory>().AsNoTracking()
+                on nomination.AwardCategoryId equals category.Id
+            where category.AwardProgrammeId == selectedProgrammeId
+                && category.NominationAllowed
+                && nomination.IsSubmitted
+                && !nomination.NoNomination
+                && nomination.NomineeWorkerId.HasValue
+            group nomination by nomination.NomineeWorkerId.Value into nominationsByNominee
+            select new { WorkerId = nominationsByNominee.Key, Total = nominationsByNominee.Count() }
         ).ToListAsync();
 
         if (counts.Count == 0) return new();
