@@ -1,8 +1,10 @@
 @page "/event/award-results"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Models.Event
+@using Microsoft.EntityFrameworkCore
 @using ChurchApp.Services.Event
 @inject AwardService Awards
+@inject ChurchApp.Data.AppDbContext AwardResultsDb
 @inject NavigationManager Nav
 
 <PageTitle>Award Results - BCC ServiceHub</PageTitle>
@@ -143,6 +145,43 @@
                 }
             </div>
         }
+
+        @if (programmeId > 0)
+        {
+            <section class="award-participation-panel">
+                <div class="award-participation-heading">
+                    <div>
+                        <h2><i class="fas fa-users"></i> Nomination Participation Report</h2>
+                        <p>Workers ranked by the number of valid nominations submitted in this programme.</p>
+                    </div>
+                    <span class="award-participation-total">@nominatorSummary.Count nominators</span>
+                </div>
+                @if (nominatorSummary.Count == 0)
+                {
+                    <div class="award-results-no-votes">No nominations have been submitted for this programme.</div>
+                }
+                else
+                {
+                    <div class="award-participation-scroll">
+                        <table class="award-participation-table">
+                            <thead><tr><th>Rank</th><th>Name</th><th>Directorate</th><th class="award-participation-number">Total nominations</th></tr></thead>
+                            <tbody>
+                                @for (var i = 0; i < nominatorSummary.Count; i++)
+                                {
+                                    var person = nominatorSummary[i];
+                                    <tr @key="person.WorkerId">
+                                        <td><span class="award-participation-rank">@(i + 1)</span></td>
+                                        <td class="award-participation-name">@person.Name</td>
+                                        <td>@person.Directorate</td>
+                                        <td class="award-participation-number"><strong>@person.Total</strong></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        }
     }
 </div>
 
@@ -216,6 +255,8 @@
     private string error = "";
     private List<AwardProgramme> programmes = new();
     private List<AwardService.AwardResultDetail> results = new();
+    private sealed record NominatorSummary(int WorkerId, string Name, string Directorate, int Total);
+    private List<NominatorSummary> nominatorSummary = new();
     private AwardService.AwardResultDetail? selectedAward;
     private AwardService.ResultNominee? selectedNominee;
     private string selectedGroup = "";
@@ -254,11 +295,54 @@
             results = programmeId > 0
                 ? await Awards.ResultsDashboardAsync(programmeId)
                 : new();
+            nominatorSummary = programmeId > 0
+                ? await LoadNominatorSummaryAsync(programmeId)
+                : new();
         }
         catch (Exception ex)
         {
             error = ex.Message;
         }
+    }
+
+    private async Task<List<NominatorSummary>> LoadNominatorSummaryAsync(int selectedProgrammeId)
+    {
+        // Match ResultsDashboardAsync: count only submitted, non-empty nominations
+        // for nomination-enabled award categories in the selected programme.
+        var counts = await (
+            from nomination in AwardResultsDb.AwardNominations.AsNoTracking()
+            join category in AwardResultsDb.Set<AwardCategory>().AsNoTracking()
+                on nomination.AwardCategoryId equals category.Id
+            where category.AwardProgrammeId == selectedProgrammeId
+                && category.NominationAllowed
+                && nomination.IsSubmitted
+                && !nomination.NoNomination
+            group nomination by nomination.NominatorWorkerId into nominationsByWorker
+            select new { WorkerId = nominationsByWorker.Key, Total = nominationsByWorker.Count() }
+        ).ToListAsync();
+
+        if (counts.Count == 0) return new();
+        var ids = counts.Select(x => x.WorkerId).ToList();
+        var workers = await AwardResultsDb.Workers.AsNoTracking()
+            .Where(x => ids.Contains(x.Id))
+            .Select(x => new { x.Id, x.FirstName, x.LastName, x.DirectorateId })
+            .ToListAsync();
+        var names = workers.ToDictionary(x => x.Id);
+        var directorates = await AwardResultsDb.Directorates.AsNoTracking()
+            .ToDictionaryAsync(x => x.Id, x => x.Name);
+
+        return counts.Select(x =>
+        {
+            var found = names.TryGetValue(x.WorkerId, out var worker);
+            var name = found ? ($"{worker!.FirstName} {worker.LastName}").Trim() : "Unknown worker";
+            var directorate = found && worker!.DirectorateId.HasValue
+                ? directorates.GetValueOrDefault(worker.DirectorateId.Value, "Unknown directorate")
+                : "Unassigned directorate";
+            return new NominatorSummary(x.WorkerId, name, directorate, x.Total);
+        })
+        .OrderByDescending(x => x.Total)
+        .ThenBy(x => x.Name)
+        .ToList();
     }
 
     private static bool IsPaired(AwardService.AwardResultDetail award) =>
@@ -307,6 +391,20 @@
 }
 
 <style>
+    .award-participation-panel { margin-top: 18px; background: #fff; border: 1px solid #dbe9e0; border-radius: 12px; overflow: hidden; color: #17231b; }
+    .award-participation-heading { background: #087345; color: white; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .award-participation-heading h2 { font-size: 1.06rem; margin: 0 0 3px; color: white; font-weight: 700; }
+    .award-participation-heading p { margin: 0; font-size: .81rem; color: #e8f7ed; }
+    .award-participation-total { background: #fff; color: #087345; padding: 5px 10px; border-radius: 30px; font-size: .78rem; font-weight: 700; }
+    .award-participation-scroll { overflow-x: auto; }
+    .award-participation-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    .award-participation-table th { background: #eef7f1; color: #135737; font-size: .76rem; text-transform: uppercase; letter-spacing: .025em; text-align: left; padding: 10px 13px; white-space: nowrap; }
+    .award-participation-table td { padding: 9px 13px; border-top: 1px solid #e8eee9; }
+    .award-participation-table tbody tr:hover { background: #f6faf7; }
+    .award-participation-number { text-align: right !important; }
+    .award-participation-name { font-weight: 650; color: #152b1c; }
+    .award-participation-rank { display: inline-flex; align-items: center; justify-content: center; min-width: 25px; height: 25px; border-radius: 7px; background: #e4f4e9; color: #09643c; font-weight: 750; }
+
     .award-results-page {
         padding: 18px 22px 34px;
         max-width: 1600px;
