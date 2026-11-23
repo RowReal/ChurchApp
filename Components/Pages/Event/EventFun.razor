@@ -1,0 +1,44 @@
+@page "/event/fun"
+@rendermode InteractiveServer
+@using ChurchApp.Models.Event
+@using ChurchApp.Services
+@using ChurchApp.Services.Event
+@inject AuthService AuthService
+@inject EventFunService Fun
+
+<PageTitle>Event Fun - BCC ServiceHub</PageTitle>
+@if (!AuthService.IsAuthenticated)
+{
+    <p>Please sign in to participate.</p>
+}
+else
+{
+    <div class="worker360-page">
+        <div class="bcc-page-header"><div><div class="bcc-page-subtitle">Event Hub</div><div class="bcc-page-title">Event Fun &amp; Engagement</div><div class="bcc-page-subtitle">Fastest Finger and Bible Quiz</div></div></div>
+        @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-warning">@error</div> }
+        @if (games.Count == 0) { <div class="bcc-card p-3">No published activities are available.</div> }
+        <div class="row g-3">
+            @foreach (var game in games)
+            {
+                <div class="col-md-6" @key="game.Id">
+                    <div class="bcc-card p-3 h-100">
+                        <h5>@game.Title</h5>
+                        <p>@(game.Kind == "FastestFinger" ? "Enter the phrase to receive your number." : "Select four answers from the questions displayed by the MC.")</p>
+                        <p class="small text-muted">@(DateTime.SpecifyKind(game.OpensAtUtc,DateTimeKind.Utc).AddHours(1).ToString("dd MMM yyyy HH:mm")) - @(DateTime.SpecifyKind(game.ClosesAtUtc,DateTimeKind.Utc).AddHours(1).ToString("dd MMM yyyy HH:mm")) WAT</p>
+                        <a class="btn btn-success" href="@($"/event/fun/play/{game.Id}")">Open Activity</a>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+@code {
+    private List<EventFunGame> games = new();
+    private string error = "";
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsAuthenticated) return;
+        try { games = await Fun.GamesAsync(); }
+        catch (Exception ex) { error = ex.Message; }
+    }
+}

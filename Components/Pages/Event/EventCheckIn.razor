@@ -1,4 +1,4 @@
-﻿@page "/event/check-in"
+@page "/event/check-in"
 
 @layout Components.Layout.MainLayout
 @using ChurchApp.Models.Event
@@ -34,9 +34,9 @@
     }
     else
     {
-        @if (!string.IsNullOrWhiteSpace(message))
+        @if (!string.IsNullOrWhiteSpace(message) && !error)
         {
-            <div class="alert @(error ? "alert-danger" : "alert-success")" role="alert">@message</div>
+            <div class="alert alert-success" role="status">@message</div>
         }
         @if (events.Count == 0)
         {
@@ -90,6 +90,43 @@
                                     {
                                         <p class="text-danger">No active meals have been configured for this event.</p>
                                     }
+                                    @if (isMarried && !hasReservedSpouseSeat)
+                                    {
+                                        <div class="border rounded p-3 mb-3" style="border-color:#268756!important;background:#f6fbf7">
+                                            <strong>Attending with your spouse?</strong>
+                                            <select class="form-select bcc-input mt-2" style="max-width:220px" value="@spouseAttending.ToString().ToLowerInvariant()" @onchange="OnSpouseAttendingChanged">
+                                                <option value="false">No</option>
+                                                <option value="true">Yes</option>
+                                            </select>
+                                            @if (spouseAttending)
+                                            {
+                                                <label class="bcc-form-label mt-3">Is your spouse a BCC worker?</label>
+                                                <select class="form-select bcc-input" style="max-width:220px" value="@spouseIsWorker.ToString().ToLowerInvariant()" @onchange="OnSpouseWorkerChanged">
+                                                    <option value="true">Yes</option><option value="false">No</option>
+                                                </select>
+                                                @if (spouseIsWorker)
+                                                {
+                                                    <label class="bcc-form-label mt-3">Spouse Worker ID</label>
+                                                    <input class="form-control bcc-input" @bind="spouseWorkerId" placeholder="Enter spouse Worker ID" />
+                                                    <div class="small text-muted mt-1">We will verify your spouse's role and reserve an adjacent seat in the appropriate section.</div>
+                                                }
+                                                else
+                                                {
+                                                    <label class="bcc-form-label mt-3">Spouse Name</label>
+                                                    <input class="form-control bcc-input" @bind="spouseGuestName" placeholder="Spouse full name" />
+                                                    <label class="bcc-form-label mt-3">Spouse Meal</label>
+                                                    <select class="form-select bcc-input" @bind="spouseMealId">
+                                                        <option value="0">-- Choose spouse meal --</option>
+                                                        @foreach (var m in meals) { <option value="@m.Id">@m.Name</option> }
+                                                    </select>
+                                                }
+                                            }
+                                        </div>
+                                    }
+                                    @if (hasReservedSpouseSeat)
+                                    {
+                                        <div class="alert alert-info">Your spouse has already reserved a seat for you. Select your meal and check in to confirm that seat.</div>
+                                    }
                                     <p class="text-muted small"><i class="fas fa-location-arrow me-1"></i>Your current location will be verified against the church's attendance location.</p>
                                     <button class="bcc-btn bcc-btn-primary" disabled="@(busy || mealId == 0 || meals.Count == 0)" @onclick="CheckInAsync">
                                         <i class="fas fa-map-marker-alt me-2"></i>@(busy ? "Checking in..." : "Verify Location & Check In")
@@ -138,6 +175,10 @@
                     <div class="event-pass-tile"><span>SEAT</span><strong>@checkIn.SeatNumber</strong></div>
                 </div>
                 <div class="event-pass-meal"><span>SELECTED MENU</span><strong>@checkIn.EventMenuOption?.Name</strong></div>
+                @if (spouseSeat != null)
+                {
+                    <div class="alert alert-info mt-3"><strong>Spouse: @spouseSeat.Name</strong><div>Table: @spouseSeat.TableName | Seat: @spouseSeat.SeatNumber</div><div>Status: @spouseSeat.Status @if (!string.IsNullOrWhiteSpace(spouseSeat.MealName)) { <span> | Meal: @spouseSeat.MealName</span> }</div></div>
+                }
                 <div class="event-pass-note"><i class="fas fa-info-circle me-2"></i>Kindly show this pass to the hostess to direct you to your seat.</div>
                 @if (CanChangeMeal)
                 {
@@ -159,9 +200,9 @@
         <section class="event-pass-modal event-meal-modal" role="dialog" aria-modal="true" aria-label="Change meal" @onclick:stopPropagation="true">
             <div class="event-pass-head"><div class="event-pass-heading">CHANGE YOUR MENU</div><div class="event-pass-event">Your table and seat will remain unchanged.</div></div>
             <div class="event-pass-body">
-                @if (!string.IsNullOrEmpty(message))
+                @if (!string.IsNullOrEmpty(message) && !error)
                 {
-                    <div class="alert @(error ? "alert-danger" : "alert-success")">@message</div>
+                    <div class="alert alert-success" role="status">@message</div>
                 }
                 <label class="bcc-form-label" for="mealChangeSelect">Select your meal</label>
                 <select id="mealChangeSelect" class="form-select bcc-input mb-3" @bind="mealId">
@@ -478,7 +519,30 @@
 .event-pass-modal .btn-primary { background: #187347 !important; border-color: #187347 !important; }
 </style>
 
+
+@if (error && !string.IsNullOrWhiteSpace(message))
+{
+    <div class="bcc-error-overlay" role="presentation">
+        <div class="bcc-error-dialog" role="alertdialog" aria-modal="true" aria-labelledby="bcc-error-title" aria-describedby="bcc-error-body">
+            <div class="bcc-error-heading" id="bcc-error-title"><i class="fas fa-exclamation-circle" aria-hidden="true"></i> Action could not be completed</div>
+            <div class="bcc-error-content" id="bcc-error-body">@message</div>
+            <div class="bcc-error-actions"><button type="button" class="bcc-error-close" @onclick="DismissError">OK, Close</button></div>
+        </div>
+    </div>
+}
+<style>
+    .bcc-error-overlay { position:fixed; inset:0; z-index:20000; background:rgba(10,25,20,.65); display:flex; align-items:center; justify-content:center; padding:18px; }
+    .bcc-error-dialog { width:100%; max-width:440px; background:white; color:#202b25; border-radius:16px; box-shadow:0 18px 65px rgba(0,0,0,.3); overflow:hidden; }
+    .bcc-error-heading { background:#fff1f0; color:#a22121; padding:18px 22px; display:flex; align-items:center; gap:10px; font-weight:700; }
+    .bcc-error-content { padding:22px; white-space:pre-wrap; overflow-wrap:anywhere; max-height:45vh; overflow-y:auto; }
+    .bcc-error-actions { display:flex; justify-content:flex-end; padding:0 22px 22px; }
+    .bcc-error-close { background:#176b45; color:white; border:0; border-radius:8px; padding:9px 24px; font-weight:600; }
+</style>
+
+
 @code {
+    private void DismissError() { error = false; message = ""; }
+
     private bool loading = true, busy, error, showPass, showMealEditor;
     private string qrImage = "";
     private string WorkerName => AuthService.CurrentWorker?.FullName ?? "Registered Worker";
@@ -506,7 +570,35 @@
     private List<EventMenuOption> meals = new();
     private ChurchEvent? selectedEvent;
     private ChurchApp.Models.Event.EventCheckIn? checkIn;
-    private int selectedEventId, mealId;
+    private int selectedEventId, mealId, spouseMealId;
+    private bool isMarried, spouseAttending, spouseIsWorker = true, hasReservedSpouseSeat;
+    private void OnSpouseAttendingChanged(ChangeEventArgs args)
+    {
+        spouseAttending = string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        if (!spouseAttending)
+        {
+            spouseIsWorker = true;
+            spouseWorkerId = "";
+            spouseGuestName = "";
+            spouseMealId = 0;
+        }
+    }
+
+    private void OnSpouseWorkerChanged(ChangeEventArgs args)
+    {
+        spouseIsWorker = string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        spouseWorkerId = "";
+        spouseGuestName = "";
+        spouseMealId = 0;
+    }
+
+
+    private string spouseWorkerId = "", spouseGuestName = "";
+    private EventCheckInService.SpouseSeatInfo? spouseSeat;
+    private EventCheckInService.SpouseCheckInRequest? SpouseRequest => hasReservedSpouseSeat || !isMarried || !spouseAttending ? null :
+        new(true, spouseIsWorker, spouseIsWorker ? spouseWorkerId : null,
+            spouseIsWorker ? null : spouseGuestName, spouseIsWorker ? null : spouseMealId);
+
     private bool CanChangeMeal => selectedEvent?.MenuChangesCloseAtUtc > DateTime.UtcNow;
 
     protected override async Task OnInitializedAsync() { if (AuthService.IsAuthenticated) await LoadAsync(); else loading = false; }
@@ -532,6 +624,12 @@
         meals = selectedEvent == null ? new() : await CheckInService.MealsAsync(selectedEventId);
         checkIn = selectedEvent == null ? null : await CheckInService.MyCheckInAsync(selectedEventId);
         mealId = checkIn?.EventMenuOptionId ?? 0;
+        isMarried = AuthService.CurrentWorker != null && await CheckInService.IsMarriedAsync(AuthService.CurrentWorker.WorkerId);
+        hasReservedSpouseSeat = selectedEvent != null && AuthService.CurrentWorker != null &&
+            await CheckInService.HasReservedSpouseSeatAsync(selectedEventId, AuthService.CurrentWorker.WorkerId);
+        if (hasReservedSpouseSeat) spouseAttending = false;
+        spouseSeat = selectedEvent == null || AuthService.CurrentWorker == null ? null :
+            await CheckInService.SpouseSeatAsync(selectedEventId, AuthService.CurrentWorker.WorkerId);
         BuildQr();
         if (checkIn != null) ShowPass(); else { showPass = false; showMealEditor = false; }
     }
@@ -540,9 +638,34 @@
         busy = true; message = "";
         try
         {
-            var location = await JS.InvokeAsync<BrowserLocationResult>("workerAttendance.getCurrentPosition");
-            if (!location.Success) throw new InvalidOperationException(location.Message ?? "Could not get your location.");
-            await CheckInService.CheckInAsync(selectedEventId, mealId, location.Latitude, location.Longitude, location.Accuracy);
+            var accuracyLimit = await CheckInService.MaximumGpsAccuracyAsync();
+            BrowserLocationResult? bestLocation = null;
+            string? lastLocationError = null;
+            for (var attempt = 1; attempt <= 3; attempt++)
+            {
+                if (attempt > 1) await Task.Delay(3000);
+                var candidate = await JS.InvokeAsync<BrowserLocationResult>("workerAttendance.getCurrentPosition");
+                if (candidate.Success &&
+                    double.IsFinite(candidate.Latitude) && double.IsFinite(candidate.Longitude) &&
+                    double.IsFinite(candidate.Accuracy) && candidate.Accuracy >= 0 &&
+                    candidate.Latitude >= -90 && candidate.Latitude <= 90 &&
+                    candidate.Longitude >= -180 && candidate.Longitude <= 180)
+                {
+                    if (bestLocation == null || candidate.Accuracy < bestLocation.Accuracy)
+                        bestLocation = candidate;
+                    if (candidate.Accuracy <= accuracyLimit) break;
+                }
+                else
+                {
+                    lastLocationError = candidate.Message ?? "Could not obtain a valid location.";
+                }
+            }
+            if (bestLocation == null)
+                throw new InvalidOperationException($"Unable to obtain your location after 3 attempts. {lastLocationError}");
+            if (bestLocation.Accuracy > accuracyLimit)
+                throw new InvalidOperationException(
+                    $"Location accuracy is insufficient after 3 attempts (best: {bestLocation.Accuracy:0}m; required: {accuracyLimit:0}m). Enable high-accuracy location services or move to an open area and try again.");
+            await CheckInService.CheckInAsync(selectedEventId, mealId, bestLocation.Latitude, bestLocation.Longitude, bestLocation.Accuracy, SpouseRequest);
             await RefreshSelectedAsync(); error = false; message = "Check-in successful. Your seat has been allocated.";
         }
         catch (Exception ex) { error = true; message = ex.Message; }

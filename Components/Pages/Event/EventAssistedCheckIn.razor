@@ -1,4 +1,4 @@
-﻿@page "/event/assisted-check-in"
+@page "/event/assisted-check-in"
 @layout Components.Layout.MainLayout
 @using ChurchApp.Models.Event
 @using ChurchApp.Services
@@ -23,10 +23,6 @@
     }
     else
     {
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger">@errorMessage</div>
-        }
         @if (!string.IsNullOrEmpty(successMessage))
         {
             <div class="alert alert-success">@successMessage</div>
@@ -72,6 +68,36 @@
                                 }
                             </select>
                         </div>
+                        @if (isMarried && !hasReservedSpouseSeat)
+                        {
+                            <div class="border rounded p-3 mt-3" style="background:#f6fbf7;border-color:#268756!important">
+                                <strong>Will the worker attend with their spouse?</strong>
+                                <select class="form-select mt-2" style="max-width:220px" value="@spouseAttending.ToString().ToLowerInvariant()" @onchange="OnSpouseAttendingChanged"><option value="false">No</option><option value="true">Yes</option></select>
+                                @if (spouseAttending)
+                                {
+                                    <label class="form-label mt-3">Is the spouse a BCC worker?</label>
+                                    <select class="form-select" style="max-width:220px" value="@spouseIsWorker.ToString().ToLowerInvariant()" @onchange="OnSpouseWorkerChanged"><option value="true">Yes</option><option value="false">No</option></select>
+                                    @if (spouseIsWorker)
+                                    {
+                                        <label class="form-label mt-3">Spouse Worker ID</label>
+                                        <input class="form-control" @bind="spouseWorkerId" placeholder="Spouse Worker ID" />
+                                    }
+                                    else
+                                    {
+                                        <label class="form-label mt-3">Spouse Name</label>
+                                        <input class="form-control" @bind="spouseGuestName" />
+                                        <label class="form-label mt-3">Spouse Meal</label>
+                                        <select class="form-select" @bind="spouseMealId"><option value="0">-- Choose meal --</option>
+                                            @foreach (var meal in meals) { <option value="@meal.Id">@meal.Name</option> }
+                                        </select>
+                                    }
+                                }
+                            </div>
+                        }
+                        @if (hasReservedSpouseSeat)
+                        {
+                            <div class="alert alert-info mt-3">The worker's spouse has already reserved a seat. Select a meal and confirm check-in to use the reserved seat.</div>
+                        }
                         <button class="btn assisted-primary mt-3" disabled="@(busy || mealId == 0)" @onclick="SubmitAsync">@(busy ? "Checking in..." : "Confirm & Check In")</button>
                     }
                 }
@@ -92,6 +118,10 @@
      }
                 <h4>@found.WorkerName</h4><div class="assisted-grid"><div><small>TABLE</small><strong>@pass.EventTable?.TableName</strong></div><div><small>SEAT</small><strong>@pass.SeatNumber</strong></div></div>
                 <div class="assisted-meal"><small>SELECTED MENU</small><strong>@pass.EventMenuOption?.Name</strong></div>
+                @if (spouseSeat != null)
+                {
+                    <div class="alert alert-info mt-3"><strong>Spouse: @spouseSeat.Name</strong><div>Table: @spouseSeat.TableName | Seat: @spouseSeat.SeatNumber</div><div>Status: @spouseSeat.Status @if (!string.IsNullOrWhiteSpace(spouseSeat.MealName)) { <span> | Meal: @spouseSeat.MealName</span> }</div></div>
+                }
                 <p class="assisted-note">Kindly show this to the hostess to direct you to your seat.</p>
                 <button class="btn assisted-primary w-100" @onclick="ClosePass">Close Pass</button>
             </div>
@@ -304,10 +334,61 @@
 
 .assisted-page .assisted-hero { background: linear-gradient(105deg,#124f32,#268756) !important; }
 </style>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="bcc-error-overlay" role="presentation">
+        <div class="bcc-error-dialog" role="alertdialog" aria-modal="true" aria-labelledby="bcc-error-title" aria-describedby="bcc-error-body">
+            <div class="bcc-error-heading" id="bcc-error-title"><i class="fas fa-exclamation-circle" aria-hidden="true"></i> Action could not be completed</div>
+            <div class="bcc-error-content" id="bcc-error-body">@errorMessage</div>
+            <div class="bcc-error-actions"><button type="button" class="bcc-error-close" @onclick="DismissError">OK, Close</button></div>
+        </div>
+    </div>
+}
+<style>
+    .bcc-error-overlay { position:fixed; inset:0; z-index:20000; background:rgba(10,25,20,.65); display:flex; align-items:center; justify-content:center; padding:18px; }
+    .bcc-error-dialog { width:100%; max-width:440px; background:white; color:#202b25; border-radius:16px; box-shadow:0 18px 65px rgba(0,0,0,.3); overflow:hidden; }
+    .bcc-error-heading { background:#fff1f0; color:#a22121; padding:18px 22px; display:flex; align-items:center; gap:10px; font-weight:700; }
+    .bcc-error-content { padding:22px; white-space:pre-wrap; overflow-wrap:anywhere; max-height:45vh; overflow-y:auto; }
+    .bcc-error-actions { display:flex; justify-content:flex-end; padding:0 22px 22px; }
+    .bcc-error-close { background:#176b45; color:white; border:0; border-radius:8px; padding:9px 24px; font-weight:600; }
+</style>
+
+
 @code {
+    private void DismissError() { errorMessage = ""; }
+
     private bool loading = true, authorised, busy, showPass;
     private string workerId = "", errorMessage = "", successMessage = "", qrImage = "";
-    private int eventId, mealId;
+    private int eventId, mealId, spouseMealId;
+    private bool isMarried, spouseAttending, spouseIsWorker = true, hasReservedSpouseSeat;
+    private void OnSpouseAttendingChanged(ChangeEventArgs args)
+    {
+        spouseAttending = string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        if (!spouseAttending)
+        {
+            spouseIsWorker = true;
+            spouseWorkerId = "";
+            spouseGuestName = "";
+            spouseMealId = 0;
+        }
+    }
+
+    private void OnSpouseWorkerChanged(ChangeEventArgs args)
+    {
+        spouseIsWorker = string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        spouseWorkerId = "";
+        spouseGuestName = "";
+        spouseMealId = 0;
+    }
+
+
+    private string spouseWorkerId = "", spouseGuestName = "";
+    private EventCheckInService.SpouseSeatInfo? spouseSeat;
+    private EventCheckInService.SpouseCheckInRequest? SpouseRequest => hasReservedSpouseSeat || !isMarried || !spouseAttending ? null :
+        new(true, spouseIsWorker, spouseIsWorker ? spouseWorkerId : null,
+            spouseIsWorker ? null : spouseGuestName, spouseIsWorker ? null : spouseMealId);
+
     private List<ChurchEvent> events = new();
     private List<EventMenuOption> meals = new();
     private EventCheckInService.AssistedWorkerResult? found;
@@ -321,13 +402,23 @@
     private async Task OnEventChanged(ChangeEventArgs e)
     {
         eventId = int.TryParse(e.Value?.ToString(), out var value) ? value : 0;
-        found = null; pass = null; mealId = 0; errorMessage = ""; successMessage = "";
+        found = null; pass = null; mealId = 0; spouseSeat = null; isMarried = false; hasReservedSpouseSeat = false;
+        spouseAttending = false; spouseWorkerId = ""; spouseGuestName = ""; spouseMealId = 0;
+        errorMessage = ""; successMessage = "";
         meals = eventId == 0 ? new() : await CheckInService.MealsAsync(eventId);
     }
     private async Task SearchAsync()
     {
         busy = true; errorMessage = ""; successMessage = ""; found = null; pass = null;
-        try { found = await CheckInService.FindAssistedWorkerAsync(eventId, workerId); mealId = 0; }
+        try
+        {
+            found = await CheckInService.FindAssistedWorkerAsync(eventId, workerId);
+            mealId = 0; spouseAttending = false; spouseSeat = null;
+            isMarried = await CheckInService.IsMarriedAsync(found.WorkerId);
+            hasReservedSpouseSeat = await CheckInService.HasReservedSpouseSeatAsync(eventId, found.WorkerId);
+            if (found.ExistingCheckIn != null)
+                spouseSeat = await CheckInService.SpouseSeatAsync(eventId, found.WorkerId);
+        }
         catch (Exception ex) { errorMessage = ex.Message; }
         finally { busy = false; }
     }
@@ -337,9 +428,10 @@
         busy = true; errorMessage = ""; successMessage = "";
         try
         {
-            pass = await CheckInService.AssistedCheckInAsync(eventId, found.WorkerId, mealId);
+            pass = await CheckInService.AssistedCheckInAsync(eventId, found.WorkerId, mealId, SpouseRequest);
             found = await CheckInService.FindAssistedWorkerAsync(eventId, found.WorkerId);
             pass = found.ExistingCheckIn;
+            spouseSeat = await CheckInService.SpouseSeatAsync(eventId, found.WorkerId);
             BuildQr(); showPass = true; successMessage = "Worker checked in successfully.";
         }
         catch (Exception ex) { errorMessage = ex.Message; }

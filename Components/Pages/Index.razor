@@ -531,6 +531,24 @@
         </div>
     }
 
+    @if (openEventFunGames.Count > 0)
+    {
+        @foreach (var game in openEventFunGames)
+        {
+            <div class="col-6 col-sm-4 col-lg-3" @key="game.Id">
+                <button type="button" class="action-card w-100 border-0"
+                        style="cursor:pointer; font:inherit;"
+                        title="@game.Title"
+                        @onclick="@(() => OpenEventFunGame(game.Id))">
+                    <div class="action-image">
+                        <i class="fas @(game.Kind == "BibleQuiz" ? "fa-book-open" : "fa-bolt")"></i>
+                    </div>
+                    <span class="action-text">@(game.Kind == "BibleQuiz" ? "Bible Quiz" : "Fastest Finger")</span>
+                </button>
+            </div>
+        }
+    }
+
     @if (hasOpenRegisteredEventCheckIn)
     {
         <!-- Event check-in: only for workers registered to attend an event whose check-in is open -->
@@ -1313,6 +1331,7 @@ else
     private bool hasOpenEventRegistration = false;
     private bool hasOpenAwardNomination = false;
     private bool hasOpenRegisteredEventCheckIn = false;
+    private List<ChurchApp.Models.Event.EventFunGame> openEventFunGames = new();
 
     // Statistics
     private int totalWorkers = 0;
@@ -1370,6 +1389,7 @@ private bool canAccessServiceRecords =>  serviceRecordAccess.HasAnyAccess;
         await LoadEventManagementPrivilegeAsync();
         await LoadAuditorPrivilegeAsync();
         await LoadOpenEventRegistrationAsync();
+        await LoadOpenEventFunGamesAsync();
         await LoadOpenAwardNominationAsync();
         await LoadOpenRegisteredEventCheckInAsync();
         await LoadDashboardData();
@@ -1464,6 +1484,35 @@ private async Task LoadOpenEventRegistrationAsync()
     catch (Exception ex)
     {
         Console.WriteLine($"Unable to check open event registrations: {ex.Message}");
+    }
+}
+
+private void OpenEventFunGame(int gameId)
+{
+    Navigation.NavigateTo($"/event/fun/play/{gameId}");
+}
+
+private async Task LoadOpenEventFunGamesAsync()
+{
+    openEventFunGames.Clear();
+    if (!AuthService.IsAuthenticated || AuthService.CurrentWorker == null) return;
+
+    try
+    {
+        var now = DateTime.UtcNow;
+        openEventFunGames = await EventDashboardDb.EventFunGames.AsNoTracking()
+            .Where(g => g.IsPublished &&
+                        g.OpensAtUtc <= now &&
+                        now < g.ClosesAtUtc &&
+                        (g.Kind == "FastestFinger" ||
+                         (g.Kind == "BibleQuiz" && g.QuizSubmissionsOpen)))
+            .OrderBy(g => g.Kind)
+            .ThenBy(g => g.Title)
+            .ToListAsync();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Unable to check open Event Fun submissions: {ex.Message}");
     }
 }
 

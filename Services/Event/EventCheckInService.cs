@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Data;
 using System.Security.Cryptography;
 using ChurchApp.Data;
+using ChurchApp.Models;
 using ChurchApp.Models.Event;
 using Microsoft.EntityFrameworkCore;
 
@@ -53,10 +54,10 @@ public sealed class EventCheckInService
         return record;
     }
 
-    public async Task<EventCheckIn> CheckInAsync(int eventId, int mealId, double latitude, double longitude, double accuracy)
+    public async Task<EventCheckIn> CheckInAsync(int eventId, int mealId, double latitude, double longitude, double accuracy, SpouseCheckInRequest? spouse = null)
     {
         var workerId = WorkerId;
-        return await AllocateAsync(eventId, mealId, workerId, requireGps: true, latitude, longitude, accuracy);
+        return await AllocateAsync(eventId, mealId, workerId, requireGps: true, latitude, longitude, accuracy, spouse);
     }
 
     public async Task<bool> CanAssistAsync()
@@ -106,7 +107,7 @@ public sealed class EventCheckInService
         return new AssistedWorkerResult(worker.WorkerId, worker.FirstName + " " + worker.LastName, existing);
     }
 
-    public async Task<EventCheckIn> AssistedCheckInAsync(int eventId, string workerId, int mealId)
+    public async Task<EventCheckIn> AssistedCheckInAsync(int eventId, string workerId, int mealId, SpouseCheckInRequest? spouse = null)
     {
         await EnsureAssistingOfficerAsync();
         var officer = auth.CurrentWorker!;
@@ -114,7 +115,7 @@ public sealed class EventCheckInService
         if (string.IsNullOrEmpty(workerId)) throw new InvalidOperationException("Enter a worker ID.");
         // All worker eligibility and registration checks are repeated inside AllocateAsync.
         var existing = await db.EventCheckIns.AsNoTracking().AnyAsync(c => c.ChurchEventId == eventId && c.WorkerId == workerId);
-        var result = await AllocateAsync(eventId, mealId, workerId, requireGps: false, 0, 0, 0);
+        var result = await AllocateAsync(eventId, mealId, workerId, requireGps: false, 0, 0, 0, spouse);
         if (!existing)
         {
             await audit.LogGenericAsync("EventCheckIns", result.Id, "CREATE", officer.Id,
@@ -124,9 +125,60 @@ public sealed class EventCheckInService
     }
 
     public sealed record AssistedWorkerResult(string WorkerId, string WorkerName, EventCheckIn? ExistingCheckIn);
+    public sealed record SpouseCheckInRequest(bool Attending, bool IsWorker, string? SpouseWorkerId = null,
+        string? GuestName = null, int? GuestMealId = null);
+    public sealed record SpouseSeatInfo(string Name, string TableName, int SeatNumber, string Status, string? MealName);
+
+    public async Task<bool> IsMarriedAsync(string workerId)
+    {
+        var worker = await db.Workers.AsNoTracking().FirstOrDefaultAsync(w => w.WorkerId == workerId && w.IsActive);
+        return worker != null && string.Equals(worker.MaritalStatus?.Trim(), "Married", StringComparison.OrdinalIgnoreCase);
+    }
+
+    // True only while another worker holds a live seat for this worker.
+    public Task<bool> HasReservedSpouseSeatAsync(int eventId, string workerId) =>
+        db.EventSeatReservations.AsNoTracking().AnyAsync(x =>
+            x.ChurchEventId == eventId &&
+            x.SpouseWorkerId == workerId &&
+            !x.IsGuest &&
+            x.ReleasedAtUtc == null);
+
+    public async Task<SpouseSeatInfo?> SpouseSeatAsync(int eventId, string workerId)
+    {
+        var hold = await db.EventSeatReservations.AsNoTracking()
+            .Where(x => x.ChurchEventId == eventId && x.OwnerWorkerId == workerId)
+            .OrderByDescending(x => x.CreatedAtUtc).FirstOrDefaultAsync();
+        if (hold == null)
+        {
+            // A spouse may have initiated the booking from the other worker's account.
+            hold = await db.EventSeatReservations.AsNoTracking()
+                .Where(x => x.ChurchEventId == eventId && x.SpouseWorkerId == workerId)
+                .OrderByDescending(x => x.CreatedAtUtc).FirstOrDefaultAsync();
+            if (hold == null) return null;
+            var first = await db.EventCheckIns.AsNoTracking().FirstOrDefaultAsync(x => x.ChurchEventId == eventId && x.WorkerId == hold.OwnerWorkerId);
+            if (first == null) return null;
+            var table = await db.EventTables.AsNoTracking().FirstOrDefaultAsync(t => t.Id == first.EventTableId);
+            var firstWorker = await db.Workers.AsNoTracking().FirstOrDefaultAsync(w => w.WorkerId == hold.OwnerWorkerId);
+            return new SpouseSeatInfo(firstWorker == null ? hold.OwnerWorkerId : firstWorker.FirstName + " " + firstWorker.LastName,
+                table?.TableName ?? "", first.SeatNumber, "Confirmed", null);
+        }
+        var tableName = await db.EventTables.AsNoTracking().Where(t => t.Id == hold.EventTableId).Select(t => t.TableName).FirstOrDefaultAsync() ?? "";
+        var spouseName = hold.GuestName ?? hold.SpouseWorkerId ?? "Spouse";
+        if (!hold.IsGuest && hold.SpouseWorkerId != null)
+        {
+            var worker = await db.Workers.AsNoTracking().FirstOrDefaultAsync(w => w.WorkerId == hold.SpouseWorkerId);
+            if (worker != null) spouseName = worker.FirstName + " " + worker.LastName;
+        }
+        var spouseCheckedIn = !hold.IsGuest && hold.SpouseWorkerId != null &&
+            await db.EventCheckIns.AsNoTracking().AnyAsync(c => c.ChurchEventId == eventId && c.WorkerId == hold.SpouseWorkerId);
+        var mealName = hold.GuestMealOptionId == null ? null : await db.EventMenuOptions.AsNoTracking()
+            .Where(m => m.Id == hold.GuestMealOptionId).Select(m => m.Name).FirstOrDefaultAsync();
+        return new SpouseSeatInfo(spouseName, tableName, hold.SeatNumber, hold.IsGuest || spouseCheckedIn ? "Confirmed" : "Reserved", mealName);
+    }
+
 
     private async Task<EventCheckIn> AllocateAsync(int eventId, int mealId, string workerId, bool requireGps,
-        double latitude, double longitude, double accuracy)
+        double latitude, double longitude, double accuracy, SpouseCheckInRequest? spouse)
     {
         // A serializable transaction and database unique indexes are required for safe concurrent allocation.
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
@@ -159,6 +211,63 @@ public sealed class EventCheckInService
             throw new InvalidOperationException("Meal selection has closed. New check-in requires an administrator to resolve the meal choice.");
         if (requireGps) await VerifyLocationAsync(latitude, longitude, accuracy);
 
+        // A reserved worker spouse checks in to the held seat, not a newly selected seat.
+        var ownReservation = await db.EventSeatReservations.FirstOrDefaultAsync(h =>
+            h.ChurchEventId == eventId && h.SpouseWorkerId == workerId && h.ReleasedAtUtc == null);
+        if (ownReservation != null)
+        {
+            var seated = new EventCheckIn
+            {
+                ChurchEventId = eventId, WorkerId = workerId,
+                EventTableId = ownReservation.EventTableId, SeatNumber = ownReservation.SeatNumber,
+                EventMenuOptionId = mealId, CheckedInAtUtc = now,
+                VerificationToken = NewVerificationToken(),
+                IsLeadershipSeat = await db.EventTables.AnyAsync(t => t.Id == ownReservation.EventTableId && t.IsLeadershipReserved)
+            };
+            db.EventCheckIns.Add(seated);
+            // A seat moves from the reservation ledger to the confirmed check-in ledger.
+            ownReservation.ReleasedAtUtc = now;
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+            return seated;
+        }
+
+        Worker? spouseWorker = null;
+        bool reserveCouple = spouse?.Attending == true;
+        if (reserveCouple)
+        {
+            if (!string.Equals(worker.MaritalStatus?.Trim(), "Married", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Spousal seating is available only for workers whose marital status is Married.");
+            if (spouse!.IsWorker)
+            {
+                var spouseId = (spouse.SpouseWorkerId ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(spouseId) || spouseId == workerId)
+                    throw new InvalidOperationException("Enter a valid spouse Worker ID different from your own.");
+                spouseWorker = await db.Workers.AsNoTracking().FirstOrDefaultAsync(w => w.WorkerId == spouseId && w.IsActive)
+                    ?? throw new InvalidOperationException("The spouse Worker ID does not identify an active worker.");
+                if (!string.Equals(spouseWorker.MaritalStatus?.Trim(), "Married", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("The spouse's worker profile must show Married. Please contact an administrator.");
+                if (!await db.EventRegistrations.AnyAsync(r => r.ChurchEventId == eventId && r.WorkerId == spouseId && r.WillAttend))
+                    throw new InvalidOperationException("The worker spouse must register to attend the event before a seat can be reserved.");
+                if (await db.EventCheckIns.AnyAsync(c => c.ChurchEventId == eventId && c.WorkerId == spouseId))
+                    throw new InvalidOperationException("Your spouse has already checked in. Please contact the event administrator to reconcile seating.");
+                if (await db.EventSeatReservations.AnyAsync(h => h.ChurchEventId == eventId && h.SpouseWorkerId == spouseId && h.ReleasedAtUtc == null))
+                    throw new InvalidOperationException("Your spouse already has a reserved seat.");
+                var spouseCategory = EventSeatingEligibility.Classify(spouseWorker.Role);
+                if (spouseCategory == EventSeatingCategory.Excluded)
+                    throw new InvalidOperationException("Your spouse is excluded from automatic seating. Please contact the event administrator.");
+                if (spouseCategory == EventSeatingCategory.Leadership)
+                    category = EventSeatingCategory.Leadership;
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(spouse.GuestName))
+                    throw new InvalidOperationException("Enter the name of your accompanying spouse.");
+                if (!spouse.GuestMealId.HasValue || !await db.EventMenuOptions.AnyAsync(m => m.Id == spouse.GuestMealId && m.ChurchEventId == eventId && m.IsActive))
+                    throw new InvalidOperationException("Select an available meal for your spouse.");
+            }
+        }
+
         var tables = await db.EventTables.AsNoTracking()
             .Where(t => t.ChurchEventId == eventId && t.IsActive && t.Capacity > 0 &&
                         t.IsLeadershipReserved == (category == EventSeatingCategory.Leadership))
@@ -166,6 +275,9 @@ public sealed class EventCheckInService
         var occupied = await db.Set<EventCheckIn>().AsNoTracking()
             .Where(c => c.ChurchEventId == eventId)
             .Select(c => new { c.EventTableId, c.SeatNumber, c.WorkerId }).ToListAsync();
+        var heldSeats = await db.EventSeatReservations.AsNoTracking()
+            .Where(h => h.ChurchEventId == eventId && h.ReleasedAtUtc == null)
+            .Select(h => new { h.EventTableId, h.SeatNumber }).ToListAsync();
         var mix = await db.EventSeatingSettings.AsNoTracking()
             .Where(s => s.ChurchEventId == eventId).Select(s => s.MixDirectorates).FirstOrDefaultAsync();
         var assignments = occupied.Where(c => tables.Any(t => t.Id == c.EventTableId)).ToList();
@@ -186,7 +298,9 @@ public sealed class EventCheckInService
             var taken = occupied.Where(c => c.EventTableId == table.Id).Select(c => c.SeatNumber).ToHashSet();
             for (int seat = 1; seat <= table.Capacity; seat++)
             {
-                if (taken.Contains(seat)) continue;
+                if (taken.Contains(seat) || heldSeats.Any(h => h.EventTableId == table.Id && h.SeatNumber == seat)) continue;
+                if (reserveCouple && (seat == table.Capacity || taken.Contains(seat + 1) ||
+                    heldSeats.Any(h => h.EventTableId == table.Id && h.SeatNumber == seat + 1))) continue;
                 var record = new EventCheckIn
                 {
                     ChurchEventId = eventId,
@@ -199,11 +313,24 @@ public sealed class EventCheckInService
                     IsLeadershipSeat = category == EventSeatingCategory.Leadership
                 };
                 db.Set<EventCheckIn>().Add(record);
+                if (reserveCouple)
+                {
+                    db.EventSeatReservations.Add(new EventSeatReservation
+                    {
+                        ChurchEventId = eventId, EventTableId = table.Id, SeatNumber = seat + 1,
+                        OwnerWorkerId = workerId, SpouseWorkerId = spouseWorker?.WorkerId,
+                        IsGuest = spouseWorker == null, GuestName = spouseWorker == null ? spouse!.GuestName!.Trim() : null,
+                        GuestMealOptionId = spouseWorker == null ? spouse!.GuestMealId : null,
+                        CreatedAtUtc = now
+                    });
+                }
                 await db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return record;
             }
         }
+        if (reserveCouple)
+            throw new InvalidOperationException("No two adjacent seats are available in the appropriate seating section. Please contact the event administrator.");
         throw new InvalidOperationException(category == EventSeatingCategory.Leadership
             ? "All leadership-reserved seats are occupied. Please contact the event administrator."
             : "All general seats are occupied. Please contact the event administrator.");
@@ -222,6 +349,14 @@ public sealed class EventCheckInService
             ?? throw new InvalidOperationException("Check in first.");
         record.EventMenuOptionId = mealId; record.MenuUpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync();
+    }
+
+    public async Task<double> MaximumGpsAccuracyAsync()
+    {
+        var site = await db.WorkerAttendanceSettings.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.IsActive)
+            ?? throw new InvalidOperationException("No active church attendance location is configured.");
+        return site.MaximumGpsAccuracyMetres;
     }
 
     private async Task VerifyLocationAsync(double latitude, double longitude, double accuracy)

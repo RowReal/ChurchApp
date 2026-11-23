@@ -1,0 +1,318 @@
+@page "/event/fun/admin"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Event
+@using ChurchApp.Services
+@using ChurchApp.Services.Event
+@inject AuthService AuthService
+@inject PrivilegeService PrivilegeService
+@inject EventFunService Fun
+@inject NavigationManager Navigation
+
+<PageTitle>Event Fun Administration | BCC ServiceHub</PageTitle>
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="ef-notice">Please log in to access Event Management.</div>
+}
+else if (IsCheckingPrivilege)
+{
+    <div class="ef-notice">Checking Event Management access...</div>
+}
+else if (!CanManageEvents)
+{
+    <div class="ef-notice">Event Management privilege required.</div>
+}
+else
+{
+<div class="worker360-page ef-admin">
+    <header class="ef-hero">
+        <div class="ef-hero-content">
+            <div class="ef-eyebrow"><span class="ef-dot"></span> BCC SERVICEHUB / EVENT HUB</div>
+            <h1>Fun &amp; Engagement <span>Setup</span></h1>
+            <p>Configure games, manage Bible Quiz questions and review participation.</p>
+        </div>
+        <div class="ef-hero-actions">
+            <a href="/event/fun" class="ef-hero-link">Participant view <span aria-hidden="true">↗</span></a>
+            <button type="button" class="ef-hero-button" @onclick="New">+ New game</button>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="ef-notice" role="status">@message</div>
+    }
+
+    <div class="ef-layout">
+        <section class="ef-panel ef-config">
+            <div class="ef-panel-heading">
+                <div><div class="ef-kicker">GAME CONFIGURATION</div><h2>@(editing.Id == 0 ? "Create activity" : "Edit activity")</h2></div>
+                <span class="ef-panel-tag">01 / Setup</span>
+            </div>
+            <div class="ef-fields">
+                <div class="ef-field">
+                    <label>Church event</label>
+                    <select class="form-select" @bind="editing.ChurchEventId">
+                        <option value="0">Select event</option>
+                        @foreach (var e in events) { <option value="@e.Id">@e.Name</option> }
+                    </select>
+                </div>
+                <div class="ef-field">
+                    <label>Game type</label>
+                    <select class="form-select" @bind="editing.Kind" disabled="@(editing.Id != 0)">
+                        <option value="FastestFinger">Fastest Finger</option>
+                        <option value="BibleQuiz">Bible Quiz</option>
+                    </select>
+                </div>
+                <div class="ef-field ef-wide">
+                    <label>Activity title</label>
+                    <input class="form-control" @bind="editing.Title" placeholder="e.g. Workers Appreciation Challenge" />
+                </div>
+                @if (editing.Kind == "FastestFinger")
+                {
+                    <div class="ef-field ef-wide">
+                        <label>Challenge phrase</label>
+                        <input class="form-control" @bind="editing.Phrase" placeholder="Jesus is Lord" />
+                    </div>
+                }
+                <div class="ef-field">
+                    <label>Opens (WAT)</label>
+                    <input class="form-control" type="datetime-local" @bind="opens" />
+                </div>
+                <div class="ef-field">
+                    <label>Closes (WAT)</label>
+                    <input class="form-control" type="datetime-local" @bind="closes" />
+                </div>
+            </div>
+            <div class="ef-form-footer">
+                <label class="ef-publish"><input type="checkbox" @bind="editing.IsPublished" /> <span>Publish activity</span></label>
+                <div class="ef-buttons">
+                    <button class="ef-btn ef-btn-ghost" @onclick="New">Clear</button>
+                    <button class="ef-btn ef-btn-primary" @onclick="Save">Save activity</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="ef-panel ef-activities">
+            <div class="ef-panel-heading">
+                <div><div class="ef-kicker">MANAGE ACTIVITIES</div><h2>Configured games</h2></div>
+                <span class="ef-count">@games.Count</span>
+            </div>
+            @if (games.Count == 0)
+            {
+                <div class="ef-empty">No activities configured yet. Create your first game using the form.</div>
+            }
+            else
+            {
+                <div class="ef-game-list">
+                    @foreach (var g in games)
+                    {
+                        <div class="ef-game" @key="g.Id">
+                            <div class="ef-game-head">
+                                <div class="ef-game-icon">@(g.Kind == "BibleQuiz" ? "?" : "#")</div>
+                                <div class="ef-game-meta">
+                                    <strong>@g.Title</strong>
+                                    <span>@(g.Kind == "BibleQuiz" ? "Bible Quiz" : "Fastest Finger") · @(g.IsPublished ? "Published" : "Draft")</span>
+                                </div>
+                            </div>
+                            <div class="ef-game-actions">
+                                <button @onclick="() => Edit(g)">Edit</button>
+                                @if (g.Kind == "BibleQuiz")
+                                {
+                                    <button @onclick="() => EditQuestions(g)">Questions</button>
+                                    <button type="button" @onclick='() => Navigation.NavigateTo($"/event/fun/projector/{g.Id}")'>Projector / MC ↗</button>
+                                }
+                                <button @onclick="() => ViewResults(g)">Results</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+
+    @if (questionGame is not null)
+    {
+        <section class="ef-panel ef-below">
+            <div class="ef-panel-heading">
+                <div><div class="ef-kicker">BIBLE QUIZ EDITOR</div><h2>Four questions <span class="ef-muted">/ @questionGame.Title</span></h2></div>
+                <span class="ef-panel-tag">02 / Questions</span>
+            </div>
+            <div class="ef-question-grid">
+                @foreach (var q in questions)
+                {
+                    <div class="ef-question" @key="q.Position">
+                        <div class="ef-question-title"><span>Q@q.Position</span> Question @q.Position</div>
+                        <input class="form-control ef-question-text" placeholder="Enter question" @bind="q.Text" />
+                        <div class="ef-options">
+                            <div class="ef-option"><span>A</span><input class="form-control" placeholder="Option A" @bind="q.OptionA" /></div>
+                            <div class="ef-option"><span>B</span><input class="form-control" placeholder="Option B" @bind="q.OptionB" /></div>
+                            <div class="ef-option"><span>C</span><input class="form-control" placeholder="Option C" @bind="q.OptionC" /></div>
+                            <div class="ef-option"><span>D</span><input class="form-control" placeholder="Option D" @bind="q.OptionD" /></div>
+                        </div>
+                        <div class="ef-question-bottom">
+                            <div class="ef-field"><label>Correct answer</label><select class="form-select" @bind="q.CorrectOption"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
+                            <div class="ef-field"><label>Bible reference</label><input class="form-control" placeholder="e.g. John 3:16" @bind="q.BibleReference" /></div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="ef-section-footer"><button class="ef-btn ef-btn-primary" @onclick="SaveQuestions">Save four questions</button></div>
+        </section>
+    }
+
+    @if (resultsGame is not null)
+    {
+        <section class="ef-panel ef-below">
+            <div class="ef-panel-heading">
+                <div><div class="ef-kicker">PARTICIPATION &amp; SCORES</div><h2>Results <span class="ef-muted">/ @resultsGame.Title</span></h2></div>
+                <button class="ef-btn ef-btn-ghost" @onclick="() => ViewResults(resultsGame)">Refresh</button>
+            </div>
+            <div class="ef-table-scroll">
+                <table class="ef-results">
+                    <thead><tr><th>Rank</th><th>Worker ID</th><th>Number</th><th>Score</th><th>Submitted (WAT)</th></tr></thead>
+                    <tbody>
+                        @foreach (var e in results.Select((x, i) => new { x, i }))
+                        {
+                            <tr><td>@(e.i + 1)</td><td>@e.x.WorkerId</td><td>@e.x.EntryNumber</td><td>@e.x.Score</td><td>@e.x.SubmittedAtUtc.AddHours(1).ToString("HH:mm:ss.fff")</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (results.Count == 0) { <div class="ef-empty">No submissions yet.</div> }
+        </section>
+    }
+</div>
+}
+
+<style>
+    .ef-admin { --ef-green:#14643d; --ef-dark:#102b1f; --ef-line:#dce9df; --ef-muted:#65736b; color:#171f1a; max-width:1440px; margin:0 auto; padding:12px 14px 28px; font-family:inherit; }
+    .ef-admin .ef-hero { display:flex; justify-content:space-between; align-items:center; gap:18px; padding:23px 28px; border-radius:14px; background:linear-gradient(110deg,#10472e 0%,#176940 70%,#228352 100%); color:white; margin-bottom:16px; box-shadow:0 5px 15px rgba(9,59,32,.1); }
+    .ef-admin .ef-eyebrow { font-size:10px; font-weight:800; letter-spacing:1.5px; color:#c7ead4; margin-bottom:6px; }
+    .ef-admin .ef-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#c5f5c9; margin-right:5px; }
+    .ef-admin .ef-hero h1 { font-size:clamp(21px,2.4vw,30px); font-weight:800; line-height:1.2; margin:0 0 5px; letter-spacing:-.5px; color:white; }
+    .ef-admin .ef-hero h1 span { color:#c9efd1; }
+    .ef-admin .ef-hero p { margin:0; color:#e0f0e4; font-size:12px; }
+    .ef-admin .ef-hero-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .ef-admin .ef-hero-link, .ef-admin .ef-hero-button { border-radius:8px; padding:9px 13px; font-size:12px; font-weight:750; text-decoration:none; white-space:nowrap; }
+    .ef-admin .ef-hero-link { color:white; border:1px solid #ffffff70; background:transparent; }
+    .ef-admin .ef-hero-button { background:white; color:#145b39; border:1px solid white; }
+    .ef-admin .ef-layout { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:14px; align-items:start; }
+    .ef-admin .ef-panel { background:white; border:1px solid var(--ef-line); border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(19,65,35,.035); }
+    .ef-admin .ef-panel-heading { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 17px 12px; border-bottom:1px solid #e8efe9; }
+    .ef-admin .ef-kicker { font-size:9px; color:var(--ef-green); font-weight:850; letter-spacing:1.2px; margin-bottom:3px; }
+    .ef-admin .ef-panel h2 { font-size:16px; line-height:1.3; font-weight:800; color:#15271c; margin:0; }
+    .ef-admin .ef-panel-tag { color:#52745f; background:#edf6ef; border-radius:5px; padding:5px 8px; font-size:10px; white-space:nowrap; font-weight:750; }
+    .ef-admin .ef-fields { padding:15px 17px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; }
+    .ef-admin .ef-field { min-width:0; }
+    .ef-admin .ef-wide { grid-column:1/-1; }
+    .ef-admin .ef-field label { display:block; font-size:11px; font-weight:750; color:#263b2d; margin-bottom:5px; }
+    .ef-admin .form-control, .ef-admin .form-select { border:1px solid #d6e3d9; border-radius:7px; min-height:35px; padding:6px 10px; font-size:12px; color:#16251b; background-color:#fff; box-shadow:none; }
+    .ef-admin .form-control:focus, .ef-admin .form-select:focus { border-color:#228452; box-shadow:0 0 0 2px #23865120; }
+    .ef-admin .ef-form-footer { border-top:1px solid #e8efe9; padding:12px 17px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .ef-admin .ef-publish { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:#263b2d; cursor:pointer; }
+    .ef-admin .ef-publish input { accent-color:#14643d; }
+    .ef-admin .ef-buttons { display:flex; gap:7px; }
+    .ef-admin .ef-btn { border-radius:7px; padding:8px 12px; font-size:11px; font-weight:800; cursor:pointer; }
+    .ef-admin .ef-btn-primary { color:white; background:#14643d; border:1px solid #14643d; }
+    .ef-admin .ef-btn-primary:hover { background:#0f4d2e; }
+    .ef-admin .ef-btn-ghost { background:white; color:#195b38; border:1px solid #bcd7c5; }
+    .ef-admin .ef-count { background:#eaf5ed; color:#14643d; font-size:12px; font-weight:850; border-radius:7px; padding:5px 10px; }
+    .ef-admin .ef-game-list { padding:5px 14px 12px; max-height:470px; overflow:auto; }
+    .ef-admin .ef-game { padding:12px 3px; border-bottom:1px solid #e7efe8; }
+    .ef-admin .ef-game:last-child { border-bottom:0; }
+    .ef-admin .ef-game-head { display:flex; gap:9px; align-items:center; min-width:0; }
+    .ef-admin .ef-game-icon { width:33px; height:33px; display:grid; place-items:center; border-radius:8px; flex:none; background:#e9f5ed; color:#176c40; font-size:17px; font-weight:900; }
+    .ef-admin .ef-game-meta { display:flex; flex-direction:column; min-width:0; gap:3px; }
+    .ef-admin .ef-game-meta strong { color:#17261d; font-size:12px; overflow-wrap:anywhere; }
+    .ef-admin .ef-game-meta span { color:#68786d; font-size:10px; }
+    .ef-admin .ef-game-actions { display:flex; flex-wrap:wrap; gap:6px; margin:9px 0 0 42px; }
+    .ef-admin .ef-game-actions button, .ef-admin .ef-game-actions a { border:1px solid #d2e3d7; border-radius:6px; background:white; color:#155c38; font-size:10px; font-weight:750; text-decoration:none; padding:5px 8px; cursor:pointer; }
+    .ef-admin .ef-game-actions button:hover, .ef-admin .ef-game-actions a:hover { background:#edf7ef; }
+    .ef-admin .ef-empty { color:#66746b; padding:23px 17px; font-size:12px; }
+    .ef-admin .ef-below { margin-top:14px; }
+    .ef-admin .ef-muted { color:#74847a; font-size:12px; font-weight:500; }
+    .ef-admin .ef-question-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:14px 17px; }
+    .ef-admin .ef-question { border:1px solid #dce9df; background:#fbfdfb; border-radius:9px; padding:12px; }
+    .ef-admin .ef-question-title { font-size:12px; font-weight:800; margin-bottom:9px; color:#203c2b; display:flex; align-items:center; gap:8px; }
+    .ef-admin .ef-question-title span { background:#166b40; color:white; padding:4px 7px; border-radius:5px; font-size:10px; }
+    .ef-admin .ef-question-text { margin-bottom:9px; }
+    .ef-admin .ef-options { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+    .ef-admin .ef-option { display:flex; align-items:center; min-width:0; gap:5px; }
+    .ef-admin .ef-option span { font-size:11px; color:#155d38; font-weight:850; width:13px; flex:none; }
+    .ef-admin .ef-option .form-control { min-width:0; }
+    .ef-admin .ef-question-bottom { display:grid; grid-template-columns:120px 1fr; gap:8px; margin-top:9px; }
+    .ef-admin .ef-section-footer { padding:0 17px 15px; display:flex; justify-content:flex-end; }
+    .ef-admin .ef-table-scroll { overflow-x:auto; }
+    .ef-admin .ef-results { width:100%; border-collapse:collapse; font-size:12px; }
+    .ef-admin .ef-results th { text-align:left; background:#edf6ef; color:#25573a; font-weight:800; padding:10px 15px; white-space:nowrap; }
+    .ef-admin .ef-results td { border-bottom:1px solid #edf2ee; padding:10px 15px; color:#1d2b21; }
+    .ef-notice { border:1px solid #b8d8c1; background:#f1f9f3; color:#184e2e; padding:10px 14px; border-radius:8px; margin:10px 0; font-size:12px; }
+    @@media (max-width:900px) { .ef-admin .ef-layout { grid-template-columns:1fr; } .ef-admin .ef-hero { padding:19px; } }
+    @@media (max-width:650px) { .ef-admin { padding:8px; } .ef-admin .ef-hero { flex-direction:column; align-items:flex-start; } .ef-admin .ef-question-grid { grid-template-columns:1fr; } .ef-admin .ef-fields { gap:9px; } .ef-admin .ef-panel-heading { padding:12px; } .ef-admin .ef-fields { padding:12px; } }
+</style>
+
+@code {
+    private List<ChurchEvent> events=new();
+    private List<EventFunGame> games=new();
+    private EventFunGame editing=new();
+    private EventFunGame? questionGame,resultsGame;
+    private List<EventFunQuestion> questions=new();
+    private List<EventFunEntry> results=new();
+    private DateTime opens=DateTime.Today.AddHours(18),closes=DateTime.Today.AddHours(19);
+    private string message="";
+    private bool CanManageEvents;
+    private bool IsCheckingPrivilege = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.CurrentWorker is { } worker)
+        {
+            CanManageEvents = await PrivilegeService.HasPrivilegeAsync(
+                worker.Id, "Access-Event-Management");
+            if (CanManageEvents)
+            {
+                events = await Fun.EventsAsync();
+                await Refresh();
+            }
+        }
+        IsCheckingPrivilege = false;
+    }
+    private async Task Refresh()=>games=await Fun.GamesAsync(true);
+    private void New(){editing=new();questionGame=null;}
+    private void Edit(EventFunGame g)
+    {
+        editing=new EventFunGame{Id=g.Id,ChurchEventId=g.ChurchEventId,Kind=g.Kind,Title=g.Title,Phrase=g.Phrase,IsPublished=g.IsPublished,OpensAtUtc=g.OpensAtUtc,ClosesAtUtc=g.ClosesAtUtc};
+        opens=g.OpensAtUtc.AddHours(1);closes=g.ClosesAtUtc.AddHours(1);
+    }
+    private async Task Save()
+    {
+        if (!CanManageEvents) { message = "Event Management privilege required."; return; }
+        try
+        {
+            editing.OpensAtUtc=DateTime.SpecifyKind(opens.AddHours(-1),DateTimeKind.Utc);
+            editing.ClosesAtUtc=DateTime.SpecifyKind(closes.AddHours(-1),DateTimeKind.Utc);
+            await Fun.SaveGameAsync(editing);message="Activity saved.";await Refresh();New();
+        }
+        catch(Exception ex){message=ex.Message;}
+    }
+    private async Task EditQuestions(EventFunGame g)
+    {
+        if (!CanManageEvents) { message = "Event Management privilege required."; return; }
+        try
+        {
+            questionGame=g;questions=await Fun.QuestionsAsync(g.Id,true);
+            for(var i=1;i<=4;i++)if(!questions.Any(x=>x.Position==i))questions.Add(new EventFunQuestion{EventFunGameId=g.Id,Position=i});
+            questions=questions.OrderBy(x=>x.Position).ToList();
+        }catch(Exception ex){message=ex.Message;}
+    }
+    private async Task SaveQuestions()
+    {
+        if (!CanManageEvents) { message = "Event Management privilege required."; return; }
+        try {await Fun.SaveQuestionsAsync(questionGame!.Id,questions);message="Four questions saved.";}
+        catch(Exception ex){message=ex.Message;}
+    }
+    private async Task ViewResults(EventFunGame g)
+    {
+        if (!CanManageEvents) { message = "Event Management privilege required."; return; }
+        try {resultsGame=g;results=await Fun.ResultsAsync(g.Id);}catch(Exception ex){message=ex.Message;}
+    }
+}

@@ -1,0 +1,134 @@
+@page "/event/fun/projector/{GameId:int}"
+@layout Components.Layout.MainLayout
+@using ChurchApp.Models.Event
+@using ChurchApp.Data
+@using Microsoft.EntityFrameworkCore
+@using ChurchApp.Services
+@using ChurchApp.Services.Event
+@inject AuthService AuthService
+@inject PrivilegeService PrivilegeService
+@inject EventFunService Fun
+@inject AppDbContext Db
+<PageTitle>BCC Bible Quiz Projector</PageTitle>
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="ef-notice">Please log in to access Event Management.</div>
+}
+else if (IsCheckingPrivilege) { <p>Checking Event Management access...</p> }
+else if (!CanManageEvents) { <p>Event Management privilege required.</p> }
+else
+{
+<div class="container-fluid p-4" style="background:#103d2c;color:white;min-height:100vh">
+    <h1 class="text-center mb-3">@(game?.Title ?? "Bible Quiz")</h1>
+    @if(!string.IsNullOrWhiteSpace(error)) { <div class="alert alert-warning">@error</div> }
+    @if(game is not null)
+    {
+        <div class="text-center mb-3">@(game.QuizSubmissionsOpen ? "SUBMISSIONS OPEN" : "SUBMISSIONS CLOSED")</div>
+        <div class="row g-3">
+            @foreach(var q in questions)
+            {
+                <div class="col-md-6">
+                    <div class="p-3 rounded h-100" style="background:white;color:#163a2a">
+                        <h4>Question @q.Position</h4><h5>@q.Text</h5>
+                        @foreach(var o in new[]{("A",q.OptionA),("B",q.OptionB),("C",q.OptionC),("D",q.OptionD)})
+                        {
+                            <div class="p-1 rounded mb-1" style="@(game.RevealAnswers && q.CorrectOption==o.Item1 ? "background:#c4f0d4;font-weight:bold" : "")">@o.Item1. @o.Item2</div>
+                        }
+                        @if(game.RevealAnswers && !string.IsNullOrWhiteSpace(q.BibleReference)) { <small>Reference: @q.BibleReference</small> }
+                    </div>
+                </div>
+            }
+        </div>
+        @if(game.ShowLeaderboard)
+        {
+            <div class="p-3 bg-white text-dark rounded mt-3">
+                <h3 class="mb-2" style="color:#155c3b">Leaderboard</h3>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-1">
+                        <thead><tr><th>Rank</th><th>Worker</th><th>Directorate</th><th>Correct</th><th>Elapsed time</th></tr></thead>
+                        <tbody>
+                            @foreach (var x in results.Select((r, i) => new { r, i }).Take(10))
+                            {
+                                var person = workerDetails.GetValueOrDefault(x.r.WorkerId);
+                                <tr>
+                                    <td><strong>@(x.i + 1)</strong></td>
+                                    <td>@(person?.Name ?? x.r.WorkerId)</td>
+                                    <td>@(person?.Directorate ?? "Not assigned")</td>
+                                    <td><strong>@((x.r.Score ?? 0) / 25) / 4</strong></td>
+                                    <td>@FormatElapsed(x.r.SubmittedAtUtc - game.OpensAtUtc)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <small class="text-muted">Elapsed time is measured from the quiz opening to submission, not the time spent answering.</small>
+            </div>
+        }
+        <div class="mt-4 p-3 rounded" style="background:#245842">
+            <h5>MC Controls (Event Management)</h5>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-light" @onclick='()=>Control("open")'>Open Submissions</button>
+                <button class="btn btn-light" @onclick='()=>Control("close")'>Close Submissions</button>
+                <button class="btn btn-warning" @onclick='()=>Control("reveal")'>Reveal Correct Answers</button>
+                <button class="btn btn-light" @onclick='()=>Control("hide")'>Hide Answers</button>
+                <button class="btn btn-light" @onclick='()=>Control("leaderboard")'>Toggle Leaderboard</button>
+                <button class="btn btn-outline-light" @onclick="Refresh">Refresh</button>
+            </div>
+        </div>
+    }
+</div>
+}
+@code {
+    [Parameter]public int GameId{get;set;}
+    private EventFunGame? game;
+    private List<EventFunQuestion> questions=new();
+    private List<EventFunEntry> results=new();
+    private Dictionary<string, LeaderWorker> workerDetails = new(StringComparer.OrdinalIgnoreCase);
+    private sealed record LeaderWorker(string Name, string? Directorate);
+    private static string FormatElapsed(TimeSpan elapsed)
+    {
+        if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
+        return elapsed.TotalHours >= 1
+            ? $"{(int)elapsed.TotalHours}h {elapsed.Minutes:D2}m {elapsed.Seconds:D2}s"
+            : $"{(int)elapsed.TotalMinutes}m {elapsed.Seconds:D2}s";
+    }
+    private string error="";
+    private bool CanManageEvents;
+    private bool IsCheckingPrivilege = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.CurrentWorker is { } worker)
+        {
+            CanManageEvents = await PrivilegeService.HasPrivilegeAsync(
+                worker.Id, "Access-Event-Management");
+            if (CanManageEvents) await Refresh();
+        }
+        IsCheckingPrivilege = false;
+    }
+    private async Task Refresh()
+    {
+        try
+        {
+            error="";game=await Fun.GameAsync(GameId,true);
+            if(game.Kind!="BibleQuiz")throw new InvalidOperationException("This is not a Bible Quiz.");
+            questions=await Fun.QuestionsAsync(GameId,true);
+            results=await Fun.ResultsAsync(GameId);
+            var ids = results.Select(r => r.WorkerId).Distinct().ToList();
+            var workers = await Db.Workers.AsNoTracking()
+                .Include(w => w.Directorate)
+                .Where(w => ids.Contains(w.WorkerId))
+                .ToListAsync();
+            workerDetails = workers.ToDictionary(w => w.WorkerId,
+                w => new LeaderWorker($"{w.FirstName} {w.LastName}".Trim(), w.Directorate?.Name),
+                StringComparer.OrdinalIgnoreCase);
+        }
+        catch(Exception ex){error=ex.Message;}
+    }
+    private async Task Control(string action)
+    {
+        if (!CanManageEvents) { error = "Event Management privilege required."; return; }
+        try{await Fun.SetQuizControlAsync(GameId,action);await Refresh();}
+        catch(Exception ex){error=ex.Message;}
+    }
+}

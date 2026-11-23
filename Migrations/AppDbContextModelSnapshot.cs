@@ -843,6 +843,105 @@ namespace ChurchApp.Migrations
                     b.ToTable("BreakRequestHistories");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.Bricks.BricksPrivilege", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("BricksPrivileges");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Bricks.BricksPrivilegeAudit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ActorWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrivilegeCode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkerId", "OccurredAtUtc");
+
+                    b.ToTable("BricksPrivilegeAudits");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Bricks.BricksUserPrivilege", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("AssignedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AssignedByWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BricksPrivilegeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RevokedByWorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("WorkerId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BricksPrivilegeId");
+
+                    b.HasIndex("WorkerId", "BricksPrivilegeId")
+                        .IsUnique();
+
+                    b.ToTable("BricksUserPrivileges");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.BroadcastAudienceDirectorate", b =>
                 {
                     b.Property<int>("Id")
@@ -1854,6 +1953,149 @@ namespace ChurchApp.Migrations
                     b.ToTable("EventCheckIns", (string)null);
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.Event.EventFunEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Answers")
+                        .HasMaxLength(4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("EntryNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EventFunGameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Score")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("SubmittedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WorkerId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventFunGameId", "EntryNumber")
+                        .IsUnique();
+
+                    b.HasIndex("EventFunGameId", "WorkerId")
+                        .IsUnique();
+
+                    b.HasIndex("EventFunGameId", "Score", "SubmittedAtUtc");
+
+                    b.ToTable("EventFunEntries", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventFunGame", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ChurchEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ClosesAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OpensAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Phrase")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("QuizSubmissionsOpen")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RevealAnswers")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ShowLeaderboard")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChurchEventId", "Kind");
+
+                    b.ToTable("EventFunGames", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventFunQuestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BibleReference")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CorrectOption")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EventFunGameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OptionA")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OptionB")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OptionC")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OptionD")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventFunGameId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("EventFunQuestions", (string)null);
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Event.EventMenuOption", b =>
                 {
                     b.Property<int>("Id")
@@ -1916,6 +2158,62 @@ namespace ChurchApp.Migrations
                         .IsUnique();
 
                     b.ToTable("EventRegistrations", (string)null);
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventSeatReservation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ChurchEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EventTableId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("GuestMealOptionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("GuestName")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsGuest")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OwnerWorkerId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ReleasedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SeatNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SpouseWorkerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChurchEventId", "OwnerWorkerId")
+                        .HasFilter("ReleasedAtUtc IS NULL");
+
+                    b.HasIndex("ChurchEventId", "SpouseWorkerId")
+                        .IsUnique()
+                        .HasFilter("SpouseWorkerId IS NOT NULL AND ReleasedAtUtc IS NULL");
+
+                    b.HasIndex("EventTableId", "SeatNumber")
+                        .IsUnique()
+                        .HasFilter("ReleasedAtUtc IS NULL");
+
+                    b.ToTable("EventSeatReservations", (string)null);
                 });
 
             modelBuilder.Entity("ChurchApp.Models.Event.EventSeatingSettings", b =>
@@ -5215,6 +5513,25 @@ namespace ChurchApp.Migrations
                     b.Navigation("BreakRequest");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.Bricks.BricksUserPrivilege", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Bricks.BricksPrivilege", "Privilege")
+                        .WithMany()
+                        .HasForeignKey("BricksPrivilegeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Worker", "Worker")
+                        .WithMany()
+                        .HasForeignKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Privilege");
+
+                    b.Navigation("Worker");
+                });
+
             modelBuilder.Entity("ChurchApp.Models.BroadcastAudienceDirectorate", b =>
                 {
                     b.HasOne("ChurchApp.Models.BroadcastMessage", "BroadcastMessage")
@@ -5590,6 +5907,33 @@ namespace ChurchApp.Migrations
                     b.Navigation("EventTable");
                 });
 
+            modelBuilder.Entity("ChurchApp.Models.Event.EventFunEntry", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Event.EventFunGame", null)
+                        .WithMany()
+                        .HasForeignKey("EventFunGameId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventFunGame", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Event.ChurchEvent", null)
+                        .WithMany()
+                        .HasForeignKey("ChurchEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventFunQuestion", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Event.EventFunGame", null)
+                        .WithMany()
+                        .HasForeignKey("EventFunGameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ChurchApp.Models.Event.EventMenuOption", b =>
                 {
                     b.HasOne("ChurchApp.Models.Event.ChurchEvent", null)
@@ -5608,6 +5952,21 @@ namespace ChurchApp.Migrations
                         .IsRequired();
 
                     b.Navigation("ChurchEvent");
+                });
+
+            modelBuilder.Entity("ChurchApp.Models.Event.EventSeatReservation", b =>
+                {
+                    b.HasOne("ChurchApp.Models.Event.ChurchEvent", null)
+                        .WithMany()
+                        .HasForeignKey("ChurchEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ChurchApp.Models.Event.EventTable", null)
+                        .WithMany()
+                        .HasForeignKey("EventTableId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ChurchApp.Models.ExcuseRequest", b =>

@@ -13,6 +13,11 @@ namespace ChurchApp.Data
         {
         }
 
+        // EVENT FUN & ENGAGEMENT
+        public DbSet<EventFunGame> EventFunGames => Set<EventFunGame>();
+        public DbSet<EventFunQuestion> EventFunQuestions => Set<EventFunQuestion>();
+        public DbSet<EventFunEntry> EventFunEntries => Set<EventFunEntry>();
+
         // AWARDS MODULE
         public DbSet<AwardProgramme> AwardProgrammes => Set<AwardProgramme>();
         public DbSet<AwardCategory> AwardCategories => Set<AwardCategory>();
@@ -116,6 +121,7 @@ namespace ChurchApp.Data
             = null!;
         public DbSet<EventMenuOption> EventMenuOptions { get; set; } = null!;
         public DbSet<EventCheckIn> EventCheckIns { get; set; } = null!;
+        public DbSet<EventSeatReservation> EventSeatReservations => Set<EventSeatReservation>();
         public DbSet<MonthlyRemittanceDraft> MonthlyRemittanceDrafts { get; set; }
         public DbSet<ExpenditureCategory> ExpenditureCategories => Set<ExpenditureCategory>();
         public DbSet<ExpenditureRecord> ExpenditureRecords => Set<ExpenditureRecord>();
@@ -219,6 +225,28 @@ namespace ChurchApp.Data
             });
 
 
+            // EVENT FUN & ENGAGEMENT — independent of seating/check-in
+            modelBuilder.Entity<EventFunGame>(e =>
+            {
+                e.ToTable("EventFunGames");
+                e.HasOne<ChurchEvent>().WithMany().HasForeignKey(x => x.ChurchEventId).OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(x => new { x.ChurchEventId, x.Kind });
+            });
+            modelBuilder.Entity<EventFunQuestion>(e =>
+            {
+                e.ToTable("EventFunQuestions");
+                e.HasOne<EventFunGame>().WithMany().HasForeignKey(x => x.EventFunGameId).OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(x => new { x.EventFunGameId, x.Position }).IsUnique();
+            });
+            modelBuilder.Entity<EventFunEntry>(e =>
+            {
+                e.ToTable("EventFunEntries");
+                e.HasOne<EventFunGame>().WithMany().HasForeignKey(x => x.EventFunGameId).OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(x => new { x.EventFunGameId, x.WorkerId }).IsUnique();
+                e.HasIndex(x => new { x.EventFunGameId, x.EntryNumber }).IsUnique();
+                e.HasIndex(x => new { x.EventFunGameId, x.Score, x.SubmittedAtUtc });
+            });
+
             // EVENT HUB   E1: event setup only.
             modelBuilder.Entity<ChurchEvent>(entity =>
             {
@@ -263,6 +291,24 @@ namespace ChurchApp.Data
                 entity.HasOne(x => x.EventMenuOption).WithMany()
                     .HasForeignKey(x => x.EventMenuOptionId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // A held seat cannot be assigned to another spouse/guest.
+            modelBuilder.Entity<EventSeatReservation>(entity =>
+            {
+                entity.ToTable("EventSeatReservations");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.OwnerWorkerId).IsRequired().HasMaxLength(100);
+                entity.Property(x => x.SpouseWorkerId).HasMaxLength(100);
+                entity.Property(x => x.GuestName).HasMaxLength(150);
+                entity.HasIndex(x => new { x.EventTableId, x.SeatNumber }).IsUnique()
+                    .HasFilter("ReleasedAtUtc IS NULL");
+                entity.HasIndex(x => new { x.ChurchEventId, x.SpouseWorkerId }).IsUnique()
+                    .HasFilter("SpouseWorkerId IS NOT NULL AND ReleasedAtUtc IS NULL");
+                entity.HasIndex(x => new { x.ChurchEventId, x.OwnerWorkerId })
+                    .HasFilter("ReleasedAtUtc IS NULL");
+                entity.HasOne<ChurchEvent>().WithMany().HasForeignKey(x => x.ChurchEventId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne<EventTable>().WithMany().HasForeignKey(x => x.EventTableId).OnDelete(DeleteBehavior.Restrict);
             });
 
             //finance configurations

@@ -1,0 +1,458 @@
+﻿@page "/event/fun/play/{GameId:int}"
+@using ChurchApp.Models.Event
+@using ChurchApp.Services
+@using ChurchApp.Services.Event
+@inject AuthService AuthService
+@inject EventFunService Fun
+
+<PageTitle>Event Challenge | BCC ServiceHub</PageTitle>
+<div class="ef-play">
+    <header class="ef-hero">
+        <div>
+            <div class="ef-eyebrow">BCC SERVICEHUB <span> / EVENT FUN &amp; ENGAGEMENT</span></div>
+            <h1>@(game?.Title ?? "Event Challenge")</h1>
+            <p>Participate in the challenge and enjoy the moment.</p>
+        </div>
+        <a href="/event/fun" class="ef-back">← Back to games</a>
+    </header>
+
+    @if (!AuthService.IsAuthenticated)
+    {
+        <div class="ef-panel ef-state">Please sign in to participate.</div>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="ef-alert" role="alert">@error</div>
+        }
+        @if (game is null)
+        {
+            <div class="ef-panel ef-state">Loading activity...</div>
+        }
+        else
+        {
+            <section class="ef-panel">
+                <div class="ef-panel-head">
+                    <div>
+                        <div class="ef-kicker">@(game.Kind == "FastestFinger" ? "SPEED CHALLENGE" : "BIBLE KNOWLEDGE CHALLENGE")</div>
+                        <h2>@(game.Kind == "FastestFinger" ? "Fastest Finger" : "Bible Quiz")</h2>
+                    </div>
+                    <span class="ef-tag">@(entry is not null ? "Submitted" : DateTime.UtcNow < game.OpensAtUtc ? "Not started" : DateTime.UtcNow >= game.ClosesAtUtc ? "Closed" : game.Kind == "BibleQuiz" && !game.QuizSubmissionsOpen ? "Waiting for MC" : "Open")</span>
+                </div>
+                <div class="ef-content">
+                    @if (entry is not null)
+                    {
+                        @if (game.Kind == "FastestFinger")
+                        {
+                            <div class="ef-success">
+                                <div class="ef-success-label">YOUR CONFIRMED NUMBER</div>
+                                <div class="ef-number">@(entry.EntryNumber?.ToString("D3"))</div>
+                                <p>Keep this screen open. Stand and show your number when the MC calls it.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="ef-confirm"><span class="ef-check">✓</span><div><strong>Answers submitted successfully</strong><p>Your four answers have been recorded. Please wait for the MC.</p></div></div>
+                        }
+                    }
+                    else if (DateTime.UtcNow < game.OpensAtUtc)
+                    {
+                        <div class="ef-state">This activity has not opened yet.</div>
+                    }
+                    else if (DateTime.UtcNow >= game.ClosesAtUtc)
+                    {
+                        <div class="ef-state">This activity is closed.</div>
+                    }
+                    else if (game.Kind == "FastestFinger")
+                    {
+                        <label class="ef-label" for="ef-phrase">Type the phrase exactly as displayed</label>
+                        <div class="ef-phrase">@game.Phrase</div>
+                        <input id="ef-phrase" class="ef-input" @bind="phrase" placeholder="Enter the phrase here" autocomplete="off" />
+                        <button class="ef-submit" disabled="@busy" @onclick="SubmitPhrase">@(busy ? "Submitting..." : "Submit & Get Number")</button>
+                    }
+                    else if (!game.QuizSubmissionsOpen)
+                    {
+                        <div class="ef-state">Waiting for the MC to open quiz submissions.</div>
+                        <button class="ef-secondary" @onclick="Reload">Refresh status</button>
+                    }
+                    else
+                    {
+                        <p class="ef-help">Select A, B, C or D for each question displayed on the projector.</p>
+                        <div class="ef-answers">
+                            @for (var i = 0; i < 4; i++)
+                            {
+                                var index = i;
+                                <div class="ef-answer" @key="index">
+                                    <label for="@($"ef-q-{index}")"><span class="ef-q">Q@(i + 1)</span> Question @(i + 1)</label>
+                                    <select id="@($"ef-q-{index}")" class="ef-select" value="@answers[i]" @onchange="e => answers[index] = e.Value?.ToString() ?? string.Empty">
+                                        <option value="">Choose answer</option>
+                                        <option value="A">A</option>
+                                        <option value="B">B</option>
+                                        <option value="C">C</option>
+                                        <option value="D">D</option>
+                                    </select>
+                                </div>
+                            }
+                        </div>
+                        <div class="ef-footer"><span>All four answers are required.</span><button class="ef-submit" disabled="@(busy || answers.Any(string.IsNullOrWhiteSpace))" @onclick="SubmitQuiz">@(busy ? "Submitting..." : "Submit All Four Answers")</button></div>
+                    }
+                </div>
+            </section>
+        }
+    }
+</div>
+<style>
+    .ef-play {
+        --green: #14643d;
+        --ink: #17241c;
+        --border: #dbe8de;
+        max-width: 1020px;
+        margin: 0 auto;
+        padding: 12px 14px 30px;
+        color: var(--ink);
+    }
+
+        .ef-play .ef-hero {
+            background: linear-gradient(110deg,#103f2b,#176940 75%,#238653);
+            border-radius: 13px;
+            color: white;
+            padding: 22px 26px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .ef-play .ef-eyebrow {
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.3px;
+            color: #c6e8d1;
+            margin-bottom: 7px;
+        }
+
+        .ef-play .ef-hero h1 {
+            color: white;
+            font-size: clamp(21px,3vw,29px);
+            font-weight: 800;
+            margin: 0 0 5px;
+            line-height: 1.2;
+        }
+
+        .ef-play .ef-hero p {
+            color: #e0efe5;
+            margin: 0;
+            font-size: 12px;
+        }
+
+        .ef-play .ef-back {
+            color: #fff;
+            border: 1px solid #ffffff78;
+            border-radius: 7px;
+            padding: 9px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+            .ef-play .ef-back:hover {
+                background: #ffffff20;
+                color: white;
+            }
+
+        .ef-play .ef-panel {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px #143a2310;
+        }
+
+        .ef-play .ef-panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            border-bottom: 1px solid #e7efe9;
+        }
+
+        .ef-play .ef-kicker {
+            color: var(--green);
+            font-size: 10px;
+            font-weight: 850;
+            letter-spacing: 1.1px;
+            margin-bottom: 4px;
+        }
+
+        .ef-play h2 {
+            color: var(--ink);
+            font-size: 17px;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .ef-play .ef-tag {
+            background: #e9f5ed;
+            color: #17653e;
+            font-size: 10px;
+            font-weight: 800;
+            border-radius: 6px;
+            padding: 6px 10px;
+            white-space: nowrap;
+        }
+
+        .ef-play .ef-content {
+            padding: 19px;
+        }
+
+        .ef-play .ef-help {
+            color: #586b5e;
+            font-size: 12px;
+            margin: 0 0 14px;
+        }
+
+        .ef-play .ef-answers {
+            display: grid;
+            grid-template-columns: repeat(2,minmax(0,1fr));
+            gap: 12px;
+        }
+
+        .ef-play .ef-answer {
+            background: #fbfdfb;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+            .ef-play .ef-answer label {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: #1d3225;
+                font-size: 12px;
+                font-weight: 800;
+                margin-bottom: 8px;
+            }
+
+        .ef-play .ef-q {
+            display: inline-grid;
+            place-items: center;
+            background: var(--green);
+            color: white;
+            border-radius: 5px;
+            font-size: 10px;
+            padding: 5px 7px;
+        }
+
+        .ef-play .ef-select, .ef-play .ef-input {
+            width: 100%;
+            background: white;
+            color: #19251c;
+            border: 1px solid #cfdfd3;
+            border-radius: 7px;
+            min-height: 39px;
+            padding: 7px 10px;
+            font-size: 13px;
+        }
+
+            .ef-play .ef-select:focus, .ef-play .ef-input:focus {
+                outline: 2px solid #b7dcc2;
+                border-color: #268453;
+            }
+
+        .ef-play .ef-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            border-top: 1px solid #e7efe9;
+            margin-top: 16px;
+            padding-top: 15px;
+        }
+
+            .ef-play .ef-footer span {
+                color: #68796d;
+                font-size: 11px;
+            }
+
+        .ef-play .ef-submit {
+            background: var(--green);
+            border: 1px solid var(--green);
+            border-radius: 7px;
+            color: white;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+
+            .ef-play .ef-submit:hover:not(:disabled) {
+                background: #0e4e2f;
+            }
+
+            .ef-play .ef-submit:disabled {
+                opacity: .5;
+                cursor: not-allowed;
+            }
+
+        .ef-play .ef-secondary {
+            color: var(--green);
+            background: white;
+            border: 1px solid #bcd7c4;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 750;
+            padding: 8px 13px;
+            cursor: pointer;
+        }
+
+        .ef-play .ef-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 800;
+            margin-bottom: 9px;
+        }
+
+        .ef-play .ef-phrase {
+            background: #f0f7f2;
+            border: 1px solid #d6e8dc;
+            color: #153f29;
+            padding: 15px;
+            font-size: 19px;
+            font-weight: 800;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+
+        .ef-play .ef-input {
+            margin-bottom: 12px;
+        }
+
+        .ef-play .ef-state {
+            color: #596b5f;
+            font-size: 13px;
+            padding: 18px;
+        }
+
+        .ef-play .ef-alert {
+            background: #fff8e9;
+            border: 1px solid #f1dca8;
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #694e1a;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        .ef-play .ef-success {
+            text-align: center;
+            padding: 16px 0;
+        }
+
+        .ef-play .ef-success-label {
+            font-size: 11px;
+            font-weight: 850;
+            letter-spacing: 1.1px;
+            color: #376749;
+        }
+
+        .ef-play .ef-number {
+            font-size: clamp(66px,12vw,104px);
+            line-height: 1.2;
+            color: var(--green);
+            font-weight: 900;
+        }
+
+        .ef-play .ef-success p {
+            color: #52685a;
+            font-size: 12px;
+            margin: 4px 0;
+        }
+
+        .ef-play .ef-confirm {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f1f9f3;
+            border: 1px solid #cce4d3;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .ef-play .ef-check {
+            background: #166a40;
+            color: white;
+            border-radius: 50%;
+            width: 29px;
+            height: 29px;
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            flex: none;
+        }
+
+        .ef-play .ef-confirm strong {
+            font-size: 13px;
+        }
+
+        .ef-play .ef-confirm p {
+            font-size: 12px;
+            color: #55715e;
+            margin: 4px 0 0;
+        }
+
+    @@media (max-width:650px) {
+        .ef-play {
+            padding: 8px;
+        }
+
+            .ef-play .ef-hero {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 18px;
+            }
+
+            .ef-play .ef-answers {
+                grid-template-columns: 1fr;
+                gap: 9px;
+            }
+
+            .ef-play .ef-content {
+                padding: 13px;
+            }
+    }
+</style>
+@code {
+    [Parameter] public int GameId { get; set; }
+    private EventFunGame? game;
+    private EventFunEntry? entry;
+    private string phrase = "", error = "";
+    private string[] answers = new string[4];
+    private bool busy;
+    protected override async Task OnParametersSetAsync() => await Reload();
+    private async Task Reload()
+    {
+        try { error = ""; game = await Fun.GameAsync(GameId); entry = await Fun.MyEntryAsync(GameId); }
+        catch (Exception ex) { error = ex.Message; }
+    }
+    private async Task SubmitPhrase()
+    {
+        busy = true; error = "";
+        try { entry = await Fun.SubmitPhraseAsync(GameId, phrase); }
+        catch (Exception ex) { error = ex.Message; }
+        finally { busy = false; }
+    }
+    private async Task SubmitQuiz()
+    {
+        busy = true; error = "";
+        try { entry = await Fun.SubmitQuizAsync(GameId, string.Concat(answers)); }
+        catch (Exception ex) { error = ex.Message; }
+        finally { busy = false; }
+    }
+}
+

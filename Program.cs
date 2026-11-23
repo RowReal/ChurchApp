@@ -144,6 +144,7 @@ builder.Services.AddScoped<ExpenditureApprovalService>();
 builder.Services.AddScoped<ExpenditureDocumentReviewService>();
 builder.Services.AddScoped<ExpenditureEntryService>();
 builder.Services.AddScoped<ExpenditureDocumentService>();
+builder.Services.AddScoped<ChurchApp.Services.Event.EventFunService>();
 
 
 
