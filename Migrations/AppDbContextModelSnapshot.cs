@@ -2113,6 +2113,9 @@ namespace ChurchApp.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("Quantity")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ChurchEventId");

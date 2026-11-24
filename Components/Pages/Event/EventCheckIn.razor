@@ -36,7 +36,7 @@
     {
         @if (!string.IsNullOrWhiteSpace(message) && !error)
         {
-            <div class="alert alert-success" role="status">@message</div>
+            <div class="alert @(error ? "alert-danger" : "alert-success")" role="status">@message</div>
         }
         @if (events.Count == 0)
         {
@@ -88,7 +88,7 @@
                                     </select>
                                     @if (meals.Count == 0)
                                     {
-                                        <p class="text-danger">No active meals have been configured for this event.</p>
+                                        <p class="text-danger">No meals are currently available for this event.</p>
                                     }
                                     @if (isMarried && !hasReservedSpouseSeat)
                                     {
@@ -200,9 +200,9 @@
         <section class="event-pass-modal event-meal-modal" role="dialog" aria-modal="true" aria-label="Change meal" @onclick:stopPropagation="true">
             <div class="event-pass-head"><div class="event-pass-heading">CHANGE YOUR MENU</div><div class="event-pass-event">Your table and seat will remain unchanged.</div></div>
             <div class="event-pass-body">
-                @if (!string.IsNullOrEmpty(message) && !error)
+                @if (!string.IsNullOrEmpty(message))
                 {
-                    <div class="alert alert-success" role="status">@message</div>
+                    <div class="alert @(error ? "alert-danger" : "alert-success")" role="status">@message</div>
                 }
                 <label class="bcc-form-label" for="mealChangeSelect">Select your meal</label>
                 <select id="mealChangeSelect" class="form-select bcc-input mb-3" @bind="mealId">
@@ -548,7 +548,14 @@
     private string WorkerName => AuthService.CurrentWorker?.FullName ?? "Registered Worker";
     private void ShowPass() { showMealEditor = false; showPass = checkIn != null; }
     private void ClosePass() => showPass = false;
-    private void OpenMealEditor() { if (!CanChangeMeal) return; showPass = false; showMealEditor = true; message = ""; }
+    private async Task OpenMealEditor() { if (!CanChangeMeal) return; await RefreshMealsAsync(); showPass = false; showMealEditor = true; message = ""; }
+    private async Task RefreshMealsAsync()
+    {
+        meals = await CheckInService.MealsAsync(selectedEventId);
+        if (checkIn?.EventMenuOption is { } current && !meals.Any(m => m.Id == current.Id)) meals.Insert(0, current);
+        if (!meals.Any(m => m.Id == mealId)) mealId = checkIn?.EventMenuOptionId ?? 0;
+        if (!meals.Any(m => m.Id == spouseMealId)) spouseMealId = 0;
+    }
     private void CloseMealEditor() { showMealEditor = false; showPass = true; message = ""; }
     private async Task SaveMealFromPassAsync()
     {
@@ -668,14 +675,14 @@
             await CheckInService.CheckInAsync(selectedEventId, mealId, bestLocation.Latitude, bestLocation.Longitude, bestLocation.Accuracy, SpouseRequest);
             await RefreshSelectedAsync(); error = false; message = "Check-in successful. Your seat has been allocated.";
         }
-        catch (Exception ex) { error = true; message = ex.Message; }
+        catch (Exception ex) { error = true; message = ex.Message; try { await RefreshMealsAsync(); } catch { } }
         finally { busy = false; }
     }
     private async Task ChangeMealAsync()
     {
         busy = true; message = "";
         try { await CheckInService.ChangeMealAsync(selectedEventId, mealId); await RefreshSelectedAsync(); error = false; message = "Meal updated successfully."; }
-        catch (Exception ex) { error = true; message = ex.Message; }
+        catch (Exception ex) { error = true; message = ex.Message; try { await RefreshMealsAsync(); } catch { } }
         finally { busy = false; }
     }
     private sealed class BrowserLocationResult

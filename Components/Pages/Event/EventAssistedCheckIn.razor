@@ -412,6 +412,7 @@
         busy = true; errorMessage = ""; successMessage = ""; found = null; pass = null;
         try
         {
+            meals = await CheckInService.MealsAsync(eventId);
             found = await CheckInService.FindAssistedWorkerAsync(eventId, workerId);
             mealId = 0; spouseAttending = false; spouseSeat = null;
             isMarried = await CheckInService.IsMarriedAsync(found.WorkerId);
@@ -419,7 +420,7 @@
             if (found.ExistingCheckIn != null)
                 spouseSeat = await CheckInService.SpouseSeatAsync(eventId, found.WorkerId);
         }
-        catch (Exception ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = ex.Message; try { meals = await CheckInService.MealsAsync(eventId); if (!meals.Any(m => m.Id == mealId)) mealId = 0; if (!meals.Any(m => m.Id == spouseMealId)) spouseMealId = 0; } catch { } }
         finally { busy = false; }
     }
     private async Task SubmitAsync()
@@ -432,9 +433,10 @@
             found = await CheckInService.FindAssistedWorkerAsync(eventId, found.WorkerId);
             pass = found.ExistingCheckIn;
             spouseSeat = await CheckInService.SpouseSeatAsync(eventId, found.WorkerId);
+            meals = await CheckInService.MealsAsync(eventId);
             BuildQr(); showPass = true; successMessage = "Worker checked in successfully.";
         }
-        catch (Exception ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = ex.Message; try { meals = await CheckInService.MealsAsync(eventId); if (!meals.Any(m => m.Id == mealId)) mealId = 0; if (!meals.Any(m => m.Id == spouseMealId)) spouseMealId = 0; } catch { } }
         finally { busy = false; }
     }
     private void OpenExistingPass() { pass = found?.ExistingCheckIn; BuildQr(); showPass = pass != null; }

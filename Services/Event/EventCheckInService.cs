@@ -33,8 +33,18 @@ public sealed class EventCheckInService
                       select e).ToListAsync();
     }
 
-    public Task<List<EventMenuOption>> MealsAsync(int eventId) => db.EventMenuOptions.AsNoTracking()
-        .Where(m => m.ChurchEventId == eventId && m.IsActive).OrderBy(m => m.Name).ToListAsync();
+    public async Task<List<EventMenuOption>> MealsAsync(int eventId)
+    {
+        var meals = await new EventMenuService(db).GetMenuAsync(eventId);
+        return meals.Where(m => m.IsActive && (m.RemainingQuantity == null || m.RemainingQuantity > 0)).ToList();
+    }
+
+    private async Task EnsureMealAvailableAsync(int eventId, int mealId, int portions = 1)
+    {
+        var meal = await db.EventMenuOptions.AsNoTracking().FirstOrDefaultAsync(m => m.Id == mealId && m.ChurchEventId == eventId && m.IsActive);
+        if (meal == null || (meal.Quantity.HasValue && meal.Quantity.Value - await EventMenuService.CountAllocatedAsync(db, eventId, mealId) < portions))
+            throw new InvalidOperationException("The selected meal no longer has enough portions. Please choose another meal.");
+    }
 
     private static string NewVerificationToken() => Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
 
@@ -205,8 +215,7 @@ public sealed class EventCheckInService
         var category = EventSeatingEligibility.Classify(worker.Role);
         if (category == EventSeatingCategory.Excluded)
             throw new InvalidOperationException("Your role is excluded from automatic event seating.");
-        if (!await db.EventMenuOptions.AnyAsync(m => m.Id == mealId && m.ChurchEventId == eventId && m.IsActive))
-            throw new InvalidOperationException("Select an available meal.");
+        await EnsureMealAvailableAsync(eventId, mealId);
         if (ev.MenuChangesCloseAtUtc == null || now >= ev.MenuChangesCloseAtUtc)
             throw new InvalidOperationException("Meal selection has closed. New check-in requires an administrator to resolve the meal choice.");
         if (requireGps) await VerifyLocationAsync(latitude, longitude, accuracy);
@@ -265,6 +274,10 @@ public sealed class EventCheckInService
                     throw new InvalidOperationException("Enter the name of your accompanying spouse.");
                 if (!spouse.GuestMealId.HasValue || !await db.EventMenuOptions.AnyAsync(m => m.Id == spouse.GuestMealId && m.ChurchEventId == eventId && m.IsActive))
                     throw new InvalidOperationException("Select an available meal for your spouse.");
+                if (spouse.GuestMealId.Value == mealId)
+                    await EnsureMealAvailableAsync(eventId, mealId, 2);
+                else
+                    await EnsureMealAvailableAsync(eventId, spouse.GuestMealId.Value);
             }
         }
 
@@ -339,16 +352,17 @@ public sealed class EventCheckInService
     public async Task ChangeMealAsync(int eventId, int mealId)
     {
         var id = WorkerId;
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var ev = await db.ChurchEvents.AsNoTracking().FirstOrDefaultAsync(e => e.Id == eventId)
             ?? throw new InvalidOperationException("Event not found.");
         if (ev.MenuChangesCloseAtUtc == null || DateTime.UtcNow >= ev.MenuChangesCloseAtUtc)
             throw new InvalidOperationException("Meal changes have closed.");
-        if (!await db.EventMenuOptions.AnyAsync(m => m.Id == mealId && m.ChurchEventId == eventId && m.IsActive))
-            throw new InvalidOperationException("Meal is not available.");
         var record = await db.Set<EventCheckIn>().FirstOrDefaultAsync(c => c.ChurchEventId == eventId && c.WorkerId == id)
             ?? throw new InvalidOperationException("Check in first.");
+        if (record.EventMenuOptionId != mealId) await EnsureMealAvailableAsync(eventId, mealId);
         record.EventMenuOptionId = mealId; record.MenuUpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
     }
 
     public async Task<double> MaximumGpsAccuracyAsync()

@@ -112,6 +112,8 @@ else
                         <h6 class="mb-3"><i class="fas fa-utensils me-2"></i>@(editingMenuId.HasValue ? "Edit Meal" : "Add Meal")</h6>
                         <label class="form-label small mb-1">Meal / Menu Option</label>
                         <input class="form-control form-control-sm" maxlength="120" placeholder="e.g. Jollof Rice &amp; Chicken" @bind="menuName" />
+                        <label class="form-label small mt-2 mb-1">Quantity (portions)</label>
+                        <input type="number" min="0" class="form-control form-control-sm" placeholder="Unlimited if blank" @bind="menuQuantity" />
                         <label class="d-flex align-items-center gap-2 small mt-2 mb-0"><input type="checkbox" @bind="menuActive" /> Available for selection</label>
                         <div class="d-flex gap-2 mt-3">
                             <button type="button" class="bcc-btn bcc-btn-primary compact-btn" disabled="@busy" @onclick="SaveMenuAsync"><i class="fas fa-save me-1"></i>@(editingMenuId.HasValue ? "Update Meal" : "Add Meal")</button>
@@ -171,13 +173,16 @@ else
                         {
                             <div class="table-responsive">
                                 <table class="table table-sm align-middle mb-0 seating-overview-table">
-                                    <thead><tr><th>Meal</th><th>Status</th><th class="text-end">Action</th></tr></thead>
+                                    <thead><tr><th>Meal</th><th>Quantity</th><th>Allocated</th><th>Remaining</th><th>Status</th><th class="text-end">Action</th></tr></thead>
                                     <tbody>
                                         @foreach (var meal in menuOptions)
                                         {
                                             <tr>
                                                 <td class="fw-semibold">@meal.Name</td>
-                                                <td class="small">@(meal.IsActive ? "Available" : "Inactive")</td>
+                                                <td>@(meal.Quantity?.ToString() ?? "Unlimited")</td>
+                                                <td>@meal.AllocatedQuantity</td>
+                                                <td>@(meal.RemainingQuantity?.ToString() ?? "Unlimited")</td>
+                                                <td class="small">@(!meal.IsActive ? "Inactive" : meal.RemainingQuantity == 0 ? "Sold out" : "Available")</td>
                                                 <td class="text-end"><button type="button" class="bcc-btn profile-form-secondary-btn compact-btn" disabled="@busy" @onclick="() => EditMenu(meal)"><i class="fas fa-pen me-1"></i>Edit</button></td>
                                             </tr>
                                         }
@@ -205,6 +210,7 @@ else
     private int? editingMenuId;
     private string menuName = "";
     private bool menuActive = true;
+    private int? menuQuantity;
     private int selectedEventId;
     private bool mixDirectorates = true;
     private int? editingId;
@@ -270,7 +276,7 @@ else
         busy = true;
         try
         {
-            await MenuService.SaveMenuAsync(selectedEventId, editingMenuId, menuName, menuActive);
+            await MenuService.SaveMenuAsync(selectedEventId, editingMenuId, menuName, menuActive, menuQuantity);
             ResetMenuForm();
             menuOptions = await MenuService.GetMenuAsync(selectedEventId);
             ShowSuccess("Food menu saved successfully.");
@@ -284,6 +290,7 @@ else
         editingMenuId = option.Id;
         menuName = option.Name;
         menuActive = option.IsActive;
+        menuQuantity = option.Quantity;
         message = null;
     }
 
@@ -292,6 +299,7 @@ else
         editingMenuId = null;
         menuName = "";
         menuActive = true;
+        menuQuantity = null;
     }
 
     private void EditTable(EventTable t)
